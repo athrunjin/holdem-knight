@@ -80,6 +80,31 @@ describe("backup file", () => {
     expect(parseBackup(serializeBackup(timed, 1))).toEqual({ ok: true, data: timed });
   });
 
+  it("keeps the table fee and wages on games and saved configs", () => {
+    const game = data.games[0];
+    if (!game) throw new Error("expected a game");
+    const tableFee = { amount: cents(10_000), minMinutes: 30 };
+    const wage = {
+      hourly: cents(2500),
+      adjustment: { kind: "time_of_day", fromHour: 22, toHour: 2, hourly: cents(4000) },
+    } as const;
+    const settings = {
+      currency: "CNY",
+      smallBlindChips: 1,
+      bigBlindChips: 2,
+      chipRatio: { chips: 1, amount: cents(100) },
+      buyInBigBlinds: 100,
+      tableFee,
+      wage,
+    } as const;
+    const charged = {
+      ...data,
+      games: [{ ...game, tableFee, wage }],
+      gameConfigs: [{ id: "c", organizerId: "guest", name: "周五局", settings, createdAt: 1 }],
+    };
+    expect(parseBackup(serializeBackup(charged, 1))).toEqual({ ok: true, data: charged });
+  });
+
   it("reads version 2 backups, which have no saved rules", () => {
     const older = edit((backup) => {
       backup.version = 2;
@@ -226,7 +251,7 @@ describe("backup file", () => {
 
   it("rejects backups from a newer version", () => {
     const text = edit((backup) => {
-      backup.version = 7;
+      backup.version = 8;
     });
     expect(parseBackup(text)).toEqual({ ok: false, issue: "newer-version" });
   });

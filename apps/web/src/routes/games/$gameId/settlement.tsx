@@ -1,4 +1,5 @@
 import {
+  applyCharges,
   attributeInsurance,
   cents,
   chipDifference,
@@ -8,13 +9,16 @@ import {
   chooseInsuranceOwner,
   collectorTransfers,
   type Game,
+  gameCharges,
   INSURANCE_PLAYER_ID,
   INSURANCE_PLAYER_NAME,
   isValidCollector,
+  type LedgerEvent,
   ORGANIZER_COLLECTOR,
   type PlayerLedger,
   reopenGame,
   type SettlementOutcome,
+  seatTimes,
   settleGame,
   settlementOutcome,
   settleTransfers,
@@ -23,11 +27,13 @@ import {
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { ChargesSection } from "@/components/game/ChargesSection";
 import { ImbalanceOptions } from "@/components/game/ImbalanceOptions";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
+import { chargeClock, chargesByPlayer } from "@/lib/charges";
 import { formatDifference, formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
@@ -82,6 +88,7 @@ function SettlementPage() {
               outcome={settlementOutcome(ledger, game.chipRatio, game.imbalanceHandling)}
               differenceChips={difference}
               ledger={ledger}
+              events={events}
               nameOf={nameOf}
             />
           )}
@@ -140,6 +147,7 @@ interface SettlementResultProps {
   outcome: SettlementOutcome;
   differenceChips: number;
   ledger: readonly PlayerLedger[];
+  events: readonly LedgerEvent[];
   nameOf: (playerId: string) => string;
 }
 
@@ -148,11 +156,20 @@ function SettlementResult({
   outcome,
   differenceChips,
   ledger,
+  events,
   nameOf,
 }: SettlementResultProps) {
   const { difference, unresolved } = outcome;
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
-  const { nets, insuranceNet, ownerId } = attributeInsurance(outcome.nets, game.insuranceOwner);
+  const insured = attributeInsurance(outcome.nets, game.insuranceOwner);
+  const { insuranceNet, ownerId } = insured;
+  // Table fees and wages come last, in cash, so they never touch the chip results above
+  const clock = chargeClock(game);
+  const charges = gameCharges(game, events, clock);
+  const charged = applyCharges(insured.nets, charges);
+  const { nets } = charged;
+  const owedBy = chargesByPlayer(charges);
+  const hasCharges = game.tableFee !== undefined || game.wage !== undefined;
   const {
     currency,
     status,
@@ -170,6 +187,7 @@ function SettlementResult({
 
   const seatChips = seat ? seat.cashedOutChips - seat.boughtChips : 0;
   const insuranceText = formatGameMoney(insuranceNet, currency, "exceptZero");
+  const chargesText = formatGameMoney(charged.total, currency);
   const separateInsurance = ownerId === INSURANCE_PLAYER_ID;
 
   const collectorId = isValidCollector(nets, savedCollector) ? savedCollector : undefined;
@@ -184,6 +202,7 @@ function SettlementResult({
       const player = ledger.find((p) => p.playerId === playerId);
       if (!player) return [];
       const netChips = player.cashedOutChips - player.boughtChips;
+      const owed = owedBy.get(playerId);
       return [
         {
           playerId,
@@ -195,6 +214,8 @@ function SettlementResult({
           amount: formatGameMoney(net, currency, "exceptZero"),
           net,
           insured: insuranceNet !== 0 && playerId === ownerId && !separateInsurance,
+          charges: owed && chargeLabel(owed.tableFee, owed.wage),
+          receivesCharges: false,
         },
       ];
     });
@@ -218,8 +239,17 @@ function SettlementResult({
             amount: formatGameMoney(organizerNet, currency, "exceptZero"),
             net: organizerNet,
             insured: insuranceNet !== 0 && ownerId === ORGANIZER_COLLECTOR,
+            charges: undefined,
+            receivesCharges: charged.total !== 0 && charged.recipientId === ORGANIZER_COLLECTOR,
           },
         ];
+
+  /** Short enough for the name column. The section below has the details. */
+  function chargeLabel(tableFee: number, wage: number) {
+    const label = [tableFee !== 0 && "台费", wage !== 0 && "工资"].filter(Boolean).join("");
+    const amount = formatGameMoney(cents(-(tableFee + wage)), currency);
+    return label === "" ? undefined : { label, amount };
+  }
 
   function imbalanceNote() {
     if (difference === 0) return undefined;
@@ -241,7 +271,14 @@ function SettlementResult({
     if (separateInsurance) return `保险 ${insuranceText}，单独列出`;
     return `保险 ${insuranceText}，计入${collectorName(ownerId)}`;
   }
-  const notes = [imbalanceNote(), insuranceNote()].filter((text) => text !== undefined);
+  function chargesNote() {
+    if (charged.total === 0) return undefined;
+    const kinds = [game.tableFee && "台费", game.wage && "工资"].filter(Boolean).join("和");
+    return `${kinds} ${chargesText}，计入${collectorName(charged.recipientId)}`;
+  }
+  const notes = [imbalanceNote(), insuranceNote(), chargesNote()].filter(
+    (text) => text !== undefined,
+  );
 
   async function handleShare() {
     setSharing(true);
@@ -329,13 +366,36 @@ function SettlementResult({
           </thead>
           <tbody>
             {rows.map(
-              ({ playerId, name, hands, chips, netChips, netText, amount, net, insured }) => (
+              ({
+                playerId,
+                name,
+                hands,
+                chips,
+                netChips,
+                netText,
+                amount,
+                net,
+                insured,
+                charges: chargeText,
+                receivesCharges,
+              }) => (
                 <tr key={playerId} className="h-12 border-t border-line tabular-nums">
                   <th scope="row" className="truncate text-left font-medium">
                     {name}
                     {insured && (
                       <span className="block truncate text-xs font-normal text-highlight">
                         含保险 {insuranceText}
+                      </span>
+                    )}
+                    {chargeText && (
+                      <span className="block text-xs leading-tight font-normal whitespace-normal text-win">
+                        {chargeText.label}{" "}
+                        <span className="whitespace-nowrap">{chargeText.amount}</span>
+                      </span>
+                    )}
+                    {receivesCharges && (
+                      <span className="block text-xs leading-tight font-normal whitespace-normal text-win">
+                        含台费工资 <span className="whitespace-nowrap">{chargesText}</span>
                       </span>
                     )}
                   </th>
@@ -356,6 +416,17 @@ function SettlementResult({
             <p key={text}>{text}</p>
           ))}
         </div>
+      )}
+
+      {hasCharges && (
+        <ChargesSection
+          game={game}
+          charges={charges}
+          seatTimes={seatTimes(events, clock.now)}
+          total={charged.total}
+          recipientName={collectorName(charged.recipientId)}
+          nameOf={nameOf}
+        />
       )}
 
       {seat && (

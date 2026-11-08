@@ -132,9 +132,20 @@ export interface NewGameMeta {
   readonly createdAt: Timestamp;
 }
 
-function withHandChips({ insurance, ...settings }: GameSettings) {
-  const game = { ...settings, handChips: handChipsFor(settings) };
-  return insurance ? { ...game, insurance } : game;
+type GameOptions = Pick<GameSettings, "insurance" | "tableFee" | "wage">;
+
+/** Only the options that are on, so a game never stores a key set to undefined. */
+function optionsOf({ insurance, tableFee, wage }: GameOptions) {
+  return {
+    ...(insurance && { insurance }),
+    ...(tableFee && { tableFee }),
+    ...(wage && { wage }),
+  };
+}
+
+function withHandChips(settings: GameSettings) {
+  const { insurance: _, tableFee: _fee, wage: _wage, ...basics } = settings;
+  return { ...basics, handChips: handChipsFor(settings), ...optionsOf(settings) };
 }
 
 export function createGame(meta: NewGameMeta, settings: GameSettings): Game {
@@ -176,18 +187,19 @@ export function reopenGame(game: Game): Game {
  * Updates game settings. Ledger events record chips and amounts come from the ratio,
  * so the currency and chip ratio cannot change once events exist, or existing amounts would change too.
  * Chips per hand are fixed too, or "3 hands" would mean different things within a game.
+ * Options can always change: table fees and wages are only worked out at settlement.
  */
 export function updateGameSettings(
   game: Game,
   settings: GameSettings,
   { hasLedgerEvents }: { readonly hasLedgerEvents: boolean },
 ): Game {
-  const { insurance: _, ...rest } = game;
-  const { smallBlindChips, bigBlindChips, insurance } = settings;
+  const { insurance: _, tableFee: _fee, wage: _wage, ...rest } = game;
+  const { smallBlindChips, bigBlindChips } = settings;
   const updated = hasLedgerEvents
     ? { ...rest, smallBlindChips, bigBlindChips }
     : { ...rest, ...withHandChips(settings) };
-  return insurance ? { ...updated, insurance } : updated;
+  return { ...updated, ...optionsOf(settings) };
 }
 
 /** A game saved before blinds moved to chips (ADR 0011). */

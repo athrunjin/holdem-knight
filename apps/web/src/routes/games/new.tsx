@@ -51,6 +51,8 @@ function NewGamePage() {
   // Carry over the latest game's settings by default
   const start = settings ?? latest ?? DEFAULT_GAME_SETTINGS;
   const configRule = settings?.insurance;
+  const configTableFee = settings?.tableFee;
+  const configWage = settings?.wage;
 
   return (
     <Page
@@ -67,6 +69,12 @@ function NewGamePage() {
           initialInsurance={start.insurance}
           lastInsurance={configRule ?? games.data?.find((game) => game.insurance)?.insurance}
           lastInsuranceLabel={configRule && applied.choice?.name}
+          initialTableFee={start.tableFee}
+          lastTableFee={configTableFee ?? games.data?.find((game) => game.tableFee)?.tableFee}
+          lastTableFeeLabel={configTableFee && applied.choice?.name}
+          initialWage={start.wage}
+          lastWage={configWage ?? games.data?.find((game) => game.wage)?.wage}
+          lastWageLabel={configWage && applied.choice?.name}
           submitLabel="开局"
           saving={saveGame.isPending}
           saveFailed={saveGame.isError}

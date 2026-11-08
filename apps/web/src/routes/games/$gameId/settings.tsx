@@ -42,6 +42,10 @@ function GameSettingsPage() {
         initialInsurance={game.insurance}
         lastInsurance={game.insurance}
         insuranceLocked={insuranceActive(events)}
+        initialTableFee={game.tableFee}
+        lastTableFee={game.tableFee}
+        initialWage={game.wage}
+        lastWage={game.wage}
         saving={saveGame.isPending}
         saveFailed={saveGame.isError}
         onSubmit={handleSubmit}

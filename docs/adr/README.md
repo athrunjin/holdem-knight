@@ -26,6 +26,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0019](0019-entered-stack-updates-table.md) | An all-in player's entered chips update the table at once | Accepted |
 | [0020](0020-holdem-knight-naming.md)        | The product is named Hold’em Knight                       | Accepted |
 | [0021](0021-brand-identity.md)              | Visual identity: the K◇K diamond knight helmet            | Accepted |
+| [0022](0022-table-fee-and-wages.md)         | Table fees and wages as cash charges at settlement        | Accepted |
 
 ## Template
 
