@@ -46,3 +46,4 @@ pnpm check            # Full pre-commit check: lint + typecheck + test + build
 ## Design tokens
 
 Table-felt green is the base and chip gold is the only accent color; dark is the main mode. Tokens are defined in `apps/web/src/styles.css`.
+The logo, icons and brand rules are in `docs/brand/README.md` (ADR 0021).

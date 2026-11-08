@@ -11,15 +11,16 @@ For technology comparisons see the [ADRs](adr/), and for scheduling see the [roa
 
 ## Product name
 
-The English name leads for now, including on the home screen. The Chinese names are on record only and aren't shown in the app yet. See [ADR 0020](adr/0020-holdem-knight-naming.md).
+The English name leads for now, including on the home screen. The Chinese names are on record only and aren't shown in the app yet. See [ADR 0020](adr/0020-holdem-knight-naming.md) and [ADR 0021](adr/0021-brand-identity.md).
 
 | Where | English | Chinese |
 | --- | --- | --- |
 | Brand (everyday name, logo) | Hold’em Knight | 有局 |
 | Full name (app stores, page title) | Hold’em Knight · Tablebook | 有局·德州账本 |
-| Home screen icon | Knight | 有局 |
+| Home screen icon | Holdem Knight | 有局 |
 | Slogan (optional) | — | 你的守局骑士 |
 | Code, domain, packages | `holdem-knight` (no apostrophe) | — |
+| Visual identity | See [docs/brand/README.md](brand/README.md) | — |
 
 ## Original requirements
 

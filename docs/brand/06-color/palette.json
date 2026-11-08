@@ -1,0 +1,62 @@
+[
+  {
+    "token": "felt-950",
+    "hex": "#0e1b16",
+    "usage": "Deepest base: dark-mode page background; text on light backgrounds",
+    "name": "Felt 950"
+  },
+  {
+    "token": "felt-900",
+    "hex": "#13241e",
+    "usage": "Splash and share image background; manifest theme_color; helmet",
+    "name": "Felt 900"
+  },
+  {
+    "token": "felt-800",
+    "hex": "#1a3129",
+    "usage": "Dark cards",
+    "name": "Felt 800"
+  },
+  {
+    "token": "felt-700",
+    "hex": "#1d5c47",
+    "usage": "Primary brand green: app icon background; emblem stems on light backgrounds",
+    "name": "Felt 700"
+  },
+  {
+    "token": "felt-500",
+    "hex": "#3f9a78",
+    "usage": "Accent green in dark mode",
+    "name": "Felt 500"
+  },
+  {
+    "token": "felt-100",
+    "hex": "#e3ebe6",
+    "usage": "Light dividers and textures",
+    "name": "Felt 100"
+  },
+  {
+    "token": "felt-50",
+    "hex": "#f2f5f2",
+    "usage": "Light-mode page background",
+    "name": "Felt 50"
+  },
+  {
+    "token": "bone",
+    "hex": "#f3efe2",
+    "usage": "Stems and text on dark backgrounds",
+    "name": "Bone"
+  },
+  {
+    "token": "chip-gold",
+    "hex": "#d6b04c",
+    "usage": "The only accent: diamond, helmet visor, wordmark dot",
+    "name": "Chip Gold"
+  },
+  {
+    "token": "chip-gold-deep",
+    "hex": "#9a7a22",
+    "usage": "Gold text on light backgrounds (for contrast)",
+    "name": "Chip Gold Deep"
+  }
+]

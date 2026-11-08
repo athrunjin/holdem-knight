@@ -1,0 +1,12 @@
+:root {
+  --color-felt-950: #0e1b16; /* Deepest base: dark-mode page background; text on light backgrounds */
+  --color-felt-900: #13241e; /* Splash and share image background; manifest theme_color; helmet */
+  --color-felt-800: #1a3129; /* Dark cards */
+  --color-felt-700: #1d5c47; /* Primary brand green: app icon background; emblem stems on light backgrounds */
+  --color-felt-500: #3f9a78; /* Accent green in dark mode */
+  --color-felt-100: #e3ebe6; /* Light dividers and textures */
+  --color-felt-50: #f2f5f2; /* Light-mode page background */
+  --color-bone: #f3efe2; /* Stems and text on dark backgrounds */
+  --color-chip-gold: #d6b04c; /* The only accent: diamond, helmet visor, wordmark dot */
+  --color-chip-gold-deep: #9a7a22; /* Gold text on light backgrounds (for contrast) */
+}

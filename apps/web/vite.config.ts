@@ -18,10 +18,10 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "prompt",
-      includeAssets: ["favicon.svg", "apple-touch-icon.png"],
+      includeAssets: ["favicon.svg", "favicon.ico", "apple-touch-icon.png", "og-image.png"],
       manifest: {
         name: "Hold’em Knight · Tablebook",
-        short_name: "Knight",
+        short_name: "Holdem Knight",
         description: "线下德州扑克组局助手：买入记账、结算、保险、抽水、计时",
         lang: "zh-CN",
         theme_color: "#13241e",
