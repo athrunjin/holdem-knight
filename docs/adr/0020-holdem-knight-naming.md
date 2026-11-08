@@ -1,6 +1,6 @@
 # 0020. The product is named Hold’em Knight
 
-- Status: Accepted
+- Status: Accepted. The home screen name is superseded by [0021](0021-brand-identity.md)
 - Date: 2026-11-07
 
 ## Context

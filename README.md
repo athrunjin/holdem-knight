@@ -1,4 +1,9 @@
-# Hold’em Knight · Tablebook
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/05-lockup/lockup-appicon-on-dark.svg" />
+    <img src="docs/brand/05-lockup/lockup-appicon-on-light.svg" alt="Hold’em Knight · Tablebook" width="480" />
+  </picture>
+</h1>
 
 An assistant for organizers of live Texas Hold'em games. It handles these jobs at the table:
 

@@ -13,7 +13,8 @@
       "!**/routeTree.gen.ts",
       "!**/dist",
       "!**/dev-dist",
-      "!**/*.md"
+      "!**/*.md",
+      "!docs/brand/**/*.svg"
     ]
   },
   "formatter": {
