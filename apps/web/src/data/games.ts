@@ -1,8 +1,9 @@
-import { type Game, hasPlayerEvents } from "@holdem-knight/core";
+import { type Game, hasPlayerEvents, type LedgerEvent } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { repository } from ".";
 import { seatEvents } from "./insurance";
+import { newEventMeta } from "./ledger";
 
 const GAMES_KEY = ["games"] as const;
 
@@ -40,6 +41,41 @@ export function useSaveGameSettings() {
       await repository.games.save(game);
       const events = await repository.ledger.listByGame(game.id);
       await repository.ledger.appendAll(seatEvents(game, events));
+    },
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: GAMES_KEY }),
+        queryClient.invalidateQueries({ queryKey: ["ledger"] }),
+      ]),
+  });
+}
+
+interface StartGameInput {
+  readonly game: Game;
+  /** Players who sit down at the start, each buying in one hand. */
+  readonly playerIds: readonly string[];
+}
+
+/** Saves a new game, then seats the insurance seat and the starting players in one write. */
+export function useStartGame() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ game, playerIds }: StartGameInput) => {
+      await repository.games.save(game);
+      const { id, createdAt, handChips } = game;
+      // New games always count in hands
+      const buyIns =
+        handChips === undefined
+          ? []
+          : playerIds.map(
+              (playerId): LedgerEvent => ({
+                ...newEventMeta(id, createdAt),
+                type: "buy_in",
+                playerId,
+                chips: handChips,
+              }),
+            );
+      await repository.ledger.appendAll([...seatEvents(game, []), ...buyIns]);
     },
     onSuccess: () =>
       Promise.all([

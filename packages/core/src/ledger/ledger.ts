@@ -223,6 +223,22 @@ export function adjustHands(
   return { reversedEventIds, buy: { type, chips: -remaining } };
 }
 
+/**
+ * Players with chip events still in effect, latest first, across any number of games.
+ * The insurance seat is left out, and so is a player whose only buy-in was reversed.
+ */
+export function recentPlayerIds(events: readonly LedgerEvent[], limit: number): string[] {
+  const latest = new Map<string, number>();
+  for (const { playerId, occurredAt } of activeChipEvents(events)) {
+    if (playerId === INSURANCE_PLAYER_ID) continue;
+    latest.set(playerId, Math.max(latest.get(playerId) ?? occurredAt, occurredAt));
+  }
+  return [...latest]
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, limit)
+    .map(([playerId]) => playerId);
+}
+
 /** Everything except the insurance seat's own buy-in, which is written when the game starts. */
 export function hasPlayerEvents(events: readonly LedgerEvent[]): boolean {
   const byId = new Map(events.map((e) => [e.id, e]));

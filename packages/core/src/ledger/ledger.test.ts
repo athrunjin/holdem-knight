@@ -24,6 +24,7 @@ import {
   latestCashOut,
   ledgerTotals,
   nextBuyType,
+  recentPlayerIds,
   soleBuyIn,
   summarizeByPlayer,
 } from "./ledger";
@@ -658,5 +659,50 @@ describe("insurance", () => {
     expect(hasPlayerEvents([chip("s", "buy_in", seat, 1000)])).toBe(false);
     expect(hasPlayerEvents([chip("s", "buy_in", seat, 1000), reversal("r", "s")])).toBe(false);
     expect(hasPlayerEvents(start)).toBe(true);
+  });
+});
+
+describe("recentPlayerIds", () => {
+  const at = (occurredAt: number, event: LedgerEvent): LedgerEvent => ({ ...event, occurredAt });
+
+  it("puts the latest player first, using each player's latest event", () => {
+    const events = [
+      at(1, chip("1", "buy_in", "a", 100)),
+      at(2, chip("2", "buy_in", "b", 100)),
+      at(3, chip("3", "rebuy", "a", 100)),
+      at(4, { ...chip("4", "buy_in", "c", 100), gameId: "g2" }),
+    ];
+    expect(recentPlayerIds(events, 10)).toEqual(["c", "a", "b"]);
+  });
+
+  it("keeps to the limit", () => {
+    const events = ["a", "b", "c"].map((id, i) => at(i, chip(id, "buy_in", id, 100)));
+    expect(recentPlayerIds(events, 2)).toEqual(["c", "b"]);
+  });
+
+  it("leaves out the insurance seat and players taken back out", () => {
+    const events = [
+      at(1, chip("1", "buy_in", INSURANCE_PLAYER_ID, 100)),
+      at(2, chip("2", "buy_in", "a", 100)),
+      at(3, chip("3", "buy_in", "b", 100)),
+      at(4, reversal("4", "3")),
+    ];
+    expect(recentPlayerIds(events, 10)).toEqual(["a"]);
+  });
+
+  it("returns each player once, at most the limit", () => {
+    const event = fc
+      .tuple(fc.constantFrom("a", "b", "c", "d"), fc.nat(1000))
+      .map(([playerId, time]) => [playerId, time] as const);
+    fc.assert(
+      fc.property(fc.array(event), fc.nat(5), (pairs, limit) => {
+        const events = pairs.map(([playerId, time], i) =>
+          at(time, chip(String(i), "buy_in", playerId, 100)),
+        );
+        const ids = recentPlayerIds(events, limit);
+        expect(new Set(ids).size).toBe(ids.length);
+        expect(ids.length).toBe(Math.min(limit, new Set(pairs.map(([id]) => id)).size));
+      }),
+    );
   });
 });

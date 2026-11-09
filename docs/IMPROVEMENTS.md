@@ -54,8 +54,11 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The bottom bar takes one row: a 开局后直接开始计时 tick box, unticked by default and not remembered, and the start button. The button reads 开局 with nobody picked and 开局 · N 人 otherwise.
   - Picked names sit above it in pick order, wrapping onto up to three rows and then scrolling. Tapping a name unpicks it.
   - The layout was checked on a phone with a preview build that used sample players.
+  - The settings button now reads 下一步：选择玩家. 设置 at the top right goes back to the settings as they were typed.
+  - Recent players come from the latest 20 games, by each player's latest buy-in, rebuy or cash-out still in effect. The insurance seat is left out.
+  - Starting saves the game, then the insurance seat and the starting buy-ins in one ledger write, all timed at the moment of starting. A ticked clock starts at that moment too.
 - Decision: do. Recent players come from past games, so this needs no sign-in and does not wait for M6.
-- Tracking: preview on branch `feat/player-picker`; no issue yet
+- Tracking: branch `feat/player-picker`; no issue yet
 
 ## Done
 
