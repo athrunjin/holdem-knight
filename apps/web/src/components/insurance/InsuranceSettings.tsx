@@ -126,9 +126,8 @@ export function InsuranceSettings({
     <section className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
         label="保险"
-        detail={
-          locked ? "这局已有保险记录，不能关闭" : "开启后「保险」作为一席加入牌局，默认买入 1 手"
-        }
+        {...(locked && { detail: "这局已有保险记录，不能关闭" })}
+        info="开启后「保险」作为一席加入牌局，默认买入 1 手"
         checked={enabled}
         disabled={locked}
         onChange={(checked) => onChange({ ...value, enabled: checked })}

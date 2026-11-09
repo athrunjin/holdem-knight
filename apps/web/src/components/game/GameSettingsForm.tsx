@@ -266,14 +266,7 @@ export function GameSettingsForm({
           </p>
         )}
 
-        <div className={onSaveConfig ? "grid grid-cols-[2fr_1fr] gap-2" : "grid"}>
-          <button
-            type="submit"
-            disabled={saving}
-            className="min-h-12 rounded-xl bg-accent px-6 font-semibold text-accent-text disabled:opacity-60"
-          >
-            {submitLabel}
-          </button>
+        <div className={onSaveConfig ? "grid grid-cols-[1fr_2fr] gap-2" : "grid"}>
           {onSaveConfig && (
             <button
               type="button"
@@ -286,6 +279,13 @@ export function GameSettingsForm({
               保存当前配置
             </button>
           )}
+          <button
+            type="submit"
+            disabled={saving}
+            className="min-h-12 rounded-xl bg-accent px-6 font-semibold text-accent-text disabled:opacity-60"
+          >
+            {submitLabel}
+          </button>
         </div>
       </form>
 

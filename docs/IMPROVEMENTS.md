@@ -34,7 +34,33 @@ Records discussions of feature and process improvements: what was proposed, how 
 
 ## Decided, waiting for development
 
-(none)
+### #I-034 Pick the starting players after game setup
+
+- Type: feature
+- Date: proposed and decided 2026-11-09
+- Source: discussion
+- Problem: after 开局 on 开局设置, the organizer lands in an empty game and adds each player one by one, even though most games bring back the same faces.
+- Proposal:
+  - Tapping 开局 opens a 选择玩家 step before the game starts.
+  - Three layouts were compared as previews: pills, tiles and a compact list. The tiles were chosen.
+- Settled details:
+  - 最近玩家 at the top: the people from recent games, as tiles with the first character in a circle, four to a row and at most three rows (12 people). A tap lights a tile and a second tap clears it.
+  - 全部玩家 below holds every player, recent ones included, sorted by pinyin initials and grouped by their first letter. A letter gets a heading only when someone falls under it. Each row has a tick box on the right.
+  - A letter index down the right edge highlights the current letter while scrolling. A tap jumps to that letter. Holding it enlarges the index and shows the letter in a large bubble, and sliding up or down jumps as the finger passes each letter.
+  - To the right of 全部玩家 sit a group choice (全部 by default), a filter button and a sort button. For now each shows a 开发中 notice.
+  - One search box filters both sections by name or pinyin initials. When nothing matches, 新建「name」并选中 adds the player and picks them.
+  - Each picked player buys in 1 hand. The number of hands can't be changed here.
+  - Starting with nobody picked is allowed.
+  - The bottom bar takes one row: a 开局后直接开始计时 tick box, unticked by default and not remembered, and the start button. The button reads 开局 with nobody picked and 开局 · N 人 otherwise.
+  - Picked names sit above it in pick order, wrapping onto up to three rows and then scrolling. Tapping a name unpicks it.
+  - The layout was checked on a phone with a preview build that used sample players.
+  - The settings button now reads 下一步：选择玩家 and sits on the right, with 保存当前配置 on the left. 设置 at the top right goes back to the settings as they were typed.
+  - Both steps end with the same pair: a narrow item on the left and a wide button on the right, both 48px tall.
+  - On 开局设置, 保险, 台费 and 工资 no longer show their description under the name. An info button next to the name shows it in a dialog.
+  - Recent players come from the latest 20 games: the newest game's players first, and players from the same game in alphabetical order. Each player appears once, at their newest game. The insurance seat and players taken back out are left out.
+  - Starting saves the game, then the insurance seat and the starting buy-ins in one ledger write, all timed at the moment of starting. A ticked clock starts at that moment too.
+- Decision: do. Recent players come from past games, so this needs no sign-in and does not wait for M6.
+- Tracking: branch `feat/player-picker`; no issue yet
 
 ## Done
 

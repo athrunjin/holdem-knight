@@ -1,4 +1,4 @@
-import type { Player } from "@holdem-knight/core";
+import { type Player, recentPlayers } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { toInitials } from "@/lib/pinyin";
@@ -25,5 +25,23 @@ export function useSavePlayer() {
   return useMutation({
     mutationFn: (player: Player) => repository.players.save(player),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: PLAYERS_KEY }),
+  });
+}
+
+/** How many of the latest games to look through for recent players. */
+const RECENT_GAMES = 20;
+
+/** Players from the latest games, newest game first. Kept under the ledger key, so new events refresh it. */
+export function useRecentPlayers(limit: number) {
+  return useQuery({
+    queryKey: ["ledger", "recent-players", limit],
+    queryFn: async () => {
+      const games = (await repository.games.list()).slice(0, RECENT_GAMES);
+      const [players, events] = await Promise.all([
+        repository.players.list(),
+        Promise.all(games.map(({ id }) => repository.ledger.listByGame(id))),
+      ]);
+      return recentPlayers(events, players, limit);
+    },
   });
 }

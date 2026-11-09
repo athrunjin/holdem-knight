@@ -2,7 +2,13 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import type { Player } from "../domain";
-import { MAX_PLAYER_NAME_LENGTH, parsePlayerName, searchPlayers } from "./player";
+import {
+  groupByInitial,
+  initialLetter,
+  MAX_PLAYER_NAME_LENGTH,
+  parsePlayerName,
+  searchPlayers,
+} from "./player";
 
 const player = (name: string, initials: string): Player => ({
   id: name,
@@ -76,6 +82,58 @@ describe("searchPlayers", () => {
         const all = [...others, target];
         expect(searchPlayers(all, target.name)).toContain(target);
         expect(searchPlayers(all, target.initials)).toContain(target);
+      }),
+    );
+  });
+});
+
+describe("initialLetter", () => {
+  it.each([
+    ["zs", "Z"],
+    ["Ace", "A"],
+    ["2pang", "#"],
+    ["", "#"],
+  ])("gives %j the letter %j", (initials, letter) => {
+    expect(initialLetter({ initials })).toBe(letter);
+  });
+});
+
+describe("groupByInitial", () => {
+  const groups = (players: Player[]) =>
+    groupByInitial(players).map(({ letter, players: members }) => [
+      letter,
+      members.map((p) => p.name),
+    ]);
+
+  it("only gives letters that have someone, in order, with # last", () => {
+    const players = [
+      player("张三", "zs"),
+      player("8号", "8h"),
+      player("Alex", "alex"),
+      player("阿杰", "aj"),
+      player("包子", "bz"),
+    ];
+    expect(groups(players)).toEqual([
+      ["A", ["阿杰", "Alex"]],
+      ["B", ["包子"]],
+      ["Z", ["张三"]],
+      ["#", ["8号"]],
+    ]);
+  });
+
+  it("sorts players with the same initials by name", () => {
+    expect(groups([player("王总", "wz"), player("王子", "wz")])).toEqual([["W", ["王子", "王总"]]]);
+  });
+
+  it("keeps every player exactly once", () => {
+    const anyPlayer = fc
+      .tuple(fc.uuid(), fc.stringMatching(/^[a-z0-9]{0,4}$/))
+      .map(([name, initials]) => player(name, initials));
+    fc.assert(
+      fc.property(fc.array(anyPlayer), (players) => {
+        const flat = groupByInitial(players).flatMap((group) => group.players);
+        expect(flat).toHaveLength(players.length);
+        expect(new Set(flat)).toEqual(new Set(players));
       }),
     );
   });

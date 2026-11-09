@@ -7,6 +7,7 @@ import {
   type InsuranceBuyEvent,
   type InsuranceSettleEvent,
   type LedgerEvent,
+  type Player,
   type ReversalEvent,
 } from "../domain";
 import { RULE_30 } from "../insurance";
@@ -24,6 +25,7 @@ import {
   latestCashOut,
   ledgerTotals,
   nextBuyType,
+  recentPlayers,
   soleBuyIn,
   summarizeByPlayer,
 } from "./ledger";
@@ -658,5 +660,66 @@ describe("insurance", () => {
     expect(hasPlayerEvents([chip("s", "buy_in", seat, 1000)])).toBe(false);
     expect(hasPlayerEvents([chip("s", "buy_in", seat, 1000), reversal("r", "s")])).toBe(false);
     expect(hasPlayerEvents(start)).toBe(true);
+  });
+});
+
+describe("recentPlayers", () => {
+  const person = (id: string, initials: string): Player => ({
+    id,
+    organizerId: "me",
+    name: id,
+    initials,
+    createdAt: 1,
+  });
+  const ace = person("Ace", "ace");
+  const ben = person("Ben", "ben");
+  const zoe = person("Zoe", "zoe");
+  const kim = person("Kim", "kim");
+  const everyone = [ace, ben, zoe, kim];
+  const buyIn = (id: string, playerId: string) => chip(id, "buy_in", playerId, 100);
+  const names = (games: LedgerEvent[][], limit = 12) =>
+    recentPlayers(games, everyone, limit).map((p) => p.name);
+
+  it("puts the newest game first, and one game's players in alphabetical order", () => {
+    const newest = [buyIn("1", "Zoe"), buyIn("2", "Ace")];
+    const older = [buyIn("3", "Kim"), buyIn("4", "Ben")];
+    expect(names([newest, older])).toEqual(["Ace", "Zoe", "Ben", "Kim"]);
+  });
+
+  it("lists a player once, at their newest game", () => {
+    const newest = [buyIn("1", "Zoe")];
+    const older = [buyIn("2", "Ace"), buyIn("3", "Zoe")];
+    expect(names([newest, older])).toEqual(["Zoe", "Ace"]);
+  });
+
+  it("keeps to the limit", () => {
+    expect(names([[buyIn("1", "Zoe"), buyIn("2", "Ace"), buyIn("3", "Ben")]], 2)).toEqual([
+      "Ace",
+      "Ben",
+    ]);
+  });
+
+  it("leaves out the insurance seat, players taken back out and unknown players", () => {
+    const game = [
+      buyIn("1", INSURANCE_PLAYER_ID),
+      buyIn("2", "Ace"),
+      buyIn("3", "Ben"),
+      reversal("4", "3"),
+      buyIn("5", "deleted"),
+    ];
+    expect(names([game])).toEqual(["Ace"]);
+  });
+
+  it("returns each player once, at most the limit", () => {
+    const game = fc.array(fc.constantFrom("Ace", "Ben", "Zoe", "Kim", "nobody"));
+    fc.assert(
+      fc.property(fc.array(game), fc.nat(5), (games, limit) => {
+        const events = games.map((ids, g) => ids.map((id, i) => buyIn(`${g}-${i}`, id)));
+        const result = recentPlayers(events, everyone, limit);
+        const known = new Set(games.flat().filter((id) => id !== "nobody"));
+        expect(new Set(result).size).toBe(result.length);
+        expect(result.length).toBe(Math.min(limit, known.size));
+      }),
+    );
   });
 });

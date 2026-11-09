@@ -39,3 +39,46 @@ export function searchPlayers(players: readonly Player[], query: string): Player
     (player) => comparable(player.name).includes(key) || player.initials.includes(key),
   );
 }
+
+/** Players sharing a heading letter, in the order of the alphabet. */
+export interface InitialGroup<T> {
+  /** A to Z, or # for a name that starts with anything else. */
+  readonly letter: string;
+  readonly players: readonly T[];
+}
+
+/** The heading letter for a player: the first of their initials, or # for anything but a letter. */
+export function initialLetter({ initials }: Pick<Player, "initials">): string {
+  const first = initials.charAt(0).toUpperCase();
+  return first >= "A" && first <= "Z" ? first : "#";
+}
+
+/**
+ * Groups players under the first letter of their initials, A to Z then #. Only letters with
+ * someone appear. Within a letter, players sort by initials, then by name.
+ */
+export function groupByInitial<T extends Pick<Player, "name" | "initials">>(
+  players: readonly T[],
+): InitialGroup<T>[] {
+  const sorted = [...players].sort(comparePlayers);
+  const groups = new Map<string, T[]>();
+  for (const player of sorted) {
+    const letter = initialLetter(player);
+    groups.set(letter, [...(groups.get(letter) ?? []), player]);
+  }
+  return [...groups]
+    .sort(([a], [b]) => (a === "#" ? 1 : b === "#" ? -1 : compare(a, b)))
+    .map(([letter, members]) => ({ letter, players: members }));
+}
+
+/** Alphabetical order: by initials, then by name. */
+export function comparePlayers(
+  a: Pick<Player, "name" | "initials">,
+  b: Pick<Player, "name" | "initials">,
+): number {
+  return compare(a.initials, b.initials) || compare(a.name, b.name);
+}
+
+function compare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
