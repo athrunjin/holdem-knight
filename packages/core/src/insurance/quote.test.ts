@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { InsuranceRule } from "../domain";
 import {
+  outsHitChance,
   payoutFor,
   premiumFor,
   premiumForNet,
@@ -156,5 +157,17 @@ describe("rule tables", () => {
       ok: false,
       issues: { odds: [2], turnCapPercent: true },
     });
+  });
+});
+
+describe("outsHitChance", () => {
+  it("divides the outs by the cards nobody has seen", () => {
+    expect(outsHitChance("turn", 9)).toBe(9 / 45);
+    expect(outsHitChance("river", 11)).toBe(1 / 4);
+    expect(outsHitChance("river", 0)).toBe(0);
+  });
+
+  it("never goes past certain", () => {
+    expect(outsHitChance("river", 50)).toBe(1);
   });
 });
