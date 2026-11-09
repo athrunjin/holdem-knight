@@ -121,7 +121,7 @@ function settle(game: Game, recorded: readonly LedgerEvent[], nameOf: (id: strin
     ...(hasCharges
       ? {
           chargesTotal: charged.total,
-          charges: seatTimes(events, clock.now).map(({ playerId, seatedMs }) => ({
+          charges: seatTimes(game, events, clock.now).map(({ playerId, seatedMs }) => ({
             name: nameOf(playerId),
             seatedMinutes: Math.floor(seatedMs / 60_000),
             tableFee: cents(owed.get(playerId)?.tableFee ?? 0),

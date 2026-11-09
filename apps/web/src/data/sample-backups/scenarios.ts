@@ -111,11 +111,13 @@ interface GameSetup
   readonly ratio: { readonly chips: number; readonly amount: number };
   /** Minutes after the start; missing leaves the game open. */
   readonly settledAfter?: number;
+  /** Runs of the game clock as [start, pause] in minutes after the start, all paused. */
+  readonly clock?: readonly (readonly [number, number])[];
 }
 
 /** Builds one game and its ledger. Times are minutes after 19:00 Beijing time on the game's day. */
 function sampleGame(slug: string, setup: GameSetup) {
-  const { day, buyInBigBlinds, ratio, settledAfter, ...settings } = setup;
+  const { day, buyInBigBlinds, ratio, settledAfter, clock, ...settings } = setup;
   const gameId = `sample-game-${slug}`;
   const start = Date.UTC(2026, 0, day, 11, 0);
   const at = (minute: number) => start + Math.round(minute * MINUTE);
@@ -143,6 +145,12 @@ function sampleGame(slug: string, setup: GameSetup) {
     status: settledAfter === undefined ? "open" : "settled",
     createdAt: start,
     ...(settledAfter === undefined ? {} : { settledAt: at(settledAfter) }),
+    ...(clock && {
+      timer: {
+        elapsedMs: clock.reduce((total, [from, to]) => total + at(to) - at(from), 0),
+        runs: clock.map(([from, to]) => ({ from: at(from), to: at(to) })),
+      },
+    }),
   };
 
   const chipEvent =
@@ -460,6 +468,10 @@ function charges(): SampleScenario {
       adjustment: { kind: "after_start", afterHours: 3, hourly: cents(5000) },
     },
     settledAfter: 310,
+    clock: [
+      [0, 120],
+      [140, 310],
+    ],
   });
   g.buyIn("zw", 0, 200);
   g.buyIn("wf", 0.25, 200);
@@ -477,35 +489,37 @@ function charges(): SampleScenario {
     slug: "06-table-fee-and-wages",
     title: "Table fee and wages",
     checks: [
-      "Table fee ¥20 a head after 60 minutes at the table. Wages ¥30 an hour, ¥50 an hour from 3 hours after the first player sat down (22:00).",
-      "王芳 sat 45 minutes: no table fee, 45 minutes of wages.",
-      "李娜 left at 21:30 and came back at 22:20 (返回): 120 minutes at ¥30 and 70 at ¥50, ¥118.33 after rounding.",
-      "刘洋 sat 109 minutes 30 seconds: the part minute is not charged, so 109 minutes, ¥54.50.",
+      "The game clock ran 19:00–21:00, was paused for 20 minutes, then ran from 21:20 to settlement. Only time while it ran counts.",
+      "Table fee ¥20 a head after 60 counted minutes. Wages ¥30 an hour, ¥50 an hour once the clock shows 3 hours (22:20).",
+      "张伟 sat 300 minutes, 280 counted: 180 at ¥30 and 100 at ¥50, ¥173.33.",
+      "王芳 sat 45 minutes before the pause: no table fee, ¥22.50 of wages.",
+      "李娜 left at 21:30 and came back at 22:20 (返回): 170 counted minutes, 100 at ¥30 and 70 at ¥50, ¥108.33.",
+      "刘洋 counted 89 minutes 30 seconds: the part minute is not charged, so 89 minutes, ¥44.50.",
       "The charges come off each player's cash result and go to the organizer, so the chips still balance while the amounts do not match the chips.",
     ],
     data: g.data(),
     expected: {
       differenceChips: 0,
       difference: cents(0),
-      chargesTotal: cents(44533),
+      chargesTotal: cents(40866),
       charges: [
-        { name: "张伟", seatedMinutes: 300, tableFee: cents(2000), wage: cents(19000) },
+        { name: "张伟", seatedMinutes: 280, tableFee: cents(2000), wage: cents(17333) },
         { name: "王芳", seatedMinutes: 45, tableFee: cents(0), wage: cents(2250) },
-        { name: "李娜", seatedMinutes: 190, tableFee: cents(2000), wage: cents(11833) },
-        { name: "刘洋", seatedMinutes: 109, tableFee: cents(2000), wage: cents(5450) },
+        { name: "李娜", seatedMinutes: 170, tableFee: cents(2000), wage: cents(10833) },
+        { name: "刘洋", seatedMinutes: 89, tableFee: cents(2000), wage: cents(4450) },
       ],
       results: [
-        { name: "张伟", hands: 1, cashedOutChips: 610, netChips: 410, net: cents(20000) },
+        { name: "张伟", hands: 1, cashedOutChips: 610, netChips: 410, net: cents(21667) },
+        { name: "刘洋", hands: 1, cashedOutChips: 200, netChips: 0, net: cents(-6450) },
         { name: "王芳", hands: 1, cashedOutChips: 150, netChips: -50, net: cents(-7250) },
-        { name: "刘洋", hands: 1, cashedOutChips: 200, netChips: 0, net: cents(-7450) },
-        { name: "李娜", hands: 2, cashedOutChips: 40, netChips: -360, net: cents(-49833) },
-        { name: "组织者", netChips: 0, net: cents(44533) },
+        { name: "李娜", hands: 2, cashedOutChips: 40, netChips: -360, net: cents(-48833) },
+        { name: "组织者", netChips: 0, net: cents(40866) },
       ],
       transfers: [
-        { from: "李娜", to: "组织者", amount: cents(44533) },
-        { from: "刘洋", to: "张伟", amount: cents(7450) },
+        { from: "李娜", to: "组织者", amount: cents(40866) },
+        { from: "李娜", to: "张伟", amount: cents(7967) },
         { from: "王芳", to: "张伟", amount: cents(7250) },
-        { from: "李娜", to: "张伟", amount: cents(5300) },
+        { from: "刘洋", to: "张伟", amount: cents(6450) },
       ],
     },
   };

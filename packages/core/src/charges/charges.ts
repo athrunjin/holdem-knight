@@ -1,14 +1,15 @@
 /**
  * Table fees and wages: cash each player pays the organizer at settlement, outside the chips (ADR 0022).
- * Both come from time at the table, so they need no events of their own.
+ * Both come from time at the table while the game clock runs, so they need no events of their own.
  */
-import type { Game, LedgerEvent, TableFeeRule, Timestamp, WageRule } from "../domain";
+import type { Game, LedgerEvent, TableFeeRule, TimerRun, Timestamp, WageRule } from "../domain";
 import { INSURANCE_PLAYER_ID } from "../domain";
+import { timerRuns } from "../game";
 import { summarizeByPlayer } from "../ledger";
 import { type Cents, cents, multiply, sum, ZERO } from "../money";
 import type { PlayerNet } from "../settlement";
 import { ORGANIZER_COLLECTOR } from "../settlement";
-import { type SeatSession, seatedMs, seatSessions } from "./seat-time";
+import { type SeatSession, seatedMs, seatSessions, withinRuns } from "./seat-time";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -40,11 +41,11 @@ function inHours(minute: number, fromHour: number, toHour: number) {
   return from < to ? minute >= from && minute < to : minute >= from || minute < to;
 }
 
-/** The hourly rate for the minute starting at `time`. */
+/** The hourly rate at `time`. An after-hours rate applies from `switchAt`. */
 export function wageRateAt(
   rule: WageRule,
   time: Timestamp,
-  startedAt: Timestamp,
+  switchAt: Timestamp,
   minuteOfDay: ChargeClock["minuteOfDay"],
 ): Cents {
   const { adjustment } = rule;
@@ -52,8 +53,18 @@ export function wageRateAt(
   const applies =
     adjustment.kind === "time_of_day"
       ? inHours(minuteOfDay(time), adjustment.fromHour, adjustment.toHour)
-      : time - startedAt >= adjustment.afterHours * HOUR;
+      : time >= switchAt;
   return applies ? adjustment.hourly : rule.hourly;
+}
+
+/** When the clock has run for `ms`, or Infinity if it has not run that long. */
+export function clockReaches(runs: readonly TimerRun[], ms: number): Timestamp {
+  let left = ms;
+  for (const { from, to } of runs) {
+    if (to - from >= left) return from + left;
+    left -= to - from;
+  }
+  return Infinity;
 }
 
 /**
@@ -64,12 +75,9 @@ export function wageRateAt(
 export function wageFor(
   rule: WageRule,
   sessions: readonly SeatSession[],
-  startedAt: Timestamp,
+  switchAt: Timestamp,
   { now, minuteOfDay }: ChargeClock,
 ): Cents {
-  const { adjustment } = rule;
-  const switchAt =
-    adjustment?.kind === "after_start" ? startedAt + adjustment.afterHours * HOUR : Infinity;
   // Rates change on the minute or at `switchAt`, so step between those and weigh each step by its length
   let rateMs = 0;
   let totalMs = 0;
@@ -77,7 +85,7 @@ export function wageFor(
     for (let time = from; time < to; ) {
       const nextMinute = (Math.floor(time / MINUTE) + 1) * MINUTE;
       const next = Math.min(to, nextMinute, switchAt > time ? switchAt : Infinity);
-      rateMs += wageRateAt(rule, time, startedAt, minuteOfDay) * (next - time);
+      rateMs += wageRateAt(rule, time, switchAt, minuteOfDay) * (next - time);
       totalMs += next - time;
       time = next;
     }
@@ -92,29 +100,61 @@ export interface PlayerSeatTime {
   readonly seatedMs: number;
 }
 
-/** Time at the table for each player in the game, in ledger order. The insurance seat has none. */
-export function seatTimes(events: readonly LedgerEvent[], now: Timestamp): PlayerSeatTime[] {
-  const sessions = seatSessions(events);
+/**
+ * Each player's counted sessions: their time at the table while the game clock ran. Before the clock
+ * starts, and while it is paused, nobody's time counts. A clock from before runs were kept has an
+ * unknown history, so its game counts all time at the table.
+ */
+function countedSessions(
+  game: Pick<Game, "timer">,
+  events: readonly LedgerEvent[],
+  now: Timestamp,
+): { sessions: Map<string, SeatSession[]>; runs: TimerRun[] | undefined } {
+  const all = seatSessions(events);
+  const runs = timerRuns(game.timer, now);
+  if (!runs) return { sessions: all, runs };
+  const sessions = new Map([...all].map(([id, own]) => [id, withinRuns(own, runs, now)]));
+  return { sessions, runs };
+}
+
+/** Counted time for each player in the game, in ledger order. The insurance seat has none. */
+export function seatTimes(
+  game: Pick<Game, "timer">,
+  events: readonly LedgerEvent[],
+  now: Timestamp,
+): PlayerSeatTime[] {
+  const { sessions } = countedSessions(game, events, now);
   return summarizeByPlayer(events)
     .filter((p) => p.playerId !== INSURANCE_PLAYER_ID)
     .map(({ playerId }) => ({ playerId, seatedMs: seatedMs(sessions.get(playerId) ?? [], now) }));
 }
 
 /**
- * What each player owes for the game's table fee and wages, leaving out amounts of 0.
- * "开局" for the wage rule is when the first player sat down.
+ * What each player owes for the game's table fee and wages, leaving out amounts of 0. Only time
+ * while the game clock ran counts, and "开局 xx 小时后" means once the clock shows xx hours.
  */
 export function gameCharges(
-  game: Pick<Game, "tableFee" | "wage">,
+  game: Pick<Game, "tableFee" | "wage" | "timer">,
   events: readonly LedgerEvent[],
   clock: ChargeClock,
 ): Charge[] {
   const { tableFee, wage } = game;
   if (!tableFee && !wage) return [];
-  const sessions = seatSessions(events);
+  const { sessions, runs } = countedSessions(game, events, clock.now);
   const players = summarizeByPlayer(events).filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
-  const starts = players.flatMap(({ playerId }) => sessions.get(playerId)?.[0]?.from ?? []);
-  const startedAt = starts.length > 0 ? Math.min(...starts) : clock.now;
+
+  const adjustment = wage?.adjustment;
+  let switchAt = Infinity;
+  if (adjustment?.kind === "after_start") {
+    const afterMs = adjustment.afterHours * HOUR;
+    // An older clock has no runs, so its game falls back to the first player sitting down
+    const starts = players.flatMap(({ playerId }) => sessions.get(playerId)?.[0]?.from ?? []);
+    switchAt = runs
+      ? clockReaches(runs, afterMs)
+      : starts.length > 0
+        ? Math.min(...starts) + afterMs
+        : Infinity;
+  }
 
   return players.flatMap(({ playerId }): Charge[] => {
     const own = sessions.get(playerId) ?? [];
@@ -126,8 +166,7 @@ export function gameCharges(
         amount: tableFeeFor(tableFee, seatedMs(own, clock.now)),
       });
     }
-    if (wage)
-      charges.push({ playerId, kind: "wage", amount: wageFor(wage, own, startedAt, clock) });
+    if (wage) charges.push({ playerId, kind: "wage", amount: wageFor(wage, own, switchAt, clock) });
     return charges.filter((charge) => charge.amount !== 0);
   });
 }

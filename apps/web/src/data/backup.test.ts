@@ -76,7 +76,8 @@ describe("backup file", () => {
   it("keeps the game clock", () => {
     const game = data.games[0];
     if (!game) throw new Error("expected a game");
-    const timed = { ...data, games: [{ ...game, timer: { elapsedMs: 5, runningSince: 2 } }] };
+    const timer = { elapsedMs: 5, runningSince: 9, runs: [{ from: 1, to: 6 }] };
+    const timed = { ...data, games: [{ ...game, timer }] };
     expect(parseBackup(serializeBackup(timed, 1))).toEqual({ ok: true, data: timed });
   });
 

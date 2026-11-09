@@ -1,6 +1,6 @@
 # 0022. Table fees and wages as cash charges at settlement
 
-- Status: Accepted
+- Status: Superseded in part by [0023](0023-seat-time-follows-game-clock.md)
 - Date: 2026-11-09
 
 ## Context

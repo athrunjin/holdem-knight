@@ -140,39 +140,41 @@ Transfers (3 笔 · 最优方案):
 
 Game dated **2026-01-06** · blinds 1 / 2 · 人民币 · 1 chip = ¥1 · settled · file `06-table-fee-and-wages.json`
 
-- Table fee ¥20 a head after 60 minutes at the table. Wages ¥30 an hour, ¥50 an hour from 3 hours after the first player sat down (22:00).
-- 王芳 sat 45 minutes: no table fee, 45 minutes of wages.
-- 李娜 left at 21:30 and came back at 22:20 (返回): 120 minutes at ¥30 and 70 at ¥50, ¥118.33 after rounding.
-- 刘洋 sat 109 minutes 30 seconds: the part minute is not charged, so 109 minutes, ¥54.50.
+- The game clock ran 19:00–21:00, was paused for 20 minutes, then ran from 21:20 to settlement. Only time while it ran counts.
+- Table fee ¥20 a head after 60 counted minutes. Wages ¥30 an hour, ¥50 an hour once the clock shows 3 hours (22:20).
+- 张伟 sat 300 minutes, 280 counted: 180 at ¥30 and 100 at ¥50, ¥173.33.
+- 王芳 sat 45 minutes before the pause: no table fee, ¥22.50 of wages.
+- 李娜 left at 21:30 and came back at 22:20 (返回): 170 counted minutes, 100 at ¥30 and 70 at ¥50, ¥108.33.
+- 刘洋 counted 89 minutes 30 seconds: the part minute is not charged, so 89 minutes, ¥44.50.
 - The charges come off each player's cash result and go to the organizer, so the chips still balance while the amounts do not match the chips.
 
 Results:
 
 | 玩家 | 手 | 筹码 | 水上/下 | 金额 |
 | --- | --: | --: | --: | --: |
-| 张伟 | 1 | 610 | +410 | +¥200 |
+| 张伟 | 1 | 610 | +410 | +¥216.67 |
+| 刘洋 | 1 | 200 | 0 | -¥64.50 |
 | 王芳 | 1 | 150 | −50 | -¥72.50 |
-| 刘洋 | 1 | 200 | 0 | -¥74.50 |
-| 李娜 | 2 | 40 | −360 | -¥498.33 |
-| 组织者 | — | — | 0 | +¥445.33 |
+| 李娜 | 2 | 40 | −360 | -¥488.33 |
+| 组织者 | — | — | 0 | +¥408.66 |
 
-Table fee and wages: ¥445.33 in all, to the organizer.
+Table fee and wages: ¥408.66 in all, to the organizer.
 
 | 玩家 | 在桌 | 台费 | 工资 |
 | --- | --: | --: | --: |
-| 张伟 | 5小时00分 | ¥20 | ¥190 |
+| 张伟 | 4小时40分 | ¥20 | ¥173.33 |
 | 王芳 | 45分 | 未满时长 | ¥22.50 |
-| 李娜 | 3小时10分 | ¥20 | ¥118.33 |
-| 刘洋 | 1小时49分 | ¥20 | ¥54.50 |
+| 李娜 | 2小时50分 | ¥20 | ¥108.33 |
+| 刘洋 | 1小时29分 | ¥20 | ¥44.50 |
 
 Transfers (4 笔 · 最优方案):
 
 | From | To | Amount |
 | --- | --- | --: |
-| 李娜 | 组织者 | ¥445.33 |
-| 刘洋 | 张伟 | ¥74.50 |
+| 李娜 | 组织者 | ¥408.66 |
+| 李娜 | 张伟 | ¥79.67 |
 | 王芳 | 张伟 | ¥72.50 |
-| 李娜 | 张伟 | ¥53 |
+| 刘洋 | 张伟 | ¥64.50 |
 
 ## 07-open-game: Game still open
 
