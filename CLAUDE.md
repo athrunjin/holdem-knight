@@ -7,7 +7,8 @@ Project notes for AI coding assistants (Claude Code and others). Human developer
 An assistant (PWA) for organizers of live Texas Hold'em games: buy-in ledger, settlement, insurance, rake, timing and player reports.
 The product name is Hold’em Knight (Chinese name, on record only: 有局). It is built for organizers, phone and tablet first. Interface text is in Simplified Chinese.
 The roadmap is in docs/ROADMAP.md, confirmed rules and background are in docs/CONTEXT.md,
-and discussions of feature and process improvements are in docs/IMPROVEMENTS.md.
+discussions of feature and process improvements are in docs/IMPROVEMENTS.md,
+and manual test plans handed to testers are in docs/testing/.
 
 ## Common commands
 
