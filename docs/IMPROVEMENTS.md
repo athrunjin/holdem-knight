@@ -518,6 +518,44 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do.
 - Tracking: ADR [0023](adr/0023-seat-time-follows-game-clock.md)
 
+### #I-031 Detail mode for seated players
+
+- Type: feature
+- Date: proposed and decided 2026-11-09
+- Source: discussion
+- Problem: during a game with a table fee or wages, the organizer could not see what each player owed so far, or how long they had been counted, until settlement.
+- Proposal:
+  - A 详细模式 switch at the top right of 桌上玩家. It is on by default in games with a table fee or wages, and a tap turns it on or off.
+  - When on, each seated player's first row stays the same, with small lines under it.
+  - Three layouts were compared as previews: one compact line, two lines of labels, and a small aligned table. The two lines of labels were chosen.
+- Settled details:
+  - The lines show 在局 (counted time, ticking while the clock runs), 台费, 工资 and 含费水上/水下, the cash result so far less the fee and wages so far.
+  - 台费 shows 未满 差 N 分 in gold until the player has sat long enough.
+  - Games without a table fee or wages can turn it on too, and show 在局 and the cash result.
+  - The switch is not saved, so it starts from the default each time the game opens.
+- Decision: do.
+- Tracking: none yet
+
+### #I-032 Itemized fees and waivers at settlement
+
+- Type: feature
+- Date: proposed and decided 2026-11-09
+- Source: discussion
+- Problem: settlement showed each player's table fee and wages as one label and a separate section, the rates and times were not with the amounts, and a single charge could not be let off.
+- Proposal:
+  - Under each player's name, wages first with the rate and the time at it, one line per rate, then the table fee, with the amounts in the amount column.
+  - A box on each charge, ticked by default. Unticking it lets that player off that charge and updates every total.
+- Settled details:
+  - Several layouts were compared as previews. The chosen one is a bill: the result from the chips, then each charge, then a total.
+  - The total sits under a solid line with 合计 on the left and the amount in a colored chip. Every amount shares one right edge.
+  - Each person is a card whose first row has a tinted background, so players stand apart.
+  - Games without a table fee or wages use the same cards. A person with no adjustments shows only the first row, with the total in it. A share of a difference and insurance given to a person are detail lines too.
+  - The organizer's card lists a covered difference, insurance and the table fee and wage income.
+  - Wages at each rate round on their own, so the lines add up to the total. The separate 台费和工资 section is gone.
+  - Waivers are saved on the game and locked once it is settled. Backups move to version 8.
+- Decision: do.
+- Tracking: ADR [0024](adr/0024-itemized-charges-and-waivers.md)
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

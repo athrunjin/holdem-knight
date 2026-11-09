@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 import { formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
+import { type PlayerDetail, PlayerDetailGrid } from "./PlayerDetails";
 
 const actionClass = "min-h-11 shrink-0 rounded-lg border border-line px-2 text-sm font-medium";
 /** The tap target stays 44px; the small circle drawn inside it sits against the count. */
@@ -44,6 +45,10 @@ interface LedgerPlayersProps {
   onLeave: (playerId: string) => void;
   /** Shown at the foot of the seated players */
   addPlayer: ReactNode;
+  /** Whether detail mode is on, which shows `details` under each seated player */
+  detailMode: boolean;
+  onDetailModeChange: (on: boolean) => void;
+  details: ReadonlyMap<string, PlayerDetail> | undefined;
 }
 
 export function LedgerPlayers({
@@ -63,6 +68,9 @@ export function LedgerPlayers({
   onReturn,
   onLeave,
   addPlayer,
+  detailMode,
+  onDetailModeChange,
+  details,
 }: LedgerPlayersProps) {
   const seat = players.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const people = players.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
@@ -142,7 +150,27 @@ export function LedgerPlayers({
       {(seated.length > 0 || addPlayer) && (
         <section aria-label="桌上玩家" className="mt-3 rounded-xl border border-line bg-surface">
           <div className="rounded-t-xl bg-accent/10 px-2 py-1.5">
-            <h2 className="text-sm font-semibold">桌上玩家（{seated.length}）</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">桌上玩家（{seated.length}）</h2>
+              {seated.length > 0 && (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={detailMode}
+                  onClick={() => onDetailModeChange(!detailMode)}
+                  className="-my-3 flex min-h-11 items-center gap-1.5 text-xs text-muted"
+                >
+                  详细模式
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "relative h-4.5 w-8 rounded-full transition-colors after:absolute after:top-0.5 after:size-3.5 after:rounded-full after:bg-white after:transition-[left]",
+                      detailMode ? "bg-accent after:left-4" : "bg-line after:left-0.5",
+                    )}
+                  />
+                </button>
+              )}
+            </div>
             {seated.length > 0 && (
               <div className={`${columnsClass} mt-1 text-xs text-muted`}>
                 <span>玩家</span>
@@ -172,6 +200,9 @@ export function LedgerPlayers({
                     >
                       离桌
                     </button>
+                  )}
+                  {details && (
+                    <PlayerDetailGrid detail={details.get(player.playerId)} currency={currency} />
                   )}
                 </li>
               ))}

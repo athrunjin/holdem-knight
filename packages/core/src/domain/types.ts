@@ -136,6 +136,19 @@ export type WageAdjustment =
       readonly hourly: Cents;
     };
 
+export type ChargeKind = "table_fee" | "wage";
+
+/** Which rate a wage was charged at: the rule's own, or its adjustment. */
+export type WagePart = "base" | "adjusted";
+
+/** One charge the organizer let a player off at settlement (ADR 0024). */
+export interface ChargeWaiver {
+  readonly playerId: string;
+  readonly kind: ChargeKind;
+  /** Wages only: the rate waived. */
+  readonly part?: WagePart;
+}
+
 /** What each player pays per hour at the table, counted by the minute. */
 export interface WageRule {
   /** The rate at all times, unless the adjustment applies. */
@@ -210,6 +223,8 @@ export interface Game {
   readonly tableFee?: TableFeeRule;
   /** This game's wages. Missing means none. Charged at settlement, outside the chips. */
   readonly wage?: WageRule;
+  /** Charges let off at settlement. Missing means none. */
+  readonly waivedCharges?: readonly ChargeWaiver[];
 }
 
 export interface Player {

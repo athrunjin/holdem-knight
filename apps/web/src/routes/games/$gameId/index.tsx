@@ -26,6 +26,7 @@ import { HandsDialog } from "@/components/game/HandsDialog";
 import { LeaveDialog } from "@/components/game/LeaveDialog";
 import { LedgerLog } from "@/components/game/LedgerLog";
 import { LedgerPlayers } from "@/components/game/LedgerPlayers";
+import { usePlayerDetails } from "@/components/game/PlayerDetails";
 import { SettleDialog } from "@/components/game/SettleDialog";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
@@ -107,12 +108,17 @@ function GameLedger({ game }: { game: Game }) {
   const navigate = Route.useNavigate();
   const [settling, setSettling] = useState(false);
   const [pending, setPending] = useState<PendingEntry>();
+  // On by default in games that charge for time, where the figures matter during play
+  const [detailMode, setDetailMode] = useState(
+    game.tableFee !== undefined || game.wage !== undefined,
+  );
 
   const editable = status === "open";
   const ledger = summarizeByPlayer(events);
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
   const balanceChips = ledgerTotals(ledger).balanceChips;
+  const details = usePlayerDetails(game, events, people, detailMode);
   const totals = ledgerTotals(people);
   const names = new Map(players.map(({ id, name }) => [id, name]));
   names.set(INSURANCE_PLAYER_ID, INSURANCE_PLAYER_NAME);
@@ -314,6 +320,9 @@ function GameLedger({ game }: { game: Game }) {
         onRemove={handleRemove}
         onReturn={handleReturn}
         onLeave={(playerId) => setPending({ kind: "leave", playerId, name: nameOf(playerId) })}
+        detailMode={detailMode}
+        onDetailModeChange={setDetailMode}
+        details={details}
         addPlayer={
           editable && (
             <AddPlayerToGame

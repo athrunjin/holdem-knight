@@ -11,7 +11,7 @@ import {
 import { z } from "zod";
 
 const FORMAT = "holdem-backup";
-const VERSION = 7;
+const VERSION = 8;
 
 const id = z.string().min(1);
 const money = z
@@ -75,6 +75,16 @@ const gameFields = {
   tableFee: tableFeeSchema.optional(),
   /** Added in version 7. */
   wage: wageSchema.optional(),
+  /** Added in version 8. */
+  waivedCharges: z
+    .array(
+      z.object({
+        playerId: id,
+        kind: z.enum(["table_fee", "wage"]),
+        part: z.enum(["base", "adjusted"]).optional(),
+      }),
+    )
+    .optional(),
 };
 
 const gameSchema = z.object({
