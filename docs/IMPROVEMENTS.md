@@ -502,6 +502,22 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do.
 - Tracking: ADR [0022](adr/0022-table-fee-and-wages.md)
 
+### #I-030 Time at the table follows the game clock
+
+- Type: feature
+- Date: proposed and decided 2026-11-09
+- Source: discussion after #I-029
+- Problem: players' time for the table fee and wages counted from buy-in even when the game clock had not started or was paused.
+- Proposal: a clock that is not started means the game has not started, and a paused clock means it is paused. Nobody's time counts then.
+- Settled details:
+  - Each player's time is their time at the table while the clock ran. A game whose clock never ran charges nothing.
+  - The after-hours wage rate starts once the clock shows those hours, skipping pauses.
+  - A clock started before this change has no history, so its game counts as before.
+  - The game page says 对局计时器未开始 or 已暂停 when a game with a table fee or wages is not being timed.
+  - Sample backup 06 has a clock with a 20-minute pause, with its results worked out again by hand.
+- Decision: do.
+- Tracking: ADR [0023](adr/0023-seat-time-follows-game-clock.md)
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

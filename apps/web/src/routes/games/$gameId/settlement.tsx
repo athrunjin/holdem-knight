@@ -422,7 +422,7 @@ function SettlementResult({
         <ChargesSection
           game={game}
           charges={charges}
-          seatTimes={seatTimes(events, clock.now)}
+          seatTimes={seatTimes(game, events, clock.now)}
           total={charged.total}
           recipientName={collectorName(charged.recipientId)}
           nameOf={nameOf}

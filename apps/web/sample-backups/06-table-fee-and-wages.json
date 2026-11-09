@@ -29,7 +29,20 @@
       "handChips": 200,
       "status": "settled",
       "createdAt": 1767697200000,
-      "settledAt": 1767715800000
+      "settledAt": 1767715800000,
+      "timer": {
+        "elapsedMs": 17400000,
+        "runs": [
+          {
+            "from": 1767697200000,
+            "to": 1767704400000
+          },
+          {
+            "from": 1767705600000,
+            "to": 1767715800000
+          }
+        ]
+      }
     }
   ],
   "players": [

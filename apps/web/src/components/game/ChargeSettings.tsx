@@ -175,7 +175,7 @@ export function TableFeeSettings({
     <section className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
         label="台费"
-        detail="每位玩家每局收一次，结算时计入组织者"
+        detail="每位玩家每局收一次，只计对局计时器运行时的在桌时间，结算时计入组织者"
         checked={enabled}
         onChange={(checked) => onChange({ ...value, enabled: checked })}
       />
@@ -238,7 +238,7 @@ export function WageSettings({
     <section className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
         label="工资"
-        detail="按每位玩家的在桌时长逐分钟计算，结算时计入组织者"
+        detail="按每位玩家的在桌时长逐分钟计算，计时器暂停时不计，结算时计入组织者"
         checked={enabled}
         onChange={(checked) => onChange({ ...value, enabled: checked })}
       />
@@ -316,7 +316,7 @@ export function WageSettings({
               )}
               <Toggle
                 label="开局一段时间后改时薪"
-                detail="从第一位玩家上桌开始算"
+                detail="按对局计时器的时间算，暂停不算"
                 checked={form.adjustment === "after_start"}
                 onChange={toggleAdjustment("after_start")}
               />

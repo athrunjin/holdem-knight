@@ -64,7 +64,12 @@ const gameFields = {
   settledAt: timestamp.optional(),
   /** Added in version 6. */
   timer: z
-    .object({ elapsedMs: z.number().int().min(0), runningSince: timestamp.optional() })
+    .object({
+      elapsedMs: z.number().int().min(0),
+      runningSince: timestamp.optional(),
+      /** Added in version 7. */
+      runs: z.array(z.object({ from: timestamp, to: timestamp })).optional(),
+    })
     .optional(),
   /** Added in version 7. */
   tableFee: tableFeeSchema.optional(),

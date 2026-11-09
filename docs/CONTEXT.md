@@ -60,9 +60,9 @@ These are the product defaults. Rules are configurable by design, so organizers 
 | Corrections   | The game record is read-only. Fix mistakes with hand controls, stacks and 返回            |
 | Imbalance     | Settling is allowed: split by win/loss, organizer covers or collects, or leave unhandled |
 | Rake          | A percentage of the pot with a cap                                                       |
-| Wages (工资)  | Each player pays an hourly rate for their own time at the table, by the minute. Default 25 an hour in the game's currency. One advanced rate: by time of day, or after some hours |
+| Wages (工资)  | Each player pays an hourly rate for their own time at the table, by the minute. Default 25 an hour in the game's currency. One advanced rate: by time of day, or after the clock shows some hours |
 | Table fee     | Once per player per game, after a minimum time at the table. Default 100 after 30 minutes |
-| Time at table | From buy-in to leaving, starting again on 返回. The game clock pausing does not stop it |
+| Time at table | From buy-in to leaving, starting again on 返回, counted only while the game clock runs. A clock not started or paused means the game has not started or is paused (ADR 0023) |
 | Fees at settlement | Table fees and wages go to the host by default and are marked apart from the chip results (ADR 0022) |
 | Insurance     | Chosen per game. Two built-in tables, default 1 pays 30. Rules can be edited and saved   |
 | Break-even    | Shows both "recover your own stake" and "recover the whole pot"                          |

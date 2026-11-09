@@ -15,11 +15,11 @@ function wageSummary(rule: WageRule, money: (value: number) => string) {
   const other = `${money(adjustment.hourly)}/小时`;
   return adjustment.kind === "time_of_day"
     ? `${base}，${adjustment.fromHour} 点到 ${adjustment.toHour} 点 ${other}`
-    : `${base}，开局 ${adjustment.afterHours} 小时后 ${other}`;
+    : `${base}，计时满 ${adjustment.afterHours} 小时后 ${other}`;
 }
 
 interface ChargesSectionProps {
-  game: Pick<Game, "currency" | "tableFee" | "wage">;
+  game: Pick<Game, "currency" | "tableFee" | "wage" | "timer">;
   charges: readonly Charge[];
   seatTimes: readonly PlayerSeatTime[];
   total: number;
@@ -39,7 +39,7 @@ export function ChargesSection({
   recipientName,
   nameOf,
 }: ChargesSectionProps) {
-  const { currency, tableFee, wage } = game;
+  const { currency, tableFee, wage, timer } = game;
   const money = (value: number) => formatGameMoney(cents(value), currency);
   const byPlayer = chargesByPlayer(charges);
 
@@ -59,7 +59,13 @@ export function ChargesSection({
           </li>
         )}
         {wage && <li>工资 {wageSummary(wage, money)}</li>}
+        <li>只计对局计时器运行期间的在桌时间</li>
       </ul>
+      {!timer && (
+        <p role="status" className="mt-1 text-sm text-highlight">
+          这局没有开启对局计时器，所以没有计时。
+        </p>
+      )}
       <table className="mt-2 w-full table-fixed text-sm">
         <thead>
           <tr className="text-xs text-muted">

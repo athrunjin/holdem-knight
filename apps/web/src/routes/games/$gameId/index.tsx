@@ -274,6 +274,12 @@ function GameLedger({ game }: { game: Game }) {
         )}
       </div>
 
+      {editable && (game.tableFee || game.wage) && game.timer?.runningSince === undefined && (
+        <p role="status" className="text-sm text-highlight">
+          对局计时器{game.timer ? "已暂停" : "未开始"}，台费和工资暂不计时。
+        </p>
+      )}
+
       <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
         {[
           ["总买入", formatGameMoney(chipsToCents(totals.boughtChips, chipRatio), currency)],

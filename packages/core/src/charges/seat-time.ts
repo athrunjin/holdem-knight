@@ -1,5 +1,5 @@
 /** Each player's time at the table, read from the ledger's timestamps (ADR 0001). */
-import type { ChipEvent, LedgerEvent, Timestamp } from "../domain";
+import type { ChipEvent, LedgerEvent, TimerRun, Timestamp } from "../domain";
 
 /** One stretch at the table. `to` is missing while the player is still seated. */
 export interface SeatSession {
@@ -68,4 +68,19 @@ export function seatSessions(events: readonly LedgerEvent[]): Map<string, SeatSe
 /** Total time in sessions. A session still open runs to `now`. */
 export function seatedMs(sessions: readonly SeatSession[], now: Timestamp): number {
   return sessions.reduce((total, { from, to = now }) => total + Math.max(0, to - from), 0);
+}
+
+/** The parts of each session while the game clock ran. Sessions still open end at `now`. */
+export function withinRuns(
+  sessions: readonly SeatSession[],
+  runs: readonly TimerRun[],
+  now: Timestamp,
+): SeatSession[] {
+  return sessions.flatMap(({ from, to = now }) =>
+    runs.flatMap((run) => {
+      const start = Math.max(from, run.from);
+      const end = Math.min(to, run.to);
+      return end > start ? [{ from: start, to: end }] : [];
+    }),
+  );
 }

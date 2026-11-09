@@ -157,12 +157,23 @@ export type GameSettings = Pick<
   readonly wage?: WageRule;
 };
 
+/** One stretch of the game clock running, from start to pause. */
+export interface TimerRun {
+  readonly from: Timestamp;
+  readonly to: Timestamp;
+}
+
 /** The game clock. Timing data stores timestamps and computes differences (ADR 0001). */
 export interface GameTimer {
   /** Time counted up to the current run. */
   readonly elapsedMs: number;
   /** When the current run started. Missing while paused. */
   readonly runningSince?: Timestamp;
+  /**
+   * Finished runs, oldest first, so time at the table counts only while the clock runs (ADR 0022).
+   * Missing on clocks started before runs were kept, whose history is unknown.
+   */
+  readonly runs?: readonly TimerRun[];
 }
 
 export interface Game {
