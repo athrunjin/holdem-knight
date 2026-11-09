@@ -31,18 +31,16 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
 
   const all = players.data ?? [];
   const byId = new Map(all.map((player) => [player.id, player]));
-  const recentSet = new Set(recentIds.data);
   const recent = (recentIds.data ?? []).flatMap((id) => byId.get(id) ?? []);
-  const others = all.filter(({ id }) => !recentSet.has(id));
 
   const recentMatches = searchPlayers(recent, query);
-  const groups = groupByInitial(searchPlayers(others, query));
+  // Recent players appear in the full list too, so everyone can be found by letter
+  const groups = groupByInitial(searchPlayers(all, query));
   const parsed = parsePlayerName(
     query,
     all.map(({ name }) => name),
   );
-  const newName =
-    parsed.ok && recentMatches.length === 0 && groups.length === 0 ? parsed.name : undefined;
+  const newName = parsed.ok && groups.length === 0 ? parsed.name : undefined;
   const tooLong = !parsed.ok && parsed.issue === "too-long";
   const letters = groups.map(({ letter }) => letter);
   const activeLetter = useActiveLetter(letters);
@@ -134,7 +132,7 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
           </>
         )}
 
-        {others.length > 0 && (
+        {all.length > 0 && (
           <div className="mt-3 flex items-center justify-between">
             <h2 className="font-semibold">全部玩家</h2>
             <div className="-mr-2 flex items-center">
@@ -220,8 +218,8 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
             开局失败，请重试。
           </p>
         )}
-        <div className="flex items-center gap-3">
-          <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-2">
+        <div className="grid grid-cols-[1fr_2fr] items-center gap-2">
+          <label className="flex min-h-12 cursor-pointer items-center gap-2">
             <input
               type="checkbox"
               checked={startClock}
@@ -234,13 +232,13 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
             >
               {startClock && <Check className="size-3.5" strokeWidth={3} />}
             </span>
-            <span className="text-xs">开局后直接开始计时</span>
+            <span className="text-xs leading-tight">开局后直接开始计时</span>
           </label>
           <button
             type="button"
             disabled={saving}
             onClick={() => onStart(selected, startClock)}
-            className="min-h-11 shrink-0 rounded-xl bg-accent px-8 font-semibold text-accent-text disabled:opacity-60"
+            className="min-h-12 rounded-xl bg-accent px-6 font-semibold text-accent-text disabled:opacity-60"
           >
             {selected.length > 0 ? `开局 · ${selected.length} 人` : "开局"}
           </button>
