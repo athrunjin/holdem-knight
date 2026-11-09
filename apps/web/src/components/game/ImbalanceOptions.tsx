@@ -11,6 +11,18 @@ interface ImbalanceOptionsProps {
   onChange: (handling: ImbalanceHandling) => void;
 }
 
+/** Each way to settle a chip difference, with its label. */
+export function imbalanceChoices(
+  differenceChips: number,
+  cash: string,
+): readonly (readonly [ImbalanceHandling, string])[] {
+  return [
+    ["split", `按水${differenceChips > 0 ? "上" : "下"}比例分摊`],
+    ["organizer", `组织者${differenceChips > 0 ? "补齐" : "收取"} ${cash}`],
+    ["ignore", "不做处理"],
+  ];
+}
+
 /** The ways to settle a chip difference. */
 export function ImbalanceOptions({
   differenceChips,
@@ -19,11 +31,7 @@ export function ImbalanceOptions({
   disabled,
   onChange,
 }: ImbalanceOptionsProps) {
-  const options: readonly [ImbalanceHandling, string][] = [
-    ["split", `按水${differenceChips > 0 ? "上" : "下"}比例分摊`],
-    ["organizer", `组织者${differenceChips > 0 ? "补齐" : "收取"} ${cash}`],
-    ["ignore", "不做处理"],
-  ];
+  const options = imbalanceChoices(differenceChips, cash);
 
   return (
     <fieldset className="flex flex-col gap-2">

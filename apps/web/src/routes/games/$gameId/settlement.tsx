@@ -1,12 +1,11 @@
 import {
   applyCharges,
   attributeInsurance,
+  type Cents,
   type Charge,
   cents,
   chipDifference,
-  chipsToCents,
   chooseCollector,
-  chooseImbalanceHandling,
   chooseInsuranceOwner,
   collectorTransfers,
   type Game,
@@ -23,6 +22,7 @@ import {
   settleGame,
   settlementOutcome,
   settleTransfers,
+  sum,
   summarizeByPlayer,
   waiveCharge,
   ZERO,
@@ -30,14 +30,15 @@ import {
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { ImbalanceOptions } from "@/components/game/ImbalanceOptions";
+import { PickerRow } from "@/components/game/PickerRow";
 import { type ResultCard, ResultCards, type ResultLine } from "@/components/game/ResultCards";
+import { SettlementSummary } from "@/components/game/SettlementSummary";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
 import { chargeClock, formatSeatTime } from "@/lib/charges";
-import { formatDifference, formatSignedChips } from "@/lib/chips";
+import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { renderSettlementImage } from "@/lib/settlement-image";
@@ -84,8 +85,8 @@ function SettlementPage() {
         </Notice>
       ) : (
         <>
-          {difference !== 0 && <ImbalanceSection game={game} difference={difference} />}
-          {(difference === 0 || game.imbalanceHandling) && (
+          <SettlementSummary game={game} ledger={ledger} difference={difference} />
+          {difference === 0 || game.imbalanceHandling ? (
             <SettlementResult
               game={game}
               outcome={settlementOutcome(ledger, game.chipRatio, game.imbalanceHandling)}
@@ -93,6 +94,8 @@ function SettlementPage() {
               events={events}
               nameOf={nameOf}
             />
+          ) : (
+            <p className="mt-3 text-sm text-muted">选择差额处理方式后显示结果。</p>
           )}
         </>
       )}
@@ -112,35 +115,6 @@ function Notice({ gameId, children }: { gameId: string; children: ReactNode }) {
         回到账本
       </Link>
     </div>
-  );
-}
-
-/** Shows a chip difference and how it is handled. */
-function ImbalanceSection({ game, difference }: { game: Game; difference: number }) {
-  const saveGame = useSaveGame();
-  const cash = formatGameMoney(chipsToCents(Math.abs(difference), game.chipRatio), game.currency);
-  const settled = game.status === "settled";
-
-  return (
-    <section className="mb-4 rounded-xl border border-highlight bg-surface p-3">
-      <h2 className="font-semibold">水上下不平衡</h2>
-      <p className="mt-1 mb-3 text-sm text-muted">
-        差额 {formatDifference(difference, cash)}。
-        {settled ? "已确认结算，重新打开牌局后才能修改。" : "选择怎么处理，或回到牌局核对记录。"}
-      </p>
-      <ImbalanceOptions
-        differenceChips={difference}
-        cash={cash}
-        value={game.imbalanceHandling}
-        disabled={saveGame.isPending || settled}
-        onChange={(handling) => saveGame.mutate(chooseImbalanceHandling(game, handling))}
-      />
-      {saveGame.isError && (
-        <p role="alert" className="mt-2 text-sm text-highlight">
-          保存失败，请重试。
-        </p>
-      )}
-    </section>
   );
 }
 
@@ -196,7 +170,9 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
 
   function insuranceLine(id: string): ResultLine[] {
     if (insuranceNet === 0 || id !== ownerId) return [];
-    return [{ key: "insurance", label: "保险", amount: insuranceNet, tone: "adjustment" }];
+    return [
+      { key: "insurance", label: "保险", amount: insuranceNet, tone: "adjustment", group: "保险" },
+    ];
   }
 
   /** Wages at each rate, then the table fee, each with a box to let the player off it. */
@@ -206,6 +182,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
       label,
       amount: cents(-charge.amount),
       tone: "charge",
+      group: charge.kind === "wage" ? "工资" : "台费",
       waiver: {
         waived: charge.waived,
         disabled: chargesLocked,
@@ -232,7 +209,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     if (fee) return [...wages, line(fee, `台费 ${money(fee.amount)}/人`)];
     if (!tableFee) return wages;
     const short = `台费 ${money(tableFee.amount)}/人 · 未满 ${tableFee.minMinutes} 分钟`;
-    return [...wages, { key: "table_fee", label: short, tone: "charge" }];
+    return [...wages, { key: "table_fee", label: short, tone: "charge", group: "台费" }];
   }
 
   const playerCards = ledger
@@ -244,7 +221,15 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
       const split: ResultLine[] =
         share === 0
           ? []
-          : [{ key: "split", label: "差额分摊", amount: cents(share), tone: "adjustment" }];
+          : [
+              {
+                key: "split",
+                label: "差额分摊",
+                amount: cents(share),
+                tone: "adjustment",
+                group: "分摊",
+              },
+            ];
       return {
         id: playerId,
         name: nameOf(playerId),
@@ -254,12 +239,22 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
         base,
         lines: [...split, ...insuranceLine(playerId), ...chargeLines(playerId)],
         total: netOf(nets, playerId),
+        collapsible: true,
       };
     })
     .toSorted((a, b) => b.total - a.total);
 
   const covered = netOf(outcome.nets, ORGANIZER_COLLECTOR);
+  const income = (kind: Charge["kind"]) =>
+    sum(charges.filter((c) => c.kind === kind && !c.waived).map((c) => c.amount));
+  const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
+  const incomeLine = (key: string, label: string, amount: Cents): ResultLine[] =>
+    receivesCharges && amount !== 0 ? [{ key, label, amount, tone: "charge" }] : [];
+  // Each income on its own line, adding up to the organizer's total
   const organizerLines: ResultLine[] = [
+    ...incomeLine("table-fee", "台费收入", income("table_fee")),
+    ...incomeLine("wage", "工资收入", income("wage")),
+    ...insuranceLine(ORGANIZER_COLLECTOR),
     ...(covered === 0
       ? []
       : [
@@ -270,17 +265,6 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
             tone: "adjustment" as const,
           },
         ]),
-    ...insuranceLine(ORGANIZER_COLLECTOR),
-    ...(charged.total !== 0 && charged.recipientId === ORGANIZER_COLLECTOR
-      ? [
-          {
-            key: "charges",
-            label: "台费和工资收入",
-            amount: charged.total,
-            tone: "charge" as const,
-          },
-        ]
-      : []),
   ];
   const cards: ResultCard[] =
     organizerNet === undefined
@@ -388,40 +372,31 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
 
   return (
     <>
-      <h2 className="text-lg font-semibold">结果</h2>
-      <ResultCards cards={cards} currency={currency} />
-
-      {notes.length > 0 && (
-        <div role="status" className="mt-2 text-sm text-highlight">
-          {notes.map((text) => (
-            <p key={text}>{text}</p>
-          ))}
-        </div>
-      )}
-
       {seat && (
-        <label className="mt-3 block">
-          <span className="mb-1 block text-sm text-muted">保险盈亏 {insuranceText} 归属</span>
-          <select
-            value={ownerId}
-            disabled={saveGame.isPending || status === "settled"}
-            onChange={(event) => {
-              const owner = event.target.value;
-              const next = owner === ORGANIZER_COLLECTOR ? undefined : owner;
-              saveGame.mutate(chooseInsuranceOwner(game, next));
-            }}
-            className="min-h-12 w-full rounded-xl border border-line bg-surface px-3"
-          >
-            <option value={ORGANIZER_COLLECTOR}>组织者</option>
-            <option value={INSURANCE_PLAYER_ID}>单独列出</option>
-            {people.map(({ playerId }) => (
-              <option key={playerId} value={playerId}>
-                {nameOf(playerId)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <PickerRow
+          title={`保险盈亏 ${insuranceText} 归属`}
+          options={[
+            [ORGANIZER_COLLECTOR, "组织者"],
+            [INSURANCE_PLAYER_ID, "单独列出"],
+            ...people.map(({ playerId }) => [playerId, nameOf(playerId)] as const),
+          ]}
+          value={ownerId}
+          disabled={saveGame.isPending || status === "settled"}
+          onChange={(owner) =>
+            saveGame.mutate(
+              chooseInsuranceOwner(game, owner === ORGANIZER_COLLECTOR ? undefined : owner),
+            )
+          }
+        >
+          <span className="font-medium">保险 {insuranceText}</span>
+          <span className="text-muted">
+            {" "}
+            · 归属 {separateInsurance ? "单独列出" : collectorName(ownerId)}
+          </span>
+        </PickerRow>
       )}
+
+      <ResultCards cards={cards} currency={currency} />
 
       <section className="mt-4">
         <h2>

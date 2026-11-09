@@ -556,6 +556,27 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do.
 - Tracking: ADR [0024](adr/0024-itemized-charges-and-waivers.md)
 
+### #I-033 Settlement summary, compact choices and folding cards
+
+- Type: feature
+- Date: proposed and decided 2026-11-09
+- Source: discussion after #I-032
+- Problem: the imbalance choices took a large card at the top of settlement, the insurance owner was a full-width select, the results had a small title with no overview of the game, and itemized cards made the page long.
+- Proposal:
+  - A larger 结果 title with the blinds, start date and host, then tiles for the total buy-in, the game clock and the balance.
+  - The imbalance handling and the insurance owner each take one row showing the current choice, which opens the choices when tapped.
+  - Players' cards fold, and a 明细 switch opens them all.
+- Settled details:
+  - Several layouts were compared as previews. The tiles were chosen for the overview.
+  - The host shows a placeholder until organizers have names (M6).
+  - A folded card keeps its first row, with the total in the amount column, and one small right-aligned line: 分摊, 保险, 工资 and 台费 where present, then their sum in gray. With one item, that item takes the sum's place. A waived group shows 已免.
+  - Tapping a card's first row folds or opens it. The 明细 switch is on only when all are open: it opens all when any is folded, and folds all when all are open. Cards start folded.
+  - The organizer's card lists 台费收入, 工资收入, 保险 and a covered difference apart, adding up to its total.
+  - The notes under the results are gone from the page. The shared image still carries them.
+  - The switch matches the 详细模式 switch on the game page.
+- Decision: do.
+- Tracking: none yet
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
