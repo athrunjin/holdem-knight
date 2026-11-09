@@ -81,7 +81,7 @@ describe("backup file", () => {
     expect(parseBackup(serializeBackup(timed, 1))).toEqual({ ok: true, data: timed });
   });
 
-  it("keeps the table fee and wages on games and saved configs", () => {
+  it("keeps the table fee, wages and waived charges on games and saved configs", () => {
     const game = data.games[0];
     if (!game) throw new Error("expected a game");
     const tableFee = { amount: cents(10_000), minMinutes: 30 };
@@ -100,7 +100,17 @@ describe("backup file", () => {
     } as const;
     const charged = {
       ...data,
-      games: [{ ...game, tableFee, wage }],
+      games: [
+        {
+          ...game,
+          tableFee,
+          wage,
+          waivedCharges: [
+            { playerId: "p", kind: "table_fee" },
+            { playerId: "p", kind: "wage", part: "adjusted" },
+          ] as const,
+        },
+      ],
       gameConfigs: [{ id: "c", organizerId: "guest", name: "周五局", settings, createdAt: 1 }],
     };
     expect(parseBackup(serializeBackup(charged, 1))).toEqual({ ok: true, data: charged });
@@ -252,7 +262,7 @@ describe("backup file", () => {
 
   it("rejects backups from a newer version", () => {
     const text = edit((backup) => {
-      backup.version = 8;
+      backup.version = 9;
     });
     expect(parseBackup(text)).toEqual({ ok: false, issue: "newer-version" });
   });

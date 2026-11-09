@@ -1,7 +1,7 @@
 import type { Charge, ChargeClock, Game, Timestamp } from "@holdem-knight/core";
 
 /** Local time of day, which `core` leaves to the app. */
-function minuteOfDay(time: Timestamp) {
+export function minuteOfDay(time: Timestamp) {
   const date = new Date(time);
   return date.getHours() * 60 + date.getMinutes();
 }
@@ -11,10 +11,10 @@ export function chargeClock(game: Pick<Game, "settledAt">): ChargeClock {
   return { now: game.settledAt ?? Date.now(), minuteOfDay };
 }
 
-/** Each player's table fee and wage, 0 when there is none. */
+/** Each player's table fee and wages still charged, 0 when there is none or it was waived. */
 export function chargesByPlayer(charges: readonly Charge[]) {
   const byPlayer = new Map<string, { tableFee: number; wage: number }>();
-  for (const { playerId, kind, amount } of charges) {
+  for (const { playerId, kind, amount } of charges.filter((c) => !c.waived)) {
     const current = byPlayer.get(playerId) ?? { tableFee: 0, wage: 0 };
     byPlayer.set(
       playerId,

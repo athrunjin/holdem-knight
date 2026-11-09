@@ -63,7 +63,7 @@ These are the product defaults. Rules are configurable by design, so organizers 
 | Wages (工资)  | Each player pays an hourly rate for their own time at the table, by the minute. Default 25 an hour in the game's currency. One advanced rate: by time of day, or after the clock shows some hours |
 | Table fee     | Once per player per game, after a minimum time at the table. Default 100 after 30 minutes |
 | Time at table | From buy-in to leaving, starting again on 返回, counted only while the game clock runs. A clock not started or paused means the game has not started or is paused (ADR 0023) |
-| Fees at settlement | Table fees and wages go to the host by default and are marked apart from the chip results (ADR 0022) |
+| Fees at settlement | Table fees and wages go to the host by default. Each player's card lists wages per rate and the table fee, each of which can be waived until the game is settled (ADR 0022, ADR 0024) |
 | Insurance     | Chosen per game. Two built-in tables, default 1 pays 30. Rules can be edited and saved   |
 | Break-even    | Shows both "recover your own stake" and "recover the whole pot"                          |
 | Insurance seat| 保险 is a reserved seat with one hand, always last, and cannot leave. Short of chips, it buys whole hands to pay |

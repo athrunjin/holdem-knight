@@ -2,7 +2,17 @@
  * Table fees and wages: cash each player pays the organizer at settlement, outside the chips (ADR 0022).
  * Both come from time at the table while the game clock runs, so they need no events of their own.
  */
-import type { Game, LedgerEvent, TableFeeRule, TimerRun, Timestamp, WageRule } from "../domain";
+import type {
+  ChargeKind,
+  ChargeWaiver,
+  Game,
+  LedgerEvent,
+  TableFeeRule,
+  TimerRun,
+  Timestamp,
+  WagePart,
+  WageRule,
+} from "../domain";
 import { INSURANCE_PLAYER_ID } from "../domain";
 import { timerRuns } from "../game";
 import { summarizeByPlayer } from "../ledger";
@@ -14,13 +24,28 @@ import { type SeatSession, seatedMs, seatSessions, withinRuns } from "./seat-tim
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 
-export type ChargeKind = "table_fee" | "wage";
+/** Wages at one rate: the whole minutes charged at it and what they come to. */
+export interface WagePartCharge {
+  readonly part: WagePart;
+  readonly hourly: Cents;
+  readonly minutes: number;
+  readonly amount: Cents;
+}
 
-/** One amount a player owes. Kept apart by kind, so a later change can waive or edit one. */
+/**
+ * One amount a player owes: a table fee, or wages at one rate. Kept apart so each can be waived,
+ * and a waived charge is still listed so the organizer can see and restore it.
+ */
 export interface Charge {
   readonly playerId: string;
   readonly kind: ChargeKind;
+  /** Wages only. */
+  readonly part?: WagePart;
   readonly amount: Cents;
+  /** Wages only: the hourly rate and the whole minutes charged at it. */
+  readonly hourly?: Cents;
+  readonly minutes?: number;
+  readonly waived: boolean;
 }
 
 export interface ChargeClock {
@@ -41,6 +66,22 @@ function inHours(minute: number, fromHour: number, toHour: number) {
   return from < to ? minute >= from && minute < to : minute >= from || minute < to;
 }
 
+/** Which rate is in force at `time`. An after-hours rate applies from `switchAt`. */
+function wagePartAt(
+  rule: WageRule,
+  time: Timestamp,
+  switchAt: Timestamp,
+  minuteOfDay: ChargeClock["minuteOfDay"],
+): WagePart {
+  const { adjustment } = rule;
+  if (!adjustment) return "base";
+  const applies =
+    adjustment.kind === "time_of_day"
+      ? inHours(minuteOfDay(time), adjustment.fromHour, adjustment.toHour)
+      : time >= switchAt;
+  return applies ? "adjusted" : "base";
+}
+
 /** The hourly rate at `time`. An after-hours rate applies from `switchAt`. */
 export function wageRateAt(
   rule: WageRule,
@@ -48,13 +89,8 @@ export function wageRateAt(
   switchAt: Timestamp,
   minuteOfDay: ChargeClock["minuteOfDay"],
 ): Cents {
-  const { adjustment } = rule;
-  if (!adjustment) return rule.hourly;
-  const applies =
-    adjustment.kind === "time_of_day"
-      ? inHours(minuteOfDay(time), adjustment.fromHour, adjustment.toHour)
-      : time >= switchAt;
-  return applies ? adjustment.hourly : rule.hourly;
+  const part = wagePartAt(rule, time, switchAt, minuteOfDay);
+  return part === "adjusted" && rule.adjustment ? rule.adjustment.hourly : rule.hourly;
 }
 
 /** When the clock has run for `ms`, or Infinity if it has not run that long. */
@@ -68,31 +104,45 @@ export function clockReaches(runs: readonly TimerRun[], ms: number): Timestamp {
 }
 
 /**
- * Wages for one player, by the minute: the whole minutes of their total time at the table, each at
- * the rate in force then, rounded half up to the cent once at the end. So 150 minutes at 25 an hour
- * is 62.50 however the time was split, and a part minute left over is not charged.
+ * Wages for one player, one entry per rate they were charged at, base first. Each rate counts the
+ * whole minutes of all the player's time at it and rounds half up to the cent, so the organizer can
+ * check "¥25/时 × 1小时40分" by hand. A part minute left over at a rate is not charged.
  */
-export function wageFor(
+export function wageParts(
   rule: WageRule,
   sessions: readonly SeatSession[],
   switchAt: Timestamp,
   { now, minuteOfDay }: ChargeClock,
-): Cents {
-  // Rates change on the minute or at `switchAt`, so step between those and weigh each step by its length
-  let rateMs = 0;
-  let totalMs = 0;
+): WagePartCharge[] {
+  // Rates change on the minute or at `switchAt`, so step between those
+  const ms: Record<WagePart, number> = { base: 0, adjusted: 0 };
   for (const { from, to = now } of sessions) {
     for (let time = from; time < to; ) {
       const nextMinute = (Math.floor(time / MINUTE) + 1) * MINUTE;
       const next = Math.min(to, nextMinute, switchAt > time ? switchAt : Infinity);
-      rateMs += wageRateAt(rule, time, switchAt, minuteOfDay) * (next - time);
-      totalMs += next - time;
+      ms[wagePartAt(rule, time, switchAt, minuteOfDay)] += next - time;
       time = next;
     }
   }
-  if (totalMs === 0) return ZERO;
-  const chargedMs = Math.floor(totalMs / MINUTE) * MINUTE;
-  return multiply(cents(rateMs), chargedMs / totalMs / HOUR, "half-up");
+  const rates: [WagePart, Cents | undefined][] = [
+    ["base", rule.hourly],
+    ["adjusted", rule.adjustment?.hourly],
+  ];
+  return rates.flatMap(([part, hourly]) => {
+    const minutes = Math.floor(ms[part] / MINUTE);
+    if (hourly === undefined || minutes === 0) return [];
+    return [{ part, hourly, minutes, amount: multiply(hourly, minutes / 60, "half-up") }];
+  });
+}
+
+/** Wages for one player at all rates. */
+export function wageFor(
+  rule: WageRule,
+  sessions: readonly SeatSession[],
+  switchAt: Timestamp,
+  clock: ChargeClock,
+): Cents {
+  return sum(wageParts(rule, sessions, switchAt, clock).map((p) => p.amount));
 }
 
 export interface PlayerSeatTime {
@@ -129,17 +179,26 @@ export function seatTimes(
     .map(({ playerId }) => ({ playerId, seatedMs: seatedMs(sessions.get(playerId) ?? [], now) }));
 }
 
+export interface PlayerChargeStatus extends PlayerSeatTime {
+  /** 0 with no table fee, or before the player has sat long enough. */
+  readonly tableFee: Cents;
+  /** Wages at each rate. Empty with no wages. */
+  readonly wageParts: readonly WagePartCharge[];
+  /** Counted time still needed before the table fee applies. 0 once it does, or with no table fee. */
+  readonly tableFeeShortMs: number;
+}
+
 /**
- * What each player owes for the game's table fee and wages, leaving out amounts of 0. Only time
- * while the game clock ran counts, and "开局 xx 小时后" means once the clock shows xx hours.
+ * Each player's counted time and what they owe so far, in ledger order. Used live during the game
+ * and, through `gameCharges`, at settlement. Only time while the game clock ran counts, and
+ * "开局 xx 小时后" means once the clock shows xx hours.
  */
-export function gameCharges(
+export function chargeStatuses(
   game: Pick<Game, "tableFee" | "wage" | "timer">,
   events: readonly LedgerEvent[],
   clock: ChargeClock,
-): Charge[] {
+): PlayerChargeStatus[] {
   const { tableFee, wage } = game;
-  if (!tableFee && !wage) return [];
   const { sessions, runs } = countedSessions(game, events, clock.now);
   const players = summarizeByPlayer(events).filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
 
@@ -156,19 +215,60 @@ export function gameCharges(
         : Infinity;
   }
 
-  return players.flatMap(({ playerId }): Charge[] => {
+  return players.map(({ playerId }) => {
     const own = sessions.get(playerId) ?? [];
-    const charges: Charge[] = [];
-    if (tableFee) {
-      charges.push({
-        playerId,
-        kind: "table_fee",
-        amount: tableFeeFor(tableFee, seatedMs(own, clock.now)),
-      });
-    }
-    if (wage) charges.push({ playerId, kind: "wage", amount: wageFor(wage, own, switchAt, clock) });
-    return charges.filter((charge) => charge.amount !== 0);
+    const seated = seatedMs(own, clock.now);
+    return {
+      playerId,
+      seatedMs: seated,
+      tableFee: tableFee ? tableFeeFor(tableFee, seated) : ZERO,
+      wageParts: wage ? wageParts(wage, own, switchAt, clock) : [],
+      tableFeeShortMs: tableFee ? Math.max(0, tableFee.minMinutes * MINUTE - seated) : 0,
+    };
   });
+}
+
+function sameCharge(a: ChargeWaiver, b: ChargeWaiver) {
+  return a.playerId === b.playerId && a.kind === b.kind && a.part === b.part;
+}
+
+/** Each player's charges from their statuses, marking the ones the game has waived. */
+export function chargesFrom(
+  game: Pick<Game, "waivedCharges">,
+  statuses: readonly PlayerChargeStatus[],
+): Charge[] {
+  const waived = (key: ChargeWaiver) => (game.waivedCharges ?? []).some((w) => sameCharge(w, key));
+  return statuses.flatMap(({ playerId, tableFee, wageParts: parts }): Charge[] => {
+    const fee = { playerId, kind: "table_fee" as const };
+    return [
+      ...(tableFee !== 0 ? [{ ...fee, amount: tableFee, waived: waived(fee) }] : []),
+      ...parts.map(({ part, hourly, minutes, amount }) => {
+        const key = { playerId, kind: "wage" as const, part };
+        return { ...key, amount, hourly, minutes, waived: waived(key) };
+      }),
+    ];
+  });
+}
+
+/**
+ * What each player owes for the game's table fee and wages: a table fee once it applies, and wages
+ * at each rate they sat at. Waived charges are included and marked.
+ */
+export function gameCharges(
+  game: Pick<Game, "tableFee" | "wage" | "timer" | "waivedCharges">,
+  events: readonly LedgerEvent[],
+  clock: ChargeClock,
+): Charge[] {
+  if (!game.tableFee && !game.wage) return [];
+  return chargesFrom(game, chargeStatuses(game, events, clock));
+}
+
+/** Lets a player off one charge, or charges it again. */
+export function waiveCharge(game: Game, key: ChargeWaiver, waived: boolean): Game {
+  const { waivedCharges = [], ...rest } = game;
+  const others = waivedCharges.filter((w) => !sameCharge(w, key));
+  const next = waived ? [...others, key] : others;
+  return next.length > 0 ? { ...rest, waivedCharges: next } : rest;
 }
 
 export interface ChargeAttribution {
@@ -179,19 +279,20 @@ export interface ChargeAttribution {
 }
 
 /**
- * Moves the charges from each player's result to the recipient, the organizer for now. The total of
- * all results stays the same. A recipient with no result gets a row of their own.
+ * Moves the charges not waived from each player's result to the recipient, the organizer for now.
+ * The total of all results stays the same. A recipient with no result gets a row of their own.
  */
 export function applyCharges(
   nets: readonly PlayerNet[],
   charges: readonly Charge[],
   recipientId: string = ORGANIZER_COLLECTOR,
 ): ChargeAttribution {
+  const due = charges.filter((c) => !c.waived);
   const owed = new Map<string, number>();
-  for (const { playerId, amount } of charges) {
+  for (const { playerId, amount } of due) {
     owed.set(playerId, (owed.get(playerId) ?? 0) + amount);
   }
-  const total = sum(charges.map((c) => c.amount));
+  const total = sum(due.map((c) => c.amount));
   if (total === 0) return { nets, total, recipientId };
 
   const charged = nets.map(({ playerId, net }) => ({

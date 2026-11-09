@@ -1,6 +1,7 @@
 import {
   applyCharges,
   attributeInsurance,
+  type Charge,
   cents,
   chipDifference,
   chipsToCents,
@@ -16,25 +17,27 @@ import {
   type LedgerEvent,
   ORGANIZER_COLLECTOR,
   type PlayerLedger,
+  type PlayerNet,
   reopenGame,
   type SettlementOutcome,
-  seatTimes,
   settleGame,
   settlementOutcome,
   settleTransfers,
   summarizeByPlayer,
+  waiveCharge,
+  ZERO,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { ChargesSection } from "@/components/game/ChargesSection";
 import { ImbalanceOptions } from "@/components/game/ImbalanceOptions";
+import { type ResultCard, ResultCards, type ResultLine } from "@/components/game/ResultCards";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
-import { chargeClock, chargesByPlayer } from "@/lib/charges";
-import { formatDifference, formatSignedChips, netColor } from "@/lib/chips";
+import { chargeClock, formatSeatTime } from "@/lib/charges";
+import { formatDifference, formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { renderSettlementImage } from "@/lib/settlement-image";
@@ -86,7 +89,6 @@ function SettlementPage() {
             <SettlementResult
               game={game}
               outcome={settlementOutcome(ledger, game.chipRatio, game.imbalanceHandling)}
-              differenceChips={difference}
               ledger={ledger}
               events={events}
               nameOf={nameOf}
@@ -145,20 +147,12 @@ function ImbalanceSection({ game, difference }: { game: Game; difference: number
 interface SettlementResultProps {
   game: Game;
   outcome: SettlementOutcome;
-  differenceChips: number;
   ledger: readonly PlayerLedger[];
   events: readonly LedgerEvent[];
   nameOf: (playerId: string) => string;
 }
 
-function SettlementResult({
-  game,
-  outcome,
-  differenceChips,
-  ledger,
-  events,
-  nameOf,
-}: SettlementResultProps) {
+function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementResultProps) {
   const { difference, unresolved } = outcome;
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const insured = attributeInsurance(outcome.nets, game.insuranceOwner);
@@ -168,8 +162,6 @@ function SettlementResult({
   const charges = gameCharges(game, events, clock);
   const charged = applyCharges(insured.nets, charges);
   const { nets } = charged;
-  const owedBy = chargesByPlayer(charges);
-  const hasCharges = game.tableFee !== undefined || game.wage !== undefined;
   const {
     currency,
     status,
@@ -185,7 +177,6 @@ function SettlementResult({
   const [shareFailed, setShareFailed] = useState(false);
   const [transfersOpen, setTransfersOpen] = useState(false);
 
-  const seatChips = seat ? seat.cashedOutChips - seat.boughtChips : 0;
   const insuranceText = formatGameMoney(insuranceNet, currency, "exceptZero");
   const chargesText = formatGameMoney(charged.total, currency);
   const separateInsurance = ownerId === INSURANCE_PLAYER_ID;
@@ -196,60 +187,115 @@ function SettlementResult({
   const planName = collectorId ? `代收人 ${collectorName(collectorId)}` : "最优方案";
 
   const organizerNet = nets.find((p) => p.playerId === ORGANIZER_COLLECTOR)?.net;
-  const results = nets
-    .toSorted((a, b) => b.net - a.net)
-    .flatMap(({ playerId, net }) => {
-      const player = ledger.find((p) => p.playerId === playerId);
-      if (!player) return [];
-      const netChips = player.cashedOutChips - player.boughtChips;
-      const owed = owedBy.get(playerId);
-      return [
-        {
-          playerId,
-          name: nameOf(playerId),
-          hands: handChips === undefined ? "—" : String(player.boughtChips / handChips),
-          chips: player.cashedOutChips.toLocaleString("zh-CN"),
-          netChips,
-          netText: formatSignedChips(netChips),
-          amount: formatGameMoney(net, currency, "exceptZero"),
-          net,
-          insured: insuranceNet !== 0 && playerId === ownerId && !separateInsurance,
-          charges: owed && chargeLabel(owed.tableFee, owed.wage),
-          receivesCharges: false,
+  const netOf = (list: readonly PlayerNet[], id: string) =>
+    list.find((p) => p.playerId === id)?.net ?? ZERO;
+  // Each person's result from the chips alone, before a difference is split
+  const chipNets = settlementOutcome(ledger, game.chipRatio, undefined).nets;
+  const chargesLocked = saveGame.isPending || status === "settled";
+  const money = (value: number) => formatGameMoney(cents(value), currency);
+
+  function insuranceLine(id: string): ResultLine[] {
+    if (insuranceNet === 0 || id !== ownerId) return [];
+    return [{ key: "insurance", label: "保险", amount: insuranceNet, tone: "adjustment" }];
+  }
+
+  /** Wages at each rate, then the table fee, each with a box to let the player off it. */
+  function chargeLines(playerId: string): ResultLine[] {
+    const line = (charge: Charge, label: string): ResultLine => ({
+      key: `${charge.kind}-${charge.part ?? ""}`,
+      label,
+      amount: cents(-charge.amount),
+      tone: "charge",
+      waiver: {
+        waived: charge.waived,
+        disabled: chargesLocked,
+        onChange: (waived) => {
+          const { kind, part } = charge;
+          const key = part ? { playerId, kind, part } : { playerId, kind };
+          saveGame.mutate(waiveCharge(game, key, waived));
         },
-      ];
+      },
     });
+    const own = charges.filter((c) => c.playerId === playerId);
+    const wages = own.flatMap(({ hourly, minutes, ...charge }) =>
+      hourly === undefined || minutes === undefined
+        ? []
+        : [
+            line(
+              { ...charge, hourly, minutes },
+              `工资 ${money(hourly)}/时 × ${formatSeatTime(minutes * 60_000)}`,
+            ),
+          ],
+    );
+    const fee = own.find((c) => c.kind === "table_fee");
+    const { tableFee } = game;
+    if (fee) return [...wages, line(fee, `台费 ${money(fee.amount)}/人`)];
+    if (!tableFee) return wages;
+    const short = `台费 ${money(tableFee.amount)}/人 · 未满 ${tableFee.minMinutes} 分钟`;
+    return [...wages, { key: "table_fee", label: short, tone: "charge" }];
+  }
 
-  const organizerChips =
-    (game.imbalanceHandling === "organizer" ? -differenceChips : 0) +
-    (ownerId === ORGANIZER_COLLECTOR ? seatChips : 0);
+  const playerCards = ledger
+    .filter((p) => p.playerId !== INSURANCE_PLAYER_ID || separateInsurance)
+    .map((player): ResultCard => {
+      const { playerId } = player;
+      const base = netOf(chipNets, playerId);
+      const share = netOf(outcome.nets, playerId) - base;
+      const split: ResultLine[] =
+        share === 0
+          ? []
+          : [{ key: "split", label: "差额分摊", amount: cents(share), tone: "adjustment" }];
+      return {
+        id: playerId,
+        name: nameOf(playerId),
+        hands: handChips === undefined ? "—" : String(player.boughtChips / handChips),
+        chips: player.cashedOutChips.toLocaleString("zh-CN"),
+        netChips: player.cashedOutChips - player.boughtChips,
+        base,
+        lines: [...split, ...insuranceLine(playerId), ...chargeLines(playerId)],
+        total: netOf(nets, playerId),
+      };
+    })
+    .toSorted((a, b) => b.total - a.total);
 
-  const rows =
-    organizerNet === undefined
-      ? results
+  const covered = netOf(outcome.nets, ORGANIZER_COLLECTOR);
+  const organizerLines: ResultLine[] = [
+    ...(covered === 0
+      ? []
       : [
-          ...results,
           {
-            playerId: ORGANIZER_COLLECTOR,
+            key: "difference",
+            label: covered < 0 ? "补齐差额" : "收取差额",
+            amount: covered,
+            tone: "adjustment" as const,
+          },
+        ]),
+    ...insuranceLine(ORGANIZER_COLLECTOR),
+    ...(charged.total !== 0 && charged.recipientId === ORGANIZER_COLLECTOR
+      ? [
+          {
+            key: "charges",
+            label: "台费和工资收入",
+            amount: charged.total,
+            tone: "charge" as const,
+          },
+        ]
+      : []),
+  ];
+  const cards: ResultCard[] =
+    organizerNet === undefined
+      ? playerCards
+      : [
+          ...playerCards,
+          {
+            id: ORGANIZER_COLLECTOR,
             name: "组织者",
             hands: "—",
             chips: "—",
-            netChips: organizerChips,
-            netText: formatSignedChips(organizerChips),
-            amount: formatGameMoney(organizerNet, currency, "exceptZero"),
-            net: organizerNet,
-            insured: insuranceNet !== 0 && ownerId === ORGANIZER_COLLECTOR,
-            charges: undefined,
-            receivesCharges: charged.total !== 0 && charged.recipientId === ORGANIZER_COLLECTOR,
+            lines: organizerLines,
+            total: organizerNet,
           },
         ];
-
-  /** Short enough for the name column. The section below has the details. */
-  function chargeLabel(tableFee: number, wage: number) {
-    const label = [tableFee !== 0 && "台费", wage !== 0 && "工资"].filter(Boolean).join("");
-    const amount = formatGameMoney(cents(-(tableFee + wage)), currency);
-    return label === "" ? undefined : { label, amount };
-  }
 
   function imbalanceNote() {
     if (difference === 0) return undefined;
@@ -261,7 +307,7 @@ function SettlementResult({
     if (game.imbalanceHandling === "organizer") {
       return `组织者${difference > 0 ? "补齐" : "收取"} ${size}`;
     }
-    const count = results.filter((r) => r.netChips * difference > 0).length;
+    const count = playerCards.filter((r) => (r.netChips ?? 0) * difference > 0).length;
     return difference > 0
       ? `水上多 ${size}，由 ${count} 位赢家按水上比例扣减`
       : `水下多 ${size}，由 ${count} 位输家按水下比例少付`;
@@ -295,13 +341,13 @@ function SettlementResult({
           amount: formatGameMoney(amount, currency),
         })),
         notes,
-        results: rows.map(({ name, hands, chips, netChips, netText, amount }) => ({
+        results: cards.map(({ name, hands, chips, netChips, total }) => ({
           name,
           hands,
           chips,
-          net: netText,
-          amount,
-          outcome: Math.sign(netChips),
+          net: netChips === undefined ? "—" : formatSignedChips(netChips),
+          amount: formatGameMoney(total, currency, "exceptZero"),
+          outcome: Math.sign(total),
         })),
       });
       const day = [date.getFullYear(), date.getMonth() + 1, date.getDate()].join("-");
@@ -343,72 +389,7 @@ function SettlementResult({
   return (
     <>
       <h2 className="text-lg font-semibold">结果</h2>
-      <div className="mt-2 rounded-xl border border-line bg-surface px-2">
-        <table className="w-full table-fixed text-sm">
-          <thead>
-            <tr className="text-xs text-muted">
-              <th scope="col" className="py-2 text-left font-medium">
-                玩家
-              </th>
-              <th scope="col" className="w-8 text-right font-medium">
-                手
-              </th>
-              <th scope="col" className="w-14 text-right font-medium">
-                筹码
-              </th>
-              <th scope="col" className="w-16 text-right font-medium">
-                水上/下
-              </th>
-              <th scope="col" className="w-20 text-right font-medium">
-                金额
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(
-              ({
-                playerId,
-                name,
-                hands,
-                chips,
-                netChips,
-                netText,
-                amount,
-                net,
-                insured,
-                charges: chargeText,
-                receivesCharges,
-              }) => (
-                <tr key={playerId} className="h-12 border-t border-line tabular-nums">
-                  <th scope="row" className="truncate text-left font-medium">
-                    {name}
-                    {insured && (
-                      <span className="block truncate text-xs font-normal text-highlight">
-                        含保险 {insuranceText}
-                      </span>
-                    )}
-                    {chargeText && (
-                      <span className="block text-xs leading-tight font-normal whitespace-normal text-win">
-                        {chargeText.label}{" "}
-                        <span className="whitespace-nowrap">{chargeText.amount}</span>
-                      </span>
-                    )}
-                    {receivesCharges && (
-                      <span className="block text-xs leading-tight font-normal whitespace-normal text-win">
-                        含台费工资 <span className="whitespace-nowrap">{chargesText}</span>
-                      </span>
-                    )}
-                  </th>
-                  <td className="text-right">{hands}</td>
-                  <td className="text-right">{chips}</td>
-                  <td className={cn("text-right", netColor(netChips))}>{netText}</td>
-                  <td className={cn("text-right font-semibold", netColor(net))}>{amount}</td>
-                </tr>
-              ),
-            )}
-          </tbody>
-        </table>
-      </div>
+      <ResultCards cards={cards} currency={currency} />
 
       {notes.length > 0 && (
         <div role="status" className="mt-2 text-sm text-highlight">
@@ -416,17 +397,6 @@ function SettlementResult({
             <p key={text}>{text}</p>
           ))}
         </div>
-      )}
-
-      {hasCharges && (
-        <ChargesSection
-          game={game}
-          charges={charges}
-          seatTimes={seatTimes(game, events, clock.now)}
-          total={charged.total}
-          recipientName={collectorName(charged.recipientId)}
-          nameOf={nameOf}
-        />
       )}
 
       {seat && (
@@ -490,10 +460,10 @@ function SettlementResult({
                   className="min-h-12 w-full rounded-xl border border-line bg-surface px-3"
                 >
                   <option value={ORGANIZER_COLLECTOR}>组织者（不在局中）</option>
-                  {results
-                    .filter(({ playerId }) => playerId !== INSURANCE_PLAYER_ID)
-                    .map(({ playerId, name }) => (
-                      <option key={playerId} value={playerId}>
+                  {playerCards
+                    .filter(({ id }) => id !== INSURANCE_PLAYER_ID)
+                    .map(({ id, name }) => (
+                      <option key={id} value={id}>
                         {name}
                       </option>
                     ))}
