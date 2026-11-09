@@ -109,6 +109,40 @@ export const INSURANCE_PLAYER_ID = "insurance";
 /** Reserved: no player can take this name. */
 export const INSURANCE_PLAYER_NAME = "保险";
 
+/** A flat fee each player pays once per game, if they sat long enough. */
+export interface TableFeeRule {
+  readonly amount: Cents;
+  /** Minutes at the table before the fee applies. 0 charges everyone. */
+  readonly minMinutes: number;
+}
+
+/**
+ * A different hourly wage for part of the game. One kind at a time: a time of day, or a time since
+ * the first player sat down.
+ */
+export type WageAdjustment =
+  | {
+      readonly kind: "time_of_day";
+      /** Local hour the rate starts, 0–23. */
+      readonly fromHour: number;
+      /** Local hour the rate ends, 0–23. Earlier than `fromHour` runs past midnight. */
+      readonly toHour: number;
+      readonly hourly: Cents;
+    }
+  | {
+      readonly kind: "after_start";
+      /** Whole hours after the first player sat down. */
+      readonly afterHours: number;
+      readonly hourly: Cents;
+    };
+
+/** What each player pays per hour at the table, counted by the minute. */
+export interface WageRule {
+  /** The rate at all times, unless the adjustment applies. */
+  readonly hourly: Cents;
+  readonly adjustment?: WageAdjustment;
+}
+
 /** What the organizer chooses when starting a game. */
 export type GameSettings = Pick<
   Game,
@@ -117,6 +151,10 @@ export type GameSettings = Pick<
   readonly buyInBigBlinds: number;
   /** Missing means insurance is off. Not part of the form values: it has its own editor. */
   readonly insurance?: InsuranceRule;
+  /** Missing means no table fee. Has its own editor, like insurance. */
+  readonly tableFee?: TableFeeRule;
+  /** Missing means no wages. Has its own editor, like insurance. */
+  readonly wage?: WageRule;
 };
 
 /** The game clock. Timing data stores timestamps and computes differences (ADR 0001). */
@@ -157,6 +195,10 @@ export interface Game {
    * `INSURANCE_PLAYER_ID` to list it on its own. Missing means the organizer.
    */
   readonly insuranceOwner?: string;
+  /** This game's table fee. Missing means none. Charged at settlement, outside the chips. */
+  readonly tableFee?: TableFeeRule;
+  /** This game's wages. Missing means none. Charged at settlement, outside the chips. */
+  readonly wage?: WageRule;
 }
 
 export interface Player {

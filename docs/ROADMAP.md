@@ -22,10 +22,13 @@ Each milestone maps to a GitHub Milestone, and each feature in it maps to an iss
 - Settlement results as an image, for sharing to a group chat
 - Data export / import (JSON) as a backup
 
-## M2 Timing and dealer fees
+## M2 Timing, wages and table fees
 
-- Each player's time at the table (including leaving and coming back)
-- Dealer fee rules: hourly rate, rounding for part hours
+- [x] Each player's time at the table (including leaving and coming back)
+- [x] Wage rules: hourly rate by the minute, with a time-of-day or after-some-hours rate
+- [x] Table fee: once per player after a minimum time
+- [x] Shown apart at settlement and given to the host
+- Waive or change a single charge, and choose who receives them
 
 ## M3 Insurance calculator (done)
 

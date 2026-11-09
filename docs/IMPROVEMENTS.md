@@ -369,7 +369,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - Saved configs are whole setups: currency, chips, blinds, Buy in and insurance. 保存当前配置 in the picker stores one, a repeated name overwrites it, and each can be deleted.
   - Using a config only fills the form, so games keep their own copy.
   - 上次配置 stays the starting point, so insurance is on if the latest game had it. Off by default applies with no earlier game and after 恢复默认.
-  - 抽水, 台费 and 工资 show 开发中 and their switches are not saved until those settings exist.
+  - 抽水, 台费 and 工资 show 开发中 and their switches are not saved until those settings exist. 台费 and 工资 arrived in #I-029.
   - Backups include saved configs from version 5, and older backups still restore.
 - Decision: do.
 - Tracking: issue #54, PR #55
@@ -480,6 +480,27 @@ Records discussions of feature and process improvements: what was proposed, how 
   - Backups move to version 6 to carry the clock. Older backups still load.
 - Decision: do.
 - Tracking: PR #64
+
+### #I-029 Table fees and wages
+
+- Type: feature
+- Date: proposed and decided 2026-11-09
+- Source: discussion
+- Problem: 台费 and 工资 on game setup only showed 开发中, so organizers worked out table fees and hourly wages by hand after the game.
+- Proposal:
+  - Turning on 台费 or 工资 on game setup loads last time's values, which stay one of the presets beside the defaults.
+  - 台费 defaults to 100 in the game's currency once a player has sat 30 minutes. Both numbers can change.
+  - 工资 defaults to 25 an hour in the game's currency at every hour. 高级设置, collapsed, adds a different rate from one hour to another, or after some hours of play.
+  - Both go to the host and show at settlement, marked apart, with room to waive or change a charge later.
+- Settled details:
+  - Wages are per player: the rate times their own time at the table, counted in whole minutes of the total.
+  - Time at the table runs from buy-in to leaving and starts again on 返回. Pausing the game clock does not stop it.
+  - The table fee is charged once per player per game. 0 minutes charges everyone.
+  - Only one advanced rate can be on. The after-hours rate counts from the first player sitting down.
+  - Each charged player's result shows 台费工资 and the amount, the organizer row shows the total, and a 台费和工资 section lists time, fee and wage per player.
+  - Saved configs carry both. Backups move to version 7, and older backups still restore.
+- Decision: do.
+- Tracking: ADR [0022](adr/0022-table-fee-and-wages.md)
 
 ## Not doing or deferred
 

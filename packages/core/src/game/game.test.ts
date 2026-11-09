@@ -239,4 +239,18 @@ describe("updateGameSettings", () => {
       bigBlindChips: next.bigBlindChips,
     });
   });
+
+  it("turns the table fee and wages on and off at any time", () => {
+    const tableFee = { amount: cents(10_000), minMinutes: 30 };
+    const wage = { hourly: cents(2500) };
+    const charged = updateGameSettings(
+      game,
+      { ...next, tableFee, wage },
+      { hasLedgerEvents: true },
+    );
+    expect(charged).toMatchObject({ tableFee, wage });
+    const cleared = updateGameSettings(charged, next, { hasLedgerEvents: true });
+    expect(cleared).not.toHaveProperty("tableFee");
+    expect(cleared).not.toHaveProperty("wage");
+  });
 });

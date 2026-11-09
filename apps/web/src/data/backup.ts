@@ -11,7 +11,7 @@ import {
 import { z } from "zod";
 
 const FORMAT = "holdem-backup";
-const VERSION = 6;
+const VERSION = 7;
 
 const id = z.string().min(1);
 const money = z
@@ -35,6 +35,20 @@ const insuranceRuleSchema = z.object({
   riverCapPercent: percent.optional(),
 });
 
+const tableFeeSchema = z.object({ amount: money, minMinutes: z.number().int().min(0) });
+
+const hour = z.number().int().min(0).max(23);
+
+const wageSchema = z.object({
+  hourly: money,
+  adjustment: z
+    .discriminatedUnion("kind", [
+      z.object({ kind: z.literal("time_of_day"), fromHour: hour, toHour: hour, hourly: money }),
+      z.object({ kind: z.literal("after_start"), afterHours: chips.positive(), hourly: money }),
+    ])
+    .optional(),
+});
+
 const gameFields = {
   ...owned,
   currency: z.enum(CURRENCIES as ["AUD", "CNY"]),
@@ -52,6 +66,10 @@ const gameFields = {
   timer: z
     .object({ elapsedMs: z.number().int().min(0), runningSince: timestamp.optional() })
     .optional(),
+  /** Added in version 7. */
+  tableFee: tableFeeSchema.optional(),
+  /** Added in version 7. */
+  wage: wageSchema.optional(),
 };
 
 const gameSchema = z.object({
@@ -129,6 +147,8 @@ const gameConfigSchema = z.object({
     chipRatio: gameFields.chipRatio,
     buyInBigBlinds: chips.positive(),
     insurance: insuranceRuleSchema.optional(),
+    tableFee: tableFeeSchema.optional(),
+    wage: wageSchema.optional(),
   }),
   createdAt: timestamp,
 });
