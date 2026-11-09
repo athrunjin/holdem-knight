@@ -60,9 +60,7 @@ export function initialLetter({ initials }: Pick<Player, "initials">): string {
 export function groupByInitial<T extends Pick<Player, "name" | "initials">>(
   players: readonly T[],
 ): InitialGroup<T>[] {
-  const sorted = [...players].sort(
-    (a, b) => compare(a.initials, b.initials) || compare(a.name, b.name),
-  );
+  const sorted = [...players].sort(comparePlayers);
   const groups = new Map<string, T[]>();
   for (const player of sorted) {
     const letter = initialLetter(player);
@@ -71,6 +69,14 @@ export function groupByInitial<T extends Pick<Player, "name" | "initials">>(
   return [...groups]
     .sort(([a], [b]) => (a === "#" ? 1 : b === "#" ? -1 : compare(a, b)))
     .map(([letter, members]) => ({ letter, players: members }));
+}
+
+/** Alphabetical order: by initials, then by name. */
+export function comparePlayers(
+  a: Pick<Player, "name" | "initials">,
+  b: Pick<Player, "name" | "initials">,
+): number {
+  return compare(a.initials, b.initials) || compare(a.name, b.name);
 }
 
 function compare(a: string, b: string): number {

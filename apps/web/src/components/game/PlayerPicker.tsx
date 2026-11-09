@@ -2,7 +2,7 @@ import { groupByInitial, type Player, parsePlayerName, searchPlayers } from "@ho
 import { ArrowUpDown, Check, ChevronDown, ListFilter, Search, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { LetterIndex, letterSectionId, useActiveLetter } from "@/components/game/LetterIndex";
-import { newPlayer, usePlayers, useRecentPlayerIds, useSavePlayer } from "@/data/players";
+import { newPlayer, usePlayers, useRecentPlayers, useSavePlayer } from "@/data/players";
 import { cn } from "@/lib/cn";
 import { PLAYER_NAME_ISSUE_TEXT } from "@/lib/player-name";
 
@@ -22,7 +22,7 @@ interface PlayerPickerProps {
  */
 export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps) {
   const players = usePlayers();
-  const recentIds = useRecentPlayerIds(MAX_RECENT);
+  const recentPlayers = useRecentPlayers(MAX_RECENT);
   const savePlayer = useSavePlayer();
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [query, setQuery] = useState("");
@@ -31,7 +31,7 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
 
   const all = players.data ?? [];
   const byId = new Map(all.map((player) => [player.id, player]));
-  const recent = (recentIds.data ?? []).flatMap((id) => byId.get(id) ?? []);
+  const recent = recentPlayers.data ?? [];
 
   const recentMatches = searchPlayers(recent, query);
   // Recent players appear in the full list too, so everyone can be found by letter
@@ -68,7 +68,7 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
     });
   }
 
-  if (players.isPending || recentIds.isPending) return null;
+  if (players.isPending || recentPlayers.isPending) return null;
 
   return (
     <>

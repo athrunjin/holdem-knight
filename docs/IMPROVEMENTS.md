@@ -44,7 +44,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - Tapping 开局 opens a 选择玩家 step before the game starts.
   - Three layouts were compared as previews: pills, tiles and a compact list. The tiles were chosen.
 - Settled details:
-  - 最近玩家 at the top: the people from recent games, most recent first, as tiles with the first character in a circle, four to a row and at most three rows (12 people). A tap lights a tile and a second tap clears it.
+  - 最近玩家 at the top: the people from recent games, as tiles with the first character in a circle, four to a row and at most three rows (12 people). A tap lights a tile and a second tap clears it.
   - 全部玩家 below holds every player, recent ones included, sorted by pinyin initials and grouped by their first letter. A letter gets a heading only when someone falls under it. Each row has a tick box on the right.
   - A letter index down the right edge highlights the current letter while scrolling. A tap jumps to that letter. Holding it enlarges the index and shows the letter in a large bubble, and sliding up or down jumps as the finger passes each letter.
   - To the right of 全部玩家 sit a group choice (全部 by default), a filter button and a sort button. For now each shows a 开发中 notice.
@@ -57,7 +57,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The settings button now reads 下一步：选择玩家 and sits on the right, with 保存当前配置 on the left. 设置 at the top right goes back to the settings as they were typed.
   - Both steps end with the same pair: a narrow item on the left and a wide button on the right, both 48px tall.
   - On 开局设置, 保险, 台费 and 工资 no longer show their description under the name. An info button next to the name shows it in a dialog.
-  - Recent players come from the latest 20 games, by each player's latest buy-in, rebuy or cash-out still in effect. The insurance seat is left out.
+  - Recent players come from the latest 20 games: the newest game's players first, and players from the same game in alphabetical order. Each player appears once, at their newest game. The insurance seat and players taken back out are left out.
   - Starting saves the game, then the insurance seat and the starting buy-ins in one ledger write, all timed at the moment of starting. A ticked clock starts at that moment too.
 - Decision: do. Recent players come from past games, so this needs no sign-in and does not wait for M6.
 - Tracking: branch `feat/player-picker`; no issue yet

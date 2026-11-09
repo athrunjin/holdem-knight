@@ -9,8 +9,10 @@ import {
   INSURANCE_PLAYER_ID,
   type InsuranceBuyEvent,
   type LedgerEvent,
+  type Player,
 } from "../domain";
 import { type Cents, multiply } from "../money";
+import { comparePlayers } from "../player";
 
 function isChipEvent(event: LedgerEvent): event is ChipEvent {
   return event.type === "buy_in" || event.type === "rebuy" || event.type === "cash_out";
@@ -224,19 +226,30 @@ export function adjustHands(
 }
 
 /**
- * Players with chip events still in effect, latest first, across any number of games.
- * The insurance seat is left out, and so is a player whose only buy-in was reversed.
+ * Players from the latest games: the newest game's players first, and players from one game in
+ * alphabetical order. Each player appears once, at their newest game. The insurance seat, players
+ * taken back out and players not in `players` are left out.
  */
-export function recentPlayerIds(events: readonly LedgerEvent[], limit: number): string[] {
-  const latest = new Map<string, number>();
-  for (const { playerId, occurredAt } of activeChipEvents(events)) {
-    if (playerId === INSURANCE_PLAYER_ID) continue;
-    latest.set(playerId, Math.max(latest.get(playerId) ?? occurredAt, occurredAt));
+export function recentPlayers(
+  gamesNewestFirst: readonly (readonly LedgerEvent[])[],
+  players: readonly Player[],
+  limit: number,
+): Player[] {
+  const byId = new Map(players.map((player) => [player.id, player]));
+  const seen = new Set<string>();
+  const recent: Player[] = [];
+  for (const events of gamesNewestFirst) {
+    const inGame: Player[] = [];
+    for (const { playerId } of activeChipEvents(events)) {
+      const player = byId.get(playerId);
+      if (!player || seen.has(playerId)) continue;
+      seen.add(playerId);
+      inGame.push(player);
+    }
+    recent.push(...inGame.sort(comparePlayers));
+    if (recent.length >= limit) break;
   }
-  return [...latest]
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, limit)
-    .map(([playerId]) => playerId);
+  return recent.slice(0, limit);
 }
 
 /** Everything except the insurance seat's own buy-in, which is written when the game starts. */

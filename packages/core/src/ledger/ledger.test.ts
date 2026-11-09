@@ -7,6 +7,7 @@ import {
   type InsuranceBuyEvent,
   type InsuranceSettleEvent,
   type LedgerEvent,
+  type Player,
   type ReversalEvent,
 } from "../domain";
 import { RULE_30 } from "../insurance";
@@ -24,7 +25,7 @@ import {
   latestCashOut,
   ledgerTotals,
   nextBuyType,
-  recentPlayerIds,
+  recentPlayers,
   soleBuyIn,
   summarizeByPlayer,
 } from "./ledger";
@@ -662,46 +663,62 @@ describe("insurance", () => {
   });
 });
 
-describe("recentPlayerIds", () => {
-  const at = (occurredAt: number, event: LedgerEvent): LedgerEvent => ({ ...event, occurredAt });
+describe("recentPlayers", () => {
+  const person = (id: string, initials: string): Player => ({
+    id,
+    organizerId: "me",
+    name: id,
+    initials,
+    createdAt: 1,
+  });
+  const ace = person("Ace", "ace");
+  const ben = person("Ben", "ben");
+  const zoe = person("Zoe", "zoe");
+  const kim = person("Kim", "kim");
+  const everyone = [ace, ben, zoe, kim];
+  const buyIn = (id: string, playerId: string) => chip(id, "buy_in", playerId, 100);
+  const names = (games: LedgerEvent[][], limit = 12) =>
+    recentPlayers(games, everyone, limit).map((p) => p.name);
 
-  it("puts the latest player first, using each player's latest event", () => {
-    const events = [
-      at(1, chip("1", "buy_in", "a", 100)),
-      at(2, chip("2", "buy_in", "b", 100)),
-      at(3, chip("3", "rebuy", "a", 100)),
-      at(4, { ...chip("4", "buy_in", "c", 100), gameId: "g2" }),
-    ];
-    expect(recentPlayerIds(events, 10)).toEqual(["c", "a", "b"]);
+  it("puts the newest game first, and one game's players in alphabetical order", () => {
+    const newest = [buyIn("1", "Zoe"), buyIn("2", "Ace")];
+    const older = [buyIn("3", "Kim"), buyIn("4", "Ben")];
+    expect(names([newest, older])).toEqual(["Ace", "Zoe", "Ben", "Kim"]);
+  });
+
+  it("lists a player once, at their newest game", () => {
+    const newest = [buyIn("1", "Zoe")];
+    const older = [buyIn("2", "Ace"), buyIn("3", "Zoe")];
+    expect(names([newest, older])).toEqual(["Zoe", "Ace"]);
   });
 
   it("keeps to the limit", () => {
-    const events = ["a", "b", "c"].map((id, i) => at(i, chip(id, "buy_in", id, 100)));
-    expect(recentPlayerIds(events, 2)).toEqual(["c", "b"]);
+    expect(names([[buyIn("1", "Zoe"), buyIn("2", "Ace"), buyIn("3", "Ben")]], 2)).toEqual([
+      "Ace",
+      "Ben",
+    ]);
   });
 
-  it("leaves out the insurance seat and players taken back out", () => {
-    const events = [
-      at(1, chip("1", "buy_in", INSURANCE_PLAYER_ID, 100)),
-      at(2, chip("2", "buy_in", "a", 100)),
-      at(3, chip("3", "buy_in", "b", 100)),
-      at(4, reversal("4", "3")),
+  it("leaves out the insurance seat, players taken back out and unknown players", () => {
+    const game = [
+      buyIn("1", INSURANCE_PLAYER_ID),
+      buyIn("2", "Ace"),
+      buyIn("3", "Ben"),
+      reversal("4", "3"),
+      buyIn("5", "deleted"),
     ];
-    expect(recentPlayerIds(events, 10)).toEqual(["a"]);
+    expect(names([game])).toEqual(["Ace"]);
   });
 
   it("returns each player once, at most the limit", () => {
-    const event = fc
-      .tuple(fc.constantFrom("a", "b", "c", "d"), fc.nat(1000))
-      .map(([playerId, time]) => [playerId, time] as const);
+    const game = fc.array(fc.constantFrom("Ace", "Ben", "Zoe", "Kim", "nobody"));
     fc.assert(
-      fc.property(fc.array(event), fc.nat(5), (pairs, limit) => {
-        const events = pairs.map(([playerId, time], i) =>
-          at(time, chip(String(i), "buy_in", playerId, 100)),
-        );
-        const ids = recentPlayerIds(events, limit);
-        expect(new Set(ids).size).toBe(ids.length);
-        expect(ids.length).toBe(Math.min(limit, new Set(pairs.map(([id]) => id)).size));
+      fc.property(fc.array(game), fc.nat(5), (games, limit) => {
+        const events = games.map((ids, g) => ids.map((id, i) => buyIn(`${g}-${i}`, id)));
+        const result = recentPlayers(events, everyone, limit);
+        const known = new Set(games.flat().filter((id) => id !== "nobody"));
+        expect(new Set(result).size).toBe(result.length);
+        expect(result.length).toBe(Math.min(limit, known.size));
       }),
     );
   });
