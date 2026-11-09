@@ -15,6 +15,7 @@ import { Route as ToolsRouteImport } from './routes/tools'
 import { Route as GamesNewRouteImport } from './routes/games/new'
 import { Route as PlayersIndexRouteImport } from './routes/players/index'
 import { Route as PlayersPlayerIdRouteImport } from './routes/players/$playerId'
+import { Route as PreviewPlayerPickerRouteImport } from './routes/preview.player-picker'
 import { Route as ToolsInsuranceRouteImport } from './routes/tools_.insurance'
 import { Route as GamesGameIdIndexRouteImport } from './routes/games/$gameId/index'
 import { Route as GamesGameIdInsuranceRouteImport } from './routes/games/$gameId/insurance'
@@ -51,6 +52,11 @@ const PlayersPlayerIdRoute = PlayersPlayerIdRouteImport.update({
   path: '/players/$playerId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PreviewPlayerPickerRoute = PreviewPlayerPickerRouteImport.update({
+  id: '/preview/player-picker',
+  path: '/preview/player-picker',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ToolsInsuranceRoute = ToolsInsuranceRouteImport.update({
   id: '/tools_/insurance',
   path: '/tools/insurance',
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/tools': typeof ToolsRoute
   '/games/new': typeof GamesNewRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
+  '/preview/player-picker': typeof PreviewPlayerPickerRoute
   '/tools/insurance': typeof ToolsInsuranceRoute
   '/players/': typeof PlayersIndexRoute
   '/games/$gameId/insurance': typeof GamesGameIdInsuranceRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/tools': typeof ToolsRoute
   '/games/new': typeof GamesNewRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
+  '/preview/player-picker': typeof PreviewPlayerPickerRoute
   '/tools/insurance': typeof ToolsInsuranceRoute
   '/players': typeof PlayersIndexRoute
   '/games/$gameId/insurance': typeof GamesGameIdInsuranceRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/tools': typeof ToolsRoute
   '/games/new': typeof GamesNewRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
+  '/preview/player-picker': typeof PreviewPlayerPickerRoute
   '/tools_/insurance': typeof ToolsInsuranceRoute
   '/players/': typeof PlayersIndexRoute
   '/games/$gameId/insurance': typeof GamesGameIdInsuranceRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/tools'
     | '/games/new'
     | '/players/$playerId'
+    | '/preview/player-picker'
     | '/tools/insurance'
     | '/players/'
     | '/games/$gameId/insurance'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/tools'
     | '/games/new'
     | '/players/$playerId'
+    | '/preview/player-picker'
     | '/tools/insurance'
     | '/players'
     | '/games/$gameId/insurance'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/tools'
     | '/games/new'
     | '/players/$playerId'
+    | '/preview/player-picker'
     | '/tools_/insurance'
     | '/players/'
     | '/games/$gameId/insurance'
@@ -165,6 +177,7 @@ export interface RootRouteChildren {
   ToolsRoute: typeof ToolsRoute
   GamesNewRoute: typeof GamesNewRoute
   PlayersPlayerIdRoute: typeof PlayersPlayerIdRoute
+  PreviewPlayerPickerRoute: typeof PreviewPlayerPickerRoute
   ToolsInsuranceRoute: typeof ToolsInsuranceRoute
   PlayersIndexRoute: typeof PlayersIndexRoute
   GamesGameIdInsuranceRoute: typeof GamesGameIdInsuranceRoute
@@ -217,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayersPlayerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/preview/player-picker': {
+      id: '/preview/player-picker'
+      path: '/preview/player-picker'
+      fullPath: '/preview/player-picker'
+      preLoaderRoute: typeof PreviewPlayerPickerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tools_/insurance': {
       id: '/tools_/insurance'
       path: '/tools/insurance'
@@ -261,6 +281,7 @@ const rootRouteChildren: RootRouteChildren = {
   ToolsRoute: ToolsRoute,
   GamesNewRoute: GamesNewRoute,
   PlayersPlayerIdRoute: PlayersPlayerIdRoute,
+  PreviewPlayerPickerRoute: PreviewPlayerPickerRoute,
   ToolsInsuranceRoute: ToolsInsuranceRoute,
   PlayersIndexRoute: PlayersIndexRoute,
   GamesGameIdInsuranceRoute: GamesGameIdInsuranceRoute,
