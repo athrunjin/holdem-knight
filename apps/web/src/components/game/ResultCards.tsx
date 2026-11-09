@@ -1,4 +1,7 @@
-import type { Cents, Currency } from "@holdem-knight/core";
+import { type Cents, type Currency, cents } from "@holdem-knight/core";
+import { ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { MiniSwitch } from "@/components/MiniSwitch";
 import { formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
@@ -17,6 +20,8 @@ export interface ResultLine {
   readonly amount?: Cents;
   /** Charges are muted, other adjustments use the highlight color. */
   readonly tone: "charge" | "adjustment";
+  /** Lines in the same group add up to one item when the card is collapsed. */
+  readonly group?: SummaryGroup;
   /** A charge the organizer can let the player off. */
   readonly waiver?: {
     readonly waived: boolean;
@@ -24,6 +29,10 @@ export interface ResultLine {
     readonly onChange: (waived: boolean) => void;
   };
 }
+
+/** The items a collapsed card lists, left to right. */
+const SUMMARY_GROUPS = ["分摊", "保险", "工资", "台费"] as const;
+export type SummaryGroup = (typeof SUMMARY_GROUPS)[number];
 
 export interface ResultCard {
   readonly id: string;
@@ -36,6 +45,8 @@ export interface ResultCard {
   readonly base?: Cents;
   readonly lines: readonly ResultLine[];
   readonly total: Cents;
+  /** Players' cards fold to one row with a summary line. The organizer's always shows its lines. */
+  readonly collapsible?: boolean;
 }
 
 function TotalChip({ total, currency }: { total: Cents; currency: Currency }) {
@@ -98,8 +109,122 @@ function Line({ line, currency }: { line: ResultLine; currency: Currency }) {
 }
 
 /**
+ * A collapsed card's line, right-aligned under the amount: each group's total, then the sum of
+ * them all in gray. With a single item, that item takes the sum's place.
+ */
+function Summary({ card, currency }: { card: ResultCard; currency: Currency }) {
+  const items = SUMMARY_GROUPS.flatMap((group) => {
+    const lines = card.lines.filter((l) => l.group === group && l.amount !== undefined);
+    if (lines.length === 0) return [];
+    const due = lines.filter((l) => !l.waiver?.waived);
+    const amount = due.reduce((total, l) => total + (l.amount ?? 0), 0);
+    const tone = lines[0]?.tone ?? "charge";
+    const value =
+      due.length === 0 ? "已免" : formatGameMoney(cents(amount), currency, "exceptZero");
+    return [{ group, value, tone }];
+  });
+  if (items.length === 0) return null;
+  const onlyCharges = items.every((item) => item.tone === "charge");
+  const adjustment = cents(card.total - (card.base ?? 0));
+
+  return (
+    <p className="flex flex-wrap justify-end gap-x-3 px-2 pt-0.5 pb-1.5 text-xs whitespace-nowrap tabular-nums">
+      {items.map(({ group, value, tone }) => (
+        <span key={group} className={tone === "charge" ? "text-muted" : "text-highlight"}>
+          {group} {value}
+        </span>
+      ))}
+      {items.length > 1 && (
+        <span className="font-medium text-muted">
+          {onlyCharges ? "含费" : "含调整"} {formatGameMoney(adjustment, currency, "exceptZero")}
+        </span>
+      )}
+    </p>
+  );
+}
+
+function Card({
+  card,
+  currency,
+  open,
+  onToggle,
+}: {
+  card: ResultCard;
+  currency: Currency;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const { name, hands, chips, netChips, base, lines, total } = card;
+  const folds = card.collapsible === true && lines.length > 0;
+  const expanded = lines.length > 0 && (open || !folds);
+  const cells = (
+    <>
+      <span className="flex min-w-0 items-center font-medium">
+        {folds && (
+          <ChevronRight
+            className={cn(
+              "-ml-1 size-4 shrink-0 text-muted transition-transform",
+              open && "rotate-90",
+            )}
+            aria-hidden
+          />
+        )}
+        <span className="truncate">{name}</span>
+      </span>
+      <span className="text-right">{hands}</span>
+      <span className="text-right">{chips}</span>
+      <span
+        className={cn("text-right", netChips === undefined ? "text-muted" : netColor(netChips))}
+      >
+        {netChips === undefined ? "—" : formatSignedChips(netChips)}
+      </span>
+      <span className="text-right whitespace-nowrap">
+        {!expanded ? (
+          <TotalChip total={total} currency={currency} />
+        ) : base === undefined ? (
+          <span className="text-muted">—</span>
+        ) : (
+          <span className={netColor(base)}>{formatGameMoney(base, currency, "exceptZero")}</span>
+        )}
+      </span>
+    </>
+  );
+  const rowClass = cn(columnsClass, "min-h-11 w-full bg-accent/15 px-2 text-left");
+
+  return (
+    <section
+      aria-label={name}
+      className="overflow-hidden rounded-xl border border-line bg-surface text-sm"
+    >
+      {folds ? (
+        <button type="button" aria-expanded={open} onClick={onToggle} className={rowClass}>
+          {cells}
+        </button>
+      ) : (
+        <div className={rowClass}>{cells}</div>
+      )}
+      {folds && !open && <Summary card={card} currency={currency} />}
+      {expanded && (
+        <div className="px-2">
+          {lines.map((line) => (
+            <Line key={line.key} line={line} currency={currency} />
+          ))}
+          <div className={cn(columnsClass, "min-h-11 border-t border-accent")}>
+            <span className={cn(labelClass, "font-semibold")}>合计</span>
+            <span className="text-right whitespace-nowrap">
+              <TotalChip total={total} currency={currency} />
+            </span>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
  * Settlement results as one card per person: a tinted row with their chips and result, then the
- * adjustments to it and a total. A person with no adjustments shows their total in the row itself.
+ * adjustments to it and a total. Players' cards fold to that row and a one-line summary, and the
+ * 明细 switch opens them all, or closes them once all are open.
  */
 export function ResultCards({
   cards,
@@ -108,59 +233,43 @@ export function ResultCards({
   cards: readonly ResultCard[];
   currency: Currency;
 }) {
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const foldable = cards.filter((card) => card.collapsible && card.lines.length > 0);
+  const allOpen = foldable.length > 0 && foldable.every((card) => open.has(card.id));
+
+  function toggle(id: string) {
+    const next = new Set(open);
+    if (!next.delete(id)) next.add(id);
+    setOpen(next);
+  }
+
   return (
-    <div className="mt-2 flex flex-col gap-2">
-      <div className={cn(columnsClass, "px-2 text-xs text-muted")}>
+    <div className="mt-3 flex flex-col gap-2">
+      <div className="flex min-h-11 items-center justify-between gap-2">
+        <h3 className="font-semibold">玩家</h3>
+        {foldable.length > 0 && (
+          <MiniSwitch
+            label="明细"
+            checked={allOpen}
+            onChange={(on) => setOpen(new Set(on ? foldable.map((card) => card.id) : []))}
+          />
+        )}
+      </div>
+      <div className={cn(columnsClass, "-mt-2 px-2 text-xs text-muted")}>
         <span>玩家</span>
         <span className="text-right">手</span>
         <span className="text-right">筹码</span>
         <span className="text-right">水上/下</span>
         <span className="text-right">金额</span>
       </div>
-      {cards.map(({ id, name, hands, chips, netChips, base, lines, total }) => (
-        <section
-          key={id}
-          aria-label={name}
-          className="overflow-hidden rounded-xl border border-line bg-surface text-sm"
-        >
-          <div className={cn(columnsClass, "min-h-11 bg-accent/15 px-2")}>
-            <h3 className="truncate font-medium">{name}</h3>
-            <span className="text-right">{hands}</span>
-            <span className="text-right">{chips}</span>
-            <span
-              className={cn(
-                "text-right",
-                netChips === undefined ? "text-muted" : netColor(netChips),
-              )}
-            >
-              {netChips === undefined ? "—" : formatSignedChips(netChips)}
-            </span>
-            <span className="text-right whitespace-nowrap">
-              {lines.length === 0 ? (
-                <TotalChip total={total} currency={currency} />
-              ) : base === undefined ? (
-                <span className="text-muted">—</span>
-              ) : (
-                <span className={netColor(base)}>
-                  {formatGameMoney(base, currency, "exceptZero")}
-                </span>
-              )}
-            </span>
-          </div>
-          {lines.length > 0 && (
-            <div className="px-2">
-              {lines.map((line) => (
-                <Line key={line.key} line={line} currency={currency} />
-              ))}
-              <div className={cn(columnsClass, "min-h-11 border-t border-accent")}>
-                <span className={cn(labelClass, "font-semibold")}>合计</span>
-                <span className="text-right whitespace-nowrap">
-                  <TotalChip total={total} currency={currency} />
-                </span>
-              </div>
-            </div>
-          )}
-        </section>
+      {cards.map((card) => (
+        <Card
+          key={card.id}
+          card={card}
+          currency={currency}
+          open={open.has(card.id)}
+          onToggle={() => toggle(card.id)}
+        />
       ))}
     </div>
   );

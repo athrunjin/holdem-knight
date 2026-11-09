@@ -8,6 +8,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { Minus, Plus } from "lucide-react";
 import type { ReactNode } from "react";
+import { MiniSwitch } from "@/components/MiniSwitch";
 import { formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
@@ -153,22 +154,12 @@ export function LedgerPlayers({
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">桌上玩家（{seated.length}）</h2>
               {seated.length > 0 && (
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={detailMode}
-                  onClick={() => onDetailModeChange(!detailMode)}
-                  className="-my-3 flex min-h-11 items-center gap-1.5 text-xs text-muted"
-                >
-                  详细模式
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "relative h-4.5 w-8 rounded-full transition-colors after:absolute after:top-0.5 after:size-3.5 after:rounded-full after:bg-white after:transition-[left]",
-                      detailMode ? "bg-accent after:left-4" : "bg-line after:left-0.5",
-                    )}
-                  />
-                </button>
+                <MiniSwitch
+                  label="详细模式"
+                  checked={detailMode}
+                  onChange={onDetailModeChange}
+                  className="-my-3"
+                />
               )}
             </div>
             {seated.length > 0 && (

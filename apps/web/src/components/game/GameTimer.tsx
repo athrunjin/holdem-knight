@@ -7,7 +7,7 @@ const pillClass =
   "inline-flex min-h-11 items-center gap-1 rounded-xl border border-line bg-surface px-2 text-sm font-semibold tabular-nums";
 
 /** `01:23:45`. Hours keep counting past 99 rather than wrapping. */
-function formatElapsed(ms: number) {
+export function formatElapsed(ms: number) {
   const seconds = Math.floor(ms / 1000);
   return [seconds / 3600, (seconds / 60) % 60, seconds % 60]
     .map((part) => String(Math.floor(part)).padStart(2, "0"))
