@@ -1,0 +1,168 @@
+{
+  "format": "holdem-backup",
+  "version": 7,
+  "exportedAt": 1767830400000,
+  "games": [
+    {
+      "id": "sample-game-06-table-fee-and-wages",
+      "organizerId": "guest",
+      "currency": "CNY",
+      "smallBlindChips": 1,
+      "bigBlindChips": 2,
+      "tableFee": {
+        "amount": 2000,
+        "minMinutes": 60
+      },
+      "wage": {
+        "hourly": 3000,
+        "adjustment": {
+          "kind": "after_start",
+          "afterHours": 3,
+          "hourly": 5000
+        }
+      },
+      "chipRatio": {
+        "chips": 1,
+        "amount": 100
+      },
+      "buyInBigBlinds": 100,
+      "handChips": 200,
+      "status": "settled",
+      "createdAt": 1767697200000,
+      "settledAt": 1767715800000
+    }
+  ],
+  "players": [
+    {
+      "id": "sample-player-zw",
+      "organizerId": "guest",
+      "name": "张伟",
+      "initials": "zw",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-wf",
+      "organizerId": "guest",
+      "name": "王芳",
+      "initials": "wf",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-ln",
+      "organizerId": "guest",
+      "name": "李娜",
+      "initials": "ln",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-ly",
+      "organizerId": "guest",
+      "name": "刘洋",
+      "initials": "ly",
+      "createdAt": 1767261600000
+    }
+  ],
+  "ledgerEvents": [
+    {
+      "id": "sample-06-table-fee-and-wages-e1",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767697200000,
+      "type": "buy_in",
+      "playerId": "sample-player-zw",
+      "chips": 200
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e2",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767697215000,
+      "type": "buy_in",
+      "playerId": "sample-player-wf",
+      "chips": 200
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e3",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767699000000,
+      "type": "buy_in",
+      "playerId": "sample-player-ln",
+      "chips": 200
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e4",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767699915000,
+      "type": "cash_out",
+      "playerId": "sample-player-wf",
+      "chips": 150
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e5",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767700830000,
+      "type": "buy_in",
+      "playerId": "sample-player-ly",
+      "chips": 200
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e6",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767706200000,
+      "type": "cash_out",
+      "playerId": "sample-player-ln",
+      "chips": 120
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e7",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767707400000,
+      "type": "cash_out",
+      "playerId": "sample-player-ly",
+      "chips": 200
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e8",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767709200000,
+      "type": "reversal",
+      "reversedEventId": "sample-06-table-fee-and-wages-e6"
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e9",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767709800000,
+      "type": "rebuy",
+      "playerId": "sample-player-ln",
+      "chips": 200
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e10",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767713400000,
+      "type": "cash_out",
+      "playerId": "sample-player-ln",
+      "chips": 40
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e11",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767715200000,
+      "type": "cash_out",
+      "playerId": "sample-player-zw",
+      "chips": 610
+    }
+  ],
+  "insuranceRules": [],
+  "insuranceHands": [],
+  "gameConfigs": []
+}

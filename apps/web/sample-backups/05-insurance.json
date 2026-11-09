@@ -1,0 +1,219 @@
+{
+  "format": "holdem-backup",
+  "version": 7,
+  "exportedAt": 1767830400000,
+  "games": [
+    {
+      "id": "sample-game-05-insurance",
+      "organizerId": "guest",
+      "currency": "CNY",
+      "smallBlindChips": 5,
+      "bigBlindChips": 10,
+      "insurance": {
+        "tieOuts": "exclude",
+        "refundPremium": false,
+        "coverTurn": true,
+        "oddsHundredths": [
+          3000,
+          1500,
+          1000,
+          800,
+          600,
+          500,
+          400,
+          350,
+          300,
+          250,
+          220,
+          200,
+          180,
+          160,
+          140
+        ]
+      },
+      "insuranceOwner": "sample-player-ly",
+      "chipRatio": {
+        "chips": 10,
+        "amount": 100
+      },
+      "buyInBigBlinds": 100,
+      "handChips": 1000,
+      "status": "settled",
+      "createdAt": 1767610800000,
+      "settledAt": 1767625500000
+    }
+  ],
+  "players": [
+    {
+      "id": "sample-player-zw",
+      "organizerId": "guest",
+      "name": "张伟",
+      "initials": "zw",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-wf",
+      "organizerId": "guest",
+      "name": "王芳",
+      "initials": "wf",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-ln",
+      "organizerId": "guest",
+      "name": "李娜",
+      "initials": "ln",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-ly",
+      "organizerId": "guest",
+      "name": "刘洋",
+      "initials": "ly",
+      "createdAt": 1767261600000
+    }
+  ],
+  "ledgerEvents": [
+    {
+      "id": "sample-05-insurance-e1",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767610800000,
+      "type": "buy_in",
+      "playerId": "insurance",
+      "chips": 1000
+    },
+    {
+      "id": "sample-05-insurance-e2",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767610860000,
+      "type": "buy_in",
+      "playerId": "sample-player-zw",
+      "chips": 1000
+    },
+    {
+      "id": "sample-05-insurance-e3",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767610920000,
+      "type": "buy_in",
+      "playerId": "sample-player-wf",
+      "chips": 1000
+    },
+    {
+      "id": "sample-05-insurance-e4",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767610980000,
+      "type": "buy_in",
+      "playerId": "sample-player-ln",
+      "chips": 1000
+    },
+    {
+      "id": "sample-05-insurance-e5",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767611040000,
+      "type": "buy_in",
+      "playerId": "sample-player-ly",
+      "chips": 1000
+    },
+    {
+      "id": "sample-05-insurance-e6",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767614400000,
+      "type": "insurance_buy",
+      "playerId": "sample-player-zw",
+      "chips": 50,
+      "payoutChips": 400,
+      "outs": 4,
+      "oddsHundredths": 800,
+      "street": "river"
+    },
+    {
+      "id": "sample-05-insurance-e7",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767614460000,
+      "type": "insurance_settle",
+      "purchaseId": "sample-05-insurance-e6",
+      "playerId": "sample-player-zw",
+      "hit": true,
+      "chips": 400
+    },
+    {
+      "id": "sample-05-insurance-e8",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767619800000,
+      "type": "insurance_buy",
+      "playerId": "sample-player-ln",
+      "chips": 150,
+      "payoutChips": 375,
+      "outs": 10,
+      "oddsHundredths": 250,
+      "street": "river"
+    },
+    {
+      "id": "sample-05-insurance-e9",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767619860000,
+      "type": "insurance_settle",
+      "purchaseId": "sample-05-insurance-e8",
+      "playerId": "sample-player-ln",
+      "hit": false,
+      "chips": 0
+    },
+    {
+      "id": "sample-05-insurance-e10",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767622800000,
+      "type": "cash_out",
+      "playerId": "sample-player-ln",
+      "chips": 0
+    },
+    {
+      "id": "sample-05-insurance-e11",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767625200000,
+      "type": "cash_out",
+      "playerId": "sample-player-zw",
+      "chips": 2300
+    },
+    {
+      "id": "sample-05-insurance-e12",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767625230000,
+      "type": "cash_out",
+      "playerId": "sample-player-wf",
+      "chips": 1100
+    },
+    {
+      "id": "sample-05-insurance-e13",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767625260000,
+      "type": "cash_out",
+      "playerId": "sample-player-ly",
+      "chips": 800
+    },
+    {
+      "id": "sample-05-insurance-e14",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767625290000,
+      "type": "cash_out",
+      "playerId": "insurance",
+      "chips": 800
+    }
+  ],
+  "insuranceRules": [],
+  "insuranceHands": [],
+  "gameConfigs": []
+}

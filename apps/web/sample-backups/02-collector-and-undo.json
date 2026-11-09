@@ -1,0 +1,149 @@
+{
+  "format": "holdem-backup",
+  "version": 7,
+  "exportedAt": 1767830400000,
+  "games": [
+    {
+      "id": "sample-game-02-collector-and-undo",
+      "organizerId": "guest",
+      "currency": "CNY",
+      "smallBlindChips": 5,
+      "bigBlindChips": 10,
+      "collectorId": "sample-player-zl",
+      "chipRatio": {
+        "chips": 1000,
+        "amount": 10000
+      },
+      "buyInBigBlinds": 100,
+      "handChips": 1000,
+      "status": "settled",
+      "createdAt": 1767351600000,
+      "settledAt": 1767366300000
+    }
+  ],
+  "players": [
+    {
+      "id": "sample-player-zw",
+      "organizerId": "guest",
+      "name": "张伟",
+      "initials": "zw",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-cj",
+      "organizerId": "guest",
+      "name": "陈静",
+      "initials": "cj",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-zl",
+      "organizerId": "guest",
+      "name": "赵磊",
+      "initials": "zl",
+      "createdAt": 1767261600000
+    }
+  ],
+  "ledgerEvents": [
+    {
+      "id": "sample-02-collector-and-undo-e1",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767351600000,
+      "type": "buy_in",
+      "playerId": "sample-player-cj",
+      "chips": 1000
+    },
+    {
+      "id": "sample-02-collector-and-undo-e2",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767351660000,
+      "type": "buy_in",
+      "playerId": "sample-player-zl",
+      "chips": 1000
+    },
+    {
+      "id": "sample-02-collector-and-undo-e3",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767351720000,
+      "type": "buy_in",
+      "playerId": "sample-player-zw",
+      "chips": 1000
+    },
+    {
+      "id": "sample-02-collector-and-undo-e4",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767353400000,
+      "type": "rebuy",
+      "playerId": "sample-player-zw",
+      "chips": 1000
+    },
+    {
+      "id": "sample-02-collector-and-undo-e5",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767353460000,
+      "type": "reversal",
+      "reversedEventId": "sample-02-collector-and-undo-e4"
+    },
+    {
+      "id": "sample-02-collector-and-undo-e6",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767355200000,
+      "type": "cash_out",
+      "playerId": "sample-player-zl",
+      "chips": 1500
+    },
+    {
+      "id": "sample-02-collector-and-undo-e7",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767356100000,
+      "type": "reversal",
+      "reversedEventId": "sample-02-collector-and-undo-e6"
+    },
+    {
+      "id": "sample-02-collector-and-undo-e8",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767357000000,
+      "type": "rebuy",
+      "playerId": "sample-player-cj",
+      "chips": 1000
+    },
+    {
+      "id": "sample-02-collector-and-undo-e9",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767363600000,
+      "type": "cash_out",
+      "playerId": "sample-player-zl",
+      "chips": 2600
+    },
+    {
+      "id": "sample-02-collector-and-undo-e10",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767366000000,
+      "type": "cash_out",
+      "playerId": "sample-player-zw",
+      "chips": 900
+    },
+    {
+      "id": "sample-02-collector-and-undo-e11",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767366060000,
+      "type": "cash_out",
+      "playerId": "sample-player-cj",
+      "chips": 500
+    }
+  ],
+  "insuranceRules": [],
+  "insuranceHands": [],
+  "gameConfigs": []
+}

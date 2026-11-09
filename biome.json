@@ -11,6 +11,7 @@
       "**",
       "!pnpm-lock.yaml",
       "!**/routeTree.gen.ts",
+      "!apps/web/sample-backups",
       "!**/dist",
       "!**/dev-dist",
       "!**/*.md",

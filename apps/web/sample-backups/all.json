@@ -1,0 +1,808 @@
+{
+  "format": "holdem-backup",
+  "version": 7,
+  "exportedAt": 1767830400000,
+  "games": [
+    {
+      "id": "sample-game-01-balanced",
+      "organizerId": "guest",
+      "currency": "CNY",
+      "smallBlindChips": 1,
+      "bigBlindChips": 2,
+      "chipRatio": {
+        "chips": 1,
+        "amount": 100
+      },
+      "buyInBigBlinds": 100,
+      "handChips": 200,
+      "status": "settled",
+      "createdAt": 1767265200000,
+      "settledAt": 1767279900000
+    },
+    {
+      "id": "sample-game-02-collector-and-undo",
+      "organizerId": "guest",
+      "currency": "CNY",
+      "smallBlindChips": 5,
+      "bigBlindChips": 10,
+      "collectorId": "sample-player-zl",
+      "chipRatio": {
+        "chips": 1000,
+        "amount": 10000
+      },
+      "buyInBigBlinds": 100,
+      "handChips": 1000,
+      "status": "settled",
+      "createdAt": 1767351600000,
+      "settledAt": 1767366300000
+    },
+    {
+      "id": "sample-game-03-imbalance-split",
+      "organizerId": "guest",
+      "currency": "CNY",
+      "smallBlindChips": 1,
+      "bigBlindChips": 2,
+      "imbalanceHandling": "split",
+      "chipRatio": {
+        "chips": 3,
+        "amount": 100
+      },
+      "buyInBigBlinds": 100,
+      "handChips": 200,
+      "status": "settled",
+      "createdAt": 1767438000000,
+      "settledAt": 1767449100000
+    },
+    {
+      "id": "sample-game-04-imbalance-organizer-aud",
+      "organizerId": "guest",
+      "currency": "AUD",
+      "smallBlindChips": 1,
+      "bigBlindChips": 2,
+      "imbalanceHandling": "organizer",
+      "chipRatio": {
+        "chips": 100,
+        "amount": 5000
+      },
+      "buyInBigBlinds": 50,
+      "handChips": 100,
+      "status": "settled",
+      "createdAt": 1767524400000,
+      "settledAt": 1767531900000
+    },
+    {
+      "id": "sample-game-05-insurance",
+      "organizerId": "guest",
+      "currency": "CNY",
+      "smallBlindChips": 5,
+      "bigBlindChips": 10,
+      "insurance": {
+        "tieOuts": "exclude",
+        "refundPremium": false,
+        "coverTurn": true,
+        "oddsHundredths": [
+          3000,
+          1500,
+          1000,
+          800,
+          600,
+          500,
+          400,
+          350,
+          300,
+          250,
+          220,
+          200,
+          180,
+          160,
+          140
+        ]
+      },
+      "insuranceOwner": "sample-player-ly",
+      "chipRatio": {
+        "chips": 10,
+        "amount": 100
+      },
+      "buyInBigBlinds": 100,
+      "handChips": 1000,
+      "status": "settled",
+      "createdAt": 1767610800000,
+      "settledAt": 1767625500000
+    },
+    {
+      "id": "sample-game-06-table-fee-and-wages",
+      "organizerId": "guest",
+      "currency": "CNY",
+      "smallBlindChips": 1,
+      "bigBlindChips": 2,
+      "tableFee": {
+        "amount": 2000,
+        "minMinutes": 60
+      },
+      "wage": {
+        "hourly": 3000,
+        "adjustment": {
+          "kind": "after_start",
+          "afterHours": 3,
+          "hourly": 5000
+        }
+      },
+      "chipRatio": {
+        "chips": 1,
+        "amount": 100
+      },
+      "buyInBigBlinds": 100,
+      "handChips": 200,
+      "status": "settled",
+      "createdAt": 1767697200000,
+      "settledAt": 1767715800000
+    },
+    {
+      "id": "sample-game-07-open-game",
+      "organizerId": "guest",
+      "currency": "CNY",
+      "smallBlindChips": 2,
+      "bigBlindChips": 5,
+      "chipRatio": {
+        "chips": 1,
+        "amount": 100
+      },
+      "buyInBigBlinds": 100,
+      "handChips": 500,
+      "status": "open",
+      "createdAt": 1767783600000
+    }
+  ],
+  "players": [
+    {
+      "id": "sample-player-zw",
+      "organizerId": "guest",
+      "name": "张伟",
+      "initials": "zw",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-wf",
+      "organizerId": "guest",
+      "name": "王芳",
+      "initials": "wf",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-ln",
+      "organizerId": "guest",
+      "name": "李娜",
+      "initials": "ln",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-ly",
+      "organizerId": "guest",
+      "name": "刘洋",
+      "initials": "ly",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-cj",
+      "organizerId": "guest",
+      "name": "陈静",
+      "initials": "cj",
+      "createdAt": 1767261600000
+    },
+    {
+      "id": "sample-player-zl",
+      "organizerId": "guest",
+      "name": "赵磊",
+      "initials": "zl",
+      "createdAt": 1767261600000
+    }
+  ],
+  "ledgerEvents": [
+    {
+      "id": "sample-01-balanced-e1",
+      "organizerId": "guest",
+      "gameId": "sample-game-01-balanced",
+      "occurredAt": 1767265200000,
+      "type": "buy_in",
+      "playerId": "sample-player-zw",
+      "chips": 200
+    },
+    {
+      "id": "sample-01-balanced-e2",
+      "organizerId": "guest",
+      "gameId": "sample-game-01-balanced",
+      "occurredAt": 1767265260000,
+      "type": "buy_in",
+      "playerId": "sample-player-wf",
+      "chips": 200
+    },
+    {
+      "id": "sample-01-balanced-e3",
+      "organizerId": "guest",
+      "gameId": "sample-game-01-balanced",
+      "occurredAt": 1767265320000,
+      "type": "buy_in",
+      "playerId": "sample-player-ln",
+      "chips": 200
+    },
+    {
+      "id": "sample-01-balanced-e4",
+      "organizerId": "guest",
+      "gameId": "sample-game-01-balanced",
+      "occurredAt": 1767265380000,
+      "type": "buy_in",
+      "playerId": "sample-player-ly",
+      "chips": 200
+    },
+    {
+      "id": "sample-01-balanced-e5",
+      "organizerId": "guest",
+      "gameId": "sample-game-01-balanced",
+      "occurredAt": 1767270600000,
+      "type": "rebuy",
+      "playerId": "sample-player-ln",
+      "chips": 200
+    },
+    {
+      "id": "sample-01-balanced-e6",
+      "organizerId": "guest",
+      "gameId": "sample-game-01-balanced",
+      "occurredAt": 1767276000000,
+      "type": "cash_out",
+      "playerId": "sample-player-wf",
+      "chips": 130
+    },
+    {
+      "id": "sample-01-balanced-e7",
+      "organizerId": "guest",
+      "gameId": "sample-game-01-balanced",
+      "occurredAt": 1767279600000,
+      "type": "cash_out",
+      "playerId": "sample-player-zw",
+      "chips": 520
+    },
+    {
+      "id": "sample-01-balanced-e8",
+      "organizerId": "guest",
+      "gameId": "sample-game-01-balanced",
+      "occurredAt": 1767279630000,
+      "type": "cash_out",
+      "playerId": "sample-player-ln",
+      "chips": 0
+    },
+    {
+      "id": "sample-01-balanced-e9",
+      "organizerId": "guest",
+      "gameId": "sample-game-01-balanced",
+      "occurredAt": 1767279660000,
+      "type": "cash_out",
+      "playerId": "sample-player-ly",
+      "chips": 350
+    },
+    {
+      "id": "sample-02-collector-and-undo-e1",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767351600000,
+      "type": "buy_in",
+      "playerId": "sample-player-cj",
+      "chips": 1000
+    },
+    {
+      "id": "sample-02-collector-and-undo-e2",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767351660000,
+      "type": "buy_in",
+      "playerId": "sample-player-zl",
+      "chips": 1000
+    },
+    {
+      "id": "sample-02-collector-and-undo-e3",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767351720000,
+      "type": "buy_in",
+      "playerId": "sample-player-zw",
+      "chips": 1000
+    },
+    {
+      "id": "sample-02-collector-and-undo-e4",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767353400000,
+      "type": "rebuy",
+      "playerId": "sample-player-zw",
+      "chips": 1000
+    },
+    {
+      "id": "sample-02-collector-and-undo-e5",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767353460000,
+      "type": "reversal",
+      "reversedEventId": "sample-02-collector-and-undo-e4"
+    },
+    {
+      "id": "sample-02-collector-and-undo-e6",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767355200000,
+      "type": "cash_out",
+      "playerId": "sample-player-zl",
+      "chips": 1500
+    },
+    {
+      "id": "sample-02-collector-and-undo-e7",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767356100000,
+      "type": "reversal",
+      "reversedEventId": "sample-02-collector-and-undo-e6"
+    },
+    {
+      "id": "sample-02-collector-and-undo-e8",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767357000000,
+      "type": "rebuy",
+      "playerId": "sample-player-cj",
+      "chips": 1000
+    },
+    {
+      "id": "sample-02-collector-and-undo-e9",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767363600000,
+      "type": "cash_out",
+      "playerId": "sample-player-zl",
+      "chips": 2600
+    },
+    {
+      "id": "sample-02-collector-and-undo-e10",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767366000000,
+      "type": "cash_out",
+      "playerId": "sample-player-zw",
+      "chips": 900
+    },
+    {
+      "id": "sample-02-collector-and-undo-e11",
+      "organizerId": "guest",
+      "gameId": "sample-game-02-collector-and-undo",
+      "occurredAt": 1767366060000,
+      "type": "cash_out",
+      "playerId": "sample-player-cj",
+      "chips": 500
+    },
+    {
+      "id": "sample-03-imbalance-split-e1",
+      "organizerId": "guest",
+      "gameId": "sample-game-03-imbalance-split",
+      "occurredAt": 1767438000000,
+      "type": "buy_in",
+      "playerId": "sample-player-zw",
+      "chips": 200
+    },
+    {
+      "id": "sample-03-imbalance-split-e2",
+      "organizerId": "guest",
+      "gameId": "sample-game-03-imbalance-split",
+      "occurredAt": 1767438060000,
+      "type": "buy_in",
+      "playerId": "sample-player-wf",
+      "chips": 200
+    },
+    {
+      "id": "sample-03-imbalance-split-e3",
+      "organizerId": "guest",
+      "gameId": "sample-game-03-imbalance-split",
+      "occurredAt": 1767438120000,
+      "type": "buy_in",
+      "playerId": "sample-player-ln",
+      "chips": 200
+    },
+    {
+      "id": "sample-03-imbalance-split-e4",
+      "organizerId": "guest",
+      "gameId": "sample-game-03-imbalance-split",
+      "occurredAt": 1767438180000,
+      "type": "buy_in",
+      "playerId": "sample-player-ly",
+      "chips": 200
+    },
+    {
+      "id": "sample-03-imbalance-split-e5",
+      "organizerId": "guest",
+      "gameId": "sample-game-03-imbalance-split",
+      "occurredAt": 1767445200000,
+      "type": "cash_out",
+      "playerId": "sample-player-ln",
+      "chips": 0
+    },
+    {
+      "id": "sample-03-imbalance-split-e6",
+      "organizerId": "guest",
+      "gameId": "sample-game-03-imbalance-split",
+      "occurredAt": 1767447000000,
+      "type": "cash_out",
+      "playerId": "sample-player-ly",
+      "chips": 0
+    },
+    {
+      "id": "sample-03-imbalance-split-e7",
+      "organizerId": "guest",
+      "gameId": "sample-game-03-imbalance-split",
+      "occurredAt": 1767448800000,
+      "type": "cash_out",
+      "playerId": "sample-player-zw",
+      "chips": 500
+    },
+    {
+      "id": "sample-03-imbalance-split-e8",
+      "organizerId": "guest",
+      "gameId": "sample-game-03-imbalance-split",
+      "occurredAt": 1767448860000,
+      "type": "cash_out",
+      "playerId": "sample-player-wf",
+      "chips": 350
+    },
+    {
+      "id": "sample-04-imbalance-organizer-aud-e1",
+      "organizerId": "guest",
+      "gameId": "sample-game-04-imbalance-organizer-aud",
+      "occurredAt": 1767524400000,
+      "type": "buy_in",
+      "playerId": "sample-player-zw",
+      "chips": 100
+    },
+    {
+      "id": "sample-04-imbalance-organizer-aud-e2",
+      "organizerId": "guest",
+      "gameId": "sample-game-04-imbalance-organizer-aud",
+      "occurredAt": 1767524460000,
+      "type": "buy_in",
+      "playerId": "sample-player-wf",
+      "chips": 100
+    },
+    {
+      "id": "sample-04-imbalance-organizer-aud-e3",
+      "organizerId": "guest",
+      "gameId": "sample-game-04-imbalance-organizer-aud",
+      "occurredAt": 1767524520000,
+      "type": "buy_in",
+      "playerId": "sample-player-cj",
+      "chips": 100
+    },
+    {
+      "id": "sample-04-imbalance-organizer-aud-e4",
+      "organizerId": "guest",
+      "gameId": "sample-game-04-imbalance-organizer-aud",
+      "occurredAt": 1767527100000,
+      "type": "rebuy",
+      "playerId": "sample-player-zw",
+      "chips": 100
+    },
+    {
+      "id": "sample-04-imbalance-organizer-aud-e5",
+      "organizerId": "guest",
+      "gameId": "sample-game-04-imbalance-organizer-aud",
+      "occurredAt": 1767530400000,
+      "type": "cash_out",
+      "playerId": "sample-player-zw",
+      "chips": 0
+    },
+    {
+      "id": "sample-04-imbalance-organizer-aud-e6",
+      "organizerId": "guest",
+      "gameId": "sample-game-04-imbalance-organizer-aud",
+      "occurredAt": 1767531600000,
+      "type": "cash_out",
+      "playerId": "sample-player-wf",
+      "chips": 180
+    },
+    {
+      "id": "sample-04-imbalance-organizer-aud-e7",
+      "organizerId": "guest",
+      "gameId": "sample-game-04-imbalance-organizer-aud",
+      "occurredAt": 1767531660000,
+      "type": "cash_out",
+      "playerId": "sample-player-cj",
+      "chips": 190
+    },
+    {
+      "id": "sample-05-insurance-e1",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767610800000,
+      "type": "buy_in",
+      "playerId": "insurance",
+      "chips": 1000
+    },
+    {
+      "id": "sample-05-insurance-e2",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767610860000,
+      "type": "buy_in",
+      "playerId": "sample-player-zw",
+      "chips": 1000
+    },
+    {
+      "id": "sample-05-insurance-e3",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767610920000,
+      "type": "buy_in",
+      "playerId": "sample-player-wf",
+      "chips": 1000
+    },
+    {
+      "id": "sample-05-insurance-e4",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767610980000,
+      "type": "buy_in",
+      "playerId": "sample-player-ln",
+      "chips": 1000
+    },
+    {
+      "id": "sample-05-insurance-e5",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767611040000,
+      "type": "buy_in",
+      "playerId": "sample-player-ly",
+      "chips": 1000
+    },
+    {
+      "id": "sample-05-insurance-e6",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767614400000,
+      "type": "insurance_buy",
+      "playerId": "sample-player-zw",
+      "chips": 50,
+      "payoutChips": 400,
+      "outs": 4,
+      "oddsHundredths": 800,
+      "street": "river"
+    },
+    {
+      "id": "sample-05-insurance-e7",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767614460000,
+      "type": "insurance_settle",
+      "purchaseId": "sample-05-insurance-e6",
+      "playerId": "sample-player-zw",
+      "hit": true,
+      "chips": 400
+    },
+    {
+      "id": "sample-05-insurance-e8",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767619800000,
+      "type": "insurance_buy",
+      "playerId": "sample-player-ln",
+      "chips": 150,
+      "payoutChips": 375,
+      "outs": 10,
+      "oddsHundredths": 250,
+      "street": "river"
+    },
+    {
+      "id": "sample-05-insurance-e9",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767619860000,
+      "type": "insurance_settle",
+      "purchaseId": "sample-05-insurance-e8",
+      "playerId": "sample-player-ln",
+      "hit": false,
+      "chips": 0
+    },
+    {
+      "id": "sample-05-insurance-e10",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767622800000,
+      "type": "cash_out",
+      "playerId": "sample-player-ln",
+      "chips": 0
+    },
+    {
+      "id": "sample-05-insurance-e11",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767625200000,
+      "type": "cash_out",
+      "playerId": "sample-player-zw",
+      "chips": 2300
+    },
+    {
+      "id": "sample-05-insurance-e12",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767625230000,
+      "type": "cash_out",
+      "playerId": "sample-player-wf",
+      "chips": 1100
+    },
+    {
+      "id": "sample-05-insurance-e13",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767625260000,
+      "type": "cash_out",
+      "playerId": "sample-player-ly",
+      "chips": 800
+    },
+    {
+      "id": "sample-05-insurance-e14",
+      "organizerId": "guest",
+      "gameId": "sample-game-05-insurance",
+      "occurredAt": 1767625290000,
+      "type": "cash_out",
+      "playerId": "insurance",
+      "chips": 800
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e1",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767697200000,
+      "type": "buy_in",
+      "playerId": "sample-player-zw",
+      "chips": 200
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e2",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767697215000,
+      "type": "buy_in",
+      "playerId": "sample-player-wf",
+      "chips": 200
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e3",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767699000000,
+      "type": "buy_in",
+      "playerId": "sample-player-ln",
+      "chips": 200
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e4",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767699915000,
+      "type": "cash_out",
+      "playerId": "sample-player-wf",
+      "chips": 150
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e5",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767700830000,
+      "type": "buy_in",
+      "playerId": "sample-player-ly",
+      "chips": 200
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e6",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767706200000,
+      "type": "cash_out",
+      "playerId": "sample-player-ln",
+      "chips": 120
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e7",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767707400000,
+      "type": "cash_out",
+      "playerId": "sample-player-ly",
+      "chips": 200
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e8",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767709200000,
+      "type": "reversal",
+      "reversedEventId": "sample-06-table-fee-and-wages-e6"
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e9",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767709800000,
+      "type": "rebuy",
+      "playerId": "sample-player-ln",
+      "chips": 200
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e10",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767713400000,
+      "type": "cash_out",
+      "playerId": "sample-player-ln",
+      "chips": 40
+    },
+    {
+      "id": "sample-06-table-fee-and-wages-e11",
+      "organizerId": "guest",
+      "gameId": "sample-game-06-table-fee-and-wages",
+      "occurredAt": 1767715200000,
+      "type": "cash_out",
+      "playerId": "sample-player-zw",
+      "chips": 610
+    },
+    {
+      "id": "sample-07-open-game-e1",
+      "organizerId": "guest",
+      "gameId": "sample-game-07-open-game",
+      "occurredAt": 1767783600000,
+      "type": "buy_in",
+      "playerId": "sample-player-wf",
+      "chips": 500
+    },
+    {
+      "id": "sample-07-open-game-e2",
+      "organizerId": "guest",
+      "gameId": "sample-game-07-open-game",
+      "occurredAt": 1767783660000,
+      "type": "buy_in",
+      "playerId": "sample-player-cj",
+      "chips": 500
+    },
+    {
+      "id": "sample-07-open-game-e3",
+      "organizerId": "guest",
+      "gameId": "sample-game-07-open-game",
+      "occurredAt": 1767783720000,
+      "type": "buy_in",
+      "playerId": "sample-player-zl",
+      "chips": 500
+    },
+    {
+      "id": "sample-07-open-game-e4",
+      "organizerId": "guest",
+      "gameId": "sample-game-07-open-game",
+      "occurredAt": 1767787200000,
+      "type": "rebuy",
+      "playerId": "sample-player-zl",
+      "chips": 500
+    },
+    {
+      "id": "sample-07-open-game-e5",
+      "organizerId": "guest",
+      "gameId": "sample-game-07-open-game",
+      "occurredAt": 1767790800000,
+      "type": "cash_out",
+      "playerId": "sample-player-zl",
+      "chips": 300
+    },
+    {
+      "id": "sample-07-open-game-e6",
+      "organizerId": "guest",
+      "gameId": "sample-game-07-open-game",
+      "occurredAt": 1767792600000,
+      "type": "stack_set",
+      "playerId": "sample-player-wf",
+      "chips": 1200
+    }
+  ],
+  "insuranceRules": [],
+  "insuranceHands": [],
+  "gameConfigs": []
+}
