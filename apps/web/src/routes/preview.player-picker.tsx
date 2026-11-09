@@ -332,7 +332,7 @@ function PreviewPage() {
             type="button"
             className="min-h-11 rounded-xl bg-accent px-8 font-semibold text-accent-text"
           >
-            开局
+            {selected.length > 0 ? `开局 · ${selected.length} 人` : "开局"}
           </button>
         </div>
       </div>
