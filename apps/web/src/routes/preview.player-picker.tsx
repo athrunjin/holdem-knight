@@ -4,8 +4,8 @@
  */
 import { type Player, parsePlayerName, searchPlayers } from "@holdem-knight/core";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Search, UserPlus } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { ArrowUpDown, Check, ChevronDown, ListFilter, Search, UserPlus } from "lucide-react";
+import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { Page } from "@/components/Page";
 import { cn } from "@/lib/cn";
 import { toInitials } from "@/lib/pinyin";
@@ -102,6 +102,7 @@ function PreviewPage() {
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [query, setQuery] = useState("");
   const [startClock, setStartClock] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const byName = new Map(players.map((player) => [player.name, player]));
   const byId = new Map(players.map((player) => [player.id, player]));
@@ -131,9 +132,15 @@ function PreviewPage() {
     setQuery("");
   }
 
-  function jump(letter: string) {
-    document.getElementById(`letter-${letter}`)?.scrollIntoView({ behavior: "smooth" });
-  }
+  const letters = groups.map(([letter]) => letter);
+  const activeLetter = useActiveLetter(letters);
+
+  // Placeholder for features still to come
+  useEffect(() => {
+    if (notice === null) return;
+    const timer = setTimeout(() => setNotice(null), 1500);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   return (
     <Page title="选择玩家" centered>
@@ -203,7 +210,37 @@ function PreviewPage() {
           </>
         )}
 
-        {groups.length > 0 && <SectionTitle>全部玩家</SectionTitle>}
+        <div className="mt-3 flex items-center justify-between">
+          <h2 className="font-semibold">全部玩家</h2>
+          <div className="-mr-2 flex items-center">
+            <button
+              type="button"
+              onClick={() => setNotice("分组")}
+              className="flex min-h-11 items-center px-1"
+            >
+              <span className="flex items-center gap-0.5 rounded-full border border-line px-2.5 py-1 text-xs font-medium">
+                全部
+                <ChevronDown className="size-3.5 text-muted" aria-hidden />
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label="筛选"
+              onClick={() => setNotice("筛选")}
+              className="grid size-11 place-items-center text-muted"
+            >
+              <ListFilter className="size-5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="排列方式"
+              onClick={() => setNotice("排列方式")}
+              className="grid size-11 place-items-center text-muted"
+            >
+              <ArrowUpDown className="size-5" aria-hidden />
+            </button>
+          </div>
+        </div>
         <div className="relative pr-6">
           {groups.map(([letter, members]) => (
             <section key={letter} id={`letter-${letter}`} className="scroll-mt-4">
@@ -244,39 +281,30 @@ function PreviewPage() {
               </ul>
             </section>
           ))}
-          {groups.length > 1 && (
-            <nav
-              aria-label="按字母跳转"
-              className="absolute top-0 right-0 flex h-full flex-col items-center"
-            >
-              <div className="sticky top-16 flex flex-col">
-                {groups.map(([letter]) => (
-                  <button
-                    key={letter}
-                    type="button"
-                    onClick={() => jump(letter)}
-                    className="h-5 w-5 text-[11px] font-semibold text-muted"
-                  >
-                    {letter}
-                  </button>
-                ))}
-              </div>
-            </nav>
-          )}
+          {letters.length > 1 && <LetterIndex letters={letters} active={activeLetter} />}
         </div>
       </div>
 
-      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-[5] -mx-4 border-t border-line bg-bg/95 px-4 pt-2 pb-3 backdrop-blur md:bottom-0">
+      {notice && (
+        <p
+          role="status"
+          className="fixed inset-x-0 top-1/2 z-20 mx-auto w-fit rounded-full bg-text px-4 py-2 text-sm text-bg shadow-lg"
+        >
+          {notice} · 开发中
+        </p>
+      )}
+
+      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-[5] -mx-4 border-t border-line bg-bg/95 px-4 pt-1.5 pb-1.5 backdrop-blur md:bottom-0">
         {selected.length > 0 && (
           // Wraps onto up to three rows, then scrolls
-          <ul className="mb-1 flex max-h-[5.25rem] flex-wrap gap-1.5 overflow-y-auto">
+          <ul className="mb-1 flex max-h-[4.25rem] flex-wrap gap-1 overflow-y-auto">
             {selected.map((id) => (
               <li key={id}>
                 <button
                   type="button"
                   aria-label={`取消选择${byId.get(id)?.name}`}
                   onClick={() => toggle(id)}
-                  className="rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-medium"
+                  className="h-5 rounded-full bg-accent/15 px-2 text-xs leading-5 font-medium"
                 >
                   {byId.get(id)?.name}
                 </button>
@@ -284,29 +312,153 @@ function PreviewPage() {
             ))}
           </ul>
         )}
-        <label className="flex min-h-11 cursor-pointer items-center gap-2.5">
-          <input
-            type="checkbox"
-            checked={startClock}
-            onChange={(event) => setStartClock(event.target.checked)}
-            className="peer sr-only"
-          />
-          <span
-            aria-hidden
-            className="grid size-5.5 place-items-center rounded-md border-2 border-line peer-checked:border-accent peer-checked:bg-accent peer-checked:text-accent-text peer-focus-visible:outline-2 peer-focus-visible:outline-highlight"
+        <div className="flex items-center gap-3">
+          <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={startClock}
+              onChange={(event) => setStartClock(event.target.checked)}
+              className="peer sr-only"
+            />
+            <span
+              aria-hidden
+              className="grid size-5.5 place-items-center rounded-md border-2 border-line peer-checked:border-accent peer-checked:bg-accent peer-checked:text-accent-text peer-focus-visible:outline-2 peer-focus-visible:outline-highlight"
+            >
+              {startClock && <Check className="size-3.5" strokeWidth={3} />}
+            </span>
+            <span className="text-xs">开局后直接开始计时</span>
+          </label>
+          <button
+            type="button"
+            className="min-h-11 rounded-xl bg-accent px-8 font-semibold text-accent-text"
           >
-            {startClock && <Check className="size-3.5" strokeWidth={3} />}
-          </span>
-          <span className="text-sm">开局后直接开始计时</span>
-        </label>
-        <button
-          type="button"
-          className="min-h-12 w-full rounded-xl bg-accent px-4 font-semibold text-accent-text"
-        >
-          开局
-        </button>
+            开局
+          </button>
+        </div>
       </div>
     </Page>
+  );
+}
+
+/** Space between the top of the window and a section counted as current. */
+const ACTIVE_OFFSET = 96;
+
+/** The letter whose section sits at the top of the window. */
+function useActiveLetter(letters: readonly string[]): string | undefined {
+  const [active, setActive] = useState<string | undefined>(letters[0]);
+  const key = letters.join("");
+
+  useEffect(() => {
+    const list = key.split("");
+    function update() {
+      let current = list[0];
+      for (const letter of list) {
+        const top = document.getElementById(`letter-${letter}`)?.getBoundingClientRect().top;
+        if (top !== undefined && top <= ACTIVE_OFFSET) current = letter;
+      }
+      setActive(current);
+    }
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, [key]);
+
+  return active;
+}
+
+/** How long a press lasts before the index grows. */
+const HOLD_MS = 200;
+
+/**
+ * Letters down the right edge. A tap jumps to that letter. Holding enlarges the index,
+ * and sliding up or down jumps as the finger passes each letter.
+ */
+function LetterIndex({
+  letters,
+  active,
+}: {
+  letters: readonly string[];
+  active: string | undefined;
+}) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const holdTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [pressing, setPressing] = useState(false);
+  const [enlarged, setEnlarged] = useState(false);
+  const [picked, setPicked] = useState<string | undefined>(undefined);
+
+  function letterAt(clientY: number): string | undefined {
+    const rect = listRef.current?.getBoundingClientRect();
+    if (!rect) return undefined;
+    const index = Math.floor(((clientY - rect.top) / rect.height) * letters.length);
+    return letters[Math.min(letters.length - 1, Math.max(0, index))];
+  }
+
+  function jumpTo(clientY: number) {
+    const letter = letterAt(clientY);
+    if (letter === undefined || letter === picked) return;
+    setPicked(letter);
+    document.getElementById(`letter-${letter}`)?.scrollIntoView({ block: "start" });
+    navigator.vibrate?.(5);
+  }
+
+  function handleDown(event: PointerEvent<HTMLDivElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setPressing(true);
+    jumpTo(event.clientY);
+    holdTimer.current = setTimeout(() => setEnlarged(true), HOLD_MS);
+  }
+
+  function handleMove(event: PointerEvent<HTMLDivElement>) {
+    if (pressing) jumpTo(event.clientY);
+  }
+
+  function handleUp() {
+    clearTimeout(holdTimer.current);
+    setPressing(false);
+    setEnlarged(false);
+    setPicked(undefined);
+  }
+
+  const shown = pressing ? (picked ?? active) : active;
+
+  return (
+    <nav aria-label="按字母跳转" className="absolute top-0 right-0 h-full">
+      <div className="sticky top-16 flex items-start">
+        {enlarged && shown && (
+          <span
+            aria-hidden
+            className="absolute top-1/2 right-full mr-3 grid size-14 -translate-y-1/2 place-items-center rounded-full bg-accent text-2xl font-bold text-accent-text shadow-lg"
+          >
+            {shown}
+          </span>
+        )}
+        <div
+          ref={listRef}
+          role="presentation"
+          onPointerDown={handleDown}
+          onPointerMove={handleMove}
+          onPointerUp={handleUp}
+          onPointerCancel={handleUp}
+          className={cn(
+            "flex touch-none flex-col items-center rounded-full py-1 transition-all select-none",
+            enlarged ? "-mr-1 bg-surface px-1 shadow-lg ring-1 ring-line" : "",
+          )}
+        >
+          {letters.map((letter) => (
+            <span
+              key={letter}
+              className={cn(
+                "grid place-items-center rounded-full font-semibold transition-all",
+                enlarged ? "size-6.5 text-sm" : "size-5 text-[11px]",
+                letter === shown ? "bg-highlight text-bg" : "text-muted",
+              )}
+            >
+              {letter}
+            </span>
+          ))}
+        </div>
+      </div>
+    </nav>
   );
 }
 
