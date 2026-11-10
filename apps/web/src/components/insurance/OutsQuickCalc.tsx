@@ -25,7 +25,13 @@ type Side = 0 | 1;
 /** A side being filled in: first the seat, then the chips. */
 type Adding =
   | { readonly side: Side; readonly stage: "seat" }
-  | { readonly side: Side; readonly stage: "chips"; readonly entry: InsuranceHandPlayer };
+  | {
+      readonly side: Side;
+      readonly stage: "chips";
+      readonly entry: InsuranceHandPlayer;
+      /** Go on to the outs afterwards, as a quick edit of the trailing side does. */
+      readonly thenOuts?: boolean;
+    };
 
 interface OutsQuickCalcProps {
   rule: InsuranceRule;
@@ -43,11 +49,14 @@ const toggleClass = (active: boolean) =>
     active ? "border-accent bg-accent text-accent-text" : "border-line bg-surface",
   );
 
-/** The trailing side's cards: those that win outright, and those that split the pot. */
+/** The trailing side's cards: those that win outright, and those that split the pot. Both are sold. */
 interface OutsEntry {
   readonly outs: number;
   readonly ties: number;
 }
+
+/** Outs and ties as sold together: 6+2, or just 6 with no ties. */
+const outsText = ({ outs, ties }: OutsEntry) => (ties > 0 ? `${outs}+${ties}` : String(outs));
 
 const cardCount = (value: string) => value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
 
@@ -128,7 +137,7 @@ function OutsDialog({
   entry: OutsEntry | undefined;
   /** Cards left to come, which the outs and the ties share. */
   unseen: number;
-  /** The most outs the rule's odds table prices. */
+  /** The most cards the rule's odds table prices, outs and ties together. */
   maxOuts: number;
   onConfirm: (entry: OutsEntry) => void;
   onCancel: () => void;
@@ -138,8 +147,9 @@ function OutsDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const outs = parseChips(text) ?? 0;
   const ties = parseChips(tieText) ?? 0;
-  const outsMax = Math.min(maxOuts, unseen - ties);
-  const valid = outs >= 1 && outs <= outsMax && ties <= unseen - outs;
+  const cap = Math.min(maxOuts, unseen);
+  // Tie cards alone are enough to buy on
+  const valid = outs + ties >= 1 && outs + ties <= cap;
 
   // Selected, so the first digit replaces the starting count
   useEffect(() => {
@@ -159,8 +169,8 @@ function OutsDialog({
           id="quick-outs"
           label="反超牌"
           text={text}
-          min={1}
-          max={outsMax}
+          min={0}
+          max={cap - ties}
           inputRef={inputRef}
           onChange={setText}
         />
@@ -169,7 +179,7 @@ function OutsDialog({
           label="平分牌"
           text={tieText}
           min={0}
-          max={unseen - outs}
+          max={cap - outs}
           onChange={setTieText}
         />
         <div className="grid w-full grid-cols-2 gap-2">
@@ -305,11 +315,8 @@ function SideCard({
           >
             <span className="text-xs text-muted">Outs</span>
             <span className="text-lg leading-tight font-semibold tabular-nums">
-              {outs?.outs ?? "—"}
+              {outs ? outsText(outs) : "—"}
             </span>
-            {outs !== undefined && outs.ties > 0 && (
-              <span className="text-xs text-muted tabular-nums">平分 {outs.ties}</span>
-            )}
           </button>
           <button
             type="button"
@@ -352,14 +359,14 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
   const trailerPlayer = sides[trailer];
   const trailerEntry = outs[trailer];
   // Tie cards are sold with the outs only when the rule says so
-  const trailerOuts =
-    trailerEntry && trailerEntry.outs + (rule.tieOuts === "include" ? trailerEntry.ties : 0);
+  // Ties entered here are sold alongside the outs, whatever the rule says about cards it works out itself
+  const trailerOuts = trailerEntry && trailerEntry.outs + trailerEntry.ties;
 
   function setSide(side: Side, entry: InsuranceHandPlayer | undefined) {
     setSides(side === 0 ? [entry, sides[1]] : [sides[0], entry]);
   }
 
-  const ready = leaderPlayer && trailerPlayer && trailerOuts !== undefined;
+  const ready = leaderPlayer && trailerPlayer && trailerEntry && trailerOuts !== undefined;
   const quoted = Boolean(ready);
   // What the next card does, once the trailing side's cards are known
   const chances = trailerEntry && {
@@ -446,12 +453,20 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
                   label: nameOf(leaderPlayer.playerId),
                   chips: leaderStake,
                   note: chances && percentText(chances.win),
+                  onSelect: () => setAdding({ side: leader, stage: "chips", entry: leaderPlayer }),
                 },
                 {
                   key: "trailer",
                   label: nameOf(trailerPlayer.playerId),
                   chips: leaderStake,
                   note: chances && `反超Outs ${chances.outs} / ${percentText(chances.hit)}`,
+                  onSelect: () =>
+                    setAdding({
+                      side: trailer,
+                      stage: "chips",
+                      entry: trailerPlayer,
+                      thenOuts: true,
+                    }),
                 },
                 {
                   key: "dead",
@@ -461,6 +476,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
                     chances && chances.ties > 0
                       ? `平分Outs ${chances.ties} / ${percentText(chances.tie)}`
                       : undefined,
+                  onSelect: () => setEditingDead(true),
                 },
               ]}
             />
@@ -471,7 +487,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
       {ready ? (
         <section aria-label="保险报价" className="rounded-xl border border-line bg-surface p-3">
           <h3 className="font-semibold">
-            {nameOf(leaderPlayer.playerId)} 领先 · {trailerOuts} outs
+            {nameOf(leaderPlayer.playerId)} 领先 · {outsText(trailerEntry)} outs
             <span className="ml-1 text-sm font-normal text-muted">
               投入 {chipText(leaderStake)} · 可得 {chipText(totals.effectiveChips)}
             </span>
@@ -485,7 +501,8 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
               street,
               totals.effectiveChips,
               leaderStake,
-              trailerOuts,
+              trailerEntry.outs,
+              trailerEntry.ties,
             ].join("|")}
             input={{
               rule,
@@ -561,7 +578,9 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
             setSide(adding.side, { ...adding.entry, ...chips });
             setAdding(undefined);
             // The trailing side's outs come straight after its chips
-            if (adding.side === trailer && outs[trailer] === undefined) setEditingOuts(true);
+            if (adding.thenOuts || (adding.side === trailer && outs[trailer] === undefined)) {
+              setEditingOuts(true);
+            }
           }}
           onCancel={() => setAdding(undefined)}
         />

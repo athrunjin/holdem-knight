@@ -8,6 +8,8 @@ export interface PotShare {
   readonly chips: number;
   /** Chances after the name: the leader's win, the trailer's outs, the dead money's split. */
   readonly note?: string | undefined;
+  /** Opens a quick edit of this part. */
+  readonly onSelect: () => void;
 }
 
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
@@ -24,36 +26,40 @@ const STROKE_CLASS = {
 function Legend({ parts, total }: { parts: readonly PotShare[]; total: number }) {
   return (
     <ul className="flex min-w-0 flex-1 flex-col gap-0.5">
-      {parts.map(({ key, label, chips, note }) => (
-        <li
-          key={key}
-          className={cn(
-            "flex items-center gap-1 rounded-lg px-1 py-0.5 text-sm",
-            key === "leader" && "bg-accent/15 font-semibold",
-          )}
-        >
-          <span className={cn("size-3 shrink-0 rounded-full", BAR_CLASS[key])} aria-hidden />
-          {/* A long name gives way, so the chances stay whole on the same line */}
-          <span className="flex min-w-0 flex-1 items-baseline gap-1">
-            <span className="truncate">{label}</span>
-            {key === "leader" && <span className="shrink-0 text-xs text-accent">领先</span>}
-            {note && (
-              <span
-                className={cn(
-                  "shrink-0 text-[11px] whitespace-nowrap tabular-nums",
-                  key === "leader" ? "text-accent" : "font-normal text-muted",
-                )}
-              >
-                {note}
-              </span>
+      {parts.map(({ key, label, chips, note, onSelect }) => (
+        <li key={key}>
+          <button
+            type="button"
+            aria-label={`修改${label}`}
+            onClick={onSelect}
+            className={cn(
+              "flex w-full items-center gap-1 rounded-lg px-1 py-0.5 text-left text-sm active:bg-line",
+              key === "leader" && "bg-accent/15 font-semibold",
             )}
-          </span>
-          <span className="shrink-0 text-right leading-tight tabular-nums">
-            <span className="block">{chipText(chips)}</span>
-            <span className="block text-xs font-normal text-muted">
-              {percentText(total > 0 ? chips / total : 0)}
+          >
+            <span className={cn("size-3 shrink-0 rounded-full", BAR_CLASS[key])} aria-hidden />
+            {/* A long name gives way, so the chances stay whole on the same line */}
+            <span className="flex min-w-0 flex-1 items-baseline gap-1">
+              <span className="truncate">{label}</span>
+              {key === "leader" && <span className="shrink-0 text-xs text-accent">领先</span>}
+              {note && (
+                <span
+                  className={cn(
+                    "shrink-0 text-[11px] whitespace-nowrap tabular-nums",
+                    key === "leader" ? "text-accent" : "font-normal text-muted",
+                  )}
+                >
+                  {note}
+                </span>
+              )}
             </span>
-          </span>
+            <span className="shrink-0 text-right leading-tight tabular-nums">
+              <span className="block">{chipText(chips)}</span>
+              <span className="block text-xs font-normal text-muted">
+                {percentText(total > 0 ? chips / total : 0)}
+              </span>
+            </span>
+          </button>
         </li>
       ))}
     </ul>
