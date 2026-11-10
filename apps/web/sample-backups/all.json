@@ -77,7 +77,7 @@
       "smallBlindChips": 5,
       "bigBlindChips": 10,
       "insurance": {
-        "tieOuts": "exclude",
+        "tieOuts": "include",
         "refundPremium": false,
         "coverTurn": true,
         "oddsHundredths": [

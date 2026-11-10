@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { buildPots, potTotals } from "./pots";
+import { buildPots, contestedStakes, potTotals } from "./pots";
 
 describe("buildPots", () => {
   it("keeps dead money in the top contested pot when the top stake is uncalled", () => {
@@ -61,6 +61,51 @@ describe("potTotals", () => {
           const total = entries.reduce((sum, e) => sum + e.chips, 0);
           const { effectiveChips, uncalledChips } = potTotals(entries);
           expect(effectiveChips + uncalledChips).toBe(total);
+        },
+      ),
+    );
+  });
+});
+
+describe("contestedStakes", () => {
+  it("counts what each player has in every pot they contest", () => {
+    expect(
+      contestedStakes([
+        { playerId: "a", chips: 100 },
+        { playerId: "b", chips: 300 },
+        { playerId: "c", chips: 300 },
+        { playerId: "pool", chips: 50, folded: true },
+      ]),
+    ).toEqual({ a: 100, b: 300, c: 300 });
+  });
+
+  it("leaves out the top player's excess nobody called", () => {
+    expect(
+      contestedStakes([
+        { playerId: "a", chips: 100 },
+        { playerId: "b", chips: 900 },
+      ]),
+    ).toEqual({ a: 100, b: 100 });
+  });
+
+  it("has nothing contested until a second player is in", () => {
+    expect(contestedStakes([{ playerId: "a", chips: 100 }])).toEqual({});
+  });
+
+  it("adds up to the effective pot together with the dead money", () => {
+    const stack = fc.integer({ min: 1, max: 100_000 });
+    fc.assert(
+      fc.property(
+        fc.array(stack, { minLength: 2, maxLength: 9 }),
+        fc.array(stack, { maxLength: 4 }),
+        (liveChips, deadChips) => {
+          const entries = [
+            ...liveChips.map((chips, i) => ({ playerId: `live-${i}`, chips })),
+            ...deadChips.map((chips, i) => ({ playerId: `dead-${i}`, chips, folded: true })),
+          ];
+          const staked = Object.values(contestedStakes(entries)).reduce((sum, c) => sum + c, 0);
+          const totals = potTotals(entries);
+          expect(staked + totals.deadChips).toBe(totals.effectiveChips);
         },
       ),
     );

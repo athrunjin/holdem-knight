@@ -73,7 +73,7 @@ These are the product defaults. Rules are configurable by design, so organizers 
 | Insurance hand | One all-in from flop or turn to the river. Resumes if the page is left, and is recorded as one entry |
 | Short premium | A player who cannot pay a premium buys whole hands, after the organizer confirms a prompt |
 | Cover        | The deepest of the hand's players, at most one, who matches the next deepest |
-| Insured card  | The next card only. Each pot is priced apart, and tie cards are not outs by default      |
+| Insured card  | The next card only. Each pot is priced apart, and tie cards are outs by default          |
 | Multi-device  | No need for several devices on one game. M1 is guest mode, Supabase arrives in M6        |
 | Workflow      | From M1 on: branch → PR → CI → merge                                                     |
 

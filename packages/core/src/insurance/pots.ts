@@ -51,6 +51,21 @@ export function buildPots(entries: readonly PotEntry[]): Pot[] {
   });
 }
 
+/**
+ * What each live player has in the pots that are contested, leaving out excess nobody called.
+ * With the dead money these add up to the effective pot.
+ */
+export function contestedStakes(entries: readonly PotEntry[]): Record<string, number> {
+  const stakes: Record<string, number> = {};
+  for (const pot of buildPots(entries)) {
+    if (pot.playerIds.length < 2) continue;
+    for (const [playerId, chips] of Object.entries(pot.stakes)) {
+      stakes[playerId] = (stakes[playerId] ?? 0) + chips;
+    }
+  }
+  return stakes;
+}
+
 /** The headline numbers for a table, before any cards are known. */
 export function potTotals(entries: readonly PotEntry[]): PotTotals {
   const pots = buildPots(entries);

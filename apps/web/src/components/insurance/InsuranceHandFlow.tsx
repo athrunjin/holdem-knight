@@ -1,6 +1,7 @@
 import {
   buyOffer,
   type Card,
+  contestedStakes,
   dealCard,
   declineOffer,
   formatCard,
@@ -8,19 +9,20 @@ import {
   handOffers,
   handPotEntries,
   handResult,
+  handStandings,
   type InsuranceHand,
   type InsuranceHandPlayer,
   type InsuranceRule,
   nextStreet,
   offersDecided,
-  type PotTotals,
   playersReady,
   potTotals,
   reviseOffer,
+  type Standings,
   soldOuts,
   undoDeal,
 } from "@holdem-knight/core";
-import { Plus, X } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { formatCardText } from "@/lib/cards";
 import { formatSignedChips } from "@/lib/chips";
@@ -32,6 +34,7 @@ import type { InsuranceSeat } from "./InsuranceCalculator";
 import { type Decisions, LeaderQuote } from "./LeaderQuote";
 import { Modal } from "./Modal";
 import { PlayerChipsDialog } from "./PlayerChipsDialog";
+import { type PotShare, PotShares } from "./PotShares";
 import { SeatPicker } from "./SeatPicker";
 
 /** Keeps the hand. Missing for the standalone calculator, which records nothing. */
@@ -52,6 +55,8 @@ export interface SeatChips {
 interface InsuranceHandFlowProps {
   rule: InsuranceRule;
   seats: readonly InsuranceSeat[];
+  /** Hands out the seats in order instead of asking who is all-in. */
+  autoSeat: boolean;
   /** The hand in progress, to carry on from. */
   open: InsuranceHand | undefined;
   createHand: () => InsuranceHand;
@@ -59,13 +64,32 @@ interface InsuranceHandFlowProps {
   seat: SeatChips | undefined;
 }
 
-/** The player being added or changed, through seat, chips and cards. */
+/** The player being added through seat, chips and cards, or the one part of a player being changed. */
 type Adding =
   | { readonly stage: "seat" }
-  | { readonly stage: "chips" | "cards"; readonly entry: InsuranceHandPlayer }
-  | { readonly stage: "more" };
+  | { readonly stage: "chips"; readonly entry: InsuranceHandPlayer }
+  | {
+      readonly stage: "cards";
+      readonly entry: InsuranceHandPlayer;
+      /** The card tapped, to change that one. */
+      readonly replace?: number;
+    }
+  | { readonly stage: "more" }
+  /** Another seat takes over this player's chips and cards. */
+  | { readonly stage: "swap"; readonly entry: InsuranceHandPlayer };
 
 const STREET_TEXT = { turn: "转牌", river: "河牌" } as const;
+
+/** The cards taken, less the ones being picked again. */
+const withoutCards = (used: ReadonlySet<Card>, free: readonly Card[]) =>
+  new Set([...used].filter((card) => !free.includes(card)));
+
+const blankPlayer = (playerId: string): InsuranceHandPlayer => ({
+  playerId,
+  chips: 0,
+  cover: false,
+  cards: [],
+});
 
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
 const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
@@ -74,13 +98,16 @@ const primaryClass =
   "min-h-12 w-full rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40";
 const secondaryClass = "min-h-11 w-full rounded-xl border border-line font-medium";
 
-export function CardFace({ card }: { card: Card | null }) {
+/** A card, or a question mark in its place. `solid` draws the empty place as a card that must come. */
+export function CardFace({ card, solid = false }: { card: Card | null; solid?: boolean }) {
   const red = card !== null && /[hd]/.test(formatCard(card)[1] ?? "");
   return (
     <span
       className={cn(
         "grid h-11 w-9 place-items-center rounded-md border text-sm font-semibold tabular-nums",
-        card === null ? "border-dashed border-line text-muted" : "border-line bg-bg",
+        card !== null && "border-line bg-bg",
+        card === null &&
+          (solid ? "border-line bg-surface text-muted" : "border-dashed border-line text-muted"),
         red && "text-loss",
       )}
     >
@@ -89,75 +116,225 @@ export function CardFace({ card }: { card: Card | null }) {
   );
 }
 
-/** Five places: dealt cards, then question marks. `dealt` draws the shape before cards are known. */
-export function BoardCards({ cards, dealt = 0 }: { cards?: readonly Card[]; dealt?: number }) {
-  const shown = cards?.length ?? dealt;
+const BOARD_PLACES = [0, 1, 2, 3, 4] as const;
+
+/** Five places: dealt cards, then question marks. */
+export function BoardCards({ cards }: { cards: readonly Card[] }) {
   return (
-    <span className="flex gap-1" role="img" aria-label={`公共牌已发 ${shown} 张`}>
-      {[0, 1, 2, 3, 4].map((place) =>
-        cards === undefined && place < dealt ? (
-          <span key={place} className="h-11 w-9 rounded-md border border-line bg-accent/70" />
-        ) : (
-          <CardFace key={place} card={cards?.[place] ?? null} />
-        ),
-      )}
+    <span className="flex gap-1" role="img" aria-label={`公共牌已发 ${cards.length} 张`}>
+      {BOARD_PLACES.map((place) => (
+        <CardFace key={place} card={cards[place] ?? null} />
+      ))}
     </span>
   );
 }
 
-function PotSummary({ totals, onEditDead }: { totals: PotTotals; onEditDead: () => void }) {
+/**
+ * One street's cards in a frame, named underneath. A street that must be entered is framed solid;
+ * one that may be left out is dashed until it has its card.
+ */
+function StreetCards({
+  label,
+  cards,
+  count,
+  optional = false,
+  disabled = false,
+  onPick,
+}: {
+  label: string;
+  cards: readonly Card[];
+  count: number;
+  optional?: boolean;
+  disabled?: boolean;
+  /** Missing once the board can no longer change. */
+  onPick?: (() => void) | undefined;
+}) {
+  const empty = cards.length === 0;
+  const frame = cn(
+    "flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 px-2 pt-2 pb-1",
+    empty && optional ? "border-dashed border-line" : "border-line bg-surface",
+  );
+  const content = (
+    <>
+      <span className="flex gap-1">
+        {BOARD_PLACES.slice(0, count).map((place) => (
+          <CardFace key={place} card={cards[place] ?? null} solid={!optional} />
+        ))}
+      </span>
+      <span className="text-xs whitespace-nowrap text-muted">{label}</span>
+    </>
+  );
+  if (!onPick) return <div className={frame}>{content}</div>;
   return (
-    <section aria-label="底池合计" className="mt-3 rounded-xl border border-line bg-surface p-3">
-      <dl className="grid grid-cols-2 gap-2">
-        <div>
-          <dt className="text-sm text-muted">有效总底池</dt>
-          <dd className="text-xl font-semibold tabular-nums">{chipText(totals.effectiveChips)}</dd>
-        </div>
-        <div>
-          <dt className="text-sm text-muted">死钱（已含在内）</dt>
-          <dd className="flex items-center justify-between gap-2">
-            <span className="text-xl font-semibold tabular-nums">{chipText(totals.deadChips)}</span>
-            <button
-              type="button"
-              aria-label="编辑死钱"
-              onClick={onEditDead}
-              className="grid size-11 shrink-0 place-items-center rounded-lg border border-line text-highlight"
-            >
-              <Plus className="size-5" aria-hidden />
-            </button>
-          </dd>
-        </div>
-      </dl>
-      {totals.uncalledChips > 0 && (
-        <p className="mt-1 text-sm text-muted">
-          未被跟注的 {chipText(totals.uncalledChips)} 退回，不计入。
-        </p>
-      )}
-    </section>
+    <button
+      type="button"
+      aria-label={empty ? `选择${label}` : `修改${label}`}
+      disabled={disabled}
+      onClick={onPick}
+      className={cn(frame, "disabled:opacity-40")}
+    >
+      {content}
+    </button>
   );
 }
 
+/** Three chips in a stack: outlines while empty, filled once there is dead money. */
+function ChipStack({ lit }: { lit: boolean }) {
+  // Opaque fills, so each chip hides the one under it
+  const side = lit ? "color-mix(in srgb, currentColor 35%, var(--bg))" : "var(--bg)";
+  const face = lit ? "color-mix(in srgb, currentColor 60%, var(--bg))" : "var(--bg)";
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="size-7 shrink-0"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden
+    >
+      {[15, 10.5, 6].map((top) => (
+        <g key={top}>
+          <path d={`M4 ${top}v3.5a8 3 0 0 0 16 0v-3.5`} fill={side} />
+          <ellipse cx="12" cy={top} rx="8" ry="3" fill={face} />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+/** Dead money as a chip stack, tapped to enter it. It lights up once there is some. */
+function DeadMoney({ chips, onEdit }: { chips: number; onEdit: (() => void) | undefined }) {
+  const lit = chips > 0;
+  const className = cn(
+    "mt-2 flex min-h-11 w-fit items-center gap-2 rounded-xl border px-3",
+    lit
+      ? "border-highlight bg-highlight/10 text-highlight"
+      : "border-dashed border-line text-muted",
+  );
+  const content = (
+    <>
+      <ChipStack lit={lit} />
+      <span className="text-sm">死钱</span>
+      {lit && <span className="text-lg font-semibold tabular-nums">{chipText(chips)}</span>}
+    </>
+  );
+  if (!onEdit) return <div className={className}>{content}</div>;
+  return (
+    <button type="button" aria-label="编辑死钱" onClick={onEdit} className={className}>
+      {content}
+    </button>
+  );
+}
+
+/** Where a player stands, under their name: a leader is lit and shows only the chance to win. */
+interface StandingNote {
+  readonly leading: boolean;
+  readonly text: string;
+}
+
+/** A leader's chance to win stands alone. A player behind gets their outs for the next card before it. */
+function standingNote(
+  { players, exact }: Standings,
+  playerId: string,
+  cardsToCome: boolean,
+): StandingNote | undefined {
+  const standing = players.find((s) => s.playerId === playerId);
+  if (!standing) return undefined;
+  const { leading, equity, outs, tieCards } = standing;
+  // A sampled chance is good to about a point, so it is shown to the point
+  const chance = exact ? percentText(equity) : `${Math.round(equity * 100)}%`;
+  if (leading || !cardsToCome) return { leading, text: chance };
+  const cards = tieCards.length > 0 ? `${outs.length}+${tieCards.length}` : outs.length;
+  return { leading, text: `Outs ${cards} · ${chance}` };
+}
+
+/** One player: name, chips and cards. A part with a handler is tapped to change just that part. */
 function PlayerRow({
   name,
-  stake,
   player,
+  note,
+  onSeat,
+  onChips,
+  onCard,
   children,
 }: {
   name: string;
-  stake: string;
   player: InsuranceHandPlayer;
+  /** Missing until the hands can be compared. */
+  note: StandingNote | undefined;
+  /** Missing where the seat is given rather than picked. */
+  onSeat?: (() => void) | undefined;
+  onChips?: (() => void) | undefined;
+  onCard?: ((place: number) => void) | undefined;
   children?: ReactNode;
 }) {
+  const chips = player.cover ? "Cover" : chipText(player.chips);
+  const label = (
+    <>
+      <span className="flex min-w-0 items-center gap-0.5 font-medium">
+        <span className="truncate">{name}</span>
+        {onSeat && <ChevronDown className="size-4 shrink-0 text-muted" aria-hidden />}
+      </span>
+      {note && (
+        <span
+          className={cn(
+            "truncate text-xs tabular-nums",
+            note.leading ? "font-semibold text-accent" : "text-muted",
+          )}
+        >
+          {note.text}
+        </span>
+      )}
+    </>
+  );
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-line bg-surface p-2">
-      <p className="min-w-0 flex-1">
-        <span className="block truncate font-medium">{name}</span>
-        <span className="block text-sm text-muted tabular-nums">{stake}</span>
-      </p>
-      <span className="flex gap-1">
-        {player.cards.map((card) => (
-          <CardFace key={card} card={card} />
-        ))}
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded-xl border p-2 transition-colors",
+        note?.leading ? "border-accent bg-accent/10" : "border-line bg-surface",
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        {onSeat ? (
+          <button
+            type="button"
+            aria-label={`更换${name}`}
+            onClick={onSeat}
+            className="flex min-h-11 max-w-full flex-col justify-center text-left"
+          >
+            {label}
+          </button>
+        ) : (
+          <div className="flex min-h-11 flex-col justify-center">{label}</div>
+        )}
+      </div>
+      {onChips ? (
+        <button
+          type="button"
+          aria-label={`修改${name}的筹码`}
+          onClick={onChips}
+          className="min-h-11 shrink-0 rounded-lg border border-line bg-bg px-2 font-semibold tabular-nums"
+        >
+          {chips}
+        </button>
+      ) : (
+        <span className="shrink-0 font-semibold tabular-nums">{chips}</span>
+      )}
+      <span className={cn("flex shrink-0", !onCard && "gap-1")}>
+        {player.cards.map((card, place) =>
+          onCard ? (
+            <button
+              key={card}
+              type="button"
+              aria-label={`更换${name}的${formatCardText(card)}`}
+              onClick={() => onCard(place)}
+              className="grid min-h-11 min-w-11 place-items-center"
+            >
+              <CardFace card={card} />
+            </button>
+          ) : (
+            <CardFace key={card} card={card} />
+          ),
+        )}
       </span>
       {children}
     </div>
@@ -248,43 +425,6 @@ function MoreDialog({
   );
 }
 
-function StartStep({ onBack, onChoose }: { onBack: () => void; onChoose: (count: 3 | 4) => void }) {
-  const option = "flex w-full items-center justify-between gap-2 rounded-xl border p-3 text-left";
-  return (
-    <>
-      <h2 className="mt-3 mb-2 font-semibold">现在发到哪一条街？</h2>
-      <div className="flex flex-col gap-2">
-        <button type="button" disabled className={cn(option, "border-line opacity-50")}>
-          <span>
-            <span className="block font-medium">翻牌未发出</span>
-            <span className="block text-sm text-muted">开发中</span>
-          </span>
-          <BoardCards dealt={0} />
-        </button>
-        <button
-          type="button"
-          onClick={() => onChoose(3)}
-          className={cn(option, "border-line bg-surface")}
-        >
-          <span className="font-medium">翻牌已发出</span>
-          <BoardCards dealt={3} />
-        </button>
-        <button
-          type="button"
-          onClick={() => onChoose(4)}
-          className={cn(option, "border-line bg-surface")}
-        >
-          <span className="font-medium">转牌已发出</span>
-          <BoardCards dealt={4} />
-        </button>
-      </div>
-      <button type="button" onClick={onBack} className={cn(secondaryClass, "mt-3")}>
-        返回修改玩家
-      </button>
-    </>
-  );
-}
-
 function SettleStep({
   hand,
   nameOf,
@@ -348,6 +488,7 @@ function SettleStep({
 export function InsuranceHandFlow({
   rule,
   seats,
+  autoSeat,
   open,
   createHand,
   store,
@@ -356,7 +497,7 @@ export function InsuranceHandFlow({
   const [hand, setHand] = useState(() => open ?? createHand());
   const [adding, setAdding] = useState<Adding>();
   const [editingDead, setEditingDead] = useState(false);
-  const [boardCount, setBoardCount] = useState<3 | 4>();
+  const [pickingStreet, setPickingStreet] = useState<"flop" | "turn">();
   const [finishing, setFinishing] = useState(false);
 
   const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? "未知玩家";
@@ -365,6 +506,14 @@ export function InsuranceHandFlow({
   const street = nextStreet(hand.board);
 
   const offers = useMemo(() => (hand.step === "buy" ? handOffers(hand, rule) : []), [hand, rule]);
+  // Dead money and decisions leave these two as they were, so they do not deal the runouts again
+  const { players, board } = hand;
+  const standings = useMemo(() => handStandings({ players, board }), [players, board]);
+  // Hands saved before the board moved onto this screen can still be on the street step
+  const entering = hand.step === "players" || hand.step === "start";
+  // Whoever is in the pot prices everything sold, so the pot stays as it is once anything is
+  const editable = hand.purchases.length === 0 && (entering || hand.step === "buy");
+  const complete = playersReady(hand.players) && hand.board.length >= 3;
   const pots = [...new Set(offers.map((o) => o.potIndex))].map((index) =>
     offers.filter((o) => o.potIndex === index),
   );
@@ -403,16 +552,82 @@ export function InsuranceHandFlow({
     }
   }
 
+  /** Starts on the next player: at the seat picker, or straight at the chips of the first free seat. */
+  function addPlayer(takenSeats: readonly string[]) {
+    const free = autoSeat ? seats.find(({ id }) => !takenSeats.includes(id)) : undefined;
+    setAdding(free ? { stage: "chips", entry: blankPlayer(free.id) } : { stage: "seat" });
+  }
+
   function savePlayer(entry: InsuranceHandPlayer) {
     const known = hand.players.some((p) => p.playerId === entry.playerId);
     const players = known
       ? hand.players.map((p) => (p.playerId === entry.playerId ? entry : p))
       : [...hand.players, entry];
-    update({ ...hand, players });
+    // Offers turned down were for the pot as it was
+    update({ ...hand, players, declined: [] });
     if (!entry.cover) store?.enterStack(entry.playerId, entry.chips);
     if (known) setAdding(undefined);
-    else if (players.length === 1) setAdding({ stage: "seat" });
+    else if (players.length === 1) addPlayer(players.map((p) => p.playerId));
     else setAdding(players.length < seats.length ? { stage: "more" } : undefined);
+  }
+
+  /** Seats another player in this one's place, with the chips and cards already entered. */
+  function swapPlayer(from: InsuranceHandPlayer, playerId: string) {
+    const players = hand.players.map((p) => (p === from ? { ...from, playerId } : p));
+    update({ ...hand, players, declined: [] });
+    if (!from.cover) store?.enterStack(playerId, from.chips);
+    setAdding(undefined);
+  }
+
+  /** Changes the cards entered for the board. Cards dealt through the hand are settled as they come. */
+  function saveBoard(next: readonly Card[]) {
+    update({ ...hand, board: next, declined: [] });
+    setPickingStreet(undefined);
+  }
+
+  /** The contested pot by who put it in, each with where they stand. */
+  function potParts(): PotShare[] {
+    const stakes = contestedStakes(handPotEntries(hand));
+    return [
+      ...hand.players.map((player): PotShare => {
+        const note = standingNote(standings, player.playerId, hand.board.length < 5);
+        return {
+          key: player.playerId,
+          tone: note?.leading ? "leader" : "trailer",
+          label: nameOf(player.playerId),
+          chips: stakes[player.playerId] ?? 0,
+          note: note?.text,
+          onSelect: editable ? () => setAdding({ stage: "chips", entry: player }) : undefined,
+        };
+      }),
+      {
+        key: "dead-money",
+        tone: "dead",
+        label: "死钱",
+        chips: totals.deadChips,
+        onSelect: editable ? () => setEditingDead(true) : undefined,
+      },
+    ];
+  }
+
+  /** A player's row. While the players can change, each part opens its own edit. */
+  function playerRow(player: InsuranceHandPlayer, children?: ReactNode) {
+    return (
+      <PlayerRow
+        name={nameOf(player.playerId)}
+        player={player}
+        note={standingNote(standings, player.playerId, hand.board.length < 5)}
+        onSeat={
+          editable && !autoSeat ? () => setAdding({ stage: "swap", entry: player }) : undefined
+        }
+        onChips={editable ? () => setAdding({ stage: "chips", entry: player }) : undefined}
+        onCard={
+          editable ? (replace) => setAdding({ stage: "cards", entry: player, replace }) : undefined
+        }
+      >
+        {children}
+      </PlayerRow>
+    );
   }
 
   const decisions: Decisions | undefined = store && {
@@ -430,90 +645,112 @@ export function InsuranceHandFlow({
   };
 
   const taken = hand.players.map((p) => p.playerId);
-  const entry = adding?.stage === "chips" || adding?.stage === "cards" ? adding.entry : undefined;
+  const entry = adding && "entry" in adding ? adding.entry : undefined;
+  const entered = entry !== undefined && taken.includes(entry.playerId);
   const nextNumber = hand.players.length + 1;
 
   return (
     <>
-      {hand.step !== "players" && hand.step !== "summary" && (
-        <section aria-label="这手牌" className="mt-3 flex flex-col gap-1">
-          {hand.players.map((player) => (
-            <PlayerRow
-              key={player.playerId}
-              name={nameOf(player.playerId)}
-              stake={player.cover ? "Cover" : chipText(player.chips)}
-              player={player}
-            />
-          ))}
-          <p className="mt-1 text-sm text-muted tabular-nums">
-            有效总底池 {chipText(totals.effectiveChips)} · 死钱 {chipText(totals.deadChips)}
-          </p>
-          {hand.step !== "start" && <BoardCards cards={hand.board} />}
-        </section>
-      )}
-
-      {hand.step === "players" && (
+      {hand.step !== "summary" && (
         <>
+          <section aria-labelledby="hand-pot-title" className="mt-3">
+            <h2 id="hand-pot-title" className="mb-2 font-semibold">
+              底池信息
+            </h2>
+            <div className="flex items-start gap-1.5">
+              <StreetCards
+                label="翻牌"
+                cards={hand.board.slice(0, 3)}
+                count={3}
+                onPick={editable ? () => setPickingStreet("flop") : undefined}
+              />
+              <Plus className="mt-6 size-4 shrink-0 text-muted" aria-hidden />
+              <StreetCards
+                label={hand.board.length > 3 ? "转牌" : "转牌 · 可不选"}
+                cards={hand.board.slice(3, 4)}
+                count={1}
+                optional
+                disabled={hand.board.length < 3}
+                onPick={editable ? () => setPickingStreet("turn") : undefined}
+              />
+              {hand.board.length === 5 && (
+                <>
+                  <Plus className="mt-6 size-4 shrink-0 text-muted" aria-hidden />
+                  <StreetCards label="河牌" cards={hand.board.slice(4)} count={1} />
+                </>
+              )}
+            </div>
+            <DeadMoney
+              chips={totals.deadChips}
+              onEdit={editable ? () => setEditingDead(true) : undefined}
+            />
+          </section>
+
           <h2 className="mt-3 mb-1 text-sm text-muted">池内玩家</h2>
           <ul className="flex flex-col gap-2">
             {hand.players.map((player) => (
               <li key={player.playerId}>
-                <PlayerRow
-                  name={nameOf(player.playerId)}
-                  stake={player.cover ? "Cover" : chipText(player.chips)}
-                  player={player}
-                >
-                  <button
-                    type="button"
-                    aria-label={`修改${nameOf(player.playerId)}`}
-                    onClick={() => setAdding({ stage: "chips", entry: player })}
-                    className="min-h-11 shrink-0 rounded-lg border border-line px-2 text-sm font-medium"
-                  >
-                    修改
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`删除${nameOf(player.playerId)}`}
-                    onClick={() =>
-                      update({
-                        ...hand,
-                        players: hand.players.filter((p) => p !== player),
-                      })
-                    }
-                    className="grid size-11 shrink-0 place-items-center rounded-lg border border-line"
-                  >
-                    <X className="size-5" aria-hidden />
-                  </button>
-                </PlayerRow>
+                {playerRow(
+                  player,
+                  entering && (
+                    <button
+                      type="button"
+                      aria-label={`删除${nameOf(player.playerId)}`}
+                      onClick={() =>
+                        update({
+                          ...hand,
+                          players: hand.players.filter((p) => p !== player),
+                        })
+                      }
+                      className="grid size-11 shrink-0 place-items-center rounded-lg border border-line"
+                    >
+                      <X className="size-5" aria-hidden />
+                    </button>
+                  ),
+                )}
               </li>
             ))}
           </ul>
-          {hand.players.length < seats.length && (
+          {entering && hand.players.length < seats.length && (
             <button
               type="button"
               aria-label="添加玩家"
-              onClick={() => setAdding({ stage: "seat" })}
+              onClick={() => addPlayer(taken)}
               className="mt-2 grid min-h-14 w-full place-items-center rounded-xl border border-dashed border-line text-highlight"
             >
               <Plus className="size-6" aria-hidden />
             </button>
           )}
-          <PotSummary totals={totals} onEditDead={() => setEditingDead(true)} />
-          {playersReady(hand.players) && (
-            <button
-              type="button"
-              onClick={() => update({ ...hand, step: "start" })}
-              className={cn(primaryClass, "mt-3")}
-            >
-              录入公共牌并计算
-            </button>
+
+          {complete && (
+            <div className="mt-3">
+              <PotShares parts={potParts()} look={hand.players.length > 3 ? "bar" : "ring"} />
+              {totals.uncalledChips > 0 && (
+                <p className="mt-1 text-sm text-muted">
+                  未被跟注的 {chipText(totals.uncalledChips)} 退回，不计入。
+                </p>
+              )}
+            </div>
           )}
         </>
       )}
 
-      {hand.step === "start" && (
-        <StartStep onBack={() => update({ ...hand, step: "players" })} onChoose={setBoardCount} />
-      )}
+      {entering &&
+        (complete ? (
+          <button
+            type="button"
+            onClick={() => update({ ...hand, step: "buy" })}
+            className={cn(primaryClass, "mt-3")}
+          >
+            计算保险
+          </button>
+        ) : (
+          <p className="mt-3 text-sm text-muted">
+            {playersReady(hand.players)
+              ? "再选好翻牌，就可以计算保险。"
+              : "先录入至少两位玩家的筹码和手牌。"}
+          </p>
+        ))}
 
       {hand.step === "buy" && street && (
         <>
@@ -538,10 +775,10 @@ export function InsuranceHandFlow({
           {hand.purchases.length === 0 && (
             <button
               type="button"
-              onClick={() => update({ ...hand, board: [], declined: [], step: "start" })}
+              onClick={() => update({ ...hand, declined: [], step: "players" })}
               className={cn(secondaryClass, "mt-2")}
             >
-              重选公共牌
+              返回增减玩家
             </button>
           )}
         </>
@@ -584,7 +821,7 @@ export function InsuranceHandFlow({
         <DeadMoneyDialog
           pools={hand.pools.map(String)}
           onConfirm={(next) => {
-            update({ ...hand, pools: next.map(Number) });
+            update({ ...hand, pools: next.map(Number), declined: [] });
             setEditingDead(false);
           }}
           onCancel={() => setEditingDead(false)}
@@ -595,12 +832,16 @@ export function InsuranceHandFlow({
         <SeatPicker
           seats={seats}
           takenSeats={taken}
-          onPick={({ id }) =>
-            setAdding({
-              stage: "chips",
-              entry: { playerId: id, chips: 0, cover: false, cards: [] },
-            })
-          }
+          onPick={({ id }) => setAdding({ stage: "chips", entry: blankPlayer(id) })}
+          onClose={() => setAdding(undefined)}
+        />
+      )}
+
+      {adding?.stage === "swap" && (
+        <SeatPicker
+          seats={seats}
+          takenSeats={taken}
+          onPick={({ id }) => swapPlayer(adding.entry, id)}
           onClose={() => setAdding(undefined)}
         />
       )}
@@ -611,17 +852,23 @@ export function InsuranceHandFlow({
           chips={entry.chips}
           cover={entry.cover}
           coverTaken={hand.players.some((p) => p.cover && p.playerId !== entry.playerId)}
-          onConfirm={(chips) => setAdding({ stage: "cards", entry: { ...entry, ...chips } })}
+          onConfirm={(chips) => {
+            const next = { ...entry, ...chips };
+            // A player already in the pot changes chips alone; a new one goes on to the cards
+            if (entered) savePlayer(next);
+            else setAdding({ stage: "cards", entry: next });
+          }}
           onCancel={() => setAdding(undefined)}
         />
       )}
 
       {adding?.stage === "cards" && entry && (
         <CardPicker
-          title={`${nameOf(entry.playerId)}：选择两张手牌`}
+          title={`${nameOf(entry.playerId)}：${entered ? "更换手牌" : "选择两张手牌"}`}
           count={2}
-          usedCards={new Set([...usedCards].filter((card) => !entry.cards.includes(card)))}
+          usedCards={withoutCards(usedCards, entry.cards)}
           initial={entry.cards}
+          replace={adding.replace}
           onConfirm={(cards) => savePlayer({ ...entry, cards })}
           onCancel={() => setAdding(undefined)}
         />
@@ -630,21 +877,31 @@ export function InsuranceHandFlow({
       {adding?.stage === "more" && (
         <MoreDialog
           number={nextNumber}
-          onAdd={() => setAdding({ stage: "seat" })}
+          onAdd={() => addPlayer(taken)}
           onDone={() => setAdding(undefined)}
         />
       )}
 
-      {boardCount && (
+      {pickingStreet === "flop" && (
         <CardPicker
-          title={boardCount === 3 ? "选择三张翻牌" : "选择翻牌和转牌"}
-          count={boardCount}
-          usedCards={usedCards}
-          onConfirm={(board) => {
-            update({ ...hand, board, step: "buy" });
-            setBoardCount(undefined);
-          }}
-          onCancel={() => setBoardCount(undefined)}
+          title="选择三张翻牌"
+          count={3}
+          usedCards={withoutCards(usedCards, hand.board.slice(0, 3))}
+          initial={hand.board.slice(0, 3)}
+          onConfirm={(flop) => saveBoard([...flop, ...hand.board.slice(3)])}
+          onCancel={() => setPickingStreet(undefined)}
+        />
+      )}
+
+      {pickingStreet === "turn" && (
+        <CardPicker
+          title="选择转牌"
+          count={1}
+          optional
+          usedCards={withoutCards(usedCards, hand.board.slice(3, 4))}
+          initial={hand.board.slice(3, 4)}
+          onConfirm={(turn) => saveBoard([...hand.board.slice(0, 3), ...turn])}
+          onCancel={() => setPickingStreet(undefined)}
         />
       )}
 

@@ -1,5 +1,6 @@
-import type { InsuranceHand, InsuranceRule } from "@holdem-knight/core";
+import type { InsuranceHand, InsuranceRule, TieOuts } from "@holdem-knight/core";
 import { useState } from "react";
+import { MiniSwitch } from "@/components/MiniSwitch";
 import { cn } from "@/lib/cn";
 import { type HandStore, InsuranceHandFlow, type SeatChips } from "./InsuranceHandFlow";
 import type { BoughtInsurance, Decisions } from "./LeaderQuote";
@@ -24,7 +25,11 @@ export interface InsuranceRecorder {
 
 interface InsuranceCalculatorProps {
   rule: InsuranceRule;
+  /** Switches whether tie cards are sold as outs. Whoever owns the rule decides what that changes. */
+  onTieOutsChange: (tieOuts: TieOuts) => void;
   seats: readonly InsuranceSeat[];
+  /** Hands out the seats in order instead of asking who is all-in: the standalone calculator has no table. */
+  autoSeat?: boolean;
   saving?: boolean | undefined;
   /** Missing for the standalone calculator, which records nothing. */
   recorder?: InsuranceRecorder;
@@ -83,7 +88,9 @@ export function InsuranceCalculator({
   openHand,
   createHand,
   rule,
+  onTieOutsChange,
   seats,
+  autoSeat = false,
   saving,
 }: InsuranceCalculatorProps) {
   const [mode, setMode] = useState<"cards" | "outs">("cards");
@@ -108,11 +115,18 @@ export function InsuranceCalculator({
           Outs数速算
         </button>
       </div>
+      <MiniSwitch
+        label="平分牌算 outs"
+        checked={rule.tieOuts === "include"}
+        onChange={(checked) => onTieOutsChange(checked ? "include" : "exclude")}
+        className="ml-auto"
+      />
       {/* Stays mounted, so looking at the other mode keeps the hand */}
       <div hidden={mode !== "cards"}>
         <InsuranceHandFlow
           rule={rule}
           seats={seats}
+          autoSeat={autoSeat}
           open={openHand}
           createHand={createHand}
           store={handStore}
@@ -120,7 +134,13 @@ export function InsuranceCalculator({
         />
       </div>
       {mode === "outs" && (
-        <OutsQuickCalc rule={rule} seats={seats} saving={saving} decisions={decisions} />
+        <OutsQuickCalc
+          rule={rule}
+          seats={seats}
+          autoSeat={autoSeat}
+          saving={saving}
+          decisions={decisions}
+        />
       )}
     </>
   );

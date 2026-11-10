@@ -12,6 +12,8 @@ import {
   nextStreet,
   type PotAnalysis,
   type PotLeader,
+  type Standings,
+  showdownStandings,
   tieBlocksInsurance,
   winnersOf,
 } from "./analysis";
@@ -118,6 +120,14 @@ export function handOffers(hand: InsuranceHand, rule: InsuranceRule): HandOffer[
         quote: quoteInsurance(input),
       };
     }),
+  );
+}
+
+/** How the players who have their cards stand on the board so far. See `showdownStandings`. */
+export function handStandings(hand: Pick<InsuranceHand, "players" | "board">): Standings {
+  return showdownStandings(
+    hand.players.filter((p) => p.cards.length === 2),
+    hand.board,
   );
 }
 
