@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { InsuranceRule } from "../domain";
 import {
+  outsHitChance,
   payoutFor,
   premiumFor,
   premiumForNet,
@@ -10,6 +11,7 @@ import {
   type QuoteInput,
   quoteInsurance,
   soldOuts,
+  unseenCards,
 } from "./quote";
 import {
   formatOdds,
@@ -44,6 +46,16 @@ describe("quoteInsurance", () => {
       capped: false,
     });
     expect(quote.maxPremiumChips).toBe(400);
+  });
+
+  it("adds a half-pot cover only when it differs from the stake", () => {
+    const even = quoteInsurance(input());
+    if (!even.ok) throw new Error("Expected a quote");
+    expect(even.halfPot).toBeNull();
+
+    const withDead = quoteInsurance(input({ potChips: 1301, shareChips: 1301 }));
+    if (!withDead.ok) throw new Error("Expected a quote");
+    expect(withDead.halfPot).toMatchObject({ premiumChips: 261, ifHitChips: 652 });
   });
 
   it("hands the premium back on a hit when the rule says so", () => {
@@ -156,5 +168,22 @@ describe("rule tables", () => {
       ok: false,
       issues: { odds: [2], turnCapPercent: true },
     });
+  });
+});
+
+describe("outsHitChance", () => {
+  it("divides the outs by the cards nobody has seen", () => {
+    expect(outsHitChance("turn", 9)).toBe(9 / 45);
+    expect(outsHitChance("river", 11)).toBe(1 / 4);
+    expect(outsHitChance("river", 0)).toBe(0);
+  });
+
+  it("counts the unseen cards after the flop and after the turn", () => {
+    expect(unseenCards("turn")).toBe(45);
+    expect(unseenCards("river")).toBe(44);
+  });
+
+  it("never goes past certain", () => {
+    expect(outsHitChance("river", 50)).toBe(1);
   });
 });

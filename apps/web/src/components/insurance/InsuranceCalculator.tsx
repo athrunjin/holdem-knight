@@ -1,14 +1,9 @@
-import {
-  type InsuranceHand,
-  type InsuranceRule,
-  type InsuranceStreet,
-  parseChips,
-} from "@holdem-knight/core";
+import type { InsuranceHand, InsuranceRule } from "@holdem-knight/core";
 import { useState } from "react";
-import { TextField } from "@/components/TextField";
 import { cn } from "@/lib/cn";
 import { type HandStore, InsuranceHandFlow, type SeatChips } from "./InsuranceHandFlow";
-import { type BoughtInsurance, type Decisions, LeaderQuote } from "./LeaderQuote";
+import type { BoughtInsurance, Decisions } from "./LeaderQuote";
+import { OutsQuickCalc } from "./OutsQuickCalc";
 import type { QuoteDecision } from "./QuotePanel";
 
 export type { BoughtInsurance } from "./LeaderQuote";
@@ -40,116 +35,11 @@ interface InsuranceCalculatorProps {
   createHand: () => InsuranceHand;
 }
 
-type ByOutsProps = Pick<InsuranceCalculatorProps, "rule" | "seats" | "saving"> & {
-  decisions: Decisions | undefined;
-};
-
-const digitsOnly = (text: string) => text.replace(/\D/g, "");
-
 const toggleClass = (active: boolean) =>
   cn(
     "min-h-11 rounded-xl border px-3 font-medium",
     active ? "border-accent bg-accent text-accent-text" : "border-line bg-surface",
   );
-
-function ByOuts({ rule, seats, saving, decisions }: ByOutsProps) {
-  const [pot, setPot] = useState("");
-  const [stake, setStake] = useState("");
-  const [outs, setOuts] = useState("");
-  const [street, setStreet] = useState<InsuranceStreet>("river");
-  const [buyer, setBuyer] = useState(seats[0]?.id ?? "");
-
-  const potChips = parseChips(pot);
-  const stakeChips = parseChips(stake);
-  const outCount = parseChips(outs);
-  const ready = potChips && stakeChips && outCount !== null;
-
-  return (
-    <div className="mt-3 flex flex-col gap-3">
-      {decisions && (
-        <label className="block">
-          <span className="mb-1 block text-sm text-muted">投保玩家</span>
-          <select
-            value={buyer}
-            onChange={(event) => setBuyer(event.target.value)}
-            className="min-h-12 w-full rounded-xl border border-line bg-surface px-3"
-          >
-            {seats.map(({ id, name }) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          aria-pressed={street === "turn"}
-          onClick={() => setStreet("turn")}
-          className={toggleClass(street === "turn")}
-        >
-          保转牌
-        </button>
-        <button
-          type="button"
-          aria-pressed={street === "river"}
-          onClick={() => setStreet("river")}
-          className={toggleClass(street === "river")}
-        >
-          保河牌
-        </button>
-      </div>
-      <div className="grid grid-cols-3 items-start gap-2">
-        <TextField
-          id="manual-pot"
-          label="底池"
-          value={pot}
-          issue={undefined}
-          inputMode="numeric"
-          onChange={(value) => setPot(digitsOnly(value))}
-        />
-        <TextField
-          id="manual-stake"
-          label="自己投入"
-          value={stake}
-          issue={undefined}
-          inputMode="numeric"
-          onChange={(value) => setStake(digitsOnly(value))}
-        />
-        <TextField
-          id="manual-outs"
-          label="outs"
-          value={outs}
-          issue={undefined}
-          inputMode="numeric"
-          onChange={(value) => setOuts(digitsOnly(value))}
-        />
-      </div>
-      {ready ? (
-        <section className="rounded-xl border border-line bg-surface p-3">
-          <LeaderQuote
-            id="manual"
-            decisionKey={["manual", buyer, street, potChips, stakeChips, outCount].join("|")}
-            input={{
-              rule,
-              street,
-              potChips,
-              shareChips: potChips,
-              stakeChips,
-              outs: outCount,
-            }}
-            playerId={buyer}
-            saving={saving}
-            decisions={decisions}
-          />
-        </section>
-      ) : (
-        <p className="text-sm text-muted">填好底池、投入和 outs 后开始计算。</p>
-      )}
-    </div>
-  );
-}
 
 function useDecisions(recorder: InsuranceRecorder | undefined): Decisions | undefined {
   const [decided, setDecided] = useState<ReadonlyMap<string, QuoteDecision>>(new Map());
@@ -215,7 +105,7 @@ export function InsuranceCalculator({
           onClick={() => setMode("outs")}
           className={toggleClass(mode === "outs")}
         >
-          填 outs
+          Outs数速算
         </button>
       </div>
       {/* Stays mounted, so looking at the other mode keeps the hand */}
@@ -230,7 +120,7 @@ export function InsuranceCalculator({
         />
       </div>
       {mode === "outs" && (
-        <ByOuts rule={rule} seats={seats} saving={saving} decisions={decisions} />
+        <OutsQuickCalc rule={rule} seats={seats} saving={saving} decisions={decisions} />
       )}
     </>
   );

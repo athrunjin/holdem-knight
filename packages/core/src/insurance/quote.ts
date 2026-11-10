@@ -66,6 +66,8 @@ export type InsuranceQuote =
       readonly maxPremiumChips: number;
       /** A hit leaves the buyer what they put in. */
       readonly stake: QuoteOption;
+      /** A hit leaves the buyer half their share, rounded up. Null when that is already the stake. */
+      readonly halfPot: QuoteOption | null;
       /** A hit leaves the buyer their whole share of the pot. */
       readonly fullPot: QuoteOption;
     };
@@ -103,6 +105,7 @@ export function quoteInsurance(input: QuoteInput): InsuranceQuote {
   const premiumToLeave = (netChips: number) =>
     premiumForNet(netChips, oddsHundredths, rule.refundPremium);
   const maxPremiumChips = Math.min(premiumToLeave(shareChips), capChips(input));
+  const halfChips = Math.ceil(shareChips / 2);
   const option = (netChips: number) => {
     const target = premiumToLeave(netChips);
     const premium = Math.min(target, maxPremiumChips);
@@ -113,6 +116,7 @@ export function quoteInsurance(input: QuoteInput): InsuranceQuote {
     oddsHundredths,
     maxPremiumChips,
     stake: option(stakeChips),
+    halfPot: halfChips === stakeChips ? null : option(halfChips),
     fullPot: option(shareChips),
   };
 }
@@ -123,4 +127,15 @@ export function soldOuts(
   leader: { readonly outs: readonly number[]; readonly tieCards: readonly number[] },
 ): number {
   return leader.outs.length + (rule.tieOuts === "include" ? leader.tieCards.length : 0);
+}
+
+/** Cards nobody has seen in a heads-up all-in: 52 less four hole cards and the board so far. */
+export function unseenCards(street: InsuranceStreet): number {
+  return street === "turn" ? 45 : 44;
+}
+
+/** Chance the next card is one of `outs` in a heads-up all-in. */
+export function outsHitChance(street: InsuranceStreet, outs: number): number {
+  const unseen = unseenCards(street);
+  return Math.min(outs, unseen) / unseen;
 }
