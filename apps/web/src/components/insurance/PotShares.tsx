@@ -1,3 +1,4 @@
+import { ArrowLeftRight } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 
@@ -5,6 +6,8 @@ export interface PotShare {
   readonly key: "leader" | "trailer" | "dead";
   readonly label: string;
   readonly chips: number;
+  /** Chances under the name: the leader's win, the trailer's outs, the dead money's split. */
+  readonly note?: string | undefined;
 }
 
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
@@ -21,7 +24,7 @@ const STROKE_CLASS = {
 function Legend({ parts, total }: { parts: readonly PotShare[]; total: number }) {
   return (
     <ul className="flex min-w-0 flex-1 flex-col gap-1">
-      {parts.map(({ key, label, chips }) => (
+      {parts.map(({ key, label, chips, note }) => (
         <li
           key={key}
           className={cn(
@@ -30,13 +33,27 @@ function Legend({ parts, total }: { parts: readonly PotShare[]; total: number })
           )}
         >
           <span className={cn("size-3 shrink-0 rounded-full", BAR_CLASS[key])} aria-hidden />
-          <span className="min-w-0 flex-1 truncate">
-            {label}
-            {key === "leader" && <span className="ml-1 text-xs text-accent">领先</span>}
+          <span className="min-w-0 flex-1">
+            <span className="block truncate">
+              {label}
+              {key === "leader" && <span className="ml-1 text-xs text-accent">领先</span>}
+            </span>
+            {note && (
+              <span
+                className={cn(
+                  "block text-xs whitespace-nowrap tabular-nums",
+                  key === "leader" ? "text-accent" : "font-normal text-muted",
+                )}
+              >
+                {note}
+              </span>
+            )}
           </span>
-          <span className="tabular-nums">{chipText(chips)}</span>
-          <span className="w-12 text-right text-xs text-muted tabular-nums">
-            {percentText(total > 0 ? chips / total : 0)}
+          <span className="shrink-0 text-right tabular-nums">
+            <span className="block">{chipText(chips)}</span>
+            <span className="block text-xs font-normal text-muted">
+              {percentText(total > 0 ? chips / total : 0)}
+            </span>
           </span>
         </li>
       ))}
@@ -44,11 +61,14 @@ function Legend({ parts, total }: { parts: readonly PotShare[]; total: number })
   );
 }
 
+/** Parts with chips, the only ones that take up room in a chart. */
+const filled = (parts: readonly PotShare[]) => parts.filter(({ chips }) => chips > 0);
+
 function Bar({ parts, total }: { parts: readonly PotShare[]; total: number }) {
   return (
     <>
       <div className="mt-2 flex h-4 gap-0.5 overflow-hidden rounded-full" aria-hidden>
-        {parts.map(({ key, chips }) => (
+        {filled(parts).map(({ key, chips }) => (
           <span
             key={key}
             className={cn(BAR_CLASS[key], key === "leader" && "ring-2 ring-accent ring-inset")}
@@ -71,7 +91,7 @@ function Ring({ parts, total }: { parts: readonly PotShare[]; total: number }) {
     <div className="mt-2 flex items-center gap-3">
       <svg viewBox="0 0 100 100" className="size-28 shrink-0 -rotate-90" aria-hidden>
         <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="10" className="stroke-line" />
-        {parts.map(({ key, chips }) => {
+        {filled(parts).map(({ key, chips }) => {
           const length = total > 0 ? (chips / total) * circumference : 0;
           const offset = -start;
           start += length;
@@ -96,17 +116,9 @@ function Ring({ parts, total }: { parts: readonly PotShare[]; total: number }) {
 }
 
 /** The contested pot split into who put what in, with the leader picked out. */
-export function PotShares({
-  parts,
-  uncalledChips,
-}: {
-  parts: readonly PotShare[];
-  uncalledChips: number;
-}) {
-  // Two looks to compare on a phone; one goes once the organizer picks
-  const [look, setLook] = useState<"bar" | "ring">("bar");
+export function PotShares({ parts }: { parts: readonly PotShare[] }) {
+  const [look, setLook] = useState<"ring" | "bar">("ring");
   const total = parts.reduce((sum, { chips }) => sum + chips, 0);
-  const shown = parts.filter(({ chips }) => chips > 0);
   return (
     <section aria-label="有效总底池" className="rounded-xl border border-line bg-surface p-3">
       <div className="flex items-start justify-between gap-2">
@@ -114,29 +126,16 @@ export function PotShares({
           <span className="block text-sm text-muted">有效总底池</span>
           <span className="block text-2xl font-semibold tabular-nums">{chipText(total)}</span>
         </p>
-        <div className="flex rounded-lg border border-line p-0.5 text-xs">
-          {(["bar", "ring"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={look === option}
-              onClick={() => setLook(option)}
-              className={cn(
-                "min-h-11 rounded-md px-2",
-                look === option ? "bg-accent text-accent-text" : "text-muted",
-              )}
-            >
-              {option === "bar" ? "横条" : "圆圈"}
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          aria-label={look === "ring" ? "换成横条" : "换成圆圈"}
+          onClick={() => setLook(look === "ring" ? "bar" : "ring")}
+          className="grid size-11 shrink-0 place-items-center rounded-lg border border-line text-highlight"
+        >
+          <ArrowLeftRight className="size-5" aria-hidden />
+        </button>
       </div>
-      {look === "bar" ? <Bar parts={shown} total={total} /> : <Ring parts={shown} total={total} />}
-      {uncalledChips > 0 && (
-        <p className="mt-2 text-sm text-muted">
-          未被跟注的 {chipText(uncalledChips)} 退回，不计入。
-        </p>
-      )}
+      {look === "ring" ? <Ring parts={parts} total={total} /> : <Bar parts={parts} total={total} />}
     </section>
   );
 }

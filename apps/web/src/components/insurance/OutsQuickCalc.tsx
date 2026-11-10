@@ -43,20 +43,30 @@ const toggleClass = (active: boolean) =>
     active ? "border-accent bg-accent text-accent-text" : "border-line bg-surface",
   );
 
+/** The trailing side's cards: those that win outright, and those that split the pot. */
+interface OutsEntry {
+  readonly outs: number;
+  readonly ties: number;
+}
+
+const cardCount = (value: string) => value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+
 function OutsDialog({
   name,
-  outs,
+  entry,
   onConfirm,
   onCancel,
 }: {
   name: string;
-  outs: number | undefined;
-  onConfirm: (outs: number) => void;
+  entry: OutsEntry | undefined;
+  onConfirm: (entry: OutsEntry) => void;
   onCancel: () => void;
 }) {
-  const [text, setText] = useState(outs?.toString() ?? "");
+  const [text, setText] = useState(entry?.outs.toString() ?? "");
+  const [tieText, setTieText] = useState(entry?.ties ? entry.ties.toString() : "");
   const inputRef = useRef<HTMLInputElement>(null);
   const typed = parseChips(text);
+  const ties = parseChips(tieText) ?? 0;
 
   useEffect(() => {
     inputRef.current?.select();
@@ -67,7 +77,7 @@ function OutsDialog({
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          if (typed !== null) onConfirm(typed);
+          if (typed !== null) onConfirm({ outs: typed, ties });
         }}
       >
         <TextField
@@ -78,8 +88,20 @@ function OutsDialog({
           suffix="张"
           inputMode="numeric"
           inputRef={inputRef}
-          onChange={(value) => setText(value.replace(/\D/g, "").replace(/^0+(?=\d)/, ""))}
+          onChange={(value) => setText(cardCount(value))}
         />
+        <div className="mt-2">
+          <TextField
+            id="quick-ties"
+            label="平分牌张数（没有可不填）"
+            value={tieText}
+            issue={undefined}
+            placeholder="0"
+            suffix="张"
+            inputMode="numeric"
+            onChange={(value) => setTieText(cardCount(value))}
+          />
+        </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -145,7 +167,7 @@ function SideCard({
   player: InsuranceHandPlayer | undefined;
   name: string;
   leading: boolean;
-  outs: number | undefined;
+  outs: OutsEntry | undefined;
   /** The trailing side's chance to come from behind, once its outs are known. */
   hitChance: number | undefined;
   onSeat: () => void;
@@ -212,7 +234,12 @@ function SideCard({
             )}
           >
             <span className="text-xs text-muted">Outs</span>
-            <span className="text-lg leading-tight font-semibold tabular-nums">{outs ?? "—"}</span>
+            <span className="text-lg leading-tight font-semibold tabular-nums">
+              {outs?.outs ?? "—"}
+            </span>
+            {outs !== undefined && outs.ties > 0 && (
+              <span className="text-xs text-muted tabular-nums">平分 {outs.ties}</span>
+            )}
           </button>
           <button
             type="button"
@@ -235,7 +262,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
   >([undefined, undefined]);
   const [leader, setLeader] = useState<Side>(0);
   // Kept per side, so switching the lead back and forth keeps what was typed
-  const [outs, setOuts] = useState<readonly [number | undefined, number | undefined]>([
+  const [outs, setOuts] = useState<readonly [OutsEntry | undefined, OutsEntry | undefined]>([
     undefined,
     undefined,
   ]);
@@ -254,7 +281,10 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
   const trailer: Side = leader === 0 ? 1 : 0;
   const leaderPlayer = sides[leader];
   const trailerPlayer = sides[trailer];
-  const trailerOuts = outs[trailer];
+  const trailerEntry = outs[trailer];
+  // Tie cards are sold with the outs only when the rule says so
+  const trailerOuts =
+    trailerEntry && trailerEntry.outs + (rule.tieOuts === "include" ? trailerEntry.ties : 0);
 
   function setSide(side: Side, entry: InsuranceHandPlayer | undefined) {
     setSides(side === 0 ? [entry, sides[1]] : [sides[0], entry]);
@@ -262,6 +292,13 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
 
   const ready = leaderPlayer && trailerPlayer && trailerOuts !== undefined;
   const quoted = Boolean(ready);
+  // What the next card does, once the trailing side's cards are known
+  const chances = trailerEntry && {
+    ...trailerEntry,
+    hit: outsHitChance(street, trailerEntry.outs),
+    tie: outsHitChance(street, trailerEntry.ties),
+    win: 1 - outsHitChance(street, trailerEntry.outs + trailerEntry.ties),
+  };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the quote opening below scrolls again
   useEffect(() => {
@@ -318,9 +355,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
                 name={player ? nameOf(player.playerId) : ""}
                 leading={leader === side}
                 outs={outs[side]}
-                hitChance={
-                  trailerOuts === undefined ? undefined : outsHitChance(street, trailerOuts)
-                }
+                hitChance={chances?.hit}
                 onSeat={() => setAdding({ side, stage: "seat" })}
                 onChips={() =>
                   setAdding(
@@ -337,11 +372,28 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
           <div className="mt-2">
             <PotShares
               parts={[
-                { key: "leader", label: nameOf(leaderPlayer.playerId), chips: leaderStake },
-                { key: "trailer", label: nameOf(trailerPlayer.playerId), chips: leaderStake },
-                { key: "dead", label: "死钱", chips: totals.deadChips },
+                {
+                  key: "leader",
+                  label: nameOf(leaderPlayer.playerId),
+                  chips: leaderStake,
+                  note: chances && percentText(chances.win),
+                },
+                {
+                  key: "trailer",
+                  label: nameOf(trailerPlayer.playerId),
+                  chips: leaderStake,
+                  note: chances && `反超 ${chances.outs}/${percentText(chances.hit)}`,
+                },
+                {
+                  key: "dead",
+                  label: "死钱",
+                  chips: totals.deadChips,
+                  note:
+                    chances && chances.ties > 0
+                      ? `平分 ${chances.ties}/${percentText(chances.tie)}`
+                      : undefined,
+                },
               ]}
-              uncalledChips={totals.uncalledChips}
             />
           </div>
         )}
@@ -397,9 +449,9 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
       {editingOuts && (
         <OutsDialog
           name={trailerPlayer ? nameOf(trailerPlayer.playerId) : "落后一方"}
-          outs={trailerOuts}
-          onConfirm={(count) => {
-            setOuts(trailer === 0 ? [count, outs[1]] : [outs[0], count]);
+          entry={trailerEntry}
+          onConfirm={(entry) => {
+            setOuts(trailer === 0 ? [entry, outs[1]] : [outs[0], entry]);
             setEditingOuts(false);
           }}
           onCancel={() => setEditingOuts(false)}
