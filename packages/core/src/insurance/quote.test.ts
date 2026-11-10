@@ -11,6 +11,7 @@ import {
   type QuoteInput,
   quoteInsurance,
   soldOuts,
+  unseenCards,
 } from "./quote";
 import {
   formatOdds,
@@ -175,6 +176,11 @@ describe("outsHitChance", () => {
     expect(outsHitChance("turn", 9)).toBe(9 / 45);
     expect(outsHitChance("river", 11)).toBe(1 / 4);
     expect(outsHitChance("river", 0)).toBe(0);
+  });
+
+  it("counts the unseen cards after the flop and after the turn", () => {
+    expect(unseenCards("turn")).toBe(45);
+    expect(unseenCards("river")).toBe(44);
   });
 
   it("never goes past certain", () => {

@@ -65,7 +65,7 @@ function OptionRow({
     <>
       <span className="text-left font-medium">
         {label}
-        {note && <span className="ml-1 text-xs text-muted">{note}</span>}
+        {note && <span className="block text-xs whitespace-nowrap text-muted">{note}</span>}
         {option.capped && <span className="block text-xs text-highlight">已到上限</span>}
       </span>
       <span className="font-semibold text-highlight">{chipText(option.premiumChips)}</span>

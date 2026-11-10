@@ -6,7 +6,7 @@ export interface PotShare {
   readonly key: "leader" | "trailer" | "dead";
   readonly label: string;
   readonly chips: number;
-  /** Chances under the name: the leader's win, the trailer's outs, the dead money's split. */
+  /** Chances after the name: the leader's win, the trailer's outs, the dead money's split. */
   readonly note?: string | undefined;
 }
 
@@ -23,7 +23,7 @@ const STROKE_CLASS = {
 
 function Legend({ parts, total }: { parts: readonly PotShare[]; total: number }) {
   return (
-    <ul className="flex min-w-0 flex-1 flex-col gap-1">
+    <ul className="flex flex-col gap-1">
       {parts.map(({ key, label, chips, note }) => (
         <li
           key={key}
@@ -33,15 +33,13 @@ function Legend({ parts, total }: { parts: readonly PotShare[]; total: number })
           )}
         >
           <span className={cn("size-3 shrink-0 rounded-full", BAR_CLASS[key])} aria-hidden />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate">
-              {label}
-              {key === "leader" && <span className="ml-1 text-xs text-accent">领先</span>}
-            </span>
+          <span className="min-w-0 flex-1 truncate">
+            {label}
+            {key === "leader" && <span className="ml-1 text-xs text-accent">领先</span>}
             {note && (
               <span
                 className={cn(
-                  "block text-xs whitespace-nowrap tabular-nums",
+                  "ml-1.5 text-xs tabular-nums",
                   key === "leader" ? "text-accent" : "font-normal text-muted",
                 )}
               >
@@ -49,11 +47,9 @@ function Legend({ parts, total }: { parts: readonly PotShare[]; total: number })
               </span>
             )}
           </span>
-          <span className="shrink-0 text-right tabular-nums">
-            <span className="block">{chipText(chips)}</span>
-            <span className="block text-xs font-normal text-muted">
-              {percentText(total > 0 ? chips / total : 0)}
-            </span>
+          <span className="tabular-nums">{chipText(chips)}</span>
+          <span className="w-12 text-right text-xs font-normal text-muted tabular-nums">
+            {percentText(total > 0 ? chips / total : 0)}
           </span>
         </li>
       ))}
@@ -88,8 +84,8 @@ function Ring({ parts, total }: { parts: readonly PotShare[]; total: number }) {
   const circumference = 2 * Math.PI * radius;
   let start = 0;
   return (
-    <div className="mt-2 flex items-center gap-3">
-      <svg viewBox="0 0 100 100" className="size-28 shrink-0 -rotate-90" aria-hidden>
+    <div className="mt-1 flex flex-col gap-2">
+      <svg viewBox="0 0 100 100" className="size-28 self-center -rotate-90" aria-hidden>
         <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="10" className="stroke-line" />
         {filled(parts).map(({ key, chips }) => {
           const length = total > 0 ? (chips / total) * circumference : 0;

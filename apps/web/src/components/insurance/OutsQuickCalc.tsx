@@ -7,10 +7,10 @@ import {
   parseChips,
   potTotals,
   stakeOf,
+  unseenCards,
 } from "@holdem-knight/core";
-import { Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { TextField } from "@/components/TextField";
+import { Minus, Plus } from "lucide-react";
+import { type Ref, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { DeadMoneyDialog } from "./DeadMoneyDialog";
 import type { InsuranceSeat } from "./InsuranceCalculator";
@@ -35,7 +35,7 @@ interface OutsQuickCalcProps {
 }
 
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
-const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
+const percentText = (share: number) => `${(share * 100).toFixed(2)}%`;
 
 const toggleClass = (active: boolean) =>
   cn(
@@ -51,23 +51,97 @@ interface OutsEntry {
 
 const cardCount = (value: string) => value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
 
+const stepClass =
+  "grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-surface text-highlight disabled:opacity-30";
+
+/** A card count typed in or nudged one at a time, between `min` and `max`. */
+function CardStepper({
+  id,
+  label,
+  text,
+  min,
+  max,
+  inputRef,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  text: string;
+  min: number;
+  max: number;
+  inputRef?: Ref<HTMLInputElement>;
+  onChange: (text: string) => void;
+}) {
+  const value = parseChips(text) ?? 0;
+  const step = (by: number) => onChange(String(Math.min(max, Math.max(min, value + by))));
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1 block text-sm text-muted">
+        {label}
+      </label>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          aria-label={`${label}减一`}
+          disabled={value <= min}
+          onClick={() => step(-1)}
+          className={stepClass}
+        >
+          <Minus className="size-5" aria-hidden />
+        </button>
+        <div className="flex min-h-11 w-28 items-center gap-1 rounded-xl border border-line bg-surface px-3 focus-within:border-highlight">
+          <input
+            ref={inputRef}
+            id={id}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={text}
+            onChange={(event) => onChange(cardCount(event.target.value))}
+            className="min-w-0 flex-1 bg-transparent text-center text-lg font-semibold tabular-nums outline-none"
+          />
+          <span className="text-muted">张</span>
+        </div>
+        <button
+          type="button"
+          aria-label={`${label}加一`}
+          disabled={value >= max}
+          onClick={() => step(1)}
+          className={stepClass}
+        >
+          <Plus className="size-5" aria-hidden />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function OutsDialog({
   name,
   entry,
+  unseen,
+  maxOuts,
   onConfirm,
   onCancel,
 }: {
   name: string;
   entry: OutsEntry | undefined;
+  /** Cards left to come, which the outs and the ties share. */
+  unseen: number;
+  /** The most outs the rule's odds table prices. */
+  maxOuts: number;
   onConfirm: (entry: OutsEntry) => void;
   onCancel: () => void;
 }) {
-  const [text, setText] = useState(entry?.outs.toString() ?? "");
-  const [tieText, setTieText] = useState(entry?.ties ? entry.ties.toString() : "");
+  const [text, setText] = useState(String(entry?.outs ?? 4));
+  const [tieText, setTieText] = useState(String(entry?.ties ?? 0));
   const inputRef = useRef<HTMLInputElement>(null);
-  const typed = parseChips(text);
+  const outs = parseChips(text) ?? 0;
   const ties = parseChips(tieText) ?? 0;
+  const outsMax = Math.min(maxOuts, unseen - ties);
+  const valid = outs >= 1 && outs <= outsMax && ties <= unseen - outs;
 
+  // Selected, so the first digit replaces the starting count
   useEffect(() => {
     inputRef.current?.select();
   }, []);
@@ -77,32 +151,28 @@ function OutsDialog({
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          if (typed !== null) onConfirm({ outs: typed, ties });
+          if (valid) onConfirm({ outs, ties });
         }}
+        className="flex flex-col items-center gap-3"
       >
-        <TextField
+        <CardStepper
           id="quick-outs"
-          label="反超牌张数"
-          value={text}
-          issue={undefined}
-          suffix="张"
-          inputMode="numeric"
+          label="反超牌"
+          text={text}
+          min={1}
+          max={outsMax}
           inputRef={inputRef}
-          onChange={(value) => setText(cardCount(value))}
+          onChange={setText}
         />
-        <div className="mt-2">
-          <TextField
-            id="quick-ties"
-            label="平分牌张数（没有可不填）"
-            value={tieText}
-            issue={undefined}
-            placeholder="0"
-            suffix="张"
-            inputMode="numeric"
-            onChange={(value) => setTieText(cardCount(value))}
-          />
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <CardStepper
+          id="quick-ties"
+          label="平分牌"
+          text={tieText}
+          min={0}
+          max={unseen - outs}
+          onChange={setTieText}
+        />
+        <div className="grid w-full grid-cols-2 gap-2">
           <button
             type="button"
             onClick={onCancel}
@@ -112,7 +182,7 @@ function OutsDialog({
           </button>
           <button
             type="submit"
-            disabled={typed === null}
+            disabled={!valid}
             className="min-h-11 rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40"
           >
             确认
@@ -276,7 +346,6 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
   const players = sides.filter((p): p is InsuranceHandPlayer => p !== undefined);
   const totals = potTotals(handPotEntries({ players, pools: pools ?? [] }));
   const deadRef = useRef<HTMLDivElement>(null);
-  const bothIn = players.length === 2;
 
   const trailer: Side = leader === 0 ? 1 : 0;
   const leaderPlayer = sides[leader];
@@ -300,11 +369,11 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
     win: 1 - outsHitChance(street, trailerEntry.outs + trailerEntry.ties),
   };
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the quote opening below scrolls again
+  // Once everything above is in and the quote opens, put dead money at the top
   useEffect(() => {
-    // Once both players are in, put dead money at the top
-    if (bothIn) deadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [bothIn, quoted]);
+    if (quoted) deadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [quoted]);
+
   const leaderStake =
     leaderPlayer && trailerPlayer
       ? Math.min(stakeOf(leaderPlayer, players), stakeOf(trailerPlayer, players))
@@ -382,7 +451,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
                   key: "trailer",
                   label: nameOf(trailerPlayer.playerId),
                   chips: leaderStake,
-                  note: chances && `反超 ${chances.outs}/${percentText(chances.hit)}`,
+                  note: chances && `反超Outs ${chances.outs} / ${percentText(chances.hit)}`,
                 },
                 {
                   key: "dead",
@@ -390,7 +459,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
                   chips: totals.deadChips,
                   note:
                     chances && chances.ties > 0
-                      ? `平分 ${chances.ties}/${percentText(chances.tie)}`
+                      ? `平分Outs ${chances.ties} / ${percentText(chances.tie)}`
                       : undefined,
                 },
               ]}
@@ -450,6 +519,8 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
         <OutsDialog
           name={trailerPlayer ? nameOf(trailerPlayer.playerId) : "落后一方"}
           entry={trailerEntry}
+          unseen={unseenCards(street)}
+          maxOuts={rule.oddsHundredths.length}
           onConfirm={(entry) => {
             setOuts(trailer === 0 ? [entry, outs[1]] : [outs[0], entry]);
             setEditingOuts(false);

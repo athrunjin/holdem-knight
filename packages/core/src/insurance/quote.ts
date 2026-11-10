@@ -129,11 +129,13 @@ export function soldOuts(
   return leader.outs.length + (rule.tieOuts === "include" ? leader.tieCards.length : 0);
 }
 
-/**
- * Chance the next card is one of `outs` in a heads-up all-in, from the cards nobody has seen:
- * 52 less four hole cards and the three (turn) or four (river) board cards.
- */
+/** Cards nobody has seen in a heads-up all-in: 52 less four hole cards and the board so far. */
+export function unseenCards(street: InsuranceStreet): number {
+  return street === "turn" ? 45 : 44;
+}
+
+/** Chance the next card is one of `outs` in a heads-up all-in. */
 export function outsHitChance(street: InsuranceStreet, outs: number): number {
-  const unseen = street === "turn" ? 45 : 44;
+  const unseen = unseenCards(street);
   return Math.min(outs, unseen) / unseen;
 }
