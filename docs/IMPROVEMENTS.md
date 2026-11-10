@@ -605,6 +605,30 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Recent players come from past games, so this needs no sign-in and does not wait for M6. Released after a trial on a real device with the preview build.
 - Tracking: PR [#74](https://github.com/athrunjin/holdem-knight/pull/74)
 
+### #I-035 Outs数速算: a two-player quick insurance price
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-10
+- Source: discussion
+- Problem: 填 outs priced a pot from three bare numbers (pot, stake, outs) and a buyer picker. It did not show who leads, what the pot is made of, or how likely the next card is to turn it.
+- Proposal:
+  - Rename the mode Outs数速算 and replace the buyer picker with 底池信息: dead money, two player cards and the pot, with the quote below.
+  - Two looks for the pot were compared as previews: a bar and a ring. The ring was chosen, with the bar one tap away.
+- Settled details:
+  - The street starts on 保转牌.
+  - Dead money sits at the top of 底池信息, 0 by default and lit in gold until it is confirmed, even as zero.
+  - Each player card has a name row (tap to pick or change the player, who keeps the chips), a chips row (tap to enter chips or Cover), and either the lit 领先 badge with the chance of being caught, or the Outs box with a 切换领先 button on the same row. Exactly one side leads, the left by default. Switching the lead changes nothing else.
+  - Players are picked as in 选牌计算: seat, then chips, with at most one Cover. Entering the trailing side's chips goes straight on to its outs.
+  - The outs dialog starts at 4 outs (selected) and 0 tie cards, each with minus and plus buttons that dim at their limits. Outs and ties together stay within the odds table and the unseen cards (45 on the turn, 44 on the river).
+  - Tie cards are sold with the outs, whatever the rule says about tie cards, and shown as outs+ties: 6+2 is priced as eight cards. Tie cards alone can be bought on (0+2).
+  - Once both players are in, 有效总底池 shows below them as a ring beside its legend, split into leader, trailer and dead money with the leader picked out. Each row shows chips over its share of the pot, and on the name's line, smaller: the leader's chance to win, 反超Outs x / xx.xx%, and 平分Outs x / xx.xx% when there are tie cards. Dead money stays listed at zero.
+  - Tapping a pot row is a quick edit: the leader's chips, the trailer's chips then outs, or the dead money.
+  - Once the outs are in and the quote opens, the page scrolls to put dead money at the top, so it never moves under a dialog.
+  - Quotes add a 半池 cover in both modes. When the stake already is half the pot, 保本 says 即半池 instead.
+  - The pot rows are about 37px tall to match the ring's height, below the usual 44px.
+- Decision: do. The in-game entry comes first; the standalone tool page keeps its rule picker and will be adjusted from this one later. Checked on a phone with the preview build.
+- Tracking: PR [#76](https://github.com/athrunjin/holdem-knight/pull/76)
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
