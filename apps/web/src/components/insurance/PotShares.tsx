@@ -23,12 +23,12 @@ const STROKE_CLASS = {
 
 function Legend({ parts, total }: { parts: readonly PotShare[]; total: number }) {
   return (
-    <ul className="flex min-w-0 flex-1 flex-col gap-1">
+    <ul className="flex min-w-0 flex-1 flex-col gap-0.5">
       {parts.map(({ key, label, chips, note }) => (
         <li
           key={key}
           className={cn(
-            "flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-sm",
+            "flex items-center gap-1 rounded-lg px-1 py-0.5 text-sm",
             key === "leader" && "bg-accent/15 font-semibold",
           )}
         >
@@ -40,7 +40,7 @@ function Legend({ parts, total }: { parts: readonly PotShare[]; total: number })
             {note && (
               <span
                 className={cn(
-                  "shrink-0 text-xs whitespace-nowrap tabular-nums",
+                  "shrink-0 text-[11px] whitespace-nowrap tabular-nums",
                   key === "leader" ? "text-accent" : "font-normal text-muted",
                 )}
               >
@@ -48,7 +48,7 @@ function Legend({ parts, total }: { parts: readonly PotShare[]; total: number })
               </span>
             )}
           </span>
-          <span className="shrink-0 text-right tabular-nums">
+          <span className="shrink-0 text-right leading-tight tabular-nums">
             <span className="block">{chipText(chips)}</span>
             <span className="block text-xs font-normal text-muted">
               {percentText(total > 0 ? chips / total : 0)}
@@ -87,8 +87,8 @@ function Ring({ parts, total }: { parts: readonly PotShare[]; total: number }) {
   const circumference = 2 * Math.PI * radius;
   let start = 0;
   return (
-    <div className="mt-2 flex items-center gap-2">
-      <svg viewBox="0 0 100 100" className="size-20 shrink-0 -rotate-90" aria-hidden>
+    <div className="mt-2 flex items-center gap-1.5">
+      <svg viewBox="0 0 100 100" className="size-28 shrink-0 -rotate-90" aria-hidden>
         <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="10" className="stroke-line" />
         {filled(parts).map(({ key, chips }) => {
           const length = total > 0 ? (chips / total) * circumference : 0;
