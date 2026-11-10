@@ -47,6 +47,16 @@ describe("quoteInsurance", () => {
     expect(quote.maxPremiumChips).toBe(400);
   });
 
+  it("adds a half-pot cover only when it differs from the stake", () => {
+    const even = quoteInsurance(input());
+    if (!even.ok) throw new Error("Expected a quote");
+    expect(even.halfPot).toBeNull();
+
+    const withDead = quoteInsurance(input({ potChips: 1301, shareChips: 1301 }));
+    if (!withDead.ok) throw new Error("Expected a quote");
+    expect(withDead.halfPot).toMatchObject({ premiumChips: 261, ifHitChips: 652 });
+  });
+
   it("hands the premium back on a hit when the rule says so", () => {
     const rule = { ...RULE_30, refundPremium: true };
     const quote = quoteInsurance(input({ rule }));

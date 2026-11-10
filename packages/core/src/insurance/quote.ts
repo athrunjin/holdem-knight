@@ -66,6 +66,8 @@ export type InsuranceQuote =
       readonly maxPremiumChips: number;
       /** A hit leaves the buyer what they put in. */
       readonly stake: QuoteOption;
+      /** A hit leaves the buyer half their share, rounded up. Null when that is already the stake. */
+      readonly halfPot: QuoteOption | null;
       /** A hit leaves the buyer their whole share of the pot. */
       readonly fullPot: QuoteOption;
     };
@@ -103,6 +105,7 @@ export function quoteInsurance(input: QuoteInput): InsuranceQuote {
   const premiumToLeave = (netChips: number) =>
     premiumForNet(netChips, oddsHundredths, rule.refundPremium);
   const maxPremiumChips = Math.min(premiumToLeave(shareChips), capChips(input));
+  const halfChips = Math.ceil(shareChips / 2);
   const option = (netChips: number) => {
     const target = premiumToLeave(netChips);
     const premium = Math.min(target, maxPremiumChips);
@@ -113,6 +116,7 @@ export function quoteInsurance(input: QuoteInput): InsuranceQuote {
     oddsHundredths,
     maxPremiumChips,
     stake: option(stakeChips),
+    halfPot: halfChips === stakeChips ? null : option(halfChips),
     fullPot: option(shareChips),
   };
 }

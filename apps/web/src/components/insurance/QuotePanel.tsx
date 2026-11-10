@@ -49,11 +49,14 @@ interface QuotePanelProps {
 
 function OptionRow({
   label,
+  note,
   option,
   selected,
   onSelect,
 }: {
   label: string;
+  /** A second name for the same cover. */
+  note?: string | undefined;
   option: QuoteOption;
   selected: boolean;
   onSelect?: (() => void) | undefined;
@@ -62,6 +65,7 @@ function OptionRow({
     <>
       <span className="text-left font-medium">
         {label}
+        {note && <span className="ml-1 text-xs text-muted">{note}</span>}
         {option.capped && <span className="block text-xs text-highlight">已到上限</span>}
       </span>
       <span className="font-semibold text-highlight">{chipText(option.premiumChips)}</span>
@@ -133,14 +137,14 @@ function Quote({
   onDecline,
   onRevise,
 }: QuotePanelProps & { quote: Extract<InsuranceQuote, { ok: true }> }) {
-  const { oddsHundredths, maxPremiumChips, stake, fullPot } = quote;
-  const [choice, setChoice] = useState<"stake" | "full" | "custom">("full");
+  const { oddsHundredths, maxPremiumChips, stake, halfPot, fullPot } = quote;
+  const [choice, setChoice] = useState<"stake" | "half" | "full" | "custom">("full");
   const [customPremium, setCustomPremium] = useState<number>();
   const [editing, setEditing] = useState(false);
 
   const customOption =
     customPremium === undefined ? undefined : priceOption(input, oddsHundredths, customPremium);
-  const chosen = choice === "stake" ? stake : choice === "full" ? fullPot : customOption;
+  const chosen = { stake, half: halfPot ?? undefined, full: fullPot, custom: customOption }[choice];
   const locked = decision !== undefined;
 
   return (
@@ -155,10 +159,19 @@ function Quote({
         </div>
         <OptionRow
           label="保本"
+          note={halfPot ? undefined : "即半池"}
           option={stake}
           selected={choice === "stake"}
           onSelect={onBuy && (() => setChoice("stake"))}
         />
+        {halfPot && (
+          <OptionRow
+            label="半池"
+            option={halfPot}
+            selected={choice === "half"}
+            onSelect={onBuy && (() => setChoice("half"))}
+          />
+        )}
         <OptionRow
           label="满池"
           option={fullPot}

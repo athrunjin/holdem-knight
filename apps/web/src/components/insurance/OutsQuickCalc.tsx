@@ -14,10 +14,10 @@ import { TextField } from "@/components/TextField";
 import { cn } from "@/lib/cn";
 import { DeadMoneyDialog } from "./DeadMoneyDialog";
 import type { InsuranceSeat } from "./InsuranceCalculator";
-import { PotSummary } from "./InsuranceHandFlow";
 import { type Decisions, LeaderQuote } from "./LeaderQuote";
 import { Modal } from "./Modal";
 import { PlayerChipsDialog } from "./PlayerChipsDialog";
+import { PotShares } from "./PotShares";
 import { SeatPicker } from "./SeatPicker";
 
 type Side = 0 | 1;
@@ -98,6 +98,35 @@ function OutsDialog({
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** Dead money, lit until it has been confirmed, even as zero. */
+function DeadMoneyRow({
+  chips,
+  entered,
+  onEdit,
+}: {
+  chips: number;
+  entered: boolean;
+  onEdit: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label="编辑死钱"
+      onClick={onEdit}
+      className={cn(
+        "flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border px-3",
+        entered ? "border-line bg-surface" : "border-highlight bg-highlight/10 text-highlight",
+      )}
+    >
+      <span className="text-sm">{entered ? "死钱" : "死钱 · 请确认"}</span>
+      <span className="flex items-center gap-2">
+        <span className="text-lg font-semibold tabular-nums">{chipText(chips)}</span>
+        <Plus className="size-5 text-highlight" aria-hidden />
+      </span>
+    </button>
   );
 }
 
@@ -200,7 +229,7 @@ function SideCard({
 
 /** A quick price from two players' chips and the trailing player's outs, without picking cards. */
 export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcProps) {
-  const [street, setStreet] = useState<InsuranceStreet>("river");
+  const [street, setStreet] = useState<InsuranceStreet>("turn");
   const [sides, setSides] = useState<
     readonly [InsuranceHandPlayer | undefined, InsuranceHandPlayer | undefined]
   >([undefined, undefined]);
@@ -210,14 +239,18 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
     undefined,
     undefined,
   ]);
-  const [pools, setPools] = useState<readonly number[]>([]);
+  // Undefined until the organizer confirms it, even as zero
+  const [pools, setPools] = useState<readonly number[]>();
   const [adding, setAdding] = useState<Adding>();
   const [editingOuts, setEditingOuts] = useState(false);
   const [editingDead, setEditingDead] = useState(false);
 
   const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? "未知玩家";
   const players = sides.filter((p): p is InsuranceHandPlayer => p !== undefined);
-  const totals = potTotals(handPotEntries({ players, pools }));
+  const totals = potTotals(handPotEntries({ players, pools: pools ?? [] }));
+  const deadRef = useRef<HTMLDivElement>(null);
+  const bothIn = players.length === 2;
+
   const trailer: Side = leader === 0 ? 1 : 0;
   const leaderPlayer = sides[leader];
   const trailerPlayer = sides[trailer];
@@ -228,6 +261,13 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
   }
 
   const ready = leaderPlayer && trailerPlayer && trailerOuts !== undefined;
+  const quoted = Boolean(ready);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the quote opening below scrolls again
+  useEffect(() => {
+    // Once both players are in, put dead money at the top
+    if (bothIn) deadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [bothIn, quoted]);
   const leaderStake =
     leaderPlayer && trailerPlayer
       ? Math.min(stakeOf(leaderPlayer, players), stakeOf(trailerPlayer, players))
@@ -258,10 +298,16 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
       </div>
 
       <section aria-labelledby="quick-pot-title">
-        <h2 id="quick-pot-title" className="-mb-2 font-semibold">
+        <h2 id="quick-pot-title" className="mb-2 font-semibold">
           底池信息
         </h2>
-        <PotSummary totals={totals} onEditDead={() => setEditingDead(true)} />
+        <div ref={deadRef} className="scroll-mt-2">
+          <DeadMoneyRow
+            chips={totals.deadChips}
+            entered={pools !== undefined}
+            onEdit={() => setEditingDead(true)}
+          />
+        </div>
         <div className="mt-2 grid grid-cols-2 gap-2">
           {([0, 1] as const).map((side) => {
             const player = sides[side];
@@ -287,6 +333,18 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
             );
           })}
         </div>
+        {leaderPlayer && trailerPlayer && (
+          <div className="mt-2">
+            <PotShares
+              parts={[
+                { key: "leader", label: nameOf(leaderPlayer.playerId), chips: leaderStake },
+                { key: "trailer", label: nameOf(trailerPlayer.playerId), chips: leaderStake },
+                { key: "dead", label: "死钱", chips: totals.deadChips },
+              ]}
+              uncalledChips={totals.uncalledChips}
+            />
+          </div>
+        )}
       </section>
 
       {ready ? (
@@ -327,7 +385,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
 
       {editingDead && (
         <DeadMoneyDialog
-          pools={pools.map(String)}
+          pools={(pools ?? []).map(String)}
           onConfirm={(next) => {
             setPools(next.map(Number));
             setEditingDead(false);
@@ -379,6 +437,8 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
           onConfirm={(chips) => {
             setSide(adding.side, { ...adding.entry, ...chips });
             setAdding(undefined);
+            // The trailing side's outs come straight after its chips
+            if (adding.side === trailer && outs[trailer] === undefined) setEditingOuts(true);
           }}
           onCancel={() => setAdding(undefined)}
         />

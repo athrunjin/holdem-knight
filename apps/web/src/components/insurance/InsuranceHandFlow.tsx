@@ -105,7 +105,7 @@ export function BoardCards({ cards, dealt = 0 }: { cards?: readonly Card[]; deal
   );
 }
 
-export function PotSummary({ totals, onEditDead }: { totals: PotTotals; onEditDead: () => void }) {
+function PotSummary({ totals, onEditDead }: { totals: PotTotals; onEditDead: () => void }) {
   return (
     <section aria-label="底池合计" className="mt-3 rounded-xl border border-line bg-surface p-3">
       <dl className="grid grid-cols-2 gap-2">
