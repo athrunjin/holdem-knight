@@ -13,6 +13,7 @@ import {
   handOffers,
   handPotEntries,
   handResult,
+  handStandings,
   offersDecided,
   type PlayerHandResult,
   playerHandResults,
@@ -81,6 +82,16 @@ describe("playersReady", () => {
     expect(playersReady([aces, { ...kings, cards: [c("Ks")] }])).toBe(false);
     expect(playersReady([aces, kings])).toBe(true);
     expect(playersReady([aces, player("c", 0, ["Ks", "Kd"], true)])).toBe(true);
+  });
+});
+
+describe("standings", () => {
+  it("leaves out players still waiting for their cards", () => {
+    const waiting = player("w", 1000, []);
+    expect(handStandings(hand({ players: [aces, waiting] })).players).toEqual([]);
+    expect(
+      handStandings(hand({ players: [aces, kings, waiting] })).players.map((s) => s.playerId),
+    ).toEqual(["a", "k"]);
   });
 });
 

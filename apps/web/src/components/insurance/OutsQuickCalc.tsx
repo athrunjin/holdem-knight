@@ -36,6 +36,8 @@ type Adding =
 interface OutsQuickCalcProps {
   rule: InsuranceRule;
   seats: readonly InsuranceSeat[];
+  /** Seats the two sides as the first two seats instead of asking who they are. */
+  autoSeat: boolean;
   saving: boolean | undefined;
   decisions: Decisions | undefined;
 }
@@ -49,16 +51,24 @@ const toggleClass = (active: boolean) =>
     active ? "border-accent bg-accent text-accent-text" : "border-line bg-surface",
   );
 
-/** The trailing side's cards: those that win outright, and those that split the pot. Both are sold. */
+/** The trailing side's cards: those that win outright, and those that split the pot. */
 interface OutsEntry {
   readonly outs: number;
   readonly ties: number;
 }
 
-/** Outs and ties as sold together: 6+2, or just 6 with no ties. */
-const outsText = ({ outs, ties }: OutsEntry) => (ties > 0 ? `${outs}+${ties}` : String(outs));
+/** The cards as sold: 6+2 when ties are sold with the outs, or just 6. */
+const soldText = ({ outs, ties }: OutsEntry, tiesSold: boolean) =>
+  tiesSold && ties > 0 ? `${outs}+${ties}` : String(outs);
 
 const cardCount = (value: string) => value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+
+const blankPlayer = (playerId: string): InsuranceHandPlayer => ({
+  playerId,
+  chips: 0,
+  cover: false,
+  cards: [],
+});
 
 const stepClass =
   "grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-surface text-highlight disabled:opacity-30";
@@ -130,6 +140,7 @@ function OutsDialog({
   entry,
   unseen,
   maxOuts,
+  tiesSold,
   onConfirm,
   onCancel,
 }: {
@@ -137,8 +148,10 @@ function OutsDialog({
   entry: OutsEntry | undefined;
   /** Cards left to come, which the outs and the ties share. */
   unseen: number;
-  /** The most cards the rule's odds table prices, outs and ties together. */
+  /** The most cards the rule's odds table prices. */
   maxOuts: number;
+  /** Whether the rule sells tie cards as outs. Unsold ties still show in the pot's chances. */
+  tiesSold: boolean;
   onConfirm: (entry: OutsEntry) => void;
   onCancel: () => void;
 }) {
@@ -147,9 +160,10 @@ function OutsDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const outs = parseChips(text) ?? 0;
   const ties = parseChips(tieText) ?? 0;
-  const cap = Math.min(maxOuts, unseen);
-  // Tie cards alone are enough to buy on
-  const valid = outs + ties >= 1 && outs + ties <= cap;
+  // Tie cards take room in the odds table only when they are sold
+  const outsMax = Math.min(unseen - ties, maxOuts - (tiesSold ? ties : 0));
+  const tiesMax = (tiesSold ? Math.min(unseen, maxOuts) : unseen) - outs;
+  const valid = outs + ties >= 1 && outs <= outsMax && ties <= tiesMax;
 
   // Selected, so the first digit replaces the starting count
   useEffect(() => {
@@ -170,16 +184,16 @@ function OutsDialog({
           label="反超牌"
           text={text}
           min={0}
-          max={cap - ties}
+          max={outsMax}
           inputRef={inputRef}
           onChange={setText}
         />
         <CardStepper
           id="quick-ties"
-          label="平分牌"
+          label={tiesSold ? "平分牌" : "平分牌（不算 outs）"}
           text={tieText}
           min={0}
-          max={cap - outs}
+          max={tiesMax}
           onChange={setTieText}
         />
         <div className="grid w-full grid-cols-2 gap-2">
@@ -247,10 +261,12 @@ function SideCard({
   player: InsuranceHandPlayer | undefined;
   name: string;
   leading: boolean;
-  outs: OutsEntry | undefined;
+  /** The trailing side's cards as sold, once they are known. */
+  outs: string | undefined;
   /** The trailing side's chance to come from behind, once its outs are known. */
   hitChance: number | undefined;
-  onSeat: () => void;
+  /** Missing when the seat is given rather than picked. */
+  onSeat: (() => void) | undefined;
   onChips: () => void;
   onOuts: () => void;
   onLead: () => void;
@@ -262,26 +278,32 @@ function SideCard({
         leading ? "border-accent bg-accent/10" : "border-line bg-bg",
       )}
     >
-      <button
-        type="button"
-        aria-label={player ? `更换${name}` : "选择玩家"}
-        onClick={onSeat}
-        className={cn(
-          "flex min-h-11 items-center justify-center gap-1 rounded-lg border px-2",
-          player
-            ? "border-line bg-surface font-semibold"
-            : "border-dashed border-line text-highlight",
-        )}
-      >
-        {player ? (
+      {!onSeat ? (
+        <span className="flex min-h-11 items-center justify-center rounded-lg px-2 font-semibold">
           <span className="truncate">{name}</span>
-        ) : (
-          <Plus className="size-5" aria-hidden />
-        )}
-      </button>
+        </span>
+      ) : (
+        <button
+          type="button"
+          aria-label={player ? `更换${name}` : "选择玩家"}
+          onClick={onSeat}
+          className={cn(
+            "flex min-h-11 items-center justify-center gap-1 rounded-lg border px-2",
+            player
+              ? "border-line bg-surface font-semibold"
+              : "border-dashed border-line text-highlight",
+          )}
+        >
+          {player ? (
+            <span className="truncate">{name}</span>
+          ) : (
+            <Plus className="size-5" aria-hidden />
+          )}
+        </button>
+      )}
       <button
         type="button"
-        aria-label={player ? `修改${name}的筹码` : "填写筹码"}
+        aria-label={name ? `修改${name}的筹码` : "填写筹码"}
         onClick={onChips}
         className={cn(
           "flex min-h-11 items-center justify-between gap-1 rounded-lg border px-2",
@@ -314,9 +336,7 @@ function SideCard({
             )}
           >
             <span className="text-xs text-muted">Outs</span>
-            <span className="text-lg leading-tight font-semibold tabular-nums">
-              {outs ? outsText(outs) : "—"}
-            </span>
+            <span className="text-lg leading-tight font-semibold tabular-nums">{outs ?? "—"}</span>
           </button>
           <button
             type="button"
@@ -332,7 +352,7 @@ function SideCard({
 }
 
 /** A quick price from two players' chips and the trailing player's outs, without picking cards. */
-export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcProps) {
+export function OutsQuickCalc({ rule, seats, autoSeat, saving, decisions }: OutsQuickCalcProps) {
   const [street, setStreet] = useState<InsuranceStreet>("turn");
   const [sides, setSides] = useState<
     readonly [InsuranceHandPlayer | undefined, InsuranceHandPlayer | undefined]
@@ -359,11 +379,19 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
   const trailerPlayer = sides[trailer];
   const trailerEntry = outs[trailer];
   // Tie cards are sold with the outs only when the rule says so
-  // Ties entered here are sold alongside the outs, whatever the rule says about cards it works out itself
-  const trailerOuts = trailerEntry && trailerEntry.outs + trailerEntry.ties;
+  const tiesSold = rule.tieOuts === "include";
+  const trailerOuts = trailerEntry && trailerEntry.outs + (tiesSold ? trailerEntry.ties : 0);
 
   function setSide(side: Side, entry: InsuranceHandPlayer | undefined) {
     setSides(side === 0 ? [entry, sides[1]] : [sides[0], entry]);
+  }
+
+  /** Starts on an empty side: at the seat picker, or straight at the chips of the seat it is given. */
+  function addSide(side: Side) {
+    const seat = autoSeat ? seats[side] : undefined;
+    setAdding(
+      seat ? { side, stage: "chips", entry: blankPlayer(seat.id) } : { side, stage: "seat" },
+    );
   }
 
   const ready = leaderPlayer && trailerPlayer && trailerEntry && trailerOuts !== undefined;
@@ -424,19 +452,19 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
         <div className="mt-2 grid grid-cols-2 gap-2">
           {([0, 1] as const).map((side) => {
             const player = sides[side];
+            const sideOuts = outs[side];
+            const given = autoSeat ? seats[side] : undefined;
             return (
               <SideCard
                 key={side}
                 player={player}
-                name={player ? nameOf(player.playerId) : ""}
+                name={given?.name ?? (player ? nameOf(player.playerId) : "")}
                 leading={leader === side}
-                outs={outs[side]}
+                outs={sideOuts && soldText(sideOuts, tiesSold)}
                 hitChance={chances?.hit}
-                onSeat={() => setAdding({ side, stage: "seat" })}
+                onSeat={given ? undefined : () => setAdding({ side, stage: "seat" })}
                 onChips={() =>
-                  setAdding(
-                    player ? { side, stage: "chips", entry: player } : { side, stage: "seat" },
-                  )
+                  player ? setAdding({ side, stage: "chips", entry: player }) : addSide(side)
                 }
                 onOuts={() => setEditingOuts(true)}
                 onLead={() => setLeader(side)}
@@ -450,6 +478,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
               parts={[
                 {
                   key: "leader",
+                  tone: "leader",
                   label: nameOf(leaderPlayer.playerId),
                   chips: leaderStake,
                   note: chances && percentText(chances.win),
@@ -457,6 +486,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
                 },
                 {
                   key: "trailer",
+                  tone: "trailer",
                   label: nameOf(trailerPlayer.playerId),
                   chips: leaderStake,
                   note: chances && `反超Outs ${chances.outs} / ${percentText(chances.hit)}`,
@@ -470,6 +500,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
                 },
                 {
                   key: "dead",
+                  tone: "dead",
                   label: "死钱",
                   chips: totals.deadChips,
                   note:
@@ -487,7 +518,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
       {ready ? (
         <section aria-label="保险报价" className="rounded-xl border border-line bg-surface p-3">
           <h3 className="font-semibold">
-            {nameOf(leaderPlayer.playerId)} 领先 · {outsText(trailerEntry)} outs
+            {nameOf(leaderPlayer.playerId)} 领先 · {soldText(trailerEntry, tiesSold)} outs
             <span className="ml-1 text-sm font-normal text-muted">
               投入 {chipText(leaderStake)} · 可得 {chipText(totals.effectiveChips)}
             </span>
@@ -503,6 +534,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
               leaderStake,
               trailerEntry.outs,
               trailerEntry.ties,
+              rule.tieOuts,
             ].join("|")}
             input={{
               rule,
@@ -538,6 +570,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
           entry={trailerEntry}
           unseen={unseenCards(street)}
           maxOuts={rule.oddsHundredths.length}
+          tiesSold={tiesSold}
           onConfirm={(entry) => {
             setOuts(trailer === 0 ? [entry, outs[1]] : [outs[0], entry]);
             setEditingOuts(false);
@@ -557,11 +590,7 @@ export function OutsQuickCalc({ rule, seats, saving, decisions }: OutsQuickCalcP
               setSide(adding.side, { ...current, playerId: id });
               setAdding(undefined);
             } else {
-              setAdding({
-                side: adding.side,
-                stage: "chips",
-                entry: { playerId: id, chips: 0, cover: false, cards: [] },
-              });
+              setAdding({ side: adding.side, stage: "chips", entry: blankPlayer(id) });
             }
           }}
           onClose={() => setAdding(undefined)}

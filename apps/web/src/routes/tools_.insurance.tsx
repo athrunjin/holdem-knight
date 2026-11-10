@@ -1,4 +1,4 @@
-import { BUILT_IN_RULES, blankInsuranceHand, RULE_30 } from "@holdem-knight/core";
+import { BUILT_IN_RULES, blankInsuranceHand, RULE_30, type TieOuts } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
@@ -20,7 +20,10 @@ function InsuranceToolPage() {
   const { data: saved = [] } = useInsuranceRules();
   const rules = [...BUILT_IN_RULES, ...saved];
   const [ruleId, setRuleId] = useState<string>(BUILT_IN_RULES[0].id);
-  const rule = rules.find(({ id }) => id === ruleId)?.rule ?? RULE_30;
+  // Set by the switch for this visit only. Picking a rule goes back to what that rule says.
+  const [tieOuts, setTieOuts] = useState<TieOuts>();
+  const picked = rules.find(({ id }) => id === ruleId)?.rule ?? RULE_30;
+  const rule = tieOuts === undefined ? picked : { ...picked, tieOuts };
 
   return (
     <Page
@@ -39,7 +42,10 @@ function InsuranceToolPage() {
         <span className="mb-1 block text-sm text-muted">赔率规则</span>
         <select
           value={ruleId}
-          onChange={(event) => setRuleId(event.target.value)}
+          onChange={(event) => {
+            setRuleId(event.target.value);
+            setTieOuts(undefined);
+          }}
           className="min-h-12 w-full rounded-xl border border-line bg-surface px-3"
         >
           {rules.map(({ id, name }) => (
@@ -49,7 +55,13 @@ function InsuranceToolPage() {
           ))}
         </select>
       </label>
-      <InsuranceCalculator rule={rule} seats={SEATS} createHand={scratchHand} />
+      <InsuranceCalculator
+        rule={rule}
+        onTieOutsChange={setTieOuts}
+        seats={SEATS}
+        autoSeat
+        createHand={scratchHand}
+      />
     </Page>
   );
 }

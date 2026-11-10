@@ -125,9 +125,9 @@ describe("quoteInsurance", () => {
 describe("soldOuts", () => {
   const leader = { outs: [1, 2, 3], tieCards: [4, 5] };
 
-  it("leaves tie cards out by default and adds them when the rule says so", () => {
-    expect(soldOuts(RULE_30, leader)).toBe(3);
-    expect(soldOuts({ ...RULE_30, tieOuts: "include" }, leader)).toBe(5);
+  it("sells tie cards by default and leaves them out when the rule says so", () => {
+    expect(soldOuts(RULE_30, leader)).toBe(5);
+    expect(soldOuts({ ...RULE_30, tieOuts: "exclude" }, leader)).toBe(3);
   });
 });
 

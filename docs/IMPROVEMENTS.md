@@ -629,6 +629,34 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. The in-game entry comes first; the standalone tool page keeps its rule picker and will be adjusted from this one later. Checked on a phone with the preview build.
 - Tracking: PR [#76](https://github.com/athrunjin/holdem-knight/pull/76)
 
+### #I-036 Insurance page: one calculator for the game and the tool, and a quieter page
+
+- Type: feature
+- Date: proposed and decided 2026-11-10
+- Source: discussion
+- Problem: the calculator is reached from a game and from 工具, and the two had drifted. The tool asked for a seat it has no use for, Outs数速算 sold tie cards whatever the rule said, and in a game the records and the insurance seat's line took room from the calculation.
+- Proposal: keep one calculator and settle what differs between the two entries. This entry covers the base; further changes to the page's layout and flow will be added to it.
+- Settled details:
+  - Players: a game picks who is all-in from the seated players. The tool never asks: it hands out 玩家 1, 玩家 2 and so on in order, and Outs数速算 names its two sides from the start.
+  - Rules: a game uses its own insurance rule, the tool the rule picked on its page.
+  - Tie cards: both modes follow the rule. This replaces the #I-035 detail that Outs数速算 always sells them. When they are not sold, the outs dialog marks them 平分牌（不算 outs）, they still show in the pot's chances, and the quote prices the outs alone.
+  - Tie cards count as outs by default: both built-in rules (1 赔 30 and 1 赔 32) now have 平分牌算 outs on, so a new game and the tool start with it on. Games and saved rules keep what they were saved with.
+  - A 平分牌算 outs switch sits under the mode tabs. In a game it is the game's setting: flipping it asks first, then saves the game's rule, so the rest of the game follows it. In the tool it lasts for the visit and goes back to the rule when another rule is picked.
+  - Records: only in a game. They fold into one small line, 保险记录（n） with a chevron, pinned to the foot of the screen above the navigation. It is always folded on arrival and opens upwards to at most 40% of the screen. Since it no longer opens by itself for a purchase waiting on its card, the line says n 笔待开奖.
+  - The insurance seat's chips and result move onto the title's line, to the right of 保险, in the same size and color.
+  - 选牌计算 player rows: the 修改 button is gone. A row reads name, chips, hole cards, and each part is tapped to change that part alone: the chips dialog, or the card picker. In a game the name carries a chevron and opens the seat picker, which seats another player with the chips and cards already entered. The tool's names are given, so they are not tappable.
+  - Changing a hole card: the picker opens on the card tapped. From the first card, the next pick replaces it and the pick after that replaces the second. From the second card, picks replace only the second; the first changes only after it is tapped off. Cards held by other players or on the board stay unavailable.
+  - Rows can be changed on the players step, the street step and the buying step, until something is bought in the hand. After that they are read-only, as every price sold depends on who is in the pot. A change clears offers already turned down.
+  - Each row shows where the player stands as soon as two players have their cards, before the flop too, and follows every change to the hands and the board. Whoever holds the best hand so far is lit with an accent border, every one of them when they are level, and shows only the chance to win. A player behind shows Outs n · chance: n is the next cards that put them ahead, written n+m when m more would only bring them level.
+  - The rows compare all the players as one showdown, whatever each put in. Which pot each player leads stays in the pot cards below.
+  - The chance is the chance to win by the river, with a split counted as a share, so it matches the pot card when there is one pot. From the flop on every runout is dealt and it shows one decimal. Before the flop there are 1.7 million runouts, so 20,000 are sampled, the same ones for the same cards, and it shows whole points.
+  - 选牌计算 opens with 底池信息 above the players. The flop is three cards in a solid frame named 翻牌. A plus joins it to the turn, one card in a dashed frame named 转牌 · 可不选, which turns solid once it has its card and can be cleared again with 不选 in its picker. A river dealt later joins the row in its own frame.
+  - This replaces the step that asked which street the hand had reached. The flop and turn are tapped to pick or change them for as long as the rows can change, so 重选公共牌 is gone. On the buying step 返回增减玩家 goes back to add or remove players, keeping the board.
+  - Dead money is a stack of three chips under the board: outlines while empty, gold with its amount once some is entered. Tapping it opens the dead money dialog.
+  - Once at least two players have chips and cards and the flop is in, 有效总底池 appears below the players in the same ring and legend as Outs数速算, and the main button reads 计算保险. Each player's part is what they have in the contested pots; the leaders take the accent color and players behind are told apart by shades of gray. With more than three players it starts as the bar. A row is tapped to change that player's chips or the dead money.
+- Decision: do. Built and checked at phone size in the browser preview; waiting for a check on a phone with the preview build.
+- Tracking: none yet
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

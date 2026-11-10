@@ -221,7 +221,7 @@ export function InsuranceSettings({
               />
               <Toggle
                 label="平分牌算 outs"
-                detail="默认不算：只有输掉底池的牌才算"
+                detail="默认算：关闭后只有输掉底池的牌才算"
                 checked={form.tieOuts === "include"}
                 onChange={(checked) => setForm({ tieOuts: checked ? "include" : "exclude" })}
               />

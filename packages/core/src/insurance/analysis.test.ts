@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { type AllInHand, analyzeAllIn, nextStreet } from "./analysis";
+import { type AllInHand, analyzeAllIn, nextStreet, showdownStandings } from "./analysis";
 import { type Card, parseCard } from "./cards";
 import { buildPots } from "./pots";
 
@@ -198,5 +198,103 @@ describe("nextStreet", () => {
     expect(nextStreet(cards("2h 7h 9c"))).toBe("turn");
     expect(nextStreet(cards("2h 7h 9c 3s"))).toBe("river");
     expect(nextStreet(cards("2h 7h 9c 3s 4d"))).toBeNull();
+  });
+});
+
+describe("showdownStandings", () => {
+  const standingOf = (
+    hands: readonly AllInHand[],
+    board: string,
+    playerId: string,
+  ): ReturnType<typeof showdownStandings>["players"][number] => {
+    const { players } = showdownStandings(hands, board === "" ? [] : cards(board));
+    const standing = players.find((s) => s.playerId === playerId);
+    if (!standing) throw new Error(`No standing for ${playerId}`);
+    return standing;
+  };
+
+  it("has nothing to say until two players hold cards", () => {
+    expect(showdownStandings([hand("a", "As Ad", 100)], [])).toEqual({ players: [], exact: true });
+  });
+
+  it("puts a pair ahead of two overcards before the flop, with a sampled chance to win", () => {
+    const hands = [hand("tens", "Ts Td", 100), hand("big", "Ah Kc", 100)];
+    const { exact } = showdownStandings(hands, []);
+    const tens = standingOf(hands, "", "tens");
+    const big = standingOf(hands, "", "big");
+    expect(exact).toBe(false);
+    expect(tens).toMatchObject({ leading: true, outs: [], tieCards: [] });
+    expect(big.leading).toBe(false);
+    expect(big.outs.toSorted()).toEqual(cards("Ks Kh Kd As Ad Ac").toSorted());
+    // The known figure is 57.0%: twenty thousand runouts land within a point of it
+    expect(Math.abs(tens.equity - 0.57)).toBeLessThan(0.01);
+    expect(tens.equity + big.equity).toBeCloseTo(1);
+  });
+
+  it("gives the same sampled chance for the same cards every time", () => {
+    const hands = [hand("a", "Ts Td", 100), hand("b", "Ah Kc", 100)];
+    expect(showdownStandings(hands, [])).toEqual(showdownStandings(hands, []));
+  });
+
+  it("deals every runout from the flop on", () => {
+    const hands = [hand("ace", "As Th", 100), hand("kings", "Ks Kh", 100)];
+    expect(showdownStandings(hands, cards("9s 7d 3c")).exact).toBe(true);
+    const ace = standingOf(hands, "9s 7d 3c", "ace");
+    expect(ace.leading).toBe(false);
+    expect(ace.outs.toSorted()).toEqual(cards("Ah Ad Ac").toSorted());
+    expect(ace.equity).toBeCloseTo(0.16, 2);
+    expect(standingOf(hands, "9s 7d 3c", "kings")).toMatchObject({ leading: true, outs: [] });
+  });
+
+  it("lights every player level at the top", () => {
+    const hands = [hand("a", "As Kh", 100), hand("b", "Ad Kc", 100), hand("c", "Jd Td", 100)];
+    const { players } = showdownStandings(hands, cards("Qs 7s 2s 3d"));
+    expect(players.map((s) => s.leading)).toEqual([true, true, false]);
+  });
+
+  it("tells cards that only bring a player level from cards that put them ahead", () => {
+    const hands = [hand("a", "Ah 2c", 100), hand("b", "9h 3c", 100)];
+    const behind = standingOf(hands, "Qs Qd Jc Jh", "b");
+    expect(behind.outs).toEqual([]);
+    expect(behind.tieCards.toSorted()).toEqual(cards("Qh Qc Js Jd").toSorted());
+  });
+
+  it("counts a card as an out when it passes the leader, even if it is shared with another player", () => {
+    const hands = [hand("lead", "Ah Ad", 100), hand("x", "Kh Qc", 100), hand("y", "Kd Qs", 100)];
+    const x = standingOf(hands, "Jc Ts 4d 2h", "x");
+    // Any ace or nine makes the same straight for both players behind
+    expect(x.outs.toSorted()).toEqual(cards("As Ac 9s 9h 9d 9c").toSorted());
+    expect(x.tieCards).toEqual([]);
+  });
+
+  it("has no outs left on a full board, where the winner is certain", () => {
+    const hands = [hand("a", "As Ad", 100), hand("k", "Ks Kd", 100)];
+    const { players } = showdownStandings(hands, cards("2c 7h 9d 3c Jh"));
+    expect(players).toEqual([
+      { playerId: "a", leading: true, equity: 1, outs: [], tieCards: [] },
+      { playerId: "k", leading: false, equity: 0, outs: [], tieCards: [] },
+    ]);
+  });
+
+  it("shares out exactly one win among the players, whatever the cards", () => {
+    fc.assert(
+      fc.property(
+        fc.shuffledSubarray([...Array(52).keys()], { minLength: 13, maxLength: 13 }),
+        fc.integer({ min: 2, max: 4 }),
+        fc.integer({ min: 3, max: 5 }),
+        (deal, playerCount, boardCount) => {
+          const hands = Array.from({ length: playerCount }, (_, i) => ({
+            playerId: `p${i}`,
+            cards: deal.slice(i * 2, i * 2 + 2),
+          }));
+          const { players } = showdownStandings(hands, deal.slice(8, 8 + boardCount));
+          const total = players.reduce((sum, s) => sum + s.equity, 0);
+          expect(total).toBeCloseTo(1);
+          expect(players.some((s) => s.leading)).toBe(true);
+          for (const s of players) if (s.leading) expect([...s.outs, ...s.tieCards]).toEqual([]);
+        },
+      ),
+      { numRuns: 60 },
+    );
   });
 });

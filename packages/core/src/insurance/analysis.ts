@@ -59,7 +59,7 @@ export function tieBlocksInsurance({
   return uneven || leaders.length === playerIds.length;
 }
 
-function unseenCards(hands: readonly AllInHand[], board: readonly Card[]): Card[] {
+function unseenCards(hands: readonly Pick<AllInHand, "cards">[], board: readonly Card[]): Card[] {
   const seen = new Set<Card>([...board, ...hands.flatMap((h) => h.cards)]);
   return DECK.filter((card) => !seen.has(card));
 }
@@ -122,23 +122,30 @@ function runouts(unseen: readonly Card[], needed: number): Card[][] {
   return unseen.flatMap((first, i) => unseen.slice(i + 1).map((second) => [first, second]));
 }
 
+/** Each player's share of the wins over these ways to finish the board, a split counted as a share. */
+function equityOver(
+  playerIds: readonly string[],
+  cardsOf: ReadonlyMap<string, readonly Card[]>,
+  board: readonly Card[],
+  finishes: readonly (readonly Card[])[],
+): Record<string, number> {
+  const shares = new Map<string, number>();
+  for (const finish of finishes) {
+    const winners = winnersOf(playerIds, cardsOf, [...board, ...finish]);
+    for (const winner of winners) {
+      shares.set(winner, (shares.get(winner) ?? 0) + 1 / winners.length);
+    }
+  }
+  return Object.fromEntries(playerIds.map((id) => [id, (shares.get(id) ?? 0) / finishes.length]));
+}
+
 function potEquity(
   pot: Pot,
   cardsOf: ReadonlyMap<string, readonly Card[]>,
   board: readonly Card[],
   unseen: readonly Card[],
 ): Record<string, number> {
-  const shares = new Map<string, number>();
-  const finishes = runouts(unseen, 5 - board.length);
-  for (const finish of finishes) {
-    const winners = winnersOf(pot.playerIds, cardsOf, [...board, ...finish]);
-    for (const winner of winners) {
-      shares.set(winner, (shares.get(winner) ?? 0) + 1 / winners.length);
-    }
-  }
-  return Object.fromEntries(
-    pot.playerIds.map((id) => [id, (shares.get(id) ?? 0) / finishes.length]),
-  );
+  return equityOver(pot.playerIds, cardsOf, board, runouts(unseen, 5 - board.length));
 }
 
 /**
@@ -164,4 +171,96 @@ export function analyzeAllIn(
         equity: potEquity(pot, cardsOf, board, unseen),
       };
     });
+}
+
+export interface Standing {
+  readonly playerId: string;
+  /** Holds the best hand on the cards so far. Several players do when they are level. */
+  readonly leading: boolean;
+  /** Chance of ending with the best hand, a split counted as a share. */
+  readonly equity: number;
+  /** For a player behind: next cards that put them ahead of everyone leading now. */
+  readonly outs: readonly Card[];
+  /** For a player behind: next cards that bring them level with a leader. */
+  readonly tieCards: readonly Card[];
+}
+
+export interface Standings {
+  readonly players: readonly Standing[];
+  /** False when the board is too far from finished to deal every runout, so the equity is sampled. */
+  readonly exact: boolean;
+}
+
+/** Runouts dealt when there are too many to deal them all. The equity is then good to about a point. */
+const SAMPLED_RUNOUTS = 20_000;
+
+/** Mulberry32: the same seed gives the same numbers, so the same cards always show the same equity. */
+function seededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let mixed = Math.imul(state ^ (state >>> 15), state | 1);
+    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 2 ** 32;
+  };
+}
+
+function sampledRunouts(unseen: readonly Card[], needed: number, seed: number): Card[][] {
+  const random = seededRandom(seed);
+  const deck = [...unseen];
+  return Array.from({ length: SAMPLED_RUNOUTS }, () => {
+    // The first cards of a fresh partial shuffle are an even draw, whatever order the deck was left in
+    for (let place = 0; place < needed; place++) {
+      const from = place + Math.floor(random() * (deck.length - place));
+      const drawn = deck[from] ?? 0;
+      deck[from] = deck[place] ?? 0;
+      deck[place] = drawn;
+    }
+    return deck.slice(0, needed);
+  });
+}
+
+/**
+ * How the players stand as one showdown, whatever each put in: who is ahead on the cards so far,
+ * everyone's chance to win, and what the players behind need from the next card.
+ * Works before the flop too. Empty until two players hold cards.
+ */
+export function showdownStandings(
+  hands: readonly Pick<AllInHand, "playerId" | "cards">[],
+  board: readonly Card[],
+): Standings {
+  if (hands.length < 2) return { players: [], exact: true };
+  const playerIds = hands.map((h) => h.playerId);
+  const cardsOf = new Map(hands.map((h) => [h.playerId, h.cards]));
+  const unseen = unseenCards(hands, board);
+  const leaders = winnersOf(playerIds, cardsOf, board);
+  const needed = 5 - board.length;
+
+  const outs = new Map<string, Card[]>();
+  const tieCards = new Map<string, Card[]>();
+  for (const card of needed > 0 ? unseen : []) {
+    const winners = winnersOf(playerIds, cardsOf, [...board, card]);
+    const cards = winners.some((id) => leaders.includes(id)) ? tieCards : outs;
+    for (const winner of winners) {
+      if (!leaders.includes(winner)) cards.set(winner, [...(cards.get(winner) ?? []), card]);
+    }
+  }
+
+  const exact = needed <= 2;
+  const seed = [...board, ...hands.flatMap((h) => h.cards)].reduce(
+    (mixed, card) => Math.imul(mixed, 53) + card + 1,
+    0,
+  );
+  const finishes = exact ? runouts(unseen, needed) : sampledRunouts(unseen, needed, seed);
+  const equity = equityOver(playerIds, cardsOf, board, finishes);
+  return {
+    exact,
+    players: playerIds.map((playerId) => ({
+      playerId,
+      leading: leaders.includes(playerId),
+      equity: equity[playerId] ?? 0,
+      outs: outs.get(playerId) ?? [],
+      tieCards: tieCards.get(playerId) ?? [],
+    })),
+  };
 }

@@ -1,7 +1,7 @@
 /** Insurance rules: the built-in tables, and parsing the rule form. */
 import type { InsuranceRule, TieOuts } from "../domain";
 
-const BASE_RULE = { tieOuts: "exclude", refundPremium: false, coverTurn: true } as const;
+const BASE_RULE = { tieOuts: "include", refundPremium: false, coverTurn: true } as const;
 
 /** Odds common at live games: one out pays 30. The default for a new game. */
 export const RULE_30: InsuranceRule = {
