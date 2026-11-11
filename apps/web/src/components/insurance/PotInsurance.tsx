@@ -101,7 +101,10 @@ const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
  * The pot by who put it in: its leaders first with their chance to win it, then the players behind
  * with their outs against this offer's leader, then any dead money.
  */
-function potParts({ pot, potIndex, leader }: HandOffer, nameOf: (id: string) => string): PotShare[] {
+function potParts(
+  { pot, potIndex, leader }: HandOffer,
+  nameOf: (id: string) => string,
+): PotShare[] {
   const leaders = pot.leaders.map((l) => l.playerId);
   const live = pot.playerIds.map((playerId): PotShare => {
     const leading = leaders.includes(playerId);
