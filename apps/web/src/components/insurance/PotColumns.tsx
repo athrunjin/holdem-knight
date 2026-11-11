@@ -2,6 +2,7 @@ import type { PotBreakdown } from "@holdem-knight/core";
 import { cn } from "@/lib/cn";
 
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
+const percentText = (share: number, digits: number) => `${(share * 100).toFixed(digits)}%`;
 
 /** The tallest column, in pixels. The others are drawn to the same scale. */
 const FULL_HEIGHT = 180;
@@ -16,6 +17,8 @@ interface Slice {
   readonly key: string;
   readonly label: string;
   readonly chips: number;
+  /** A leader's chance to win the pot, once it is known. */
+  readonly chance?: string | undefined;
   readonly tone: "leader" | "trailer" | "dead";
 }
 
@@ -23,7 +26,9 @@ interface Slice {
 function slices(pot: PotBreakdown, nameOf: (id: string) => string): Slice[] {
   const players = pot.stakes.map(({ playerId, chips }): Slice => {
     const tone = pot.leaders.includes(playerId) ? "leader" : "trailer";
-    return { key: playerId, label: nameOf(playerId), chips, tone };
+    const equity = pot.equity[playerId];
+    const chance = tone === "leader" && equity !== undefined ? percentText(equity, 1) : undefined;
+    return { key: playerId, label: nameOf(playerId), chips, tone, chance };
   });
   return [
     ...players.filter(({ tone }) => tone === "leader"),
@@ -47,9 +52,15 @@ const SLICE_CLASS = {
 export function PotColumns({
   pots,
   nameOf,
+  tiesSold,
+  cardsToCome,
 }: {
   pots: readonly PotBreakdown[];
   nameOf: (id: string) => string;
+  /** Whether the rule sells cards that split the pot, which are then listed with the outs. */
+  tiesSold: boolean;
+  /** False once the board is full, when there are no outs left to show. */
+  cardsToCome: boolean;
 }) {
   const total = pots.reduce((sum, pot) => sum + pot.amountChips, 0);
   const largest = Math.max(1, ...pots.map((pot) => pot.amountChips));
@@ -70,21 +81,41 @@ export function PotColumns({
               className="flex flex-col gap-0.5 overflow-hidden rounded-xl"
               style={{ height: (pot.amountChips / largest) * FULL_HEIGHT }}
             >
-              {slices(pot, nameOf).map(({ key, label, chips, tone }) => (
+              {slices(pot, nameOf).map(({ key, label, chips, tone, chance }) => (
                 <div
                   key={key}
                   className={cn(
-                    "flex min-h-5 items-center justify-center gap-1 px-1.5 text-xs leading-none",
+                    "flex min-h-5 flex-col justify-center gap-0.5 px-1.5 text-xs leading-none",
+                    tone === "leader" && "min-h-9",
                     SLICE_CLASS[tone],
                   )}
                   style={{ flex: `${chips} 1 0%` }}
                 >
-                  <span className="truncate">{label}</span>
-                  <span className="shrink-0 tabular-nums">{chipText(chips)}</span>
+                  {tone === "leader" && (
+                    <span className="flex items-center justify-between gap-1 text-[10px] font-normal">
+                      <span>领先</span>
+                      <span className="tabular-nums">{chance}</span>
+                    </span>
+                  )}
+                  <span className="flex min-w-0 items-center justify-center gap-1">
+                    <span className="truncate">{label}</span>
+                    <span className="shrink-0 tabular-nums">{chipText(chips)}</span>
+                  </span>
                 </div>
               ))}
             </div>
             <p className="mt-1.5 text-sm font-medium">{potName(index, pots.length)}</p>
+            {cardsToCome && (
+              <p className="text-xs text-muted tabular-nums">
+                {tiesSold && pot.tieOuts > 0 && "反超 "}
+                {pot.outs} Outs / {percentText(pot.outs / pot.unseenCards, 2)}
+                {tiesSold && pot.tieOuts > 0 && (
+                  <span className="block text-[10px]">
+                    + 平分 {pot.tieOuts} Outs / {percentText(pot.tieOuts / pot.unseenCards, 2)}
+                  </span>
+                )}
+              </p>
+            )}
           </div>
         ))}
       </div>

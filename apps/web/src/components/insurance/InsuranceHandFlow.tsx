@@ -669,7 +669,12 @@ export function InsuranceHandFlow({
           {overview && (
             <div className="mt-3">
               {breakdown.length > 1 ? (
-                <PotColumns pots={breakdown} nameOf={nameOf} />
+                <PotColumns
+                  pots={breakdown}
+                  nameOf={nameOf}
+                  tiesSold={rule.tieOuts === "include"}
+                  cardsToCome={hand.board.length < 5}
+                />
               ) : (
                 <PotShares parts={potParts()} look={hand.players.length > 3 ? "bar" : "ring"} />
               )}

@@ -4,16 +4,18 @@ import {
   type InsuranceRule,
   parseChips,
   priceOption,
+  type QuoteInput,
   type QuoteOption,
+  quoteInsurance,
   soldOuts,
 } from "@holdem-knight/core";
 import { useId, useState } from "react";
 import { formatCardText } from "@/lib/cards";
 import { formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
-import { type Decisions, LeaderQuote } from "./LeaderQuote";
+import type { Decisions } from "./LeaderQuote";
 import { PotLegend, PotRing, type PotShare } from "./PotShares";
-import { DecisionBar } from "./QuotePanel";
+import { DecisionBar, QuotePanel } from "./QuotePanel";
 
 interface PotInsuranceProps {
   /** One leader's offer on one pot. */
@@ -22,6 +24,25 @@ interface PotInsuranceProps {
   label: string;
   nameOf: (id: string) => string;
   rule: InsuranceRule;
+  /** Missing for the standalone calculator, which prices covers but records nothing. */
+  decisions: Decisions | undefined;
+}
+
+interface PotCoverProps {
+  /** What heads the block: the pot's name, and whose lead it is when that needs saying. */
+  label: string;
+  /** Who put what into the pot, leaders first. */
+  parts: readonly PotShare[];
+  input: QuoteInput;
+  /** The buyer. */
+  playerId: string;
+  /** Tells this offer's decision from any other's. */
+  decisionKey: string;
+  /** What is sold, in words, beside the odds. */
+  outsText: string;
+  /** The cards sold, a line for each opponent, where the cards are known. */
+  outsLines?: readonly string[];
+  saving?: boolean | undefined;
   /** Missing for the standalone calculator, which prices covers but records nothing. */
   decisions: Decisions | undefined;
 }
@@ -129,21 +150,26 @@ function potParts(
   ];
 }
 
-function Block({ offer, label, nameOf, rule, decisions }: PotInsuranceProps) {
-  const { leader, input, quote, pot } = offer;
-  const parts = potParts(offer, nameOf);
-  const tied = pot.leaders.length > 1;
+function Block({
+  label,
+  parts,
+  input,
+  playerId,
+  decisionKey,
+  outsText,
+  outsLines = [],
+  saving,
+  decisions,
+}: PotCoverProps) {
+  const quote = quoteInsurance(input);
   const customId = useId();
   const [choice, setChoice] = useState<Choice>();
   const [customText, setCustomText] = useState("");
 
   const header = (
     <h3 className="flex items-baseline justify-between gap-2">
-      <span className="text-sm text-muted">
-        {label}
-        {tied && ` · ${nameOf(leader.playerId)} 并列领先`}
-      </span>
-      <span className="text-2xl font-semibold tabular-nums">{chipText(pot.amountChips)}</span>
+      <span className="text-sm text-muted">{label}</span>
+      <span className="text-2xl font-semibold tabular-nums">{chipText(input.potChips)}</span>
     </h3>
   );
   const sectionClass = "mt-3 rounded-xl border border-line bg-surface p-3";
@@ -153,17 +179,10 @@ function Block({ offer, label, nameOf, rule, decisions }: PotInsuranceProps) {
       <section aria-label={`${label}保险`} className={sectionClass}>
         {header}
         <div className="mt-2 flex items-center gap-1.5">
-          <PotRing parts={parts} total={pot.amountChips} />
-          <PotLegend parts={parts} total={pot.amountChips} plain />
+          <PotRing parts={parts} total={input.potChips} />
+          <PotLegend parts={parts} total={input.potChips} plain />
         </div>
-        <LeaderQuote
-          id={offer.key}
-          decisionKey={offer.key}
-          input={input}
-          playerId={leader.playerId}
-          saving={undefined}
-          decisions={decisions}
-        />
+        <QuotePanel id={decisionKey} input={input} />
       </section>
     );
   }
@@ -175,7 +194,7 @@ function Block({ offer, label, nameOf, rule, decisions }: PotInsuranceProps) {
     { id: "full", label: "满池", option: fullPot },
   ];
 
-  const decision = decisions?.get(offer.key);
+  const decision = decisions?.get(decisionKey);
   const locked = decision !== undefined;
   const bought = decision?.kind === "bought" ? decision : undefined;
   // What was bought stays picked out: on its own row, or as the custom premium it was
@@ -189,16 +208,13 @@ function Block({ offer, label, nameOf, rule, decisions }: PotInsuranceProps) {
     customPremium > 0 && !tooHigh ? priceOption(input, oddsHundredths, customPremium) : undefined;
   const chosen = shown === "custom" ? customOption : standard.find((r) => r.id === shown)?.option;
 
-  const ties = leader.tieCards.length;
-  const opponents = leader.byOpponent;
-
   return (
     <section aria-label={`${label}保险`} className={sectionClass}>
       {header}
       <div className="mt-2 flex items-center gap-1.5">
         <PotRing
           parts={parts}
-          total={pot.amountChips}
+          total={input.potChips}
           cover={chosen ? chosen.ifHitChips / input.shareChips : 0}
         >
           {chosen && (
@@ -210,25 +226,17 @@ function Block({ offer, label, nameOf, rule, decisions }: PotInsuranceProps) {
             </>
           )}
         </PotRing>
-        <PotLegend parts={parts} total={pot.amountChips} plain />
+        <PotLegend parts={parts} total={input.potChips} plain />
       </div>
 
       <div className="mt-2 flex items-baseline justify-between gap-2 border-t border-line pt-2">
         <span className="font-semibold whitespace-nowrap">赔 {formatOdds(oddsHundredths)} 倍</span>
-        <span className="text-right text-sm text-muted">
-          反超牌 {soldOuts(rule, leader)} 张
-          {ties > 0 &&
-            `，平分牌 ${ties} 张${rule.tieOuts === "include" ? "（已计入）" : "（不计入）"}`}
-        </span>
+        <span className="text-right text-sm text-muted">{outsText}</span>
       </div>
       <ul className="text-right text-xs text-muted">
-        {opponents.map(({ playerId, cards }) => (
-          <li key={playerId}>
-            {opponents.length > 1 && `${nameOf(playerId)}：`}
-            {cards.map(formatCardText).join(" ")}
-          </li>
+        {outsLines.map((line) => (
+          <li key={line}>{line}</li>
         ))}
-        {ties > 0 && <li>平分：{leader.tieCards.map(formatCardText).join(" ")}</li>}
       </ul>
 
       {/* Once decided, the covers not taken fade and the one bought stays as it was picked */}
@@ -304,21 +312,21 @@ function Block({ offer, label, nameOf, rule, decisions }: PotInsuranceProps) {
       {decisions && decision && (
         <DecisionBar
           decision={decision}
-          saving={undefined}
-          onRevise={() => decisions.revise(offer.key)}
+          saving={saving}
+          onRevise={() => decisions.revise(decisionKey)}
         />
       )}
       {decisions && !decision && (
         <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
           <button
             type="button"
-            disabled={!chosen}
+            disabled={saving || !chosen}
             onClick={() =>
               chosen &&
-              decisions.buy(offer.key, {
+              decisions.buy(decisionKey, {
                 option: chosen,
                 oddsHundredths,
-                playerId: leader.playerId,
+                playerId,
                 outs: input.outs,
                 street: input.street,
               })
@@ -329,8 +337,9 @@ function Block({ offer, label, nameOf, rule, decisions }: PotInsuranceProps) {
           </button>
           <button
             type="button"
-            onClick={() => decisions.decline(offer.key)}
-            className="min-h-12 rounded-xl border border-line px-4 font-medium"
+            disabled={saving}
+            onClick={() => decisions.decline(decisionKey)}
+            className="min-h-12 rounded-xl border border-line px-4 font-medium disabled:opacity-60"
           >
             不购买
           </button>
@@ -341,12 +350,37 @@ function Block({ offer, label, nameOf, rule, decisions }: PotInsuranceProps) {
 }
 
 /**
- * One pot with one leader, as a single block: the pot as a ring, and the leader's covers under it.
- * Picking a cover lights the ring's inner track for the share of the pot a hit would still leave.
+ * A pot and the insurance on it as a single block: the pot as a ring, and the leader's covers under
+ * it. Picking a cover lights the ring's inner track for the share of the pot a hit would still leave.
  */
-export function PotInsurance(props: PotInsuranceProps) {
-  const { key, quote } = props.offer;
+export function PotCover(props: PotCoverProps) {
+  const quote = quoteInsurance(props.input);
   // Starts over when the price changes, so a typed premium never carries over to different odds
   const price = quote.ok ? `${quote.oddsHundredths}-${quote.maxPremiumChips}` : "blocked";
-  return <Block key={`${key}-${price}`} {...props} />;
+  return <Block key={`${props.decisionKey}-${price}`} {...props} />;
+}
+
+/** The block for one leader's offer on one pot of a hand worked out from the cards. */
+export function PotInsurance({ offer, label, nameOf, rule, decisions }: PotInsuranceProps) {
+  const { leader, pot } = offer;
+  const ties = leader.tieCards.length;
+  const counted = rule.tieOuts === "include" ? "（已计入）" : "（不计入）";
+  return (
+    <PotCover
+      label={pot.leaders.length > 1 ? `${label} · ${nameOf(leader.playerId)} 并列领先` : label}
+      parts={potParts(offer, nameOf)}
+      input={offer.input}
+      playerId={leader.playerId}
+      decisionKey={offer.key}
+      outsText={`反超牌 ${soldOuts(rule, leader)} 张${ties > 0 ? `，平分牌 ${ties} 张${counted}` : ""}`}
+      outsLines={[
+        ...leader.byOpponent.map(
+          ({ playerId, cards }) =>
+            `${leader.byOpponent.length > 1 ? `${nameOf(playerId)}：` : ""}${cards.map(formatCardText).join(" ")}`,
+        ),
+        ...(ties > 0 ? [`平分：${leader.tieCards.map(formatCardText).join(" ")}`] : []),
+      ]}
+      decisions={decisions}
+    />
+  );
 }

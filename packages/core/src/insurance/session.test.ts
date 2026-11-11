@@ -104,7 +104,7 @@ describe("pot breakdown", () => {
       pools: [200],
       board: [c("Qc"), c("7h"), c("9d")],
     });
-    expect(handPotBreakdown(sidePots)).toEqual([
+    expect(handPotBreakdown(sidePots)).toMatchObject([
       {
         amountChips: 1100,
         stakes: [
@@ -129,7 +129,7 @@ describe("pot breakdown", () => {
 
   it("leaves out excess nobody called", () => {
     const deep = player("d", 5000, ["Ks", "Kd"]);
-    expect(handPotBreakdown(hand({ players: [aces, deep] }))).toEqual([
+    expect(handPotBreakdown(hand({ players: [aces, deep] }))).toMatchObject([
       {
         amountChips: 2000,
         stakes: [
@@ -140,6 +140,19 @@ describe("pot breakdown", () => {
         leaders: ["a"],
       },
     ]);
+  });
+
+  it("gives each pot its chances and the cards that change it", () => {
+    // Aces against kings on the turn: two kings left among 44 unseen cards
+    const [pot] = handPotBreakdown(hand());
+    expect(pot).toMatchObject({ outs: 2, tieOuts: 0, unseenCards: 44 });
+    expect(pot?.equity.a).toBeCloseTo(42 / 44);
+    expect(pot?.equity.k).toBeCloseTo(2 / 44);
+  });
+
+  it("leaves the chances and outs out before the flop", () => {
+    const [pot] = handPotBreakdown(hand({ board: [] }));
+    expect(pot).toMatchObject({ leaders: ["a"], equity: {}, outs: 0, tieOuts: 0, unseenCards: 48 });
   });
 
   it("accounts for every contested chip", () => {
