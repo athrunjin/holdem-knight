@@ -9,8 +9,10 @@ import type {
   InsuranceHand,
   LedgerEvent,
   Player,
+  SavedChargeRule,
   SavedGameConfig,
   SavedInsuranceRule,
+  SavedOddsTable,
 } from "./types";
 
 export class ForeignOrganizerError extends Error {
@@ -46,6 +48,22 @@ export interface GameConfigRepository {
   remove(id: string): Promise<void>;
 }
 
+export interface OddsTableRepository {
+  /** Oldest first. */
+  list(): Promise<SavedOddsTable[]>;
+  save(table: SavedOddsTable): Promise<void>;
+  /** Rules keep their own copy of the odds, so deleting one changes no game or rule. */
+  remove(id: string): Promise<void>;
+}
+
+export interface ChargeRuleRepository {
+  /** Oldest first, both kinds together. */
+  list(): Promise<SavedChargeRule[]>;
+  save(rule: SavedChargeRule): Promise<void>;
+  /** Games keep their own copy of the rule, so deleting one changes no game. */
+  remove(id: string): Promise<void>;
+}
+
 /** Hands are drafts until finished, so unlike the ledger they can be changed and discarded. */
 export interface InsuranceHandRepository {
   /** Oldest first. */
@@ -72,6 +90,8 @@ export interface BackupData {
   readonly insuranceRules: readonly SavedInsuranceRule[];
   readonly insuranceHands: readonly InsuranceHand[];
   readonly gameConfigs: readonly SavedGameConfig[];
+  readonly oddsTables: readonly SavedOddsTable[];
+  readonly chargeRules: readonly SavedChargeRule[];
 }
 
 export interface RestoreResult {
@@ -94,5 +114,7 @@ export interface Repository {
   readonly insuranceRules: InsuranceRuleRepository;
   readonly insuranceHands: InsuranceHandRepository;
   readonly gameConfigs: GameConfigRepository;
+  readonly oddsTables: OddsTableRepository;
+  readonly chargeRules: ChargeRuleRepository;
   readonly backup: BackupRepository;
 }

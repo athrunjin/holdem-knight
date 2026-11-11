@@ -1,4 +1,5 @@
 import {
+  CURRENCIES,
   type GameSettingsForm as FormValues,
   type GameSettings,
   type InsuranceRule,
@@ -14,8 +15,9 @@ import {
   type WageIssues,
   type WageRule,
 } from "@holdem-knight/core";
-import { ChevronRight } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
+import { ChoiceModal } from "@/components/insurance/ChoiceModal";
 import {
   InsuranceSettings,
   initialInsuranceChoice,
@@ -32,14 +34,13 @@ import {
   BlindsDialog,
   BuyInDialog,
   ChipRatioDialog,
-  CurrencyDialog,
   previewBlindCash,
   previewHand,
 } from "./GameSettingDialogs";
 
 type SettingDialog = "currency" | "ratio" | "blinds" | "buyIn";
 
-/** Options with no settings yet. Rake sits between insurance and the table fee. */
+/** Options with no settings yet. Rake comes last, after insurance. */
 const PLANNED_OPTIONS = ["抽水"];
 
 function PlannedOption({ label }: { label: string }) {
@@ -56,11 +57,14 @@ function PlannedOption({ label }: { label: string }) {
 function SettingRow({
   label,
   detail,
+  picker = false,
   disabled = false,
   onClick,
   children,
 }: {
   label: string;
+  /** Shows a down arrow, for a row that opens a list to pick from */
+  picker?: boolean;
   /** Small text under the value */
   detail?: string | null | undefined;
   disabled?: boolean;
@@ -80,7 +84,7 @@ function SettingRow({
           <span className="block font-medium">{children}</span>
           {detail && <span className="block text-sm text-muted">{detail}</span>}
         </span>
-        <ChevronRight className="size-5 shrink-0 text-muted" aria-hidden />
+        {picker && <ChevronDown className="size-5 shrink-0 text-muted" aria-hidden />}
       </span>
     </button>
   );
@@ -195,7 +199,12 @@ export function GameSettingsForm({
       <form onSubmit={handleSubmit} noValidate className="flex max-w-md flex-col gap-6 pb-8">
         <div>
           <div className="divide-y divide-line rounded-xl border border-line bg-surface">
-            <SettingRow label="货币" disabled={ratioLocked} onClick={() => setDialog("currency")}>
+            <SettingRow
+              label="货币"
+              picker
+              disabled={ratioLocked}
+              onClick={() => setDialog("currency")}
+            >
               {currencyLabel}
             </SettingRow>
             <SettingRow label="筹码" disabled={ratioLocked} onClick={() => setDialog("ratio")}>
@@ -229,6 +238,22 @@ export function GameSettingsForm({
         </div>
 
         <div className="flex flex-col gap-3">
+          <WageSettings
+            value={wage}
+            issues={wageIssues}
+            currency={values.currency}
+            lastRule={lastWage}
+            lastRuleLabel={lastWageLabel}
+            onChange={setWage}
+          />
+          <TableFeeSettings
+            value={tableFee}
+            issues={tableFeeIssues}
+            currency={values.currency}
+            lastRule={lastTableFee}
+            lastRuleLabel={lastTableFeeLabel}
+            onChange={setTableFee}
+          />
           {showInsurance && (
             <InsuranceSettings
               value={insurance}
@@ -242,22 +267,6 @@ export function GameSettingsForm({
           {PLANNED_OPTIONS.map((label) => (
             <PlannedOption key={label} label={label} />
           ))}
-          <TableFeeSettings
-            value={tableFee}
-            issues={tableFeeIssues}
-            currency={values.currency}
-            lastRule={lastTableFee}
-            lastRuleLabel={lastTableFeeLabel}
-            onChange={setTableFee}
-          />
-          <WageSettings
-            value={wage}
-            issues={wageIssues}
-            currency={values.currency}
-            lastRule={lastWage}
-            lastRuleLabel={lastWageLabel}
-            onChange={setWage}
-          />
         </div>
 
         {saveFailed && (
@@ -290,7 +299,22 @@ export function GameSettingsForm({
       </form>
 
       {/* Outside the form: a dialog's own form must not nest in it or submit it */}
-      {dialog === "currency" && <CurrencyDialog {...dialogProps} />}
+      {dialog === "currency" && (
+        <ChoiceModal
+          title="货币"
+          choices={CURRENCIES.map((currency) => ({
+            id: currency,
+            name: CURRENCY_INFO[currency].label,
+          }))}
+          selectedId={values.currency}
+          onPick={(id) => {
+            const currency = CURRENCIES.find((c) => c === id);
+            if (currency) setValues({ ...values, currency });
+            setDialog(null);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog === "ratio" && <ChipRatioDialog {...dialogProps} />}
       {dialog === "blinds" && <BlindsDialog {...dialogProps} />}
       {dialog === "buyIn" && <BuyInDialog {...dialogProps} />}

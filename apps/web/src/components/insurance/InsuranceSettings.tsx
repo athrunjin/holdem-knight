@@ -1,5 +1,4 @@
 import {
-  BUILT_IN_RULES,
   type InsuranceRule,
   type InsuranceRuleForm,
   type InsuranceRuleIssues,
@@ -7,9 +6,10 @@ import {
   RULE_30,
   toInsuranceRuleForm,
 } from "@holdem-knight/core";
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
-import { TextField } from "@/components/TextField";
+import { MiniSwitch } from "@/components/MiniSwitch";
+import { SaveNameDialog } from "@/components/SaveNameDialog";
 import { Toggle } from "@/components/Toggle";
 import {
   newSavedRule,
@@ -17,14 +17,24 @@ import {
   useRemoveInsuranceRule,
   useSaveInsuranceRule,
 } from "@/data/insurance";
-import { cn } from "@/lib/cn";
-import { Modal } from "./Modal";
+import { datedName } from "@/lib/dated-name";
+import { ChoiceModal } from "./ChoiceModal";
+import { CoverLimitPicker } from "./CoverLimitPicker";
+import { OddsTableEditor } from "./OddsTableEditor";
 
 const LAST_RULE = "last";
+const DEFAULT_RULE = "default";
 const CUSTOM_RULE = "custom";
 
-/** The default odds for a row added past the end of the table: the last row's. */
-const lastOdds = (odds: readonly string[]) => odds.at(-1) ?? "1";
+/** Everything in a rule but its odds, which the odds table sets on its own. */
+function settingsOf(form: InsuranceRuleForm) {
+  const { odds: _, ...settings } = form;
+  return settings;
+}
+
+const sameSettings = (a: InsuranceRule, b: InsuranceRule) =>
+  JSON.stringify(settingsOf(toInsuranceRuleForm(a))) ===
+  JSON.stringify(settingsOf(toInsuranceRuleForm(b)));
 
 export interface InsuranceChoice {
   readonly enabled: boolean;
@@ -39,7 +49,7 @@ export function initialInsuranceChoice(
   const rule = current ?? last ?? RULE_30;
   return {
     enabled: current !== undefined,
-    source: current || last ? LAST_RULE : (BUILT_IN_RULES[0]?.id ?? CUSTOM_RULE),
+    source: current || last ? LAST_RULE : DEFAULT_RULE,
     form: toInsuranceRuleForm(rule),
   };
 }
@@ -56,7 +66,10 @@ interface InsuranceSettingsProps {
   onChange: (value: InsuranceChoice) => void;
 }
 
-/** Turns insurance on for a game, picks a rule quickly, and edits or saves one. */
+/**
+ * Turns insurance on for a game. The settings other than the odds come from last time, the default
+ * or a saved set, and can be saved; the odds table picks and saves its odds on its own.
+ */
 export function InsuranceSettings({
   value,
   issues,
@@ -67,275 +80,164 @@ export function InsuranceSettings({
 }: InsuranceSettingsProps) {
   const { enabled, source, form } = value;
   const { data: saved = [] } = useInsuranceRules();
-  const saveRule = useSaveInsuranceRule();
   const removeRule = useRemoveInsuranceRule();
-  const [editing, setEditing] = useState(false);
+  const saveRule = useSaveInsuranceRule();
   const [picking, setPicking] = useState(false);
-  const [showingDemo, setShowingDemo] = useState(false);
-  const [name, setName] = useState("");
-  const [nameIssue, setNameIssue] = useState<string>();
+  const [naming, setNaming] = useState(false);
 
   const setForm = (next: Partial<InsuranceRuleForm>) =>
     onChange({ ...value, source: CUSTOM_RULE, form: { ...form, ...next } });
-  function choose(id: string, rule: InsuranceRule) {
-    onChange({ ...value, source: id, form: toInsuranceRuleForm(rule) });
+
+  // Last time's settings go by their saved name when they were a saved set
+  const lastSaved = lastRule && saved.find((rule) => sameSettings(rule.rule, lastRule));
+  const rules = [
+    ...(lastRule && !lastSaved ? [{ id: LAST_RULE, name: lastRuleLabel, rule: lastRule }] : []),
+    { id: DEFAULT_RULE, name: "默认配置", rule: RULE_30 },
+    ...saved.map((rule) => ({ ...rule, removable: true })),
+  ];
+  const selectedId = source === LAST_RULE && lastSaved ? lastSaved.id : source;
+  const selectedName = rules.find((rule) => rule.id === selectedId)?.name ?? "自定义";
+  // Worth saving only once the settings are valid and differ from every set already on offer
+  const settingsText = JSON.stringify(settingsOf(form));
+  const savable =
+    parseInsuranceRule(form).ok &&
+    ![...rules.map((r) => r.rule), ...(lastRule ? [lastRule] : [])].some(
+      (rule) => JSON.stringify(settingsOf(toInsuranceRuleForm(rule))) === settingsText,
+    );
+
+  /** Takes a set's settings and keeps this game's odds. */
+  function choose(id: string) {
+    const rule = rules.find((r) => r.id === id)?.rule;
+    if (rule) {
+      const next = { ...toInsuranceRuleForm(rule), odds: form.odds };
+      onChange({ ...value, source: id, form: next });
+    }
     setPicking(false);
-    setEditing(true);
   }
 
-  const selectedSaved = saved.find((rule) => rule.id === source);
-  const choices = [
-    ...(lastRule ? [{ id: LAST_RULE, name: lastRuleLabel, rule: lastRule }] : []),
-    ...BUILT_IN_RULES,
-    ...saved,
-  ];
-  // Issues would stay out of sight in a closed panel
-  const expanded = editing || Object.keys(issues).length > 0;
-
-  function handleSave() {
-    const trimmed = name.trim();
-    if (trimmed === "") {
-      setNameIssue("请输入规则名称");
-      return;
-    }
+  /** Saved with this game's odds too, but only the other settings are taken when it is picked. */
+  function handleSave(name: string) {
     const parsed = parseInsuranceRule(form);
-    if (!parsed.ok) {
-      setNameIssue("请先修正规则里的错误");
-      return;
-    }
-    const existing = saved.find((rule) => rule.name === trimmed);
-    const rule = existing ? { ...existing, rule: parsed.rule } : newSavedRule(trimmed, parsed.rule);
+    if (!parsed.ok) return "规则里有无效的数值";
+    const existing = saved.find((rule) => rule.name === name);
+    const rule = existing ? { ...existing, rule: parsed.rule } : newSavedRule(name, parsed.rule);
     saveRule.mutate(rule, {
       onSuccess: () => {
-        setName("");
-        setNameIssue(undefined);
         onChange({ ...value, source: rule.id });
+        setNaming(false);
       },
     });
+    return undefined;
   }
 
-  function handleRemove() {
-    if (selectedSaved && window.confirm(`删除规则「${selectedSaved.name}」？`)) {
-      removeRule.mutate(selectedSaved.id, {
-        onSuccess: () => onChange({ ...value, source: CUSTOM_RULE }),
+  function handleRemove(id: string) {
+    const rule = saved.find((r) => r.id === id);
+    if (rule && window.confirm(`删除规则「${rule.name}」？`)) {
+      removeRule.mutate(id, {
+        onSuccess: () => {
+          if (selectedId === id) onChange({ ...value, source: CUSTOM_RULE });
+        },
       });
     }
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-4 py-2">
+    <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
         label="保险"
         {...(locked && { detail: "这局已有保险记录，不能关闭" })}
         info="开启后「保险」作为一席加入牌局，默认买入 1 手"
         checked={enabled}
         disabled={locked}
+        accessory={
+          enabled && (
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-label={`保险配置：${selectedName}`}
+              onClick={() => setPicking(true)}
+              className="flex min-h-11 min-w-0 items-center gap-0.5 text-sm"
+            >
+              <span className="truncate">{selectedName}</span>
+              <ChevronDown className="size-4 shrink-0 text-muted" aria-hidden />
+            </button>
+          )
+        }
         onChange={(checked) => onChange({ ...value, enabled: checked })}
       />
 
       {enabled && (
         <>
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            onClick={() => setPicking(true)}
-            className="flex min-h-11 w-full items-center justify-between gap-3 text-left"
-          >
-            <span className="font-medium">赔率配置</span>
-            <span className="flex min-w-0 items-center gap-0.5 text-sm text-muted">
-              <span className="truncate">
-                {choices.find((choice) => choice.id === source)?.name ?? "自定义"}
-              </span>
-              <ChevronDown className="size-4 shrink-0" aria-hidden />
-            </span>
-          </button>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-expanded={expanded}
-              onClick={() => setEditing(!editing)}
-              className="flex min-h-11 min-w-0 flex-1 items-center justify-between font-medium text-highlight"
-            >
-              修改赔率和规则
-              <ChevronDown
-                className={cn("size-5 transition-transform", expanded && "rotate-180")}
-                aria-hidden
-              />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowingDemo(true)}
-              className="min-h-11 shrink-0 rounded-xl border border-line px-3 text-sm font-medium"
-            >
-              查看demo
-            </button>
+          <div className="flex flex-wrap gap-x-4">
+            <MiniSwitch
+              label="命中退还保费"
+              checked={form.refundPremium}
+              onChange={(refundPremium) => setForm({ refundPremium })}
+            />
+            <MiniSwitch
+              label="平分牌算 outs"
+              checked={form.tieOuts === "include"}
+              onChange={(checked) => setForm({ tieOuts: checked ? "include" : "exclude" })}
+            />
           </div>
 
-          {expanded && (
-            <div className="flex flex-col gap-4">
-              <div>
-                <span className="mb-1 block text-sm text-muted">
-                  每个 outs 的赔率（超过 {form.odds.length} 张不能投保）
-                </span>
-                <div className="grid grid-cols-3 gap-2">
-                  {form.odds.map((odds, i) => (
-                    <TextField
-                      // biome-ignore lint/suspicious/noArrayIndexKey: each row is the place for that many outs
-                      key={i}
-                      id={`odds-${i + 1}`}
-                      label={`${i + 1} outs`}
-                      value={odds}
-                      issue={issues.odds?.includes(i + 1) ? "请填大于 0 的赔率" : undefined}
-                      inputMode="decimal"
-                      onChange={(next) =>
-                        setForm({ odds: form.odds.map((o, j) => (j === i ? next : o)) })
-                      }
-                    />
-                  ))}
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    disabled={form.odds.length <= 1}
-                    onClick={() => setForm({ odds: form.odds.slice(0, -1) })}
-                    className="min-h-11 rounded-xl border border-line font-medium disabled:opacity-40"
-                  >
-                    减少一行
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ odds: [...form.odds, lastOdds(form.odds)] })}
-                    className="min-h-11 rounded-xl border border-line font-medium"
-                  >
-                    增加一行
-                  </button>
-                </div>
-              </div>
-
-              <Toggle
-                label="命中时退还保费"
-                detail="默认不退：赔付 = 保费 × 赔率"
-                checked={form.refundPremium}
-                onChange={(refundPremium) => setForm({ refundPremium })}
-              />
-              <Toggle
-                label="平分牌算 outs"
-                detail="默认算：关闭后只有输掉底池的牌才算"
-                checked={form.tieOuts === "include"}
-                onChange={(checked) => setForm({ tieOuts: checked ? "include" : "exclude" })}
-              />
-              <Toggle
-                label="翻牌全下可保转牌"
-                detail="每次只保下一张，河牌总是可保"
-                checked={form.coverTurn}
-                onChange={(coverTurn) => setForm({ coverTurn })}
-              />
-
-              <div className="grid grid-cols-2 items-start gap-2">
-                <TextField
-                  id="turn-cap"
-                  label="转牌保费上限"
-                  value={form.turnCapPercent}
-                  issue={issues.turnCapPercent && "1–1000 或留空"}
-                  suffix="%"
-                  inputMode="numeric"
-                  onChange={(turnCapPercent) => setForm({ turnCapPercent })}
-                />
-                <TextField
-                  id="river-cap"
-                  label="河牌保费上限"
-                  value={form.riverCapPercent}
-                  issue={issues.riverCapPercent && "1–1000 或留空"}
-                  suffix="%"
-                  inputMode="numeric"
-                  onChange={(riverCapPercent) => setForm({ riverCapPercent })}
-                />
-              </div>
-              <p className="-mt-2 text-sm text-muted">留空表示不限；上限按底池的百分比算。</p>
-
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <TextField
-                    id="rule-name"
-                    label="保存为规则，下次可直接选"
-                    value={name}
-                    issue={nameIssue}
-                    inputMode="text"
-                    onChange={(next) => {
-                      setName(next);
-                      setNameIssue(undefined);
-                    }}
-                  />
-                </div>
-                <button
-                  type="button"
-                  disabled={saveRule.isPending}
-                  onClick={handleSave}
-                  className="mt-6 min-h-12 shrink-0 rounded-xl border border-line px-4 font-medium disabled:opacity-60"
-                >
-                  保存
-                </button>
-              </div>
-              {saveRule.isError && (
-                <p role="alert" className="text-sm text-highlight">
-                  保存失败，请重试。
-                </p>
-              )}
-              {selectedSaved && (
-                <button
-                  type="button"
-                  onClick={handleRemove}
-                  className="min-h-11 text-sm text-highlight"
-                >
-                  删除规则「{selectedSaved.name}」
-                </button>
-              )}
-            </div>
+          <div className="flex flex-wrap items-center gap-x-3 text-sm">
+            <span className="text-muted">保费上限</span>
+            <CoverLimitPicker
+              street="翻牌"
+              value={form.turnLimit}
+              onChange={(turnLimit) => setForm({ turnLimit })}
+            />
+            <CoverLimitPicker
+              street="转牌"
+              value={form.riverLimit}
+              onChange={(riverLimit) => setForm({ riverLimit })}
+            />
+            {savable && (
+              <button
+                type="button"
+                onClick={() => setNaming(true)}
+                className="ml-auto min-h-11 font-medium text-highlight"
+              >
+                保存配置
+              </button>
+            )}
+          </div>
+          {(issues.turnLimit || issues.riverLimit || issues.odds) && (
+            <p role="alert" className="text-sm text-highlight">
+              规则里有无效的数值，请重新选择。
+            </p>
           )}
+
+          <OddsTableEditor
+            odds={form.odds}
+            // The odds are apart from the settings, so the settings keep their name
+            onApply={(odds) => onChange({ ...value, form: { ...form, odds } })}
+          />
         </>
       )}
 
       {picking && (
-        <Modal title="赔率配置" onClose={() => setPicking(false)}>
-          <ul className="divide-y divide-line rounded-xl border border-line">
-            {choices.map(({ id, name: ruleName, rule }) => (
-              <li key={id}>
-                <button
-                  type="button"
-                  onClick={() => choose(id, rule)}
-                  className={cn(
-                    "flex min-h-12 w-full items-center justify-between gap-2 px-3 text-left font-medium",
-                    source === id && "text-highlight",
-                  )}
-                >
-                  <span className="truncate">{ruleName}</span>
-                  {source === id && <Check className="size-5 shrink-0" aria-label="当前选中" />}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button
-            type="button"
-            onClick={() => setPicking(false)}
-            className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
-          >
-            关闭
-          </button>
-        </Modal>
+        <ChoiceModal
+          title="保险配置（不含赔率）"
+          choices={rules}
+          selectedId={selectedId}
+          onPick={choose}
+          onRemove={handleRemove}
+          onClose={() => setPicking(false)}
+        />
       )}
 
-      {showingDemo && (
-        <Modal title="查看demo" onClose={() => setShowingDemo(false)}>
-          <p className="py-6 text-center text-muted">开发中</p>
-          <button
-            type="button"
-            onClick={() => setShowingDemo(false)}
-            className="min-h-11 w-full rounded-xl border border-line font-medium"
-          >
-            关闭
-          </button>
-        </Modal>
+      {naming && (
+        <SaveNameDialog
+          title="保存保险配置，下次快速应用？"
+          label="名称，同名会覆盖；赔率另存为赔率表"
+          initialName={datedName("保险配置", new Set(saved.map((rule) => rule.name)))}
+          saving={saveRule.isPending}
+          saveFailed={saveRule.isError}
+          onSave={handleSave}
+          onClose={() => setNaming(false)}
+        />
       )}
     </section>
   );

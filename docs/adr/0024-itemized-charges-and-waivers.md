@@ -1,6 +1,6 @@
 # 0024. Itemized wages by rate, and waiving a charge at settlement
 
-- Status: Accepted
+- Status: Superseded in part by [0025](0025-wage-segments-and-billing-units.md)
 - Date: 2026-11-09
 
 ## Context

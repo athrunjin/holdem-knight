@@ -8,8 +8,10 @@ import {
   type Player,
   type Repository,
   type RestoreResult,
+  type SavedChargeRule,
   type SavedGameConfig,
   type SavedInsuranceRule,
+  type SavedOddsTable,
   upgradeLegacyGame,
 } from "@holdem-knight/core";
 import Dexie, { type Table } from "dexie";
@@ -21,6 +23,8 @@ export type GuestDatabase = Dexie & {
   insuranceRules: Table<SavedInsuranceRule, string>;
   insuranceHands: Table<InsuranceHand, string>;
   gameConfigs: Table<SavedGameConfig, string>;
+  oddsTables: Table<SavedOddsTable, string>;
+  chargeRules: Table<SavedChargeRule, string>;
 };
 
 const STORES = {
@@ -47,11 +51,17 @@ export function createGuestDatabase(name = "holdem-guest"): GuestDatabase {
   db.version(3).stores({ ...STORES, insuranceRules });
   const insuranceHands = "id, [gameId+createdAt]";
   db.version(4).stores({ ...STORES, insuranceRules, insuranceHands });
-  db.version(5).stores({
+  const gameConfigs = "id, [organizerId+createdAt]";
+  db.version(5).stores({ ...STORES, insuranceRules, insuranceHands, gameConfigs });
+  const oddsTables = "id, [organizerId+createdAt]";
+  db.version(6).stores({ ...STORES, insuranceRules, insuranceHands, gameConfigs, oddsTables });
+  db.version(7).stores({
     ...STORES,
     insuranceRules,
     insuranceHands,
-    gameConfigs: "id, [organizerId+createdAt]",
+    gameConfigs,
+    oddsTables,
+    chargeRules: "id, [organizerId+createdAt]",
   });
   return db;
 }
@@ -175,6 +185,36 @@ export function createDexieRepository(db: GuestDatabase, organizerId: OrganizerI
         if (config) await db.gameConfigs.delete(id);
       },
     },
+    oddsTables: {
+      list: () =>
+        db.oddsTables
+          .where("[organizerId+createdAt]")
+          .between(...ofOrganizer)
+          .toArray(),
+      save: async (table) => {
+        assertOwned(table);
+        await db.oddsTables.put(table);
+      },
+      remove: async (id) => {
+        const table = onlyOwned(await db.oddsTables.get(id));
+        if (table) await db.oddsTables.delete(id);
+      },
+    },
+    chargeRules: {
+      list: () =>
+        db.chargeRules
+          .where("[organizerId+createdAt]")
+          .between(...ofOrganizer)
+          .toArray(),
+      save: async (rule) => {
+        assertOwned(rule);
+        await db.chargeRules.put(rule);
+      },
+      remove: async (id) => {
+        const rule = onlyOwned(await db.chargeRules.get(id));
+        if (rule) await db.chargeRules.delete(id);
+      },
+    },
     backup: {
       exportAll: async () => ({
         games: await db.games
@@ -197,6 +237,14 @@ export function createDexieRepository(db: GuestDatabase, organizerId: OrganizerI
           .where("[organizerId+createdAt]")
           .between(...ofOrganizer)
           .toArray(),
+        oddsTables: await db.oddsTables
+          .where("[organizerId+createdAt]")
+          .between(...ofOrganizer)
+          .toArray(),
+        chargeRules: await db.chargeRules
+          .where("[organizerId+createdAt]")
+          .between(...ofOrganizer)
+          .toArray(),
       }),
       restore: async ({
         games,
@@ -205,6 +253,8 @@ export function createDexieRepository(db: GuestDatabase, organizerId: OrganizerI
         insuranceRules,
         insuranceHands,
         gameConfigs,
+        oddsTables,
+        chargeRules,
       }): Promise<RestoreResult> => {
         const rows = [
           ...games,
@@ -213,6 +263,8 @@ export function createDexieRepository(db: GuestDatabase, organizerId: OrganizerI
           ...insuranceRules,
           ...insuranceHands,
           ...gameConfigs,
+          ...oddsTables,
+          ...chargeRules,
         ];
         rows.forEach(assertOwned);
         const total = rows.length;
@@ -225,6 +277,8 @@ export function createDexieRepository(db: GuestDatabase, organizerId: OrganizerI
             db.insuranceRules,
             db.insuranceHands,
             db.gameConfigs,
+            db.oddsTables,
+            db.chargeRules,
           ],
           async () =>
             (await addMissing(db.games, games)) +
@@ -232,7 +286,9 @@ export function createDexieRepository(db: GuestDatabase, organizerId: OrganizerI
             (await addMissing(db.ledgerEvents, ledgerEvents)) +
             (await addMissing(db.insuranceRules, insuranceRules)) +
             (await addMissing(db.insuranceHands, insuranceHands)) +
-            (await addMissing(db.gameConfigs, gameConfigs)),
+            (await addMissing(db.gameConfigs, gameConfigs)) +
+            (await addMissing(db.oddsTables, oddsTables)) +
+            (await addMissing(db.chargeRules, chargeRules)),
         );
         return { added, skipped: total - added };
       },

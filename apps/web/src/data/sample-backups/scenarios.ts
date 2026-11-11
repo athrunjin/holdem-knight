@@ -204,6 +204,8 @@ function sampleGame(slug: string, setup: GameSetup) {
         insuranceRules: [],
         insuranceHands: [],
         gameConfigs: [],
+        oddsTables: [],
+        chargeRules: [],
       };
     },
   };
@@ -587,5 +589,7 @@ export function allSamples(): BackupData {
     insuranceRules: datas.flatMap((d) => d.insuranceRules),
     insuranceHands: datas.flatMap((d) => d.insuranceHands),
     gameConfigs: datas.flatMap((d) => d.gameConfigs),
+    oddsTables: datas.flatMap((d) => d.oddsTables),
+    chargeRules: datas.flatMap((d) => d.chargeRules),
   };
 }

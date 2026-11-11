@@ -46,6 +46,8 @@ const data: BackupData = {
   insuranceRules: [],
   insuranceHands: [],
   gameConfigs: [],
+  oddsTables: [],
+  chargeRules: [],
 };
 
 const edit = (change: (backup: Record<string, unknown>) => void) => {
@@ -132,6 +134,87 @@ describe("backup file", () => {
     expect(parseBackup(older)).toEqual({ ok: true, data });
   });
 
+  it("reads version 8 backups, dropping premium caps and the turn switch from rules", () => {
+    const rule = { ...RULE_30, coverTurn: false, turnCapPercent: 25 };
+    const older = edit((backup) => {
+      backup.version = 8;
+      delete backup.oddsTables;
+      delete backup.chargeRules;
+      backup.insuranceRules = [{ id: "r", organizerId: "guest", name: "旧", rule, createdAt: 1 }];
+    });
+    expect(parseBackup(older)).toEqual({
+      ok: true,
+      data: {
+        ...data,
+        insuranceRules: [
+          { id: "r", organizerId: "guest", name: "旧", rule: RULE_30, createdAt: 1 },
+        ],
+      },
+    });
+  });
+
+  it("round-trips wage segments and the waivers of their rates", () => {
+    const [game] = data.games;
+    if (!game) throw new Error("Missing sample game");
+    const wage = {
+      hourly: cents(2500),
+      unitMinutes: 60,
+      roundUp: true,
+      timeSegments: [
+        { fromHour: 22, toHour: 2, hourly: cents(4000) },
+        { fromHour: 2, hourly: cents(3000) },
+      ],
+      afterStartSegments: [{ afterHours: 6, hourly: cents(3500) }],
+    } as const;
+    const full: BackupData = {
+      ...data,
+      games: [{ ...game, wage, waivedCharges: [{ playerId: "p", kind: "wage", part: "time-2" }] }],
+    };
+    expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
+  });
+
+  it("round-trips saved table fee and wage configs", () => {
+    const saved = { organizerId: "guest", createdAt: 1 };
+    const full: BackupData = {
+      ...data,
+      chargeRules: [
+        {
+          ...saved,
+          id: "f",
+          name: "台费配置_11-11",
+          kind: "table_fee",
+          rule: { amount: cents(5000), minMinutes: 10 },
+        },
+        {
+          ...saved,
+          id: "w",
+          name: "工资配置_11-11",
+          kind: "wage",
+          rule: { hourly: cents(2500), unitMinutes: 15, roundUp: true },
+        },
+      ],
+    };
+    expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
+  });
+
+  it("round-trips saved odds tables and cover limits", () => {
+    const rule = { ...RULE_30, turnCoverLimit: "stake", riverCoverLimit: 75 } as const;
+    const full: BackupData = {
+      ...data,
+      insuranceRules: [{ id: "r", organizerId: "guest", name: "周五局", rule, createdAt: 1 }],
+      oddsTables: [
+        {
+          id: "t",
+          organizerId: "guest",
+          name: "赔率表_11-11",
+          oddsHundredths: [3000, 1500],
+          createdAt: 2,
+        },
+      ],
+    };
+    expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
+  });
+
   it("round-trips saved game configs", () => {
     const settings = {
       currency: "CNY",
@@ -149,7 +232,7 @@ describe("backup file", () => {
   });
 
   it("round-trips insurance rules, purchases and the insurance seat", () => {
-    const rule = { ...RULE_30, riverCapPercent: 50 };
+    const rule = { ...RULE_30, riverCoverLimit: 50 };
     const [game] = data.games;
     if (!game) throw new Error("Missing sample game");
     const meta = { organizerId: "guest", gameId: "g", occurredAt: 3 };
@@ -262,7 +345,7 @@ describe("backup file", () => {
 
   it("rejects backups from a newer version", () => {
     const text = edit((backup) => {
-      backup.version = 9;
+      backup.version = 10;
     });
     expect(parseBackup(text)).toEqual({ ok: false, issue: "newer-version" });
   });

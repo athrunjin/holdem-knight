@@ -12,10 +12,12 @@ import {
   clockReaches,
   gameCharges,
   seatTimes,
+  segmentedWageParts,
   tableFeeFor,
   wageFor,
   wageParts,
   wageRateAt,
+  wageWindows,
   waiveCharge,
 } from "./charges";
 import { buy, leave, MIN, undo } from "./test-events";
@@ -115,6 +117,143 @@ describe("wageFor", () => {
     expect(wageParts(rule, sessions, Infinity, { ...clock, now: 30 * HOUR })).toEqual([
       { part: "base", hourly: 2500, minutes: 120, amount: 5000 },
       { part: "adjusted", hourly: 4000, minutes: 90, amount: 6000 },
+    ]);
+  });
+});
+
+describe("segmentedWageParts", () => {
+  const minuteOfDay = clock.minuteOfDay;
+  const at = (fromHour: number, toHour: number) => [{ from: fromHour * HOUR, to: toHour * HOUR }];
+  const parts = (rule: WageRule, start: number, sessions: { from: number; to: number }[]) =>
+    segmentedWageParts(rule, sessions, wageWindows(rule, start, undefined, minuteOfDay), clock);
+  const perMinute: WageRule = { hourly: cents(2500), unitMinutes: 1, roundUp: true };
+
+  it("counts a part minute as a whole one when rounding up, and drops it when not", () => {
+    const sessions = [{ from: 0, to: 90 * MIN + 30_000 }];
+    expect(parts(perMinute, 0, sessions)).toEqual([
+      { part: "base", hourly: 2500, minutes: 91, amount: 3792 },
+    ]);
+    expect(parts({ ...perMinute, roundUp: false }, 0, sessions)[0]?.minutes).toBe(90);
+  });
+
+  it("charges whole hours: 1 hour 10 minutes is 2 hours rounded up and 1 rounded down", () => {
+    const hourly: WageRule = { ...perMinute, unitMinutes: 60 };
+    const sessions = [{ from: 0, to: 70 * MIN }];
+    expect(parts(hourly, 0, sessions)).toEqual([
+      { part: "base", hourly: 2500, minutes: 120, amount: 5000 },
+    ]);
+    expect(parts({ ...hourly, roundUp: false }, 0, sessions)[0]?.minutes).toBe(60);
+  });
+
+  it("starts an open time segment the first time its hour comes round after the game starts", () => {
+    const rule: WageRule = { ...perMinute, timeSegments: [{ fromHour: 0, hourly: cents(3000) }] };
+    // The game starts at 20:00 and the player sits 22:00 to 2:00
+    expect(parts(rule, 20 * HOUR, at(22, 26))).toEqual([
+      { part: "base", hourly: 2500, minutes: 120, amount: 5000 },
+      { part: "time-1", hourly: 3000, minutes: 120, amount: 6000 },
+    ]);
+  });
+
+  it("chains time segments past midnight", () => {
+    const rule: WageRule = {
+      ...perMinute,
+      timeSegments: [
+        { fromHour: 22, toHour: 2, hourly: cents(4000) },
+        { fromHour: 2, hourly: cents(3000) },
+      ],
+    };
+    expect(parts(rule, 20 * HOUR, at(21, 27))).toEqual([
+      { part: "base", hourly: 2500, minutes: 60, amount: 2500 },
+      { part: "time-1", hourly: 4000, minutes: 240, amount: 16_000 },
+      { part: "time-2", hourly: 3000, minutes: 60, amount: 3000 },
+    ]);
+  });
+
+  it("charges the higher rate where both kinds apply", () => {
+    const rule: WageRule = {
+      ...perMinute,
+      timeSegments: [{ fromHour: 0, hourly: cents(3000) }],
+      afterStartSegments: [{ afterHours: 1, hourly: cents(4000) }],
+    };
+    // Starts 22:00: game time rate from 23:00, time rate from 0:00, and 40 beats 30 after that
+    expect(parts(rule, 22 * HOUR, at(22, 25))).toEqual([
+      { part: "base", hourly: 2500, minutes: 60, amount: 2500 },
+      { part: "after-1", hourly: 4000, minutes: 120, amount: 8000 },
+    ]);
+  });
+
+  it("moves each game time segment on at the next one's hours", () => {
+    const rule: WageRule = {
+      ...perMinute,
+      afterStartSegments: [
+        { afterHours: 1, hourly: cents(3000) },
+        { afterHours: 2, hourly: cents(4000) },
+      ],
+    };
+    expect(parts(rule, 0, at(0, 3)).map((p) => [p.part, p.minutes])).toEqual([
+      ["base", 60],
+      ["after-1", 60],
+      ["after-2", 60],
+    ]);
+  });
+
+  it("gives what rounding adds to, or takes from, the rate the player sat at last", () => {
+    const rule: WageRule = {
+      ...perMinute,
+      unitMinutes: 60,
+      timeSegments: [{ fromHour: 1, hourly: cents(3000) }],
+    };
+    // 0:30 to 1:40 is 30 minutes at the base and 40 at the time rate
+    const sessions = [{ from: 30 * MIN, to: 100 * MIN }];
+    expect(parts(rule, 0, sessions).map((p) => [p.part, p.minutes])).toEqual([
+      ["base", 30],
+      ["time-1", 90],
+    ]);
+    const down = parts({ ...rule, roundUp: false }, 0, sessions);
+    expect(down.map((p) => [p.part, p.minutes])).toEqual([
+      ["base", 30],
+      ["time-1", 30],
+    ]);
+  });
+
+  it("charges whole units of the total time", () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(1, 15, 30, 60),
+        fc.boolean(),
+        fc.integer({ min: 1, max: 10 * HOUR }),
+        fc.integer({ min: 0, max: 23 }),
+        (unitMinutes, roundUp, length, hour) => {
+          const rule: WageRule = {
+            hourly: cents(2500),
+            unitMinutes: unitMinutes as 1 | 15 | 30 | 60,
+            roundUp,
+            timeSegments: [{ fromHour: hour, toHour: (hour + 3) % 24, hourly: cents(3000) }],
+            afterStartSegments: [{ afterHours: 2, hourly: cents(2000) }],
+          };
+          const minutes = sum(
+            parts(rule, 0, [{ from: 0, to: length }]).map((p) => cents(p.minutes)),
+          );
+          const units = length / (unitMinutes * MIN);
+          expect(minutes).toBe((roundUp ? Math.ceil(units) : Math.floor(units)) * unitMinutes);
+        },
+      ),
+    );
+  });
+});
+
+describe("gameCharges with segments", () => {
+  it("starts time segments from the clock's first run", () => {
+    const rule: WageRule = {
+      hourly: cents(2500),
+      unitMinutes: 1,
+      roundUp: true,
+      timeSegments: [{ fromHour: 1, hourly: cents(3000) }],
+    };
+    const timer = { elapsedMs: 3 * HOUR, runs: [{ from: 0, to: 3 * HOUR }] };
+    expect(gameCharges({ wage: rule, timer }, [buy("a", 0), leave("a", 120)], clock)).toEqual([
+      wage("a", "base", 2500, 60, 2500),
+      wage("a", "time-1", 3000, 60, 3000),
     ]);
   });
 });
