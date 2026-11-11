@@ -705,7 +705,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - Saved odds tables are kept on their own and backed up. Backups move to version 9.
   - Dialogs opened inside the setup form render outside it, so Enter in them never starts the game.
   - Odds fields select their value on a tap and show at least one decimal once left: 30 reads 30.0.
-- Decision: do. Checked at phone size in the browser preview, dark mode.
+- Decision: do. Checked at phone size in the browser preview, dark mode, then on a phone with the preview build.
 - Tracking: PR #80, ADR [0026](adr/0026-insurance-cover-limits-and-odds-tables.md)
 
 ### #I-039 Wage and table fee setup: segments, billing units and saved configs
@@ -729,8 +729,8 @@ Records discussions of feature and process improvements: what was proposed, how 
   - Older games keep charging as before. A wage rule carried over from one keeps its by-the-minute, round-down charging.
   - 保存配置 shows only for a valid change unlike every config on offer, for wages, table fees and insurance alike.
   - Every setting carries over from the latest game. An option it had off starts off, and when turned on takes the last game that had it, or the defaults.
-  - From trying the preview: every typed field in game setup selects its value on a tap. Money shows two decimals once left, so 30 reads 30.00 and 36.5 reads 36.50, and segment rates show /小时. 货币 is picked from a list with no 确定, and the 筹码 and 盲注 rows lose their arrows.
-- Decision: do. Checked at phone size in the browser preview, dark mode.
+  - From trying the preview: every typed field in game setup selects its value on a tap. Money shows two decimals once left, so 30 reads 30.00 and 36.5 reads 36.50, and segment rates show /小时, lined up on the right with 基础时薪 and with the delete button before them. 货币 is picked from a list with no 确定 and keeps a down arrow; the 筹码, 盲注 and Buy in rows lose theirs.
+- Decision: do. Checked at phone size in the browser preview, dark mode, then on a phone with the preview build.
 - Tracking: PR #80, ADR [0025](adr/0025-wage-segments-and-billing-units.md)
 
 ## Not doing or deferred
