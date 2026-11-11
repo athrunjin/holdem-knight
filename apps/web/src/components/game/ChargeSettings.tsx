@@ -705,6 +705,15 @@ export function WageSettings({
                           onChange={(toHour) => setTime(i, { toHour })}
                         />
                         <span className="ml-auto flex items-center">
+                          {/* Before the rate, so every rate lines up on the right with the base rate */}
+                          {i > 0 && (
+                            <SmallButton
+                              label={`删除第 ${i + 1} 段`}
+                              onClick={() => setForm({ timeSegments: time.slice(0, i) })}
+                            >
+                              <X className="size-4" aria-hidden />
+                            </SmallButton>
+                          )}
                           <InlineNumber
                             id={`wage-time-${i}`}
                             label={`第 ${i + 1} 段时薪`}
@@ -715,16 +724,6 @@ export function WageSettings({
                             format={formatMoneyText}
                             onChange={(hourly) => setTime(i, { hourly })}
                           />
-                          {i > 0 ? (
-                            <SmallButton
-                              label={`删除第 ${i + 1} 段`}
-                              onClick={() => setForm({ timeSegments: time.slice(0, i) })}
-                            >
-                              <X className="size-4" aria-hidden />
-                            </SmallButton>
-                          ) : (
-                            <span className="w-11" />
-                          )}
                         </span>
                       </li>
                     ))}
@@ -778,6 +777,17 @@ export function WageSettings({
                         />
                         <span className="text-muted">小时后</span>
                         <span className="ml-auto flex items-center">
+                          {/* Before the rate, so every rate lines up on the right with the base rate */}
+                          {i > 0 && (
+                            <SmallButton
+                              label={`删除第 ${i + 1} 段`}
+                              onClick={() =>
+                                setForm({ afterSegments: after.filter((_, j) => j !== i) })
+                              }
+                            >
+                              <X className="size-4" aria-hidden />
+                            </SmallButton>
+                          )}
                           <InlineNumber
                             id={`wage-after-${i}`}
                             label={`第 ${i + 1} 段时薪`}
@@ -788,18 +798,6 @@ export function WageSettings({
                             format={formatMoneyText}
                             onChange={(hourly) => setAfter(i, { hourly })}
                           />
-                          {i > 0 ? (
-                            <SmallButton
-                              label={`删除第 ${i + 1} 段`}
-                              onClick={() =>
-                                setForm({ afterSegments: after.filter((_, j) => j !== i) })
-                              }
-                            >
-                              <X className="size-4" aria-hidden />
-                            </SmallButton>
-                          ) : (
-                            <span className="w-11" />
-                          )}
                         </span>
                       </li>
                     ))}
