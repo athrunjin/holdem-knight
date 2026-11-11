@@ -681,7 +681,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The note on chips nobody called is gone from the page.
   - Outs数速算 uses the same block once both players and the outs are in, in place of its overview and its separate quote. Its legend reads Outs n · chance for the player behind.
   - A lone side pot is called 边池. With more than one they are 边池 1, 边池 2 and so on, on the columns and on the pot cards alike.
-- Decision: do. Built over several rounds, each checked on a phone with the preview build.
+- Decision: do. Built over several rounds; all but the last were checked on a phone with the preview build.
 - Tracking: PR [#79](https://github.com/athrunjin/holdem-knight/pull/79)
 
 ## Not doing or deferred
