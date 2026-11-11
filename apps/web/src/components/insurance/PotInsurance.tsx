@@ -99,9 +99,9 @@ const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
 
 /**
  * The pot by who put it in: its leaders first with their chance to win it, then the players behind
- * with their outs against this offer's leader, then the dead money.
+ * with their outs against this offer's leader, then any dead money.
  */
-function potParts({ pot, leader }: HandOffer, nameOf: (id: string) => string): PotShare[] {
+function potParts({ pot, potIndex, leader }: HandOffer, nameOf: (id: string) => string): PotShare[] {
   const leaders = pot.leaders.map((l) => l.playerId);
   const live = pot.playerIds.map((playerId): PotShare => {
     const leading = leaders.includes(playerId);
@@ -115,11 +115,14 @@ function potParts({ pot, leader }: HandOffer, nameOf: (id: string) => string): P
       note: leading ? chance : `Outs ${outs} · ${chance}`,
     };
   });
-  const staked = live.reduce((sum, { chips }) => sum + chips, 0);
+  const deadChips = pot.amountChips - live.reduce((sum, { chips }) => sum + chips, 0);
   return [
     ...live.filter(({ tone }) => tone === "leader"),
     ...live.filter(({ tone }) => tone !== "leader"),
-    { key: "dead-money", tone: "dead", label: "死钱", chips: pot.amountChips - staked },
+    // The main pot always lists dead money, even at zero; a side pot only when it holds some
+    ...(potIndex === 0 || deadChips > 0
+      ? [{ key: "dead-money", tone: "dead" as const, label: "死钱", chips: deadChips }]
+      : []),
   ];
 }
 
