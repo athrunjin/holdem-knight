@@ -13,6 +13,7 @@ import {
   playerHandResults,
   premiumBuyIns,
   type SavedInsuranceRule,
+  type SavedOddsTable,
   summarizeByPlayer,
 } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,6 +50,38 @@ export function useRemoveInsuranceRule() {
   return useMutation({
     mutationFn: (id: string) => repository.insuranceRules.remove(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: RULES_KEY }),
+  });
+}
+
+const ODDS_TABLES_KEY = ["odds-tables"] as const;
+
+export function useOddsTables() {
+  return useQuery({ queryKey: ODDS_TABLES_KEY, queryFn: () => repository.oddsTables.list() });
+}
+
+export function newOddsTable(name: string, oddsHundredths: readonly number[]): SavedOddsTable {
+  return {
+    id: crypto.randomUUID(),
+    organizerId: GUEST_ORGANIZER_ID,
+    name,
+    oddsHundredths,
+    createdAt: Date.now(),
+  };
+}
+
+export function useSaveOddsTable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (table: SavedOddsTable) => repository.oddsTables.save(table),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ODDS_TABLES_KEY }),
+  });
+}
+
+export function useRemoveOddsTable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => repository.oddsTables.remove(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ODDS_TABLES_KEY }),
   });
 }
 

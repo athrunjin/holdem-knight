@@ -1,6 +1,7 @@
 import { Info } from "lucide-react";
-import { useId, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { Modal } from "@/components/insurance/Modal";
+import { cn } from "@/lib/cn";
 
 interface ToggleProps {
   label: string;
@@ -9,11 +10,21 @@ interface ToggleProps {
   info?: string;
   checked: boolean;
   disabled?: boolean;
+  /** Sits just left of the switch, such as a dropdown for the option's settings */
+  accessory?: ReactNode;
   onChange: (checked: boolean) => void;
 }
 
 /** A labeled on/off switch taking one row. */
-export function Toggle({ label, detail, info, checked, disabled = false, onChange }: ToggleProps) {
+export function Toggle({
+  label,
+  detail,
+  info,
+  checked,
+  disabled = false,
+  accessory,
+  onChange,
+}: ToggleProps) {
   const id = useId();
   const [showInfo, setShowInfo] = useState(false);
 
@@ -34,7 +45,14 @@ export function Toggle({ label, detail, info, checked, disabled = false, onChang
           <Info className="size-4.5" aria-hidden />
         </button>
       )}
-      <label htmlFor={id} className="flex min-h-11 flex-1 cursor-pointer items-center justify-end">
+      {accessory && <div className="flex min-w-0 flex-1 justify-end">{accessory}</div>}
+      <label
+        htmlFor={id}
+        className={cn(
+          "flex min-h-11 cursor-pointer items-center justify-end",
+          accessory ? "shrink-0 pl-1" : "flex-1",
+        )}
+      >
         <input
           id={id}
           type="checkbox"

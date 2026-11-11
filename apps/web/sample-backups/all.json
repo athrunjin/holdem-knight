@@ -1,6 +1,6 @@
 {
   "format": "holdem-backup",
-  "version": 8,
+  "version": 9,
   "exportedAt": 1767830400000,
   "games": [
     {
@@ -79,7 +79,6 @@
       "insurance": {
         "tieOuts": "include",
         "refundPremium": false,
-        "coverTurn": true,
         "oddsHundredths": [
           3000,
           1500,
@@ -817,5 +816,7 @@
   ],
   "insuranceRules": [],
   "insuranceHands": [],
-  "gameConfigs": []
+  "gameConfigs": [],
+  "oddsTables": [],
+  "chargeRules": []
 }

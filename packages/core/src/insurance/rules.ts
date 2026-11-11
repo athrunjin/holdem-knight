@@ -1,7 +1,7 @@
 /** Insurance rules: the built-in tables, and parsing the rule form. */
-import type { InsuranceRule, TieOuts } from "../domain";
+import type { CoverLimit, InsuranceRule, TieOuts } from "../domain";
 
-const BASE_RULE = { tieOuts: "include", refundPremium: false, coverTurn: true } as const;
+const BASE_RULE = { tieOuts: "include", refundPremium: false } as const;
 
 /** Odds common at live games: one out pays 30. The default for a new game. */
 export const RULE_30: InsuranceRule = {
@@ -37,55 +37,62 @@ export interface InsuranceRuleForm {
   readonly odds: readonly string[];
   readonly tieOuts: TieOuts;
   readonly refundPremium: boolean;
-  readonly coverTurn: boolean;
-  readonly turnCapPercent: string;
-  readonly riverCapPercent: string;
+  /** `stake`, or a percentage of the pot share from 1 to 100 */
+  readonly turnLimit: string;
+  readonly riverLimit: string;
 }
+
+/** The form value for a cover limit: 100 is the full pot share. */
+export const FULL_POT_LIMIT = "100";
+export const STAKE_LIMIT = "stake";
+
+const toLimitForm = (limit: CoverLimit | undefined) =>
+  limit === undefined ? FULL_POT_LIMIT : String(limit);
 
 export function toInsuranceRuleForm(rule: InsuranceRule): InsuranceRuleForm {
   return {
     odds: rule.oddsHundredths.map(formatOdds),
     tieOuts: rule.tieOuts,
     refundPremium: rule.refundPremium,
-    coverTurn: rule.coverTurn,
-    turnCapPercent: rule.turnCapPercent?.toString() ?? "",
-    riverCapPercent: rule.riverCapPercent?.toString() ?? "",
+    turnLimit: toLimitForm(rule.turnCoverLimit),
+    riverLimit: toLimitForm(rule.riverCoverLimit),
   };
 }
 
 export type InsuranceRuleIssues = {
   /** Outs whose odds are invalid. */
   readonly odds?: readonly number[];
-  readonly turnCapPercent?: true;
-  readonly riverCapPercent?: true;
+  readonly turnLimit?: true;
+  readonly riverLimit?: true;
 };
 
 export type ParsedInsuranceRule =
   | { readonly ok: true; readonly rule: InsuranceRule }
   | { readonly ok: false; readonly issues: InsuranceRuleIssues };
 
-/** A blank limit means no limit. Returns null if it is not a whole number from `min` to `max`. */
-function parseLimit(input: string, min: number, max: number): number | undefined | null {
+/** Undefined for the full pot share. Returns null unless it is `stake` or a whole percentage from 1 to 100. */
+export function parseCoverLimit(input: string): CoverLimit | undefined | null {
   const text = input.trim();
-  if (text === "") return undefined;
+  if (text === STAKE_LIMIT) return STAKE_LIMIT;
   const value = Number(text);
-  return /^\d+$/.test(text) && value >= min && value <= max ? value : null;
+  if (!/^\d+$/.test(text) || value < 1 || value > 100) return null;
+  return value === 100 ? undefined : value;
 }
 
 export function parseInsuranceRule(form: InsuranceRuleForm): ParsedInsuranceRule {
   const parsedOdds = form.odds.map(parseOdds);
   const badOuts = parsedOdds.flatMap((odds, i) => (odds === null ? [i + 1] : []));
-  const turnCapPercent = parseLimit(form.turnCapPercent, 1, 1000);
-  const riverCapPercent = parseLimit(form.riverCapPercent, 1, 1000);
+  const turnCoverLimit = parseCoverLimit(form.turnLimit);
+  const riverCoverLimit = parseCoverLimit(form.riverLimit);
 
   const issues: {
     odds?: number[];
-    turnCapPercent?: true;
-    riverCapPercent?: true;
+    turnLimit?: true;
+    riverLimit?: true;
   } = {};
   if (badOuts.length > 0 || form.odds.length === 0) issues.odds = badOuts;
-  if (turnCapPercent === null) issues.turnCapPercent = true;
-  if (riverCapPercent === null) issues.riverCapPercent = true;
+  if (turnCoverLimit === null) issues.turnLimit = true;
+  if (riverCoverLimit === null) issues.riverLimit = true;
   if (Object.keys(issues).length > 0) return { ok: false, issues };
 
   return {
@@ -94,9 +101,8 @@ export function parseInsuranceRule(form: InsuranceRuleForm): ParsedInsuranceRule
       oddsHundredths: parsedOdds.flatMap((odds) => (odds === null ? [] : [odds])),
       tieOuts: form.tieOuts,
       refundPremium: form.refundPremium,
-      coverTurn: form.coverTurn,
-      ...(turnCapPercent != null && { turnCapPercent }),
-      ...(riverCapPercent != null && { riverCapPercent }),
+      ...(turnCoverLimit != null && { turnCoverLimit }),
+      ...(riverCoverLimit != null && { riverCoverLimit }),
     },
   };
 }

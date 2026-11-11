@@ -1,9 +1,11 @@
-import type { Ref } from "react";
+import type { ReactNode, Ref } from "react";
 import { cn } from "@/lib/cn";
 
 interface TextFieldProps {
   id: string;
   label: string;
+  /** Sits right after the label, such as an info button */
+  labelAccessory?: ReactNode;
   value: string;
   issue: string | undefined;
   prefix?: string;
@@ -19,6 +21,7 @@ interface TextFieldProps {
 export function TextField({
   id,
   label,
+  labelAccessory,
   value,
   issue,
   prefix,
@@ -33,9 +36,18 @@ export function TextField({
   const issueId = `${id}-issue`;
   return (
     <div className="min-w-0">
-      <label htmlFor={id} className="mb-1 block text-sm text-muted">
-        {label}
-      </label>
+      {labelAccessory ? (
+        <div className="mb-1 flex items-center">
+          <label htmlFor={id} className="text-sm text-muted">
+            {label}
+          </label>
+          {labelAccessory}
+        </div>
+      ) : (
+        <label htmlFor={id} className="mb-1 block text-sm text-muted">
+          {label}
+        </label>
+      )}
       <div
         className={cn(
           "flex min-h-12 items-center gap-1 rounded-xl border bg-surface px-3 focus-within:border-highlight",

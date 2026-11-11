@@ -39,7 +39,7 @@ import {
 
 type SettingDialog = "currency" | "ratio" | "blinds" | "buyIn";
 
-/** Options with no settings yet. Rake sits between insurance and the table fee. */
+/** Options with no settings yet. Rake comes last, after insurance. */
 const PLANNED_OPTIONS = ["抽水"];
 
 function PlannedOption({ label }: { label: string }) {
@@ -229,6 +229,22 @@ export function GameSettingsForm({
         </div>
 
         <div className="flex flex-col gap-3">
+          <WageSettings
+            value={wage}
+            issues={wageIssues}
+            currency={values.currency}
+            lastRule={lastWage}
+            lastRuleLabel={lastWageLabel}
+            onChange={setWage}
+          />
+          <TableFeeSettings
+            value={tableFee}
+            issues={tableFeeIssues}
+            currency={values.currency}
+            lastRule={lastTableFee}
+            lastRuleLabel={lastTableFeeLabel}
+            onChange={setTableFee}
+          />
           {showInsurance && (
             <InsuranceSettings
               value={insurance}
@@ -242,22 +258,6 @@ export function GameSettingsForm({
           {PLANNED_OPTIONS.map((label) => (
             <PlannedOption key={label} label={label} />
           ))}
-          <TableFeeSettings
-            value={tableFee}
-            issues={tableFeeIssues}
-            currency={values.currency}
-            lastRule={lastTableFee}
-            lastRuleLabel={lastTableFeeLabel}
-            onChange={setTableFee}
-          />
-          <WageSettings
-            value={wage}
-            issues={wageIssues}
-            currency={values.currency}
-            lastRule={lastWage}
-            lastRuleLabel={lastWageLabel}
-            onChange={setWage}
-          />
         </div>
 
         {saveFailed && (

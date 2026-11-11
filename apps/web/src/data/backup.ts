@@ -11,7 +11,7 @@ import {
 import { z } from "zod";
 
 const FORMAT = "holdem-backup";
-const VERSION = 8;
+const VERSION = 9;
 
 const id = z.string().min(1);
 const money = z
@@ -23,16 +23,17 @@ const timestamp = z.number().int();
 
 const owned = { id, organizerId: id };
 
-const percent = z.number().int().positive();
 const street = z.enum(["turn", "river"]);
+
+/** Rules before version 9 had premium caps instead, which are dropped and leave the full pot. */
+const coverLimit = z.union([z.literal("stake"), z.number().int().min(1).max(99)]);
 
 const insuranceRuleSchema = z.object({
   oddsHundredths: z.array(z.number().int().positive()).min(1),
   tieOuts: z.enum(["exclude", "include"]),
   refundPremium: z.boolean(),
-  coverTurn: z.boolean(),
-  turnCapPercent: percent.optional(),
-  riverCapPercent: percent.optional(),
+  turnCoverLimit: coverLimit.optional(),
+  riverCoverLimit: coverLimit.optional(),
 });
 
 const tableFeeSchema = z.object({ amount: money, minMinutes: z.number().int().min(0) });
@@ -41,6 +42,17 @@ const hour = z.number().int().min(0).max(23);
 
 const wageSchema = z.object({
   hourly: money,
+  /** Added in version 9, with the segments. */
+  unitMinutes: z.union([z.literal(1), z.literal(15), z.literal(30), z.literal(60)]).optional(),
+  roundUp: z.boolean().optional(),
+  timeSegments: z
+    .array(z.object({ fromHour: hour, toHour: hour.optional(), hourly: money }))
+    .max(3)
+    .optional(),
+  afterStartSegments: z
+    .array(z.object({ afterHours: chips.positive(), hourly: money }))
+    .max(3)
+    .optional(),
   adjustment: z
     .discriminatedUnion("kind", [
       z.object({ kind: z.literal("time_of_day"), fromHour: hour, toHour: hour, hourly: money }),
@@ -81,7 +93,10 @@ const gameFields = {
       z.object({
         playerId: id,
         kind: z.enum(["table_fee", "wage"]),
-        part: z.enum(["base", "adjusted"]).optional(),
+        part: z
+          .string()
+          .regex(/^(base|adjusted|time-[1-3]|after-[1-3])$/)
+          .optional(),
       }),
     )
     .optional(),
@@ -195,6 +210,19 @@ const insuranceHandSchema = z.object({
   createdAt: timestamp,
 });
 
+const oddsTableSchema = z.object({
+  ...owned,
+  name: z.string().min(1),
+  oddsHundredths: insuranceRuleSchema.shape.oddsHundredths,
+  createdAt: timestamp,
+});
+
+const savedFields = { ...owned, name: z.string().min(1), createdAt: timestamp };
+const chargeRuleSchema = z.discriminatedUnion("kind", [
+  z.object({ ...savedFields, kind: z.literal("table_fee"), rule: tableFeeSchema }),
+  z.object({ ...savedFields, kind: z.literal("wage"), rule: wageSchema }),
+]);
+
 const collections = {
   players: z.array(playerSchema),
   ledgerEvents: z.array(eventSchema),
@@ -204,6 +232,10 @@ const collections = {
   insuranceHands: z.array(insuranceHandSchema).default([]),
   /** Added in version 5. */
   gameConfigs: z.array(gameConfigSchema).default([]),
+  /** Added in version 9. */
+  oddsTables: z.array(oddsTableSchema).default([]),
+  /** Added in version 9. */
+  chargeRules: z.array(chargeRuleSchema).default([]),
 };
 
 const backupSchema = z.object({ games: z.array(gameSchema), ...collections });

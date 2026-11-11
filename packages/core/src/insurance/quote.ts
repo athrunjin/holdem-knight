@@ -55,14 +55,14 @@ export interface QuoteOption {
   readonly capped: boolean;
 }
 
-export type QuoteBlock = "tied-lead" | "street-closed" | "no-outs" | "too-many-outs";
+export type QuoteBlock = "tied-lead" | "no-outs" | "too-many-outs";
 
 export type InsuranceQuote =
   | { readonly ok: false; readonly block: QuoteBlock }
   | {
       readonly ok: true;
       readonly oddsHundredths: number;
-      /** Highest premium allowed: a hit may not leave more than the pot share, nor the premium pass the rule's limit. */
+      /** Highest premium allowed: a hit may not leave more than the rule's cover limit, at most the pot share. */
       readonly maxPremiumChips: number;
       /** A hit leaves the buyer what they put in. */
       readonly stake: QuoteOption;
@@ -89,22 +89,24 @@ export function priceOption(
   };
 }
 
-function capChips({ rule, street, potChips }: QuoteInput): number {
-  const percent = street === "turn" ? rule.turnCapPercent : rule.riverCapPercent;
-  return percent === undefined ? Number.POSITIVE_INFINITY : Math.floor((potChips * percent) / 100);
+/** The most a hit may leave the buyer on this street under the rule. */
+function coverLimitChips({ rule, street, shareChips, stakeChips }: QuoteInput): number {
+  const limit = street === "turn" ? rule.turnCoverLimit : rule.riverCoverLimit;
+  if (limit === undefined) return shareChips;
+  if (limit === "stake") return Math.min(stakeChips, shareChips);
+  return Math.ceil((shareChips * limit) / 100);
 }
 
 export function quoteInsurance(input: QuoteInput): InsuranceQuote {
-  const { rule, street, shareChips, stakeChips, outs } = input;
+  const { rule, shareChips, stakeChips, outs } = input;
   if (input.blockedTie) return { ok: false, block: "tied-lead" };
-  if (street === "turn" && !rule.coverTurn) return { ok: false, block: "street-closed" };
   if (outs === 0) return { ok: false, block: "no-outs" };
   const oddsHundredths = rule.oddsHundredths[outs - 1];
   if (oddsHundredths === undefined) return { ok: false, block: "too-many-outs" };
 
   const premiumToLeave = (netChips: number) =>
     premiumForNet(netChips, oddsHundredths, rule.refundPremium);
-  const maxPremiumChips = Math.min(premiumToLeave(shareChips), capChips(input));
+  const maxPremiumChips = premiumToLeave(coverLimitChips(input));
   const halfChips = Math.ceil(shareChips / 2);
   const option = (netChips: number) => {
     const target = premiumToLeave(netChips);

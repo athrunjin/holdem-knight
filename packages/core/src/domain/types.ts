@@ -27,6 +27,12 @@ export type GameStatus = "open" | "settled";
 /** Whether cards that split the pot count as outs. */
 export type TieOuts = "exclude" | "include";
 
+/**
+ * The most a hit may leave the buyer on a street: what they put in, or a percentage (1–99) of their
+ * pot share. The street's limit is missing for the whole share.
+ */
+export type CoverLimit = "stake" | number;
+
 /** Insurance terms. Copied onto each game, so editing a saved rule never changes past games. */
 export interface InsuranceRule {
   /** Payout multiples in hundredths, indexed by outs − 1: 350 means 3.5. More outs than entries cannot be insured. */
@@ -34,12 +40,30 @@ export interface InsuranceRule {
   readonly tieOuts: TieOuts;
   /** Whether a hit also hands back the premium. */
   readonly refundPremium: boolean;
-  /** Whether a flop all-in can insure the turn card. The river can always be insured. */
-  readonly coverTurn: boolean;
-  /** Highest premium on the turn card, as a percentage of the pot. Missing means no limit. */
-  readonly turnCapPercent?: number;
-  /** Highest premium on the river card, as a percentage of the pot. Missing means no limit. */
-  readonly riverCapPercent?: number;
+  /** Cover limit for the turn card, bought after a flop all-in. Missing means the full pot share. */
+  readonly turnCoverLimit?: CoverLimit;
+  /** Cover limit for the river card. Missing means the full pot share. */
+  readonly riverCoverLimit?: CoverLimit;
+}
+
+/** A table fee or wage setup kept under a name, to fill a new game's settings quickly. */
+export type SavedChargeRule = {
+  readonly id: string;
+  readonly organizerId: OrganizerId;
+  readonly name: string;
+  readonly createdAt: Timestamp;
+} & (
+  | { readonly kind: "table_fee"; readonly rule: TableFeeRule }
+  | { readonly kind: "wage"; readonly rule: WageRule }
+);
+
+/** Odds by outs kept under a name, to fill a rule's table quickly. */
+export interface SavedOddsTable {
+  readonly id: string;
+  readonly organizerId: OrganizerId;
+  readonly name: string;
+  readonly oddsHundredths: readonly number[];
+  readonly createdAt: Timestamp;
 }
 
 /** A named rule kept for quick use in later games. */
@@ -117,8 +141,8 @@ export interface TableFeeRule {
 }
 
 /**
- * A different hourly wage for part of the game. One kind at a time: a time of day, or a time since
- * the first player sat down.
+ * A different hourly wage for part of the game, on rules from before segments. One kind at a time:
+ * a time of day, or a time since the first player sat down.
  */
 export type WageAdjustment =
   | {
@@ -138,8 +162,32 @@ export type WageAdjustment =
 
 export type ChargeKind = "table_fee" | "wage";
 
-/** Which rate a wage was charged at: the rule's own, or its adjustment. */
-export type WagePart = "base" | "adjusted";
+/**
+ * Which rate a wage was charged at: the rule's own, an older rule's adjustment, or a numbered
+ * segment by local time (`time-1`) or by game time (`after-1`).
+ */
+export type WagePart = "base" | "adjusted" | `time-${number}` | `after-${number}`;
+
+/**
+ * A rate from a local hour on the game's timeline: from the first time the clock shows `fromHour`
+ * once the game has started, until `toHour` next comes round.
+ */
+export interface WageTimeSegment {
+  /** Local hour, 0–23. */
+  readonly fromHour: number;
+  /** Local hour, 0–23 and not `fromHour`. Missing runs to the end of the game. */
+  readonly toHour?: number;
+  readonly hourly: Cents;
+}
+
+/** A rate from some whole hours of game clock time on, until the next segment's. */
+export interface WageAfterStartSegment {
+  readonly afterHours: number;
+  readonly hourly: Cents;
+}
+
+/** Wages are charged in whole units of these minutes. */
+export type WageUnitMinutes = 1 | 15 | 30 | 60;
 
 /** One charge the organizer let a player off at settlement (ADR 0024). */
 export interface ChargeWaiver {
@@ -149,11 +197,22 @@ export interface ChargeWaiver {
   readonly part?: WagePart;
 }
 
-/** What each player pays per hour at the table, counted by the minute. */
+/** What each player pays per hour at the table (ADR 0025). */
 export interface WageRule {
-  /** The rate at all times, unless the adjustment applies. */
+  /** The rate at all times no segment applies. */
   readonly hourly: Cents;
+  /**
+   * Missing on rules from before segments, which are charged by each rate's whole minutes rounded
+   * down and may have one `adjustment` instead.
+   */
+  readonly unitMinutes?: WageUnitMinutes;
+  /** Whether a part unit counts as a whole one. */
+  readonly roundUp?: boolean;
   readonly adjustment?: WageAdjustment;
+  /** Up to 3, each starting where the last ended. Only the last may run to the end. */
+  readonly timeSegments?: readonly WageTimeSegment[];
+  /** Up to 3, in rising order of hours. With time segments too, at most 4 in all. */
+  readonly afterStartSegments?: readonly WageAfterStartSegment[];
 }
 
 /** What the organizer chooses when starting a game. */

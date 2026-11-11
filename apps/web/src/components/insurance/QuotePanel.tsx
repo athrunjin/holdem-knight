@@ -14,7 +14,6 @@ import { PremiumDialog } from "./PremiumDialog";
 
 const BLOCK_TEXT: Record<QuoteBlock, string> = {
   "tied-lead": "并列领先，不能投保",
-  "street-closed": "当前规则不卖转牌保险",
   "no-outs": "没有反超牌，不需要保险",
   "too-many-outs": "outs 超出赔率表，不能投保",
 };
