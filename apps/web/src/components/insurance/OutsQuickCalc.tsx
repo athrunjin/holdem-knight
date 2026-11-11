@@ -14,10 +14,11 @@ import { type Ref, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { DeadMoneyDialog } from "./DeadMoneyDialog";
 import type { InsuranceSeat } from "./InsuranceCalculator";
-import { type Decisions, LeaderQuote } from "./LeaderQuote";
+import type { Decisions } from "./LeaderQuote";
 import { Modal } from "./Modal";
 import { PlayerChipsDialog } from "./PlayerChipsDialog";
-import { PotShares } from "./PotShares";
+import { PotCover } from "./PotInsurance";
+import { type PotShare, PotShares } from "./PotShares";
 import { SeatPicker } from "./SeatPicker";
 
 type Side = 0 | 1;
@@ -414,6 +415,46 @@ export function OutsQuickCalc({ rule, seats, autoSeat, saving, decisions }: Outs
       ? Math.min(stakeOf(leaderPlayer, players), stakeOf(trailerPlayer, players))
       : 0;
 
+  // Who put what into the pot, once both sides are in
+  const parts: PotShare[] | undefined =
+    leaderPlayer && trailerPlayer
+      ? [
+          {
+            key: "leader",
+            tone: "leader",
+            label: nameOf(leaderPlayer.playerId),
+            chips: leaderStake,
+            note: chances && percentText(chances.win),
+            onSelect: () => setAdding({ side: leader, stage: "chips", entry: leaderPlayer }),
+          },
+          {
+            key: "trailer",
+            tone: "trailer",
+            label: nameOf(trailerPlayer.playerId),
+            chips: leaderStake,
+            note: chances && `Outs ${chances.outs} · ${percentText(chances.hit)}`,
+            onSelect: () =>
+              setAdding({
+                side: trailer,
+                stage: "chips",
+                entry: trailerPlayer,
+                thenOuts: true,
+              }),
+          },
+          {
+            key: "dead",
+            tone: "dead",
+            label: "死钱",
+            chips: totals.deadChips,
+            note:
+              chances && chances.ties > 0
+                ? `平分 ${chances.ties} · ${percentText(chances.tie)}`
+                : undefined,
+            onSelect: () => setEditingDead(true),
+          },
+        ]
+      : undefined;
+
   const missing =
     !leaderPlayer || !trailerPlayer ? "先选好两位玩家和筹码。" : "填好落后一方的 Outs 后开始计算。";
 
@@ -472,83 +513,41 @@ export function OutsQuickCalc({ rule, seats, autoSeat, saving, decisions }: Outs
             );
           })}
         </div>
-        {leaderPlayer && trailerPlayer && (
+        {parts && !ready && (
           <div className="mt-2">
-            <PotShares
-              parts={[
-                {
-                  key: "leader",
-                  tone: "leader",
-                  label: nameOf(leaderPlayer.playerId),
-                  chips: leaderStake,
-                  note: chances && percentText(chances.win),
-                  onSelect: () => setAdding({ side: leader, stage: "chips", entry: leaderPlayer }),
-                },
-                {
-                  key: "trailer",
-                  tone: "trailer",
-                  label: nameOf(trailerPlayer.playerId),
-                  chips: leaderStake,
-                  note: chances && `反超Outs ${chances.outs} / ${percentText(chances.hit)}`,
-                  onSelect: () =>
-                    setAdding({
-                      side: trailer,
-                      stage: "chips",
-                      entry: trailerPlayer,
-                      thenOuts: true,
-                    }),
-                },
-                {
-                  key: "dead",
-                  tone: "dead",
-                  label: "死钱",
-                  chips: totals.deadChips,
-                  note:
-                    chances && chances.ties > 0
-                      ? `平分Outs ${chances.ties} / ${percentText(chances.tie)}`
-                      : undefined,
-                  onSelect: () => setEditingDead(true),
-                },
-              ]}
-            />
+            <PotShares parts={parts} />
           </div>
         )}
       </section>
 
-      {ready ? (
-        <section aria-label="保险报价" className="rounded-xl border border-line bg-surface p-3">
-          <h3 className="font-semibold">
-            {nameOf(leaderPlayer.playerId)} 领先 · {soldText(trailerEntry, tiesSold)} outs
-            <span className="ml-1 text-sm font-normal text-muted">
-              投入 {chipText(leaderStake)} · 可得 {chipText(totals.effectiveChips)}
-            </span>
-          </h3>
-          <LeaderQuote
-            id="quick"
-            decisionKey={[
-              "quick",
-              leaderPlayer.playerId,
-              trailerPlayer.playerId,
-              street,
-              totals.effectiveChips,
-              leaderStake,
-              trailerEntry.outs,
-              trailerEntry.ties,
-              rule.tieOuts,
-            ].join("|")}
-            input={{
-              rule,
-              street,
-              potChips: totals.effectiveChips,
-              shareChips: totals.effectiveChips,
-              stakeChips: leaderStake,
-              outs: trailerOuts,
-            }}
-            playerId={leaderPlayer.playerId}
-            saving={saving}
-            decisions={decisions}
-          />
-        </section>
+      {ready && parts ? (
+        <PotCover
+          label="主池"
+          parts={parts}
+          input={{
+            rule,
+            street,
+            potChips: totals.effectiveChips,
+            shareChips: totals.effectiveChips,
+            stakeChips: leaderStake,
+            outs: trailerOuts,
+          }}
+          playerId={leaderPlayer.playerId}
+          decisionKey={[
+            "quick",
+            leaderPlayer.playerId,
+            trailerPlayer.playerId,
+            street,
+            totals.effectiveChips,
+            leaderStake,
+            trailerEntry.outs,
+            trailerEntry.ties,
+            rule.tieOuts,
+          ].join("|")}
+          outsText={`${soldText(trailerEntry, tiesSold)} outs`}
+          saving={saving}
+          decisions={decisions}
+        />
       ) : (
         <p className="text-sm text-muted">{missing}</p>
       )}

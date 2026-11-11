@@ -69,7 +69,11 @@ export function handPotEntries(hand: Pick<InsuranceHand, "players" | "pools">): 
   return [...live, ...dead];
 }
 
-function handPots({ players, pools, board }: InsuranceHand): PotAnalysis[] {
+function handPots({
+  players,
+  pools,
+  board,
+}: Pick<InsuranceHand, "players" | "pools" | "board">): PotAnalysis[] {
   const hands = players.map(
     (player): AllInHand => ({
       playerId: player.playerId,
@@ -129,6 +133,53 @@ export function handStandings(hand: Pick<InsuranceHand, "players" | "board">): S
     hand.players.filter((p) => p.cards.length === 2),
     hand.board,
   );
+}
+
+export interface PotBreakdown {
+  readonly amountChips: number;
+  /** What each player has in this pot, in the order the players were entered. */
+  readonly stakes: readonly { readonly playerId: string; readonly chips: number }[];
+  /** Dead money in this pot. */
+  readonly deadChips: number;
+  /** Who holds the best hand in this pot on the cards so far. */
+  readonly leaders: readonly string[];
+  /** Each player's chance to win this pot. Empty before the flop, where it is not worked out. */
+  readonly equity: Readonly<Record<string, number>>;
+  /** Next cards that take this pot from its leader, and those that only split it. Both 0 before the flop. */
+  readonly outs: number;
+  readonly tieOuts: number;
+  /** Cards nobody has seen, which the next one is dealt from. */
+  readonly unseenCards: number;
+}
+
+/** Every contested pot, main pot first, by who put it in and who is ahead in it. */
+export function handPotBreakdown(
+  hand: Pick<InsuranceHand, "players" | "pools" | "board">,
+): PotBreakdown[] {
+  const cardsOf = new Map(hand.players.map((p) => [p.playerId, p.cards]));
+  const seen = hand.board.length + hand.players.reduce((total, p) => total + p.cards.length, 0);
+  // The same pots in the same order, with their outs and chances, once there is a flop to deal from
+  const analyzed = hand.board.length >= 3 ? handPots(hand) : [];
+  return buildPots(handPotEntries(hand))
+    .filter((pot) => pot.playerIds.length > 1)
+    .map((pot, index) => {
+      const [leader] = analyzed[index]?.leaders ?? [];
+      const stakes = pot.playerIds.map((playerId) => ({
+        playerId,
+        chips: pot.stakes[playerId] ?? 0,
+      }));
+      const staked = stakes.reduce((total, { chips }) => total + chips, 0);
+      return {
+        amountChips: pot.amountChips,
+        stakes,
+        deadChips: pot.amountChips - staked,
+        leaders: winnersOf(pot.playerIds, cardsOf, hand.board),
+        equity: analyzed[index]?.equity ?? {},
+        outs: leader?.outs.length ?? 0,
+        tieOuts: leader?.tieCards.length ?? 0,
+        unseenCards: 52 - seen,
+      };
+    });
 }
 
 /** Whether every offer that can be bought has been bought or turned down. */

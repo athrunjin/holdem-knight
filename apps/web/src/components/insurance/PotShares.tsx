@@ -1,5 +1,5 @@
 import { ArrowLeftRight } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { cn } from "@/lib/cn";
 
 export interface PotShare {
@@ -43,10 +43,22 @@ function withFills(parts: readonly PotShare[]): Filled[] {
   });
 }
 
-function Legend({ parts, total }: { parts: readonly Filled[]; total: number }) {
+/**
+ * Each part by name with its chips. `plain` leaves out the 领先 tag and the share of the pot, for
+ * where the ring beside it already says both.
+ */
+export function PotLegend({
+  parts,
+  total,
+  plain = false,
+}: {
+  parts: readonly PotShare[];
+  total: number;
+  plain?: boolean;
+}) {
   return (
     <ul className="flex min-w-0 flex-1 flex-col gap-0.5">
-      {parts.map(({ key, tone, fill, label, chips, note, onSelect }) => {
+      {withFills(parts).map(({ key, tone, fill, label, chips, note, onSelect }) => {
         const rowClass = cn(
           "flex w-full items-center gap-1 rounded-lg px-1 py-0.5 text-left text-sm",
           tone === "leader" && "bg-accent/15 font-semibold",
@@ -57,7 +69,9 @@ function Legend({ parts, total }: { parts: readonly Filled[]; total: number }) {
             {/* A long name gives way, so the chances stay whole on the same line */}
             <span className="flex min-w-0 flex-1 items-baseline gap-1">
               <span className="truncate">{label}</span>
-              {tone === "leader" && <span className="shrink-0 text-xs text-accent">领先</span>}
+              {tone === "leader" && !plain && (
+                <span className="shrink-0 text-xs text-accent">领先</span>
+              )}
               {note && (
                 <span
                   className={cn(
@@ -71,9 +85,11 @@ function Legend({ parts, total }: { parts: readonly Filled[]; total: number }) {
             </span>
             <span className="shrink-0 text-right leading-tight tabular-nums">
               <span className="block">{chipText(chips)}</span>
-              <span className="block text-xs font-normal text-muted">
-                {percentText(total > 0 ? chips / total : 0)}
-              </span>
+              {!plain && (
+                <span className="block text-xs font-normal text-muted">
+                  {percentText(total > 0 ? chips / total : 0)}
+                </span>
+              )}
             </span>
           </>
         );
@@ -99,9 +115,9 @@ function Legend({ parts, total }: { parts: readonly Filled[]; total: number }) {
 }
 
 /** Parts with chips, the only ones that take up room in a chart. */
-const filled = (parts: readonly Filled[]) => parts.filter(({ chips }) => chips > 0);
+const filled = (parts: readonly PotShare[]) => withFills(parts).filter(({ chips }) => chips > 0);
 
-function Bar({ parts, total }: { parts: readonly Filled[]; total: number }) {
+function Bar({ parts, total }: { parts: readonly PotShare[]; total: number }) {
   return (
     <>
       <div className="mt-2 flex h-4 gap-0.5 overflow-hidden rounded-full" aria-hidden>
@@ -114,19 +130,37 @@ function Bar({ parts, total }: { parts: readonly Filled[]; total: number }) {
         ))}
       </div>
       <div className="mt-2">
-        <Legend parts={parts} total={total} />
+        <PotLegend parts={parts} total={total} />
       </div>
     </>
   );
 }
 
-function Ring({ parts, total }: { parts: readonly Filled[]; total: number }) {
+/**
+ * The parts as a ring. With `cover` it gains an inner track, lit for that share of the way round,
+ * and whatever is passed as children sits in the middle.
+ */
+export function PotRing({
+  parts,
+  total,
+  cover,
+  children,
+}: {
+  parts: readonly PotShare[];
+  total: number;
+  /** How much of the inner track is lit, from 0 to 1. Missing leaves the ring without one. */
+  cover?: number | undefined;
+  children?: ReactNode;
+}) {
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
+  const innerRadius = 30;
+  const innerCircumference = 2 * Math.PI * innerRadius;
+  const lit = Math.min(1, Math.max(0, cover ?? 0)) * innerCircumference;
   let start = 0;
   return (
-    <div className="mt-2 flex items-center gap-1.5">
-      <svg viewBox="0 0 100 100" className="size-28 shrink-0 -rotate-90" aria-hidden>
+    <div className="relative size-28 shrink-0">
+      <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden>
         <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="10" className="stroke-line" />
         {filled(parts).map(({ key, tone, fill, chips }) => {
           const length = total > 0 ? (chips / total) * circumference : 0;
@@ -146,8 +180,32 @@ function Ring({ parts, total }: { parts: readonly Filled[]; total: number }) {
             />
           );
         })}
+        {cover !== undefined && (
+          <>
+            <circle
+              cx="50"
+              cy="50"
+              r={innerRadius}
+              fill="none"
+              strokeWidth="5"
+              className="stroke-line"
+            />
+            <circle
+              cx="50"
+              cy="50"
+              r={innerRadius}
+              fill="none"
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeDasharray={`${lit} ${innerCircumference}`}
+              className={cn("stroke-highlight transition-all", lit === 0 && "opacity-0")}
+            />
+          </>
+        )}
       </svg>
-      <Legend parts={parts} total={total} />
+      {children && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>
+      )}
     </div>
   );
 }
@@ -160,7 +218,6 @@ export function PotShares({ parts, look = "ring" }: { parts: readonly PotShare[]
   const [picked, setPicked] = useState<Look>();
   const shown = picked ?? look;
   const total = parts.reduce((sum, { chips }) => sum + chips, 0);
-  const drawn = withFills(parts);
   return (
     <section aria-label="有效总底池" className="rounded-xl border border-line bg-surface p-3">
       <div className="flex items-start justify-between gap-2">
@@ -178,9 +235,12 @@ export function PotShares({ parts, look = "ring" }: { parts: readonly PotShare[]
         </button>
       </div>
       {shown === "ring" ? (
-        <Ring parts={drawn} total={total} />
+        <div className="mt-2 flex items-center gap-1.5">
+          <PotRing parts={parts} total={total} />
+          <PotLegend parts={parts} total={total} />
+        </div>
       ) : (
-        <Bar parts={drawn} total={total} />
+        <Bar parts={parts} total={total} />
       )}
     </section>
   );
