@@ -1,5 +1,8 @@
 # Test plan: table fee, wages and settlement UI
 
+> Written for `eeaf651`. Since PR #80 (#I-038, #I-039), game setup and wage charging differ: rules R4, R5 and R9 and
+> cases A-01 and A-06 to A-10 describe the older setup. See ADR [0025](../adr/0025-wage-segments-and-billing-units.md).
+
 - Build: `main` `eeaf651` (2026-11-09)
 - Pull requests: #68, #70, #71, #72
 - Test link: <https://feat-settlement-summary.holdem-knight.pages.dev> (the same code as `main`, with its own data)

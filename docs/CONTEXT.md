@@ -60,11 +60,12 @@ These are the product defaults. Rules are configurable by design, so organizers 
 | Corrections   | The game record is read-only. Fix mistakes with hand controls, stacks and 返回            |
 | Imbalance     | Settling is allowed: split by win/loss, organizer covers or collects, or leave unhandled |
 | Rake          | A percentage of the pot with a cap                                                       |
-| Wages (工资)  | Each player pays an hourly rate for their own time at the table, by the minute. Default 25 an hour in the game's currency. One advanced rate: by time of day, or after the clock shows some hours |
-| Table fee     | Once per player per game, after a minimum time at the table. Default 100 after 30 minutes |
+| Wages (工资)  | Each player pays an hourly rate for their own time at the table. Default 25 an hour in the game's currency, by the minute with a part minute counted; billing can be by 15, 30 or 60 minutes, rounded up or down. Rates by time of day and by game time can both be on, up to 3 of each and 4 in all; where both apply the higher rate wins (ADR 0025) |
+| Table fee     | Once per player per game, after a minimum time at the table. Default 100 after 10 minutes |
 | Time at table | From buy-in to leaving, starting again on 返回, counted only while the game clock runs. A clock not started or paused means the game has not started or is paused (ADR 0023) |
 | Fees at settlement | Table fees and wages go to the host by default. Each player's card lists wages per rate and the table fee, each of which can be waived until the game is settled (ADR 0022, ADR 0024) |
-| Insurance     | Chosen per game. Two built-in tables, default 1 pays 30. Rules can be edited and saved   |
+| Insurance     | Chosen per game. Two built-in odds tables, default 1 pays 30. Tie cards count by default. Cover limits per street: the stake, half, three quarters or the full pot share (default), or a percentage. Odds tables and the other settings are saved and picked apart (ADR 0026) |
+| Starting values | Game setup carries over the latest game. An option the latest game had off starts off, and when turned on uses the last game that had it; with none, the defaults |
 | Break-even    | Shows both "recover your own stake" and "recover the whole pot"                          |
 | Insurance seat| 保险 is a reserved seat with one hand, always last, and cannot leave. Short of chips, it buys whole hands to pay |
 | Insurance result | Goes to the organizer by default, or a chosen player, or its own row                  |

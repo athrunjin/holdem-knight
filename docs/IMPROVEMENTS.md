@@ -684,6 +684,53 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Built over several rounds; all but the last were checked on a phone with the preview build.
 - Tracking: PR [#79](https://github.com/athrunjin/holdem-knight/pull/79)
 
+### #I-038 Insurance setup: cover limits, odds tables and saved settings
+
+- Type: feature
+- Date: proposed and decided 2026-11-11
+- Source: discussion
+- Problem: insurance at game setup listed every rule as a choice, capped premiums as a percentage of the pot, which no one used, had a turn switch nobody turned off, and edited the odds in a full grid of fields that changed the game as they were typed.
+- Proposal:
+  - Options at game setup run 工资, 台费, 保险, 抽水.
+  - Turning insurance on shows its config in a dropdown on the same row: 上次配置, or the saved name when last time used one.
+  - 命中退还保费 and 平分牌算 outs share one row of small switches. Last time's values carry over; with none, refund is off and tie cards count.
+  - 翻牌全下可保转牌 is gone: the next card can always be insured, and the river always.
+  - 保费上限 for 翻牌 and 转牌 sit on one row as dropdowns: 保本, 半池, 3/4池, 满池 (default) or a percentage up to 100%.
+  - The odds table is folded under these. Its row expands it, and the name beside it picks a built-in or saved table. Four fields a row, 15 by default, a small plus in the next place and a small delete on the last.
+  - 确认 lights only for a valid change. It asks 是否应用到本局？, then offers to save the table as 赔率表_日期, without opening the keyboard; a tap selects the name.
+- Settled details:
+  - The limits mean how much a hit may give back, like the calculator's covers, not a share of the pot paid as premium. Rules with premium caps or the turn closed insure the full pot and the turn from now on.
+  - 保存配置 at the right of the limits row saves the settings other than the odds, and shows only for a valid change unlike every config on offer. Picking a config keeps the game's odds.
+  - The 保存为规则 field and the built-in tables in the config dropdown are gone; built-in tables are in the odds dropdown. 查看demo moved beside 确认.
+  - Saved odds tables are kept on their own and backed up. Backups move to version 9.
+  - Dialogs opened inside the setup form render outside it, so Enter in them never starts the game.
+- Decision: do. Checked at phone size in the browser preview, dark mode.
+- Tracking: PR #80, ADR [0026](adr/0026-insurance-cover-limits-and-odds-tables.md)
+
+### #I-039 Wage and table fee setup: segments, billing units and saved configs
+
+- Type: feature
+- Date: proposed and decided 2026-11-11
+- Source: discussion
+- Problem: wages allowed only one advanced rate, charged only by the minute, and the base rate sat in a full-width field; table fee and wage presets could not be saved.
+- Proposal:
+  - Both options show their config in a dropdown on the switch row, like insurance, with 保存配置 at the foot.
+  - 基础时薪 25.00 sits on one row and is edited in place: a tap selects the number.
+  - 计费方式 picks 精确到分 (default), 精确到15分, 精确到30分 or 每小时, with 向上取整 on the same row, on by default, and an info button.
+  - 高级设置 becomes 分段薪资, where 时段设置 and 开局时间设置 can both be on.
+  - 时段设置 picks whole hours from dropdowns, 0点 marked 凌晨 and 12点 中午. A new list starts from 0点 with no end at 30; only the last segment may have no end, and then no segment can follow. A small plus adds one from the last end; all but the first can be deleted.
+  - 开局时间设置 starts at 6 hours, takes whole hours only, and can add and delete rows.
+  - Up to 3 of each and 4 in all. With both on, a note says the larger rate that came first applies.
+  - 台费 defaults to 10 minutes, with an info button by 在桌满 on why to keep some time.
+- Settled details:
+  - Time segments run on the game's timeline from the first time their hour comes round after the game starts, so "from 0点 with no end" means after midnight, not all day. Overlap and more than 24 hours together are refused.
+  - The total time is rounded to the unit, and the minutes rounding adds or takes away go to the rate the player sat at last.
+  - Older games keep charging as before. A wage rule carried over from one keeps its by-the-minute, round-down charging.
+  - 保存配置 shows only for a valid change unlike every config on offer, for wages, table fees and insurance alike.
+  - Every setting carries over from the latest game. An option it had off starts off, and when turned on takes the last game that had it, or the defaults.
+- Decision: do. Checked at phone size in the browser preview, dark mode.
+- Tracking: PR #80, ADR [0025](adr/0025-wage-segments-and-billing-units.md)
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
