@@ -10,6 +10,7 @@ import {
 } from "@/data/insurance";
 import { cn } from "@/lib/cn";
 import { datedName } from "@/lib/dated-name";
+import { formatOddsText, selectOnFocus } from "@/lib/number-input";
 import { ChoiceModal } from "./ChoiceModal";
 import { Modal } from "./Modal";
 
@@ -34,12 +35,12 @@ export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
   const [picking, setPicking] = useState(false);
   const [step, setStep] = useState<"apply" | "save" | "demo" | null>(null);
   const [applied, setApplied] = useState(odds);
-  const [draft, setDraft] = useState(odds);
+  const [draft, setDraft] = useState(() => odds.map(formatOddsText));
 
   // A new table from outside replaces the draft
   if (applied.join() !== odds.join()) {
     setApplied(odds);
-    setDraft(odds);
+    setDraft(odds.map(formatOddsText));
   }
 
   const tables = [
@@ -137,6 +138,8 @@ export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
                   onChange={(event) =>
                     setDraft(draft.map((v, j) => (j === i ? event.target.value : v)))
                   }
+                  onFocus={(event) => selectOnFocus(event.currentTarget)}
+                  onBlur={() => setDraft(draft.map((v, j) => (j === i ? formatOddsText(v) : v)))}
                   // Enter would submit the whole game form
                   onKeyDown={(event) => event.key === "Enter" && event.preventDefault()}
                   className={cn(

@@ -1,5 +1,4 @@
 import {
-  CURRENCIES,
   chipsToCents,
   type GameSettingsForm as FormValues,
   type GameSettingsField,
@@ -12,6 +11,7 @@ import {
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { TextField } from "@/components/TextField";
 import { CURRENCY_INFO, formatGameMoney } from "@/lib/currency";
+import { formatMoneyText } from "@/lib/number-input";
 import { FormDialog } from "./FormDialog";
 
 const ISSUE_TEXT: Record<GameSettingsIssue, string> = {
@@ -89,6 +89,7 @@ function useSettingDraft({ values, onConfirm }: SettingDialogProps) {
     return {
       id: name,
       value: draft[name],
+      selectOnFocus: true,
       issue: issue && ISSUE_TEXT[issue],
       onChange: (value: string) => setDraft({ ...draft, [name]: value }),
     };
@@ -97,41 +98,8 @@ function useSettingDraft({ values, onConfirm }: SettingDialogProps) {
   return { inputRef, draft, setDraft, handleSubmit, field };
 }
 
-export function CurrencyDialog(props: SettingDialogProps) {
-  const { draft, setDraft, handleSubmit } = useSettingDraft(props);
-
-  return (
-    <FormDialog
-      title="货币"
-      submitLabel="确定"
-      saving={false}
-      saveFailed={false}
-      onSubmit={handleSubmit}
-      onClose={props.onClose}
-    >
-      <div className="flex flex-col gap-2">
-        {CURRENCIES.map((currency) => (
-          <label key={currency} className="block">
-            <input
-              type="radio"
-              name="currency"
-              value={currency}
-              checked={draft.currency === currency}
-              onChange={() => setDraft({ ...draft, currency })}
-              className="peer sr-only"
-            />
-            <span className="grid min-h-12 cursor-pointer place-items-center rounded-xl border border-line bg-surface font-medium peer-checked:border-accent peer-checked:bg-accent peer-checked:text-accent-text peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-highlight">
-              {CURRENCY_INFO[currency].label}
-            </span>
-          </label>
-        ))}
-      </div>
-    </FormDialog>
-  );
-}
-
 export function ChipRatioDialog(props: SettingDialogProps) {
-  const { inputRef, draft, handleSubmit, field } = useSettingDraft(props);
+  const { inputRef, draft, setDraft, handleSubmit, field } = useSettingDraft(props);
 
   return (
     <FormDialog
@@ -156,6 +124,7 @@ export function ChipRatioDialog(props: SettingDialogProps) {
           label="对应金额"
           prefix={CURRENCY_INFO[draft.currency].symbol}
           inputMode="decimal"
+          onBlur={() => setDraft({ ...draft, ratioAmount: formatMoneyText(draft.ratioAmount) })}
         />
       </div>
     </FormDialog>

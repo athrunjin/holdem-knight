@@ -1,4 +1,4 @@
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { FormDialog } from "@/components/game/FormDialog";
 import { TextField } from "@/components/TextField";
 
@@ -29,7 +29,6 @@ export function SaveNameDialog({
 }: SaveNameDialogProps) {
   const [name, setName] = useState(initialName);
   const [issue, setIssue] = useState<string>();
-  const inputRef = useRef<HTMLInputElement>(null);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -53,8 +52,7 @@ export function SaveNameDialog({
         value={name}
         issue={issue}
         inputMode="text"
-        inputRef={inputRef}
-        onFocus={() => setTimeout(() => inputRef.current?.select())}
+        selectOnFocus
         onChange={(next) => {
           setName(next);
           setIssue(undefined);

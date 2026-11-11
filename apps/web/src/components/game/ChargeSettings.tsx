@@ -40,6 +40,7 @@ import {
 import { cn } from "@/lib/cn";
 import { CURRENCY_INFO } from "@/lib/currency";
 import { datedName } from "@/lib/dated-name";
+import { formatMoneyText, selectOnFocus } from "@/lib/number-input";
 
 const LAST_PRESET = "last";
 const DEFAULT_PRESET = "default";
@@ -263,6 +264,7 @@ function InlineNumber({
   suffix,
   wholeNumber = false,
   widthClass = "w-16",
+  format,
   onChange,
 }: {
   id: string;
@@ -274,6 +276,8 @@ function InlineNumber({
   /** Only digits get through */
   wholeNumber?: boolean;
   widthClass?: string;
+  /** Tidies the value once the field is left, such as 30 to 30.00 */
+  format?: (value: string) => string;
   onChange: (value: string) => void;
 }) {
   return (
@@ -287,9 +291,10 @@ function InlineNumber({
         autoComplete="off"
         value={value}
         aria-invalid={invalid || undefined}
-        onFocus={(event) => {
-          const input = event.currentTarget;
-          setTimeout(() => input.select());
+        onFocus={(event) => selectOnFocus(event.currentTarget)}
+        onBlur={() => {
+          const tidy = format?.(value);
+          if (tidy !== undefined && tidy !== value) onChange(tidy);
         }}
         onKeyDown={(event) => event.key === "Enter" && event.preventDefault()}
         onChange={(event) =>
@@ -446,6 +451,11 @@ export function TableFeeSettings({
               issue={issueText(issues.amount)}
               prefix={CURRENCY_INFO[currency].symbol}
               inputMode="decimal"
+              selectOnFocus
+              onBlur={() => {
+                const amount = formatMoneyText(form.amount);
+                if (amount !== form.amount) setForm({ amount });
+              }}
               onChange={(amount) => setForm({ amount })}
             />
             <TextField
@@ -461,6 +471,7 @@ export function TableFeeSettings({
               issue={issueText(issues.minMinutes)}
               suffix="分钟才收"
               inputMode="numeric"
+              selectOnFocus
               onChange={(minMinutes) => setForm({ minMinutes })}
             />
           </div>
@@ -606,6 +617,7 @@ export function WageSettings({
               invalid={shown.hourly !== undefined}
               prefix={symbol}
               suffix="/小时"
+              format={formatMoneyText}
               onChange={(hourly) => setForm({ hourly })}
             />
           </div>
@@ -699,6 +711,8 @@ export function WageSettings({
                             value={row.hourly}
                             invalid={shown[`time-${i}-hourly`] !== undefined}
                             prefix={symbol}
+                            suffix="/小时"
+                            format={formatMoneyText}
                             onChange={(hourly) => setTime(i, { hourly })}
                           />
                           {i > 0 ? (
@@ -770,6 +784,8 @@ export function WageSettings({
                             value={row.hourly}
                             invalid={shown[`after-${i}-hourly`] !== undefined}
                             prefix={symbol}
+                            suffix="/小时"
+                            format={formatMoneyText}
                             onChange={(hourly) => setAfter(i, { hourly })}
                           />
                           {i > 0 ? (

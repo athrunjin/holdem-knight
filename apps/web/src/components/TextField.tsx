@@ -1,5 +1,6 @@
 import type { ReactNode, Ref } from "react";
 import { cn } from "@/lib/cn";
+import { selectOnFocus as selectAll } from "@/lib/number-input";
 
 interface TextFieldProps {
   id: string;
@@ -13,6 +14,8 @@ interface TextFieldProps {
   placeholder?: string;
   inputMode: "numeric" | "decimal" | "text";
   inputRef?: Ref<HTMLInputElement>;
+  /** A tap selects what the field holds, so typing replaces it */
+  selectOnFocus?: boolean;
   onChange: (value: string) => void;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -29,6 +32,7 @@ export function TextField({
   placeholder,
   inputMode,
   inputRef,
+  selectOnFocus = false,
   onChange,
   onFocus,
   onBlur,
@@ -66,7 +70,10 @@ export function TextField({
           aria-invalid={issue ? true : undefined}
           aria-describedby={issue ? issueId : undefined}
           onChange={(event) => onChange(event.target.value)}
-          onFocus={onFocus}
+          onFocus={(event) => {
+            if (selectOnFocus) selectAll(event.currentTarget);
+            onFocus?.();
+          }}
           onBlur={onBlur}
           className="min-h-11 w-full min-w-0 bg-transparent text-lg outline-none"
         />

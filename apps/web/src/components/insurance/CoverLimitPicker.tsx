@@ -91,6 +91,7 @@ export function CoverLimitPicker({ street, value, onChange }: CoverLimitPickerPr
             issue={issue}
             suffix="%"
             inputMode="numeric"
+            selectOnFocus
             onChange={(next) => {
               setPercent(next);
               setIssue(undefined);

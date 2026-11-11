@@ -12,7 +12,7 @@ import {
 
 describe("parseTableFee", () => {
   it("round-trips the default", () => {
-    expect(toTableFeeForm(DEFAULT_TABLE_FEE)).toEqual({ amount: "100", minMinutes: "10" });
+    expect(toTableFeeForm(DEFAULT_TABLE_FEE)).toEqual({ amount: "100.00", minMinutes: "10" });
     expect(parseTableFee(toTableFeeForm(DEFAULT_TABLE_FEE))).toEqual({
       ok: true,
       rule: DEFAULT_TABLE_FEE,

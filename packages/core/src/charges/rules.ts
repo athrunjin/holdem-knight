@@ -45,14 +45,9 @@ export type ParsedTableFee =
   | { readonly ok: true; readonly rule: TableFeeRule }
   | { readonly ok: false; readonly issues: TableFeeIssues };
 
+/** The amount shows its cents, so 100 reads 100.00. */
 export function toTableFeeForm(rule: TableFeeRule): TableFeeForm {
-  return { amount: formatAmount(rule.amount), minMinutes: String(rule.minMinutes) };
-}
-
-/** Whole currency units without ".00", as typed. */
-function formatAmount(amount: Cents) {
-  const text = toDecimalString(amount);
-  return text.endsWith(".00") ? text.slice(0, -3) : text;
+  return { amount: toDecimalString(rule.amount), minMinutes: String(rule.minMinutes) };
 }
 
 /** A whole number from `min` to `max`, or null. */

@@ -1,4 +1,5 @@
 import {
+  CURRENCIES,
   type GameSettingsForm as FormValues,
   type GameSettings,
   type InsuranceRule,
@@ -14,8 +15,9 @@ import {
   type WageIssues,
   type WageRule,
 } from "@holdem-knight/core";
-import { ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
+import { ChoiceModal } from "@/components/insurance/ChoiceModal";
 import {
   InsuranceSettings,
   initialInsuranceChoice,
@@ -32,7 +34,6 @@ import {
   BlindsDialog,
   BuyInDialog,
   ChipRatioDialog,
-  CurrencyDialog,
   previewBlindCash,
   previewHand,
 } from "./GameSettingDialogs";
@@ -56,11 +57,14 @@ function PlannedOption({ label }: { label: string }) {
 function SettingRow({
   label,
   detail,
+  icon = "right",
   disabled = false,
   onClick,
   children,
 }: {
   label: string;
+  /** A right arrow opens a dialog, a down arrow a list to pick from, and none an editor in place */
+  icon?: "right" | "down" | "none";
   /** Small text under the value */
   detail?: string | null | undefined;
   disabled?: boolean;
@@ -80,7 +84,8 @@ function SettingRow({
           <span className="block font-medium">{children}</span>
           {detail && <span className="block text-sm text-muted">{detail}</span>}
         </span>
-        <ChevronRight className="size-5 shrink-0 text-muted" aria-hidden />
+        {icon === "right" && <ChevronRight className="size-5 shrink-0 text-muted" aria-hidden />}
+        {icon === "down" && <ChevronDown className="size-5 shrink-0 text-muted" aria-hidden />}
       </span>
     </button>
   );
@@ -195,16 +200,27 @@ export function GameSettingsForm({
       <form onSubmit={handleSubmit} noValidate className="flex max-w-md flex-col gap-6 pb-8">
         <div>
           <div className="divide-y divide-line rounded-xl border border-line bg-surface">
-            <SettingRow label="货币" disabled={ratioLocked} onClick={() => setDialog("currency")}>
+            <SettingRow
+              label="货币"
+              icon="down"
+              disabled={ratioLocked}
+              onClick={() => setDialog("currency")}
+            >
               {currencyLabel}
             </SettingRow>
-            <SettingRow label="筹码" disabled={ratioLocked} onClick={() => setDialog("ratio")}>
+            <SettingRow
+              label="筹码"
+              icon="none"
+              disabled={ratioLocked}
+              onClick={() => setDialog("ratio")}
+            >
               {values.ratioChips} <small className="font-normal text-muted">筹码</small> :{" "}
               {ratioAmount === null ? values.ratioAmount : toDecimalString(ratioAmount)}{" "}
               <small className="font-normal text-muted">{currencyLabel}</small>
             </SettingRow>
             <SettingRow
               label="盲注"
+              icon="none"
               detail={previewBlindCash(values)}
               onClick={() => setDialog("blinds")}
             >
@@ -290,7 +306,22 @@ export function GameSettingsForm({
       </form>
 
       {/* Outside the form: a dialog's own form must not nest in it or submit it */}
-      {dialog === "currency" && <CurrencyDialog {...dialogProps} />}
+      {dialog === "currency" && (
+        <ChoiceModal
+          title="货币"
+          choices={CURRENCIES.map((currency) => ({
+            id: currency,
+            name: CURRENCY_INFO[currency].label,
+          }))}
+          selectedId={values.currency}
+          onPick={(id) => {
+            const currency = CURRENCIES.find((c) => c === id);
+            if (currency) setValues({ ...values, currency });
+            setDialog(null);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog === "ratio" && <ChipRatioDialog {...dialogProps} />}
       {dialog === "blinds" && <BlindsDialog {...dialogProps} />}
       {dialog === "buyIn" && <BuyInDialog {...dialogProps} />}
