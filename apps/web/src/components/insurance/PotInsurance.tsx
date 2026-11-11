@@ -16,10 +16,10 @@ import { PotLegend, PotRing, type PotShare } from "./PotShares";
 import { DecisionBar } from "./QuotePanel";
 
 interface PotInsuranceProps {
-  /** The one offer of the one pot. */
+  /** One leader's offer on one pot. */
   offer: HandOffer;
-  /** Who put what into the pot, leaders first. */
-  parts: readonly PotShare[];
+  /** The pot's name: 主池, 边池 and so on. */
+  label: string;
   nameOf: (id: string) => string;
   rule: InsuranceRule;
   /** Missing for the standalone calculator, which prices covers but records nothing. */
@@ -95,15 +95,48 @@ function CoverRow({
   );
 }
 
-function Block({ offer, parts, nameOf, rule, decisions }: PotInsuranceProps) {
+const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
+
+/**
+ * The pot by who put it in: its leaders first with their chance to win it, then the players behind
+ * with their outs against this offer's leader, then the dead money.
+ */
+function potParts({ pot, leader }: HandOffer, nameOf: (id: string) => string): PotShare[] {
+  const leaders = pot.leaders.map((l) => l.playerId);
+  const live = pot.playerIds.map((playerId): PotShare => {
+    const leading = leaders.includes(playerId);
+    const chance = percentText(pot.equity[playerId] ?? 0);
+    const outs = leader.byOpponent.find((o) => o.playerId === playerId)?.cards.length ?? 0;
+    return {
+      key: playerId,
+      tone: leading ? "leader" : "trailer",
+      label: nameOf(playerId),
+      chips: pot.stakes[playerId] ?? 0,
+      note: leading ? chance : `Outs ${outs} · ${chance}`,
+    };
+  });
+  const staked = live.reduce((sum, { chips }) => sum + chips, 0);
+  return [
+    ...live.filter(({ tone }) => tone === "leader"),
+    ...live.filter(({ tone }) => tone !== "leader"),
+    { key: "dead-money", tone: "dead", label: "死钱", chips: pot.amountChips - staked },
+  ];
+}
+
+function Block({ offer, label, nameOf, rule, decisions }: PotInsuranceProps) {
   const { leader, input, quote, pot } = offer;
+  const parts = potParts(offer, nameOf);
+  const tied = pot.leaders.length > 1;
   const customId = useId();
   const [choice, setChoice] = useState<Choice>();
   const [customText, setCustomText] = useState("");
 
   const header = (
     <h3 className="flex items-baseline justify-between gap-2">
-      <span className="text-sm text-muted">主池</span>
+      <span className="text-sm text-muted">
+        {label}
+        {tied && ` · ${nameOf(leader.playerId)} 并列领先`}
+      </span>
       <span className="text-2xl font-semibold tabular-nums">{chipText(pot.amountChips)}</span>
     </h3>
   );
@@ -111,7 +144,7 @@ function Block({ offer, parts, nameOf, rule, decisions }: PotInsuranceProps) {
 
   if (!quote.ok) {
     return (
-      <section aria-label="主池保险" className={sectionClass}>
+      <section aria-label={`${label}保险`} className={sectionClass}>
         {header}
         <div className="mt-2 flex items-center gap-1.5">
           <PotRing parts={parts} total={pot.amountChips} />
@@ -154,7 +187,7 @@ function Block({ offer, parts, nameOf, rule, decisions }: PotInsuranceProps) {
   const opponents = leader.byOpponent;
 
   return (
-    <section aria-label="主池保险" className={sectionClass}>
+    <section aria-label={`${label}保险`} className={sectionClass}>
       {header}
       <div className="mt-2 flex items-center gap-1.5">
         <PotRing

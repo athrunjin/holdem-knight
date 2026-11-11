@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
 
 /** The tallest column, in pixels. The others are drawn to the same scale. */
-const FULL_HEIGHT = 168;
+const FULL_HEIGHT = 180;
 
 /** The main pot, then the side pots: numbered only when there is more than one of them. */
 export function potName(index: number, count: number) {
@@ -34,16 +34,15 @@ function slices(pot: PotBreakdown, nameOf: (id: string) => string): Slice[] {
   ];
 }
 
-const BAR_CLASS = { leader: "bg-accent", trailer: "bg-muted/40", dead: "bg-highlight/80" } as const;
-const TEXT_CLASS = {
-  leader: "font-semibold text-accent",
-  trailer: "text-text",
-  dead: "text-highlight",
+const SLICE_CLASS = {
+  leader: "bg-accent text-accent-text font-semibold",
+  trailer: "bg-muted/25 text-text",
+  dead: "bg-highlight/80 text-accent-text",
 } as const;
 
 /**
- * Every pot of a hand side by side, main pot first: a slim column as tall as the pot is large,
- * cut into who put it in, with each part named beside it. The pot's leader is always on top.
+ * Every pot of a hand side by side, main pot first: a column as tall as the pot is large, cut into
+ * who put it in, each part naming its player and chips. The pot's leader is always on top.
  */
 export function PotColumns({
   pots,
@@ -60,42 +59,32 @@ export function PotColumns({
         <span className="block text-sm text-muted">总底池</span>
         <span className="block text-2xl font-semibold tabular-nums">{chipText(total)}</span>
       </p>
-      <div className="mt-3 flex items-end gap-3">
+      <div className="mt-3 flex items-end gap-2">
         {pots.map((pot, index) => (
-          <div key={potName(index, pots.length)} className="min-w-0 flex-1">
-            <p className="mb-1.5 text-lg leading-tight font-semibold tabular-nums">
+          <div key={potName(index, pots.length)} className="min-w-0 flex-1 text-center">
+            <p className="mb-1 text-lg leading-tight font-semibold tabular-nums">
               {chipText(pot.amountChips)}
             </p>
             {/* Each part keeps room for its line of text, so a small one is drawn a little tall */}
             <div
-              className="flex flex-col gap-0.5"
+              className="flex flex-col gap-0.5 overflow-hidden rounded-xl"
               style={{ height: (pot.amountChips / largest) * FULL_HEIGHT }}
             >
               {slices(pot, nameOf).map(({ key, label, chips, tone }) => (
                 <div
                   key={key}
-                  className="flex min-h-4 items-stretch gap-1.5"
+                  className={cn(
+                    "flex min-h-5 items-center justify-center gap-1 px-1.5 text-xs leading-none",
+                    SLICE_CLASS[tone],
+                  )}
                   style={{ flex: `${chips} 1 0%` }}
                 >
-                  <span
-                    className={cn("w-1.5 shrink-0 rounded-full", BAR_CLASS[tone])}
-                    aria-hidden
-                  />
-                  <span
-                    className={cn(
-                      "flex min-w-0 flex-1 items-center gap-1 text-xs leading-none",
-                      TEXT_CLASS[tone],
-                    )}
-                  >
-                    <span className="truncate">{label}</span>
-                    <span className="shrink-0 text-muted tabular-nums">{chipText(chips)}</span>
-                  </span>
+                  <span className="truncate">{label}</span>
+                  <span className="shrink-0 tabular-nums">{chipText(chips)}</span>
                 </div>
               ))}
             </div>
-            <p className="mt-1.5 border-t border-line pt-1 text-xs text-muted">
-              {potName(index, pots.length)}
-            </p>
+            <p className="mt-1.5 text-sm font-medium">{potName(index, pots.length)}</p>
           </div>
         ))}
       </div>

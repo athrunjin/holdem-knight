@@ -5,7 +5,6 @@ import {
   dealCard,
   declineOffer,
   formatCard,
-  type HandOffer,
   handOffers,
   handPotBreakdown,
   handPotEntries,
@@ -20,7 +19,6 @@ import {
   potTotals,
   reviseOffer,
   type Standings,
-  soldOuts,
   undoDeal,
 } from "@holdem-knight/core";
 import { ChevronDown, Plus, X } from "lucide-react";
@@ -32,7 +30,7 @@ import { CardPicker } from "./CardPicker";
 import { DeadMoneyDialog } from "./DeadMoneyDialog";
 import { HandSummary } from "./HandSummary";
 import type { InsuranceSeat } from "./InsuranceCalculator";
-import { type Decisions, LeaderQuote } from "./LeaderQuote";
+import type { Decisions } from "./LeaderQuote";
 import { Modal } from "./Modal";
 import { PlayerChipsDialog } from "./PlayerChipsDialog";
 import { PotColumns, potName } from "./PotColumns";
@@ -344,70 +342,6 @@ function PlayerRow({
   );
 }
 
-function PotCard({
-  offers,
-  potCount,
-  nameOf,
-  rule,
-  decisions,
-}: {
-  offers: readonly HandOffer[];
-  /** How many pots the hand has, which decides how a side pot is named. */
-  potCount: number;
-  nameOf: (id: string) => string;
-  rule: InsuranceRule;
-  decisions: Decisions | undefined;
-}) {
-  const [first] = offers;
-  if (!first) return null;
-  const { pot, potIndex } = first;
-  return (
-    <section className="mt-3 rounded-xl border border-line bg-surface p-3">
-      <h3 className="flex items-baseline justify-between gap-2">
-        <span className="font-semibold">{potName(potIndex, potCount)}</span>
-        <span className="font-semibold tabular-nums">{chipText(pot.amountChips)}</span>
-      </h3>
-      <p className="text-sm text-muted">
-        {pot.playerIds.map((id) => `${nameOf(id)} ${percentText(pot.equity[id] ?? 0)}`).join(" · ")}
-      </p>
-      {offers.map(({ key, leader, input }) => (
-        <div key={key} className="mt-2 border-t border-line pt-2">
-          <p className="font-medium">
-            {nameOf(leader.playerId)} 领先
-            {pot.leaders.length > 1 && "（并列）"}
-            <span className="ml-1 text-sm font-normal text-muted">
-              投入 {chipText(leader.stakeChips)} · 可得 {chipText(leader.shareChips)}
-            </span>
-          </p>
-          <p className="text-sm">
-            反超牌 <span className="font-semibold">{soldOuts(rule, leader)}</span> 张
-            {leader.tieCards.length > 0 &&
-              `，平分牌 ${leader.tieCards.length} 张${rule.tieOuts === "include" ? "（已计入）" : "（不计入）"}`}
-          </p>
-          <ul className="text-sm text-muted">
-            {leader.byOpponent.map(({ playerId, cards }) => (
-              <li key={playerId}>
-                {nameOf(playerId)} {cards.length} 张：{cards.map(formatCardText).join(" ")}
-              </li>
-            ))}
-            {leader.tieCards.length > 0 && (
-              <li>平分：{leader.tieCards.map(formatCardText).join(" ")}</li>
-            )}
-          </ul>
-          <LeaderQuote
-            id={key}
-            decisionKey={key}
-            input={input}
-            playerId={leader.playerId}
-            saving={undefined}
-            decisions={decisions}
-          />
-        </div>
-      ))}
-    </section>
-  );
-}
-
 function MoreDialog({
   number,
   onAdd,
@@ -520,13 +454,11 @@ export function InsuranceHandFlow({
   // Whoever is in the pot prices everything sold, so the pot stays as it is once anything is
   const editable = hand.purchases.length === 0 && (entering || hand.step === "buy");
   const complete = playersReady(hand.players) && hand.board.length >= 3;
-  const pots = [...new Set(offers.map((o) => o.potIndex))].map((index) =>
-    offers.filter((o) => o.potIndex === index),
-  );
+  const potCount = new Set(offers.map((o) => o.potIndex)).size;
   // Side pots are drawn pot by pot; a single pot keeps the ring
   const breakdown = complete ? handPotBreakdown(hand) : [];
-  // One pot with one leader has its insurance drawn into the pot's own ring
-  const soleOffer = offers.length === 1 ? offers[0] : undefined;
+  // While buying, a lone pot is drawn in its own insurance block, so the overview would repeat it
+  const overview = complete && (breakdown.length > 1 || offers.length === 0);
 
   function update(next: InsuranceHand) {
     setHand(next);
@@ -734,7 +666,7 @@ export function InsuranceHandFlow({
             </button>
           )}
 
-          {complete && !soleOffer && (
+          {overview && (
             <div className="mt-3">
               {breakdown.length > 1 ? (
                 <PotColumns pots={breakdown} nameOf={nameOf} />
@@ -770,29 +702,16 @@ export function InsuranceHandFlow({
 
       {hand.step === "buy" && street && (
         <>
-          {soleOffer ? (
+          {offers.map((offer) => (
             <PotInsurance
-              offer={soleOffer}
-              parts={potParts()}
+              key={offer.key}
+              offer={offer}
+              label={potName(offer.potIndex, potCount)}
               nameOf={nameOf}
               rule={rule}
               decisions={decisions}
             />
-          ) : (
-            <>
-              <h2 className="mt-3 font-semibold">{STREET_TEXT[street]}保险</h2>
-              {pots.map((potOffers) => (
-                <PotCard
-                  key={potOffers[0]?.potIndex}
-                  offers={potOffers}
-                  potCount={pots.length}
-                  nameOf={nameOf}
-                  rule={rule}
-                  decisions={decisions}
-                />
-              ))}
-            </>
-          )}
+          ))}
           <button
             type="button"
             disabled={store !== undefined && !offersDecided(hand, offers)}
