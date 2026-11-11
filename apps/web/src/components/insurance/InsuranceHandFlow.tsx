@@ -7,6 +7,7 @@ import {
   formatCard,
   type HandOffer,
   handOffers,
+  handPotBreakdown,
   handPotEntries,
   handResult,
   handStandings,
@@ -34,6 +35,7 @@ import type { InsuranceSeat } from "./InsuranceCalculator";
 import { type Decisions, LeaderQuote } from "./LeaderQuote";
 import { Modal } from "./Modal";
 import { PlayerChipsDialog } from "./PlayerChipsDialog";
+import { PotColumns, potName } from "./PotColumns";
 import { PotInsurance } from "./PotInsurance";
 import { type PotShare, PotShares } from "./PotShares";
 import { SeatPicker } from "./SeatPicker";
@@ -344,11 +346,14 @@ function PlayerRow({
 
 function PotCard({
   offers,
+  potCount,
   nameOf,
   rule,
   decisions,
 }: {
   offers: readonly HandOffer[];
+  /** How many pots the hand has, which decides how a side pot is named. */
+  potCount: number;
   nameOf: (id: string) => string;
   rule: InsuranceRule;
   decisions: Decisions | undefined;
@@ -359,7 +364,7 @@ function PotCard({
   return (
     <section className="mt-3 rounded-xl border border-line bg-surface p-3">
       <h3 className="flex items-baseline justify-between gap-2">
-        <span className="font-semibold">{potIndex === 0 ? "主池" : `边池 ${potIndex}`}</span>
+        <span className="font-semibold">{potName(potIndex, potCount)}</span>
         <span className="font-semibold tabular-nums">{chipText(pot.amountChips)}</span>
       </h3>
       <p className="text-sm text-muted">
@@ -518,6 +523,8 @@ export function InsuranceHandFlow({
   const pots = [...new Set(offers.map((o) => o.potIndex))].map((index) =>
     offers.filter((o) => o.potIndex === index),
   );
+  // Side pots are drawn pot by pot; a single pot keeps the ring
+  const breakdown = complete ? handPotBreakdown(hand) : [];
   // One pot with one leader has its insurance drawn into the pot's own ring
   const soleOffer = offers.length === 1 ? offers[0] : undefined;
 
@@ -729,7 +736,11 @@ export function InsuranceHandFlow({
 
           {complete && !soleOffer && (
             <div className="mt-3">
-              <PotShares parts={potParts()} look={hand.players.length > 3 ? "bar" : "ring"} />
+              {breakdown.length > 1 ? (
+                <PotColumns pots={breakdown} nameOf={nameOf} />
+              ) : (
+                <PotShares parts={potParts()} look={hand.players.length > 3 ? "bar" : "ring"} />
+              )}
               {totals.uncalledChips > 0 && (
                 <p className="mt-1 text-sm text-muted">
                   未被跟注的 {chipText(totals.uncalledChips)} 退回，不计入。
@@ -774,6 +785,7 @@ export function InsuranceHandFlow({
                 <PotCard
                   key={potOffers[0]?.potIndex}
                   offers={potOffers}
+                  potCount={pots.length}
                   nameOf={nameOf}
                   rule={rule}
                   decisions={decisions}

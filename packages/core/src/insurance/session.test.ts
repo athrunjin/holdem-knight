@@ -11,6 +11,7 @@ import {
   declineOffer,
   type HandOffer,
   handOffers,
+  handPotBreakdown,
   handPotEntries,
   handResult,
   handStandings,
@@ -92,6 +93,81 @@ describe("standings", () => {
     expect(
       handStandings(hand({ players: [aces, kings, waiting] })).players.map((s) => s.playerId),
     ).toEqual(["a", "k"]);
+  });
+});
+
+describe("pot breakdown", () => {
+  it("splits the main pot and each side pot by who put it in, with its own leader", () => {
+    const short = player("q", 300, ["Qs", "Qd"]);
+    const sidePots = hand({
+      players: [aces, short, kings],
+      pools: [200],
+      board: [c("Qc"), c("7h"), c("9d")],
+    });
+    expect(handPotBreakdown(sidePots)).toEqual([
+      {
+        amountChips: 1100,
+        stakes: [
+          { playerId: "a", chips: 300 },
+          { playerId: "q", chips: 300 },
+          { playerId: "k", chips: 300 },
+        ],
+        deadChips: 200,
+        leaders: ["q"],
+      },
+      {
+        amountChips: 1400,
+        stakes: [
+          { playerId: "a", chips: 700 },
+          { playerId: "k", chips: 700 },
+        ],
+        deadChips: 0,
+        leaders: ["a"],
+      },
+    ]);
+  });
+
+  it("leaves out excess nobody called", () => {
+    const deep = player("d", 5000, ["Ks", "Kd"]);
+    expect(handPotBreakdown(hand({ players: [aces, deep] }))).toEqual([
+      {
+        amountChips: 2000,
+        stakes: [
+          { playerId: "a", chips: 1000 },
+          { playerId: "d", chips: 1000 },
+        ],
+        deadChips: 0,
+        leaders: ["a"],
+      },
+    ]);
+  });
+
+  it("accounts for every contested chip", () => {
+    const stack = fc.integer({ min: 1, max: 100_000 });
+    fc.assert(
+      fc.property(
+        fc.array(stack, { minLength: 2, maxLength: 4 }),
+        fc.array(stack, { maxLength: 3 }),
+        (chips, pools) => {
+          const holes = [
+            ["As", "Ad"],
+            ["Ks", "Kd"],
+            ["Qs", "Qd"],
+            ["Js", "Jd"],
+          ];
+          const players = chips.map((amount, i) => player(`p${i}`, amount, holes[i] ?? []));
+          const target = hand({ players, pools });
+          const pots = handPotBreakdown(target);
+          const total = pots.reduce((sum, pot) => sum + pot.amountChips, 0);
+          expect(total).toBe(potTotals(handPotEntries(target)).effectiveChips);
+          for (const pot of pots) {
+            const staked = pot.stakes.reduce((sum, s) => sum + s.chips, 0);
+            expect(staked + pot.deadChips).toBe(pot.amountChips);
+            expect(pot.leaders.length).toBeGreaterThan(0);
+          }
+        },
+      ),
+    );
   });
 });
 

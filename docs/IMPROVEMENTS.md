@@ -672,7 +672,10 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The table keeps 保本, 半池 and 满池. Nothing is picked on arrival. Picking a cover lights the ring's inner track for the share of the pot a hit would still leave, with 保住 n% in the middle, and shows under 中了到手 and 没中到手 what each leaves the buyer up or down on their stake: green up, red down, gray level.
   - A 自定义 row always sits under 满池. Tapping it puts the cursor in its premium, with no dialog; the payout, both results, the inner ring and the button follow as it is typed. A premium above the full-pot one is refused with a line under the table.
   - Once bought, the cover taken stays picked out in full color, the others fade, and the bar with 修改 shows as before. A custom premium that was bought shows in its row.
-  - Hands with side pots or tied leaders keep the overview and one card per pot.
+  - A hand with one pot and tied leaders keeps the ring overview above its pot card.
+  - A hand with side pots shows 总底池 above the pot cards as columns, main pot first, left to right. Bars, a table, a staircase by player, blocks sized by pot and nested rings were compared as previews; slim upright columns with each part named beside it were chosen.
+  - Each column is as tall as its pot is large and has the pot's chips above it and its name below. From the top down: whoever leads that pot, in the accent color, however small their part; the other players as they were entered; then dead money in gold. Each part is named with its chips, and keeps room for that line even when it is small.
+  - A lone side pot is called 边池. With more than one they are 边池 1, 边池 2 and so on, on the columns and on the pot cards alike.
 - Decision: do. Built and checked at phone size in the browser preview; waiting for a check on a phone with the preview build.
 - Tracking: none yet
 

@@ -131,6 +131,38 @@ export function handStandings(hand: Pick<InsuranceHand, "players" | "board">): S
   );
 }
 
+export interface PotBreakdown {
+  readonly amountChips: number;
+  /** What each player has in this pot, in the order the players were entered. */
+  readonly stakes: readonly { readonly playerId: string; readonly chips: number }[];
+  /** Dead money in this pot. */
+  readonly deadChips: number;
+  /** Who holds the best hand in this pot on the cards so far. */
+  readonly leaders: readonly string[];
+}
+
+/** Every contested pot, main pot first, by who put it in and who is ahead in it. */
+export function handPotBreakdown(
+  hand: Pick<InsuranceHand, "players" | "pools" | "board">,
+): PotBreakdown[] {
+  const cardsOf = new Map(hand.players.map((p) => [p.playerId, p.cards]));
+  return buildPots(handPotEntries(hand))
+    .filter((pot) => pot.playerIds.length > 1)
+    .map((pot) => {
+      const stakes = pot.playerIds.map((playerId) => ({
+        playerId,
+        chips: pot.stakes[playerId] ?? 0,
+      }));
+      const staked = stakes.reduce((total, { chips }) => total + chips, 0);
+      return {
+        amountChips: pot.amountChips,
+        stakes,
+        deadChips: pot.amountChips - staked,
+        leaders: winnersOf(pot.playerIds, cardsOf, hand.board),
+      };
+    });
+}
+
 /** Whether every offer that can be bought has been bought or turned down. */
 export function offersDecided(hand: InsuranceHand, offers: readonly HandOffer[]): boolean {
   return offers.every(
