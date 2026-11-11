@@ -678,11 +678,6 @@ export function InsuranceHandFlow({
               ) : (
                 <PotShares parts={potParts()} look={hand.players.length > 3 ? "bar" : "ring"} />
               )}
-              {totals.uncalledChips > 0 && (
-                <p className="mt-1 text-sm text-muted">
-                  未被跟注的 {chipText(totals.uncalledChips)} 退回，不计入。
-                </p>
-              )}
             </div>
           )}
         </>
