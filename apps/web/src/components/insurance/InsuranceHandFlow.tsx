@@ -34,6 +34,7 @@ import type { InsuranceSeat } from "./InsuranceCalculator";
 import { type Decisions, LeaderQuote } from "./LeaderQuote";
 import { Modal } from "./Modal";
 import { PlayerChipsDialog } from "./PlayerChipsDialog";
+import { PotInsurance } from "./PotInsurance";
 import { type PotShare, PotShares } from "./PotShares";
 import { SeatPicker } from "./SeatPicker";
 
@@ -517,6 +518,8 @@ export function InsuranceHandFlow({
   const pots = [...new Set(offers.map((o) => o.potIndex))].map((index) =>
     offers.filter((o) => o.potIndex === index),
   );
+  // One pot with one leader has its insurance drawn into the pot's own ring
+  const soleOffer = offers.length === 1 ? offers[0] : undefined;
 
   function update(next: InsuranceHand) {
     setHand(next);
@@ -585,21 +588,23 @@ export function InsuranceHandFlow({
     setPickingStreet(undefined);
   }
 
-  /** The contested pot by who put it in, each with where they stand. */
+  /** The contested pot by who put it in, each with where they stand: leaders first, dead money last. */
   function potParts(): PotShare[] {
     const stakes = contestedStakes(handPotEntries(hand));
+    const live = hand.players.map((player): PotShare => {
+      const note = standingNote(standings, player.playerId, hand.board.length < 5);
+      return {
+        key: player.playerId,
+        tone: note?.leading ? "leader" : "trailer",
+        label: nameOf(player.playerId),
+        chips: stakes[player.playerId] ?? 0,
+        note: note?.text,
+        onSelect: editable ? () => setAdding({ stage: "chips", entry: player }) : undefined,
+      };
+    });
     return [
-      ...hand.players.map((player): PotShare => {
-        const note = standingNote(standings, player.playerId, hand.board.length < 5);
-        return {
-          key: player.playerId,
-          tone: note?.leading ? "leader" : "trailer",
-          label: nameOf(player.playerId),
-          chips: stakes[player.playerId] ?? 0,
-          note: note?.text,
-          onSelect: editable ? () => setAdding({ stage: "chips", entry: player }) : undefined,
-        };
-      }),
+      ...live.filter((part) => part.tone === "leader"),
+      ...live.filter((part) => part.tone !== "leader"),
       {
         key: "dead-money",
         tone: "dead",
@@ -722,7 +727,7 @@ export function InsuranceHandFlow({
             </button>
           )}
 
-          {complete && (
+          {complete && !soleOffer && (
             <div className="mt-3">
               <PotShares parts={potParts()} look={hand.players.length > 3 ? "bar" : "ring"} />
               {totals.uncalledChips > 0 && (
@@ -754,16 +759,28 @@ export function InsuranceHandFlow({
 
       {hand.step === "buy" && street && (
         <>
-          <h2 className="mt-3 font-semibold">{STREET_TEXT[street]}保险</h2>
-          {pots.map((potOffers) => (
-            <PotCard
-              key={potOffers[0]?.potIndex}
-              offers={potOffers}
+          {soleOffer ? (
+            <PotInsurance
+              offer={soleOffer}
+              parts={potParts()}
               nameOf={nameOf}
               rule={rule}
               decisions={decisions}
             />
-          ))}
+          ) : (
+            <>
+              <h2 className="mt-3 font-semibold">{STREET_TEXT[street]}保险</h2>
+              {pots.map((potOffers) => (
+                <PotCard
+                  key={potOffers[0]?.potIndex}
+                  offers={potOffers}
+                  nameOf={nameOf}
+                  rule={rule}
+                  decisions={decisions}
+                />
+              ))}
+            </>
+          )}
           <button
             type="button"
             disabled={store !== undefined && !offersDecided(hand, offers)}

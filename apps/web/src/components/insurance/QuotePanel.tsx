@@ -92,7 +92,8 @@ function OptionRow({
   );
 }
 
-function DecisionBar({
+/** What was decided for an offer, with the way back to change it. */
+export function DecisionBar({
   decision,
   saving,
   onRevise,

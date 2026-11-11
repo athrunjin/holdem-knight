@@ -654,6 +654,25 @@ Records discussions of feature and process improvements: what was proposed, how 
   - This replaces the step that asked which street the hand had reached. The flop and turn are tapped to pick or change them for as long as the rows can change, so 重选公共牌 is gone. On the buying step 返回增减玩家 goes back to add or remove players, keeping the board.
   - Dead money is a stack of three chips under the board: outlines while empty, gold with its amount once some is entered. Tapping it opens the dead money dialog.
   - Once at least two players have chips and cards and the flop is in, 有效总底池 appears below the players in the same ring and legend as Outs数速算, and the main button reads 计算保险. Each player's part is what they have in the contested pots; the leaders take the accent color and players behind are told apart by shades of gray. With more than three players it starts as the bar. A row is tapped to change that player's chips or the dead money.
+- Decision: do. Built and checked at phone size in the browser preview, then merged for trial on a phone.
+- Tracking: PR [#78](https://github.com/athrunjin/holdem-knight/pull/78)
+
+### #I-037 One block for the pot and its insurance
+
+- Type: feature
+- Date: proposed and decided 2026-11-11
+- Source: discussion
+- Problem: on the buying step of 选牌计算, 有效总底池 and the pot's insurance card sat one above the other and repeated each other: the chances to win, what the leader put in and what they stand to win were all shown twice, under a 转牌保险 heading.
+- Proposal: when the hand has one pot with one leader, draw the two as a single block.
+  - Four layouts were compared as previews: the ring over the table, an inner ring for the cover, three option cards, and a slider for the premium. The ring over the table was chosen, with the inner ring taken from the second.
+- Settled details:
+  - The block is headed 主池 with the pot's size. The street's heading and the note on uncalled chips are gone from this step, and so are the lines repeating the chances, the stake and the share.
+  - The ring shows who put what in. Its legend lists the leader first, lit, with their chance to win after the name; then the players behind with Outs n · chance; then the dead money. Each line ends in chips only.
+  - Under a divider: the odds on the left, the outs sold on the right, and the cards under them, by opponent when there is more than one.
+  - The table keeps 保本, 半池 and 满池. Nothing is picked on arrival. Picking a cover lights the ring's inner track for the share of the pot a hit would still leave, with 保住 n% in the middle, and shows under 中了到手 and 没中到手 what each leaves the buyer up or down on their stake: green up, red down, gray level.
+  - A 自定义 row always sits under 满池. Tapping it puts the cursor in its premium, with no dialog; the payout, both results, the inner ring and the button follow as it is typed. A premium above the full-pot one is refused with a line under the table.
+  - Once bought, the cover taken stays picked out in full color, the others fade, and the bar with 修改 shows as before. A custom premium that was bought shows in its row.
+  - Hands with side pots or tied leaders keep the overview and one card per pot.
 - Decision: do. Built and checked at phone size in the browser preview; waiting for a check on a phone with the preview build.
 - Tracking: none yet
 
