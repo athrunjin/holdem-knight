@@ -1,6 +1,6 @@
 {
   "format": "holdem-backup",
-  "version": 9,
+  "version": 10,
   "exportedAt": 1767830400000,
   "games": [
     {
@@ -17,6 +17,7 @@
       "handChips": 200,
       "status": "settled",
       "createdAt": 1767265200000,
+      "timeZone": "Asia/Shanghai",
       "settledAt": 1767279900000
     },
     {
@@ -34,6 +35,7 @@
       "handChips": 1000,
       "status": "settled",
       "createdAt": 1767351600000,
+      "timeZone": "Asia/Shanghai",
       "settledAt": 1767366300000
     },
     {
@@ -51,6 +53,7 @@
       "handChips": 200,
       "status": "settled",
       "createdAt": 1767438000000,
+      "timeZone": "Asia/Shanghai",
       "settledAt": 1767449100000
     },
     {
@@ -68,6 +71,7 @@
       "handChips": 100,
       "status": "settled",
       "createdAt": 1767524400000,
+      "timeZone": "Asia/Shanghai",
       "settledAt": 1767531900000
     },
     {
@@ -106,6 +110,7 @@
       "handChips": 1000,
       "status": "settled",
       "createdAt": 1767610800000,
+      "timeZone": "Asia/Shanghai",
       "settledAt": 1767625500000
     },
     {
@@ -134,6 +139,7 @@
       "handChips": 200,
       "status": "settled",
       "createdAt": 1767697200000,
+      "timeZone": "Asia/Shanghai",
       "settledAt": 1767715800000,
       "timer": {
         "elapsedMs": 17400000,
@@ -162,7 +168,49 @@
       "buyInBigBlinds": 100,
       "handChips": 500,
       "status": "open",
-      "createdAt": 1767783600000
+      "createdAt": 1767783600000,
+      "timeZone": "Asia/Shanghai"
+    },
+    {
+      "id": "sample-game-08-wage-units-across-midnight",
+      "organizerId": "guest",
+      "currency": "CNY",
+      "smallBlindChips": 1,
+      "bigBlindChips": 2,
+      "tableFee": {
+        "amount": 10000,
+        "minMinutes": 10
+      },
+      "wage": {
+        "hourly": 2000,
+        "unitMinutes": 30,
+        "rounding": "up",
+        "timeSegments": [
+          {
+            "fromHour": 0,
+            "hourly": 3000
+          }
+        ]
+      },
+      "chipRatio": {
+        "chips": 1,
+        "amount": 100
+      },
+      "buyInBigBlinds": 100,
+      "handChips": 200,
+      "status": "settled",
+      "createdAt": 1767870000000,
+      "timeZone": "Asia/Shanghai",
+      "settledAt": 1767890100000,
+      "timer": {
+        "elapsedMs": 19800000,
+        "runs": [
+          {
+            "from": 1767870000000,
+            "to": 1767889800000
+          }
+        ]
+      }
     }
   ],
   "players": [
@@ -812,6 +860,78 @@
       "type": "stack_set",
       "playerId": "sample-player-wf",
       "chips": 1200
+    },
+    {
+      "id": "sample-08-wage-units-across-midnight-e1",
+      "organizerId": "guest",
+      "gameId": "sample-game-08-wage-units-across-midnight",
+      "occurredAt": 1767870000000,
+      "type": "buy_in",
+      "playerId": "sample-player-ly",
+      "chips": 200
+    },
+    {
+      "id": "sample-08-wage-units-across-midnight-e2",
+      "organizerId": "guest",
+      "gameId": "sample-game-08-wage-units-across-midnight",
+      "occurredAt": 1767870060000,
+      "type": "buy_in",
+      "playerId": "sample-player-ln",
+      "chips": 200
+    },
+    {
+      "id": "sample-08-wage-units-across-midnight-e3",
+      "organizerId": "guest",
+      "gameId": "sample-game-08-wage-units-across-midnight",
+      "occurredAt": 1767870540000,
+      "type": "cash_out",
+      "playerId": "sample-player-ln",
+      "chips": 180
+    },
+    {
+      "id": "sample-08-wage-units-across-midnight-e4",
+      "organizerId": "guest",
+      "gameId": "sample-game-08-wage-units-across-midnight",
+      "occurredAt": 1767885360000,
+      "type": "buy_in",
+      "playerId": "sample-player-zw",
+      "chips": 200
+    },
+    {
+      "id": "sample-08-wage-units-across-midnight-e5",
+      "organizerId": "guest",
+      "gameId": "sample-game-08-wage-units-across-midnight",
+      "occurredAt": 1767887100000,
+      "type": "buy_in",
+      "playerId": "sample-player-wf",
+      "chips": 200
+    },
+    {
+      "id": "sample-08-wage-units-across-midnight-e6",
+      "organizerId": "guest",
+      "gameId": "sample-game-08-wage-units-across-midnight",
+      "occurredAt": 1767888780000,
+      "type": "cash_out",
+      "playerId": "sample-player-zw",
+      "chips": 350
+    },
+    {
+      "id": "sample-08-wage-units-across-midnight-e7",
+      "organizerId": "guest",
+      "gameId": "sample-game-08-wage-units-across-midnight",
+      "occurredAt": 1767888900000,
+      "type": "cash_out",
+      "playerId": "sample-player-wf",
+      "chips": 150
+    },
+    {
+      "id": "sample-08-wage-units-across-midnight-e8",
+      "organizerId": "guest",
+      "gameId": "sample-game-08-wage-units-across-midnight",
+      "occurredAt": 1767889800000,
+      "type": "cash_out",
+      "playerId": "sample-player-ly",
+      "chips": 120
     }
   ],
   "insuranceRules": [],

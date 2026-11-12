@@ -11,9 +11,13 @@ import {
   chargeStatuses,
   clockReaches,
   gameCharges,
+  localHourAfter,
+  localHourBefore,
+  localWageWindows,
   seatTimes,
   segmentedWageParts,
   tableFeeFor,
+  unitWageParts,
   wageFor,
   wageParts,
   wageRateAt,
@@ -242,7 +246,216 @@ describe("segmentedWageParts", () => {
   });
 });
 
+describe("unitWageParts", () => {
+  const minuteOfDay = clock.minuteOfDay;
+  /** A game from 20:00 with ¥20 an hour, and ¥30 from midnight, which is hour 24. */
+  const night: WageRule = {
+    hourly: cents(2000),
+    unitMinutes: 30,
+    rounding: "up",
+    timeSegments: [{ fromHour: 0, hourly: cents(3000) }],
+  };
+  const parts = (rule: WageRule, sessions: { from: number; to?: number }[], now = 48 * HOUR) =>
+    unitWageParts(rule, sessions, localWageWindows(rule, 20 * HOUR, undefined, minuteOfDay), {
+      now,
+    });
+  const sat = (fromMinute: number, toMinute: number) => [
+    { from: 23 * HOUR + fromMinute * MIN, to: 23 * HOUR + toMinute * MIN },
+  ];
+
+  it("charges a unit across two rates at the one with more of it", () => {
+    // 23:16 to 0:13: 23:16–23:46 at ¥20, then the part unit runs on to 0:16, 16 minutes of it past midnight
+    expect(parts(night, sat(16, 73))).toEqual([
+      { part: "base", hourly: 2000, minutes: 30, amount: 1000 },
+      { part: "time-1", hourly: 3000, minutes: 30, amount: 1500 },
+    ]);
+  });
+
+  it("charges the higher rate when two rates share a unit equally", () => {
+    expect(parts(night, sat(45, 75))).toEqual([
+      { part: "time-1", hourly: 3000, minutes: 30, amount: 1500 },
+    ]);
+  });
+
+  it("counts a part unit of half or more when rounding to the nearest", () => {
+    const nearest: WageRule = { ...night, rounding: "nearest" };
+    // 44 minutes: 14 over, dropped. 45 minutes: 15 over, counted, and the unit runs 23:46–0:16
+    expect(parts(nearest, sat(16, 60))).toEqual([
+      { part: "base", hourly: 2000, minutes: 30, amount: 1000 },
+    ]);
+    expect(parts(nearest, sat(16, 61))).toEqual([
+      { part: "base", hourly: 2000, minutes: 30, amount: 1000 },
+      { part: "time-1", hourly: 3000, minutes: 30, amount: 1500 },
+    ]);
+  });
+
+  it("drops any part unit when rounding down, and charges nothing under one unit", () => {
+    const down: WageRule = { ...night, rounding: "down" };
+    expect(parts(down, sat(16, 73))).toEqual([
+      { part: "base", hourly: 2000, minutes: 30, amount: 1000 },
+    ]);
+    expect(parts(down, sat(16, 45))).toEqual([]);
+  });
+
+  it("rounds seconds by the minute", () => {
+    const perMinute: WageRule = { hourly: cents(2500), unitMinutes: 1, rounding: "nearest" };
+    const minutes = (ms: number) => parts(perMinute, [{ from: 0, to: ms }])[0]?.minutes;
+    expect(minutes(90 * MIN + 29_000)).toBe(90);
+    expect(minutes(90 * MIN + 30_000)).toBe(91);
+    expect(parts({ ...perMinute, rounding: "up" }, [{ from: 0, to: 90 * MIN + 1 }])[0]).toEqual({
+      part: "base",
+      hourly: 2500,
+      minutes: 91,
+      amount: 3792,
+    });
+  });
+
+  it("cuts units from the player's counted time, leaving out time away", () => {
+    // 20 minutes, away, then 40 more: two units with nothing over
+    const sessions = [
+      { from: 22 * HOUR, to: 22 * HOUR + 20 * MIN },
+      { from: 23 * HOUR + 30 * MIN, to: 24 * HOUR + 10 * MIN },
+    ];
+    // The first unit is 22:00–22:20 and 23:30–23:40. The second, 23:40–0:10, has 20 minutes before midnight
+    expect(parts(night, sessions)).toEqual([
+      { part: "base", hourly: 2000, minutes: 60, amount: 2000 },
+    ]);
+  });
+
+  it("runs an open session to now", () => {
+    expect(parts(night, [{ from: 23 * HOUR }], 23 * HOUR + 31 * MIN)).toEqual([
+      { part: "base", hourly: 2000, minutes: 60, amount: 2000 },
+    ]);
+  });
+
+  it("charges whole units of the total time, by the rule's rounding", () => {
+    const session = fc
+      .tuple(fc.nat(600_000), fc.integer({ min: 1, max: 7_000_000 }))
+      .map(([gap, length]) => ({ gap, length }));
+    fc.assert(
+      fc.property(
+        fc.array(session, { minLength: 1, maxLength: 4 }),
+        fc.constantFrom(1, 15, 30, 60),
+        fc.constantFrom("nearest", "up", "down"),
+        (stretches, unitMinutes, rounding) => {
+          let time = 21 * HOUR;
+          const sessions = stretches.map(({ gap, length }) => {
+            const from = time + gap;
+            time = from + length;
+            return { from, to: time };
+          });
+          const rule = { ...night, unitMinutes, rounding } as WageRule;
+          const total =
+            stretches.reduce((all, { length }) => all + length, 0) / (unitMinutes * MIN);
+          const units =
+            rounding === "up"
+              ? Math.ceil(total)
+              : rounding === "down"
+                ? Math.floor(total)
+                : Math.floor(total + 0.5);
+          const charged = parts(rule, sessions).reduce((all, p) => all + p.minutes, 0);
+          expect(charged).toBe(units * unitMinutes);
+        },
+      ),
+    );
+  });
+});
+
+describe("localWageWindows", () => {
+  const minuteOfDay = clock.minuteOfDay;
+  const base = { hourly: cents(2500), unitMinutes: 1, rounding: "nearest" } as const;
+  const timeWindows = (
+    segments: NonNullable<WageRule["timeSegments"]>,
+    start: number,
+    localMinute = minuteOfDay,
+  ) =>
+    localWageWindows({ ...base, timeSegments: segments }, start, undefined, localMinute).map(
+      ({ part, from, to }) => [part, from / HOUR, to / HOUR],
+    );
+  const nightRate = [{ fromHour: 22, toHour: 6, hourly: cents(4000) }];
+  const fromMidnight = [{ fromHour: 0, hourly: cents(4000) }];
+
+  it("begins a game inside a segment in that segment", () => {
+    expect(timeWindows(nightRate, 23 * HOUR)).toEqual([["time-1", 22, 30]]);
+    expect(timeWindows(nightRate, 29 * HOUR)).toEqual([["time-1", 22, 30]]);
+  });
+
+  it("waits for the next start once the segments are over", () => {
+    expect(timeWindows(nightRate, 31 * HOUR)).toEqual([["time-1", 46, 54]]);
+    expect(timeWindows(nightRate, 20 * HOUR)).toEqual([["time-1", 22, 30]]);
+  });
+
+  it("counts a segment with no end as begun for 12 hours", () => {
+    expect(timeWindows(fromMidnight, 25 * HOUR)).toEqual([["time-1", 24, Infinity]]);
+    expect(timeWindows(fromMidnight, 36 * HOUR)).toEqual([["time-1", 24, Infinity]]);
+    expect(timeWindows(fromMidnight, 36 * HOUR + 1)).toEqual([["time-1", 48, Infinity]]);
+    expect(timeWindows(fromMidnight, 20 * HOUR)).toEqual([["time-1", 24, Infinity]]);
+  });
+
+  it("begins in a later segment of a chain", () => {
+    const chain = [
+      { fromHour: 22, toHour: 2, hourly: cents(4000) },
+      { fromHour: 2, hourly: cents(5000) },
+    ];
+    expect(timeWindows(chain, 27 * HOUR)).toEqual([
+      ["time-1", 22, 26],
+      ["time-2", 26, Infinity],
+    ]);
+  });
+
+  /** The local clock jumps from 2:00 to 3:00 at hour 26, as daylight saving starts. */
+  const springForward = (t: number) => minuteOfDay(t + (t >= 26 * HOUR ? HOUR : 0));
+  /** The local clock goes back from 3:00 to 2:00 at hour 27, as daylight saving ends. */
+  const fallBack = (t: number) => minuteOfDay(t - (t >= 27 * HOUR ? HOUR : 0));
+
+  it("ends a segment when the local clock shows its hour on a daylight saving night", () => {
+    const zeroToSix = [{ fromHour: 0, toHour: 6, hourly: cents(4000) }];
+    // An hour is skipped, so 6:00 comes 5 hours after midnight; an hour comes twice, so 7 hours after
+    expect(timeWindows(zeroToSix, 20 * HOUR, springForward)).toEqual([["time-1", 24, 29]]);
+    expect(timeWindows(zeroToSix, 20 * HOUR, fallBack)).toEqual([["time-1", 24, 31]]);
+  });
+
+  it("starts at the jump when the clock skips the hour, and at the first of an hour that comes twice", () => {
+    expect(localHourAfter(20 * HOUR, 2, springForward)).toBe(26 * HOUR);
+    expect(localHourAfter(20 * HOUR, 2, fallBack)).toBe(26 * HOUR);
+    expect(localHourAfter(20 * HOUR, 3, fallBack)).toBe(28 * HOUR);
+    expect(localHourBefore(27 * HOUR + 30 * MIN, 2, fallBack)).toBe(26 * HOUR);
+  });
+
+  it("finds a local hour at, before and after a time", () => {
+    expect(localHourBefore(24 * HOUR, 0, minuteOfDay)).toBe(24 * HOUR);
+    expect(localHourBefore(24 * HOUR - 1, 0, minuteOfDay)).toBe(0);
+    expect(localHourAfter(24 * HOUR, 0, minuteOfDay)).toBe(48 * HOUR);
+    expect(localHourAfter(23 * HOUR + 50 * MIN, 0, minuteOfDay)).toBe(24 * HOUR);
+  });
+
+  it("works in a time zone a quarter hour off the hour", () => {
+    const nepal = (t: number) => minuteOfDay(t + 5 * HOUR + 45 * MIN);
+    expect(localHourAfter(0, 6, nepal)).toBe(15 * MIN);
+  });
+});
+
 describe("gameCharges with segments", () => {
+  it("charges a rule with rounding unit by unit, from a segment the game started in", () => {
+    const rule: WageRule = {
+      hourly: cents(2500),
+      unitMinutes: 30,
+      rounding: "nearest",
+      timeSegments: [{ fromHour: 22, toHour: 6, hourly: cents(4000) }],
+    };
+    // The clock starts at 23:00, inside 22–6. A rule from before rounding would wait a day
+    const timer = { elapsedMs: 3 * HOUR, runs: [{ from: 23 * HOUR, to: 26 * HOUR }] };
+    const played = [buy("a", 23 * 60), leave("a", 24 * 60 + 50)];
+    expect(gameCharges({ wage: rule, timer }, played, { ...clock, now: 26 * HOUR })).toEqual([
+      wage("a", "time-1", 4000, 120, 8000),
+    ]);
+    const { rounding: _, ...unrounded } = rule;
+    const earlier: WageRule = { ...unrounded, roundUp: true };
+    expect(gameCharges({ wage: earlier, timer }, played, { ...clock, now: 26 * HOUR })).toEqual([
+      wage("a", "base", 2500, 120, 5000),
+    ]);
+  });
+
   it("starts time segments from the clock's first run", () => {
     const rule: WageRule = {
       hourly: cents(2500),

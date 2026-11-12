@@ -23,7 +23,10 @@ import { hoursBetween } from "./rules";
 import { type SeatSession, seatedMs, seatSessions, withinRuns } from "./seat-time";
 
 const MINUTE = 60_000;
+const QUARTER = 15 * MINUTE;
 const HOUR = 60 * MINUTE;
+/** How far back a time segment with no end still counts as begun when the game starts. */
+const OPEN_SEGMENT_LOOK_BACK = 12 * HOUR;
 
 /** Wages at one rate: the whole minutes charged at it and what they come to. */
 export interface WagePartCharge {
@@ -151,16 +154,40 @@ export interface WageWindow {
 }
 
 /** The first whole local hour `hour`, counting from the start of the hour `time` falls in. */
-function nextLocalHour(time: Timestamp, hour: number, minuteOfDay: ChargeClock["minuteOfDay"]) {
+function fixedLocalHour(time: Timestamp, hour: number, minuteOfDay: ChargeClock["minuteOfDay"]) {
   const minute = minuteOfDay(time);
   const hourStart = time - (minute % 60) * MINUTE - (time % MINUTE);
   return hourStart + ((hour - Math.floor(minute / 60) + 24) % 24) * HOUR;
 }
 
 /**
- * When each of a rule's segments applies. Time segments follow each other from the first time the
- * clock shows the first one's hour once the game has started. Game time segments start once the
- * game clock shows their hours, or for a clock from before runs were kept, that long after the start.
+ * Game time segments start once the game clock shows their hours, or for a clock from before runs
+ * were kept, that long after the start.
+ */
+function gameTimeWindows(
+  rule: WageRule,
+  gameStart: Timestamp,
+  runs: readonly TimerRun[] | undefined,
+): WageWindow[] {
+  const reached = (hours: number) =>
+    runs ? clockReaches(runs, hours * HOUR) : gameStart + hours * HOUR;
+  const after = rule.afterStartSegments ?? [];
+  return after.map(({ afterHours, hourly }, i) => {
+    const next = after[i + 1];
+    return {
+      part: `after-${i + 1}`,
+      kind: "after",
+      from: reached(afterHours),
+      to: next ? reached(next.afterHours) : Infinity,
+      hourly,
+    };
+  });
+}
+
+/**
+ * When each segment applies under a rule from before `rounding` (ADR 0025). Time segments follow
+ * each other from the first time the clock shows the first one's hour once the game has started,
+ * each a fixed number of hours long. Kept as it was, so those games price as they did.
  */
 export function wageWindows(
   rule: WageRule,
@@ -171,41 +198,103 @@ export function wageWindows(
   if (gameStart === undefined) return [];
   const windows: WageWindow[] = [];
   const time = rule.timeSegments ?? [];
-  let from = time[0] ? nextLocalHour(gameStart, time[0].fromHour, minuteOfDay) : 0;
+  let from = time[0] ? fixedLocalHour(gameStart, time[0].fromHour, minuteOfDay) : 0;
   time.forEach(({ fromHour, toHour, hourly }, i) => {
     const to = toHour === undefined ? Infinity : from + hoursBetween(fromHour, toHour) * HOUR;
     windows.push({ part: `time-${i + 1}`, kind: "time", from, to, hourly });
     from = to;
   });
-  const reached = (hours: number) =>
-    runs ? clockReaches(runs, hours * HOUR) : gameStart + hours * HOUR;
-  const after = rule.afterStartSegments ?? [];
-  after.forEach(({ afterHours, hourly }, i) => {
-    const next = after[i + 1];
-    windows.push({
-      part: `after-${i + 1}`,
-      kind: "after",
-      from: reached(afterHours),
-      to: next ? reached(next.afterHours) : Infinity,
-      hourly,
-    });
-  });
-  return windows;
+  return [...windows, ...gameTimeWindows(rule, gameStart, runs)];
+}
+
+/** Minutes since the local clock last showed `hour`:00, 0–1439. */
+function sinceLocalHour(time: Timestamp, hour: number, minuteOfDay: ChargeClock["minuteOfDay"]) {
+  return (minuteOfDay(time) - hour * 60 + 1440) % 1440;
 }
 
 /**
- * Wages for one player under a rule with segments (ADR 0025). Where a time segment and a game time
- * segment both apply, the higher rate wins, or the one that began first at equal rates. The total
- * time is charged in whole units, rounded up or down by the rule, and the minutes this adds or
- * takes away fall on the rate the player sat at last.
+ * Whether the local clock reached `hour`:00 in the quarter hour ending at `time`. Every time zone
+ * is a multiple of 15 minutes from UTC, so local hours start on quarter hours. Where the clock
+ * skips that time for daylight saving, the jump counts. Where an hour comes twice, the clock going
+ * back is a small step, not a full turn, so only the first time counts.
  */
-export function segmentedWageParts(
+function reachesLocalHour(time: Timestamp, hour: number, minuteOfDay: ChargeClock["minuteOfDay"]) {
+  const before = sinceLocalHour(time - QUARTER, hour, minuteOfDay);
+  return before - sinceLocalHour(time, hour, minuteOfDay) > 720;
+}
+
+/** Quarter hours in a day and a bit, enough to find any local hour across a daylight saving change. */
+const SEARCH_QUARTERS = 26 * 4;
+
+/** The first moment after `time` when the local clock reaches `hour`:00. */
+export function localHourAfter(
+  time: Timestamp,
+  hour: number,
+  minuteOfDay: ChargeClock["minuteOfDay"],
+): Timestamp {
+  let at = Math.floor(time / QUARTER) * QUARTER + QUARTER;
+  for (let i = 0; i < SEARCH_QUARTERS && !reachesLocalHour(at, hour, minuteOfDay); i++) {
+    at += QUARTER;
+  }
+  return at;
+}
+
+/** The last moment at or before `time` when the local clock reached `hour`:00. */
+export function localHourBefore(
+  time: Timestamp,
+  hour: number,
+  minuteOfDay: ChargeClock["minuteOfDay"],
+): Timestamp {
+  let at = Math.floor(time / QUARTER) * QUARTER;
+  for (let i = 0; i < SEARCH_QUARTERS && !reachesLocalHour(at, hour, minuteOfDay); i++) {
+    at -= QUARTER;
+  }
+  return at;
+}
+
+/**
+ * When each segment applies under a rule with `rounding` (ADR 0027). Time segments switch when the
+ * local clock really shows their hours, so a daylight saving night is an hour shorter or longer.
+ * A game that starts inside the segments begins in them: inside their hours when the last one has
+ * an end, or within 12 hours of the first one's start when it has none. Otherwise they begin the
+ * next time the first one's hour comes round.
+ */
+export function localWageWindows(
   rule: WageRule,
-  sessions: readonly SeatSession[],
-  windows: readonly WageWindow[],
-  { now }: Pick<ChargeClock, "now">,
-): WagePartCharge[] {
-  const rateAt = (time: Timestamp) => {
+  gameStart: Timestamp | undefined,
+  runs: readonly TimerRun[] | undefined,
+  minuteOfDay: ChargeClock["minuteOfDay"],
+): WageWindow[] {
+  if (gameStart === undefined) return [];
+  const time = rule.timeSegments ?? [];
+  const chainFrom = (start: Timestamp) => {
+    let from = start;
+    return time.map(({ toHour, hourly }, i): WageWindow => {
+      const to = toHour === undefined ? Infinity : localHourAfter(from, toHour, minuteOfDay);
+      const window = { part: `time-${i + 1}` as const, kind: "time" as const, from, to, hourly };
+      from = to;
+      return window;
+    });
+  };
+  const [first] = time;
+  let timeWindows: WageWindow[] = [];
+  if (first) {
+    const begun = chainFrom(localHourBefore(gameStart, first.fromHour, minuteOfDay));
+    const start = begun[0]?.from ?? gameStart;
+    const end = begun.at(-1)?.to ?? gameStart;
+    const inside = Number.isFinite(end)
+      ? gameStart < end
+      : gameStart - start <= OPEN_SEGMENT_LOOK_BACK;
+    timeWindows = inside
+      ? begun
+      : chainFrom(localHourAfter(gameStart, first.fromHour, minuteOfDay));
+  }
+  return [...timeWindows, ...gameTimeWindows(rule, gameStart, runs)];
+}
+
+/** The rate at each moment under a rule's windows, and the moments where it can change. */
+function wageRates(rule: WageRule, windows: readonly WageWindow[]) {
+  const rateAt = (time: Timestamp): { part: WagePart; hourly: Cents } => {
     const at = (kind: WageWindow["kind"]) =>
       windows.find((w) => w.kind === kind && w.from <= time && time < w.to);
     const byTime = at("time");
@@ -217,12 +306,94 @@ export function segmentedWageParts(
           ? byGame
           : byTime
         : (byTime ?? byGame);
-    return pick ?? { part: "base" as const, hourly: rule.hourly };
+    return pick ?? { part: "base", hourly: rule.hourly };
   };
   const bounds = windows
     .flatMap((w) => [w.from, w.to])
     .filter(Number.isFinite)
     .sort((a, b) => a - b);
+  return { rateAt, bounds };
+}
+
+/** Base first, then the other rates in the order the player met them. */
+const baseFirst = (a: { part: WagePart }, b: { part: WagePart }) =>
+  Number(b.part === "base") - Number(a.part === "base");
+
+/**
+ * Wages for one player under a rule with `rounding` (ADR 0027). Their counted time is cut into
+ * billing units from the moment they sat down, pauses and time away left out. A part unit at the
+ * end counts as a whole one or not at all, by the rule's rounding; one that counts runs on past
+ * the moment the player left. Each unit is charged at one rate: the one that covers more of it,
+ * or the higher of two that cover the same.
+ */
+export function unitWageParts(
+  rule: WageRule,
+  sessions: readonly SeatSession[],
+  windows: readonly WageWindow[],
+  { now }: Pick<ChargeClock, "now">,
+): WagePartCharge[] {
+  const { rateAt, bounds } = wageRates(rule, windows);
+  const unitMinutes = rule.unitMinutes ?? 1;
+  const unitMs = unitMinutes * MINUTE;
+  const spans = sessions
+    .map(({ from, to = now }) => ({ from, to }))
+    .filter(({ from, to }) => to > from);
+  const totalMs = spans.reduce((all, { from, to }) => all + to - from, 0);
+  const whole = Math.floor(totalMs / unitMs);
+  const rest = totalMs - whole * unitMs;
+  const counts =
+    rest > 0 && (rule.rounding === "up" || (rule.rounding !== "down" && rest * 2 >= unitMs));
+  const last = spans.at(-1);
+  if (counts && last) spans.push({ from: last.to, to: last.to + unitMs - rest });
+
+  const charged = new Map<WagePart, { hourly: Cents; minutes: number }>();
+  let unit = new Map<WagePart, { hourly: Cents; ms: number }>();
+  let unitLeft = unitMs;
+  let left = (whole + (counts ? 1 : 0)) * unitMs;
+  for (const { from, to } of spans) {
+    for (let time = from; time < to && left > 0; ) {
+      const next = Math.min(to, bounds.find((b) => b > time) ?? Infinity, time + unitLeft);
+      const { part, hourly } = rateAt(time);
+      unit.set(part, { hourly, ms: (unit.get(part)?.ms ?? 0) + next - time });
+      unitLeft -= next - time;
+      left -= next - time;
+      time = next;
+      if (unitLeft > 0) continue;
+      // The rate with more of the unit takes all of it; the higher rate wins a tie
+      const [winner] = [...unit].sort(([, a], [, b]) => b.ms - a.ms || b.hourly - a.hourly);
+      if (winner) {
+        const [winnerPart, { hourly: rate }] = winner;
+        const minutes = (charged.get(winnerPart)?.minutes ?? 0) + unitMinutes;
+        charged.set(winnerPart, { hourly: rate, minutes });
+      }
+      unit = new Map();
+      unitLeft = unitMs;
+    }
+  }
+
+  return [...charged]
+    .map(([part, { hourly, minutes }]) => ({
+      part,
+      hourly,
+      minutes,
+      amount: multiply(hourly, minutes / 60, "half-up"),
+    }))
+    .sort(baseFirst);
+}
+
+/**
+ * Wages for one player under a rule with `unitMinutes` but no `rounding` (ADR 0025). Where a time segment and a game time
+ * segment both apply, the higher rate wins, or the one that began first at equal rates. The total
+ * time is charged in whole units, rounded up or down by the rule, and the minutes this adds or
+ * takes away fall on the rate the player sat at last.
+ */
+export function segmentedWageParts(
+  rule: WageRule,
+  sessions: readonly SeatSession[],
+  windows: readonly WageWindow[],
+  { now }: Pick<ChargeClock, "now">,
+): WagePartCharge[] {
+  const { rateAt, bounds } = wageRates(rule, windows);
 
   const totals = new Map<WagePart, { hourly: Cents; ms: number }>();
   let last: WagePart | undefined;
@@ -337,8 +508,16 @@ export function chargeStatuses(
   const starts = players.flatMap(({ playerId }) => sessions.get(playerId)?.[0]?.from ?? []);
   const firstSeat = starts.length > 0 ? Math.min(...starts) : undefined;
   const gameStart = runs ? runs[0]?.from : firstSeat;
-  const segmented = wage?.unitMinutes !== undefined;
-  const windows = wage && segmented ? wageWindows(wage, gameStart, runs, clock.minuteOfDay) : [];
+  // Three generations of rules, each charged as it was when its game started
+  const byUnit = wage?.rounding !== undefined;
+  const segmented = !byUnit && wage?.unitMinutes !== undefined;
+  const windows = !wage
+    ? []
+    : byUnit
+      ? localWageWindows(wage, gameStart, runs, clock.minuteOfDay)
+      : segmented
+        ? wageWindows(wage, gameStart, runs, clock.minuteOfDay)
+        : [];
 
   const adjustment = wage?.adjustment;
   let switchAt = Infinity;
@@ -361,9 +540,11 @@ export function chargeStatuses(
       tableFee: tableFee ? tableFeeFor(tableFee, seated) : ZERO,
       wageParts: !wage
         ? []
-        : segmented
-          ? segmentedWageParts(wage, own, windows, clock)
-          : wageParts(wage, own, switchAt, clock),
+        : byUnit
+          ? unitWageParts(wage, own, windows, clock)
+          : segmented
+            ? segmentedWageParts(wage, own, windows, clock)
+            : wageParts(wage, own, switchAt, clock),
       tableFeeShortMs: tableFee ? Math.max(0, tableFee.minMinutes * MINUTE - seated) : 0,
     };
   });

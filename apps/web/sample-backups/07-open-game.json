@@ -1,6 +1,6 @@
 {
   "format": "holdem-backup",
-  "version": 9,
+  "version": 10,
   "exportedAt": 1767830400000,
   "games": [
     {
@@ -16,7 +16,8 @@
       "buyInBigBlinds": 100,
       "handChips": 500,
       "status": "open",
-      "createdAt": 1767783600000
+      "createdAt": 1767783600000,
+      "timeZone": "Asia/Shanghai"
     }
   ],
   "players": [

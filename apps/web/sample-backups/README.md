@@ -13,6 +13,7 @@ settlement page with [EXPECTED.md](EXPECTED.md). Each result there was worked ou
 | `05-insurance.json` | 2026-01-05 | Insurance with a hit and a miss, its result taken by a player |
 | `06-table-fee-and-wages.json` | 2026-01-06 | Table fee with a minimum time, wages that change after 3 hours |
 | `07-open-game.json` | 2026-01-07 | A game still open, for trying 一键离桌并结算 |
+| `08-wage-units-across-midnight.json` | 2026-01-08 | Wages by 30 minutes rounded up, a rate from midnight, units across two rates |
 | `all.json` | | Everything above in one file |
 
 The app has no game names, so the samples are told apart by date: every one is in January 2026, starting at 19:00

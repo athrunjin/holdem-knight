@@ -1,6 +1,6 @@
 {
   "format": "holdem-backup",
-  "version": 9,
+  "version": 10,
   "exportedAt": 1767830400000,
   "games": [
     {
@@ -29,6 +29,7 @@
       "handChips": 200,
       "status": "settled",
       "createdAt": 1767697200000,
+      "timeZone": "Asia/Shanghai",
       "settledAt": 1767715800000,
       "timer": {
         "elapsedMs": 17400000,

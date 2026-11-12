@@ -19,6 +19,7 @@ import { SaveGameConfigDialog } from "@/components/game/SaveGameConfigDialog";
 import { Page } from "@/components/Page";
 import { GUEST_ORGANIZER_ID } from "@/data";
 import { useGames, useStartGame } from "@/data/games";
+import { deviceTimeZone } from "@/lib/charges";
 
 export const Route = createFileRoute("/games/new")({
   component: NewGamePage,
@@ -50,7 +51,12 @@ function NewGamePage() {
     if (!picking) return;
     const now = Date.now();
     const game = createGame(
-      { id: crypto.randomUUID(), organizerId: GUEST_ORGANIZER_ID, createdAt: now },
+      {
+        id: crypto.randomUUID(),
+        organizerId: GUEST_ORGANIZER_ID,
+        createdAt: now,
+        timeZone: deviceTimeZone(),
+      },
       picking,
     );
     startGame.mutate(

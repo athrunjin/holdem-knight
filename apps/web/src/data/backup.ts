@@ -11,7 +11,7 @@ import {
 import { z } from "zod";
 
 const FORMAT = "holdem-backup";
-const VERSION = 9;
+const VERSION = 10;
 
 const id = z.string().min(1);
 const money = z
@@ -45,6 +45,8 @@ const wageSchema = z.object({
   /** Added in version 9, with the segments. */
   unitMinutes: z.union([z.literal(1), z.literal(15), z.literal(30), z.literal(60)]).optional(),
   roundUp: z.boolean().optional(),
+  /** Added in version 10. */
+  rounding: z.enum(["nearest", "up", "down"]).optional(),
   timeSegments: z
     .array(z.object({ fromHour: hour, toHour: hour.optional(), hourly: money }))
     .max(3)
@@ -87,6 +89,8 @@ const gameFields = {
   tableFee: tableFeeSchema.optional(),
   /** Added in version 7. */
   wage: wageSchema.optional(),
+  /** Added in version 10. */
+  timeZone: z.string().min(1).optional(),
   /** Added in version 8. */
   waivedCharges: z
     .array(

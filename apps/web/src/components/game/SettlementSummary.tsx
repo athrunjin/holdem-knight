@@ -10,13 +10,10 @@ import {
 import { useSaveGame } from "@/data/games";
 import { formatDifference, formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
-import { CURRENCY_INFO, formatGameMoney } from "@/lib/currency";
+import { formatGameMoney } from "@/lib/currency";
 import { formatElapsed } from "./GameTimer";
 import { imbalanceChoices } from "./ImbalanceOptions";
 import { PickerRow } from "./PickerRow";
-
-/** Shown until organizers have names, which arrive with accounts (M6). */
-const HOST_PLACEHOLDER = "{主持人}";
 
 /** `2026-11-09 周一 19:00` in local time. */
 function formatStart(time: number) {
@@ -49,7 +46,7 @@ interface SettlementSummaryProps {
  */
 export function SettlementSummary({ game, ledger, difference }: SettlementSummaryProps) {
   const saveGame = useSaveGame();
-  const { currency, chipRatio, smallBlindChips, bigBlindChips, handChips, timer } = game;
+  const { currency, chipRatio, handChips, timer } = game;
   const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
   const { boughtChips } = ledgerTotals(people);
   const money = (chips: number) => formatGameMoney(chipsToCents(chips, chipRatio), currency);
@@ -61,10 +58,9 @@ export function SettlementSummary({ game, ledger, difference }: SettlementSummar
 
   return (
     <section aria-label="牌局信息">
-      <h2 className="text-2xl font-semibold">结果</h2>
-      <p className="mt-0.5 text-xs text-muted">
-        {smallBlindChips}/{bigBlindChips} {CURRENCY_INFO[currency].label} ·{" "}
-        {formatStart(game.createdAt)} · Host：{HOST_PLACEHOLDER}
+      {/* The organizer's ID stands in until organizers have names (M6) */}
+      <p className="text-sm text-muted">
+        {game.organizerId} · {formatStart(game.createdAt)}
       </p>
       <dl className="mt-2 grid grid-cols-3 gap-2">
         <Tile label="总买入">

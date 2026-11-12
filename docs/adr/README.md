@@ -29,8 +29,9 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0022](0022-table-fee-and-wages.md)         | Table fees and wages as cash charges at settlement        | Superseded in part by 0023 and 0025 |
 | [0023](0023-seat-time-follows-game-clock.md) | Time at the table counts only while the game clock runs | Accepted |
 | [0024](0024-itemized-charges-and-waivers.md) | Itemized wages by rate, and waiving a charge at settlement | Superseded in part by 0025 |
-| [0025](0025-wage-segments-and-billing-units.md) | Wage segments, billing units and rounding up | Accepted |
+| [0025](0025-wage-segments-and-billing-units.md) | Wage segments, billing units and rounding up | Superseded in part by 0027 |
 | [0026](0026-insurance-cover-limits-and-odds-tables.md) | Insurance cover limits, and odds tables kept apart from the rule's settings | Accepted |
+| [0027](0027-wage-units-rounding-and-game-time-zone.md) | Wage units at the longer rate, rounding modes, and the game's time zone | Accepted |
 
 ## Template
 

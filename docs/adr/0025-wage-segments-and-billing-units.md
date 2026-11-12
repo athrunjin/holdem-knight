@@ -1,6 +1,6 @@
 # 0025. Wage segments, billing units and rounding up
 
-- Status: Accepted
+- Status: Superseded in part by [0027](0027-wage-units-rounding-and-game-time-zone.md)
 - Date: 2026-11-11
 
 ## Context

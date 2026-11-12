@@ -144,6 +144,8 @@ function sampleGame(slug: string, setup: GameSetup) {
     handChips: settings.bigBlindChips * buyInBigBlinds,
     status: settledAfter === undefined ? "open" : "settled",
     createdAt: start,
+    // Beijing time on every device, so rates by time of day match EXPECTED.md anywhere
+    timeZone: "Asia/Shanghai",
     ...(settledAfter === undefined ? {} : { settledAt: at(settledAfter) }),
     ...(clock && {
       timer: {
@@ -569,6 +571,72 @@ function open(): SampleScenario {
   };
 }
 
+function wageUnits(): SampleScenario {
+  const g = sampleGame("08-wage-units-across-midnight", {
+    day: 8,
+    currency: CNY,
+    smallBlindChips: 1,
+    bigBlindChips: 2,
+    buyInBigBlinds: 100,
+    ratio: { chips: 1, amount: 100 },
+    tableFee: { amount: cents(10000), minMinutes: 10 },
+    wage: {
+      hourly: cents(2000),
+      unitMinutes: 30,
+      rounding: "up",
+      timeSegments: [{ fromHour: 0, hourly: cents(3000) }],
+    },
+    settledAfter: 335,
+    clock: [[0, 330]],
+  });
+  g.buyIn("ly", 0, 200);
+  g.buyIn("ln", 1, 200);
+  g.cashOut("ln", 9, 180);
+  g.buyIn("zw", 256, 200);
+  g.buyIn("wf", 285, 200);
+  g.cashOut("zw", 313, 350);
+  g.cashOut("wf", 315, 150);
+  g.cashOut("ly", 330, 120);
+
+  return {
+    slug: "08-wage-units-across-midnight",
+    title: "Wage units across midnight",
+    checks: [
+      "Wages ¥20 an hour, ¥30 from midnight, charged by 30 minutes and rounded up. Table fee ¥100 after 10 minutes. The clock ran 19:00–0:30.",
+      "张伟 sat 23:16–0:13, 57 minutes: 23:16–23:46 at ¥20, then the part unit runs on to 0:16 with 16 minutes after midnight, so ¥30. ¥25 in all.",
+      "王芳 sat 23:45–0:15: 15 minutes on each side of midnight, so the higher ¥30 for the unit, ¥15.",
+      "李娜 sat 8 minutes: rounded up to one unit at ¥20, ¥10, and no table fee.",
+      "刘洋 sat 19:00–0:30: ten units at ¥20 and one at ¥30, ¥115.",
+      "Turn on 明细: the block above the cards names both rates, 精确到30分 and 向上取整.",
+    ],
+    data: g.data(),
+    expected: {
+      differenceChips: 0,
+      difference: cents(0),
+      chargesTotal: cents(46500),
+      charges: [
+        { name: "刘洋", seatedMinutes: 330, tableFee: cents(10000), wage: cents(11500) },
+        { name: "李娜", seatedMinutes: 8, tableFee: cents(0), wage: cents(1000) },
+        { name: "张伟", seatedMinutes: 57, tableFee: cents(10000), wage: cents(2500) },
+        { name: "王芳", seatedMinutes: 30, tableFee: cents(10000), wage: cents(1500) },
+      ],
+      results: [
+        { name: "张伟", hands: 1, cashedOutChips: 350, netChips: 150, net: cents(2500) },
+        { name: "李娜", hands: 1, cashedOutChips: 180, netChips: -20, net: cents(-3000) },
+        { name: "王芳", hands: 1, cashedOutChips: 150, netChips: -50, net: cents(-16500) },
+        { name: "刘洋", hands: 1, cashedOutChips: 120, netChips: -80, net: cents(-29500) },
+        { name: "组织者", netChips: 0, net: cents(46500) },
+      ],
+      transfers: [
+        { from: "刘洋", to: "组织者", amount: cents(29500) },
+        { from: "王芳", to: "组织者", amount: cents(16500) },
+        { from: "李娜", to: "张伟", amount: cents(2500) },
+        { from: "李娜", to: "组织者", amount: cents(500) },
+      ],
+    },
+  };
+}
+
 export const SAMPLE_SCENARIOS: readonly SampleScenario[] = [
   balanced(),
   collectorAndUndo(),
@@ -577,6 +645,7 @@ export const SAMPLE_SCENARIOS: readonly SampleScenario[] = [
   insurance(),
   charges(),
   open(),
+  wageUnits(),
 ];
 
 /** Every sample in one file, for restoring them all at once. */

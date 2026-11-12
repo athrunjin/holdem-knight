@@ -4,12 +4,13 @@ import {
   type Cents,
   type Charge,
   cents,
+  chargeStatuses,
+  chargesFrom,
   chipDifference,
   chooseCollector,
   chooseInsuranceOwner,
   collectorTransfers,
   type Game,
-  gameCharges,
   INSURANCE_PLAYER_ID,
   INSURANCE_PLAYER_NAME,
   isValidCollector,
@@ -30,17 +31,26 @@ import {
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { GameOptionLine, GameTitle } from "@/components/game/GameOptions";
+import { GameRules, hasGameRules } from "@/components/game/GameRules";
 import { PickerRow } from "@/components/game/PickerRow";
 import { type ResultCard, ResultCards, type ResultLine } from "@/components/game/ResultCards";
 import { SettlementSummary } from "@/components/game/SettlementSummary";
+import { InfoButton } from "@/components/InfoButton";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
-import { chargeClock, formatSeatTime } from "@/lib/charges";
+import {
+  CHARGE_CLOCK_RULE,
+  chargeClock,
+  chargeRuleNotes,
+  chargeRuleSections,
+  formatSeatTime,
+} from "@/lib/charges";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
-import { formatGameMoney } from "@/lib/currency";
+import { formatGameAmount, formatGameMoney } from "@/lib/currency";
 import { renderSettlementImage } from "@/lib/settlement-image";
 import { shareFile } from "@/lib/share";
 
@@ -67,7 +77,8 @@ function SettlementPage() {
 
   return (
     <Page
-      title="结算"
+      title={<GameTitle game={game} />}
+      subtitle={<GameOptionLine game={game} />}
       actions={
         <Link
           to="/games/$gameId"
@@ -133,7 +144,10 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
   const { insuranceNet, ownerId } = insured;
   // Table fees and wages come last, in cash, so they never touch the chip results above
   const clock = chargeClock(game);
-  const charges = gameCharges(game, events, clock);
+  const statuses = game.tableFee || game.wage ? chargeStatuses(game, events, clock) : [];
+  const charges = chargesFrom(game, statuses);
+  const ruleNotes = chargeRuleNotes(game, game.currency);
+  const ruleSections = chargeRuleSections(game, game.currency);
   const charged = applyCharges(insured.nets, charges);
   const { nets } = charged;
   const {
@@ -175,8 +189,24 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     ];
   }
 
-  /** Wages at each rate, then the table fee, each with a box to let the player off it. */
+  /**
+   * The time sat and the time charged, then wages at each rate and the table fee, each with a box
+   * to let the player off it.
+   */
   function chargeLines(playerId: string): ResultLine[] {
+    const status = statuses.find((s) => s.playerId === playerId);
+    const billedMinutes = status?.wageParts.reduce((all, p) => all + p.minutes, 0) ?? 0;
+    const timeNote: ResultLine[] =
+      game.wage && status
+        ? [
+            {
+              key: "time",
+              label: `在桌 ${formatSeatTime(status.seatedMs)} · 计费 ${formatSeatTime(billedMinutes * 60_000)}`,
+              tone: "charge",
+              note: true,
+            },
+          ]
+        : [];
     const line = (charge: Charge, label: string): ResultLine => ({
       key: `${charge.kind}-${charge.part ?? ""}`,
       label,
@@ -194,7 +224,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
       },
     });
     const own = charges.filter((c) => c.playerId === playerId);
-    const wages = own.flatMap(({ hourly, minutes, ...charge }) =>
+    const rates = own.flatMap(({ hourly, minutes, ...charge }) =>
       hourly === undefined || minutes === undefined
         ? []
         : [
@@ -204,6 +234,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
             ),
           ],
     );
+    const wages = [...timeNote, ...rates];
     const fee = own.find((c) => c.kind === "table_fee");
     const { tableFee } = game;
     if (fee) return [...wages, line(fee, `台费 ${money(fee.amount)}/人`)];
@@ -248,13 +279,18 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
   const income = (kind: Charge["kind"]) =>
     sum(charges.filter((c) => c.kind === kind && !c.waived).map((c) => c.amount));
   const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
-  const incomeLine = (key: string, label: string, amount: Cents): ResultLine[] =>
-    receivesCharges && amount !== 0 ? [{ key, label, amount, tone: "charge" }] : [];
-  // Each income on its own line, adding up to the organizer's total
+  /** A dash when the organizer receives none of it, so the four lines always show. */
+  const incomeLine = (group: "保险" | "工资" | "台费", amount: Cents): ResultLine => {
+    const line = { key: group, label: group, group, tone: "charge" as const };
+    return amount === 0 ? line : { ...line, amount };
+  };
+  const ownInsurance = ownerId === ORGANIZER_COLLECTOR ? insuranceNet : ZERO;
+  // What an organizer can receive, always in this order. Rake has no amount until M4
   const organizerLines: ResultLine[] = [
-    ...incomeLine("table-fee", "台费收入", income("table_fee")),
-    ...incomeLine("wage", "工资收入", income("wage")),
-    ...insuranceLine(ORGANIZER_COLLECTOR),
+    incomeLine("保险", ownInsurance),
+    incomeLine("工资", receivesCharges ? income("wage") : ZERO),
+    incomeLine("台费", receivesCharges ? income("table_fee") : ZERO),
+    { key: "rake", label: "抽水", tone: "charge" },
     ...(covered === 0
       ? []
       : [
@@ -263,21 +299,23 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
             label: covered < 0 ? "补齐差额" : "收取差额",
             amount: covered,
             tone: "adjustment" as const,
+            group: "差额" as const,
           },
         ]),
   ];
-  const cards: ResultCard[] =
+  const organizerCard: ResultCard[] =
     organizerNet === undefined
-      ? playerCards
+      ? []
       : [
-          ...playerCards,
           {
             id: ORGANIZER_COLLECTOR,
-            name: "组织者",
+            // The organizer's ID stands in until organizers have names (M6)
+            name: game.organizerId,
             hands: "—",
             chips: "—",
             lines: organizerLines,
             total: organizerNet,
+            collapsible: true,
           },
         ];
 
@@ -310,6 +348,9 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     (text) => text !== undefined,
   );
 
+  // The image closes with the organizer, named as in the transfers
+  const imageOrganizer = organizerCard.map((card) => ({ ...card, name: "组织者" }));
+
   async function handleShare() {
     setSharing(true);
     setShareFailed(false);
@@ -324,15 +365,17 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
           to: collectorName(to),
           amount: formatGameMoney(amount, currency),
         })),
-        notes,
-        results: cards.map(({ name, hands, chips, netChips, total }) => ({
-          name,
-          hands,
-          chips,
-          net: netChips === undefined ? "—" : formatSignedChips(netChips),
-          amount: formatGameMoney(total, currency, "exceptZero"),
-          outcome: Math.sign(total),
-        })),
+        notes: [...notes, ...ruleNotes],
+        results: [...playerCards, ...imageOrganizer].map(
+          ({ name, hands, chips, netChips, total }) => ({
+            name,
+            hands,
+            chips,
+            net: netChips === undefined ? "—" : formatSignedChips(netChips),
+            amount: formatGameAmount(total, currency, "exceptZero"),
+            outcome: Math.sign(total),
+          }),
+        ),
       });
       const day = [date.getFullYear(), date.getMonth() + 1, date.getDate()].join("-");
       await shareFile(image, `结算-${day}.png`);
@@ -396,7 +439,31 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
         </PickerRow>
       )}
 
-      <ResultCards cards={cards} currency={currency} />
+      <ResultCards
+        organizer={organizerCard[0]}
+        cards={playerCards}
+        currency={currency}
+        settings={hasGameRules(game) && <GameRules game={game} charges={charges} />}
+        settingsInfo={
+          ruleSections.length > 0 && (
+            <InfoButton title="计费规则" small>
+              <div className="flex flex-col gap-2 text-sm">
+                {ruleSections.map(({ title, lines }) => (
+                  <section key={title}>
+                    <h4 className="font-medium">{title}</h4>
+                    {lines.map((line) => (
+                      <p key={line} className="text-muted">
+                        {line}
+                      </p>
+                    ))}
+                  </section>
+                ))}
+                <p className="text-xs text-muted">{CHARGE_CLOCK_RULE}</p>
+              </div>
+            </InfoButton>
+          )
+        }
+      />
 
       <section className="mt-4">
         <h2>
