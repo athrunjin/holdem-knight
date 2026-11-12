@@ -245,6 +245,13 @@ export function chargesByPlayer(charges: readonly Charge[]) {
   return byPlayer;
 }
 
+/** Counted time as `1:02:03`. */
+export function formatClock(ms: number) {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = String(Math.floor(seconds / 60) % 60).padStart(2, "0");
+  return `${Math.floor(seconds / 3600)}:${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 /** Time at the table as hours and minutes, e.g. 2小时05分 or 45分. */
 export function formatSeatTime(ms: number) {
   const minutes = Math.floor(ms / 60_000);

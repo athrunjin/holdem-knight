@@ -33,8 +33,8 @@
 
 ### #71 Detail mode and itemized settlement
 
-- 桌上玩家 has a 详细模式 switch, on by default in games with fees. It shows each player's counted time (live), table
-  fee, wages so far, and cash result less those charges.
+- 桌上玩家 has a 详细模式 switch, on by default in games with fees. It opens each player's card on their Buy-in
+  record, counted time (live), wages and table fee so far, and cash result less those charges.
 - Settlement shows one card per person. Wages are listed per rate, such as `¥25/时 × 1小时40分`, then the table fee.
   Each charge has a box; unticking it waives that charge for that player.
 - Each rate counts whole minutes and rounds to the cent on its own. Backups move to version 8.
@@ -126,7 +126,7 @@ Priorities and severities are defined in the [testing README](README.md).
 
 | ID | Priority | Case | Preconditions and steps | Expected |
 | --- | --- | --- | --- | --- |
-| B-01 | P0 | Clock not started | A game with fees and players, Start not tapped. 1. Look at the game page. 2. Wait 3 minutes and settle. | 1. 对局计时器未开始，台费和工资暂不计时。 shows, and detail mode shows 在局 0:00:00. 2. Folded cards have no fee line. Expanded, there is no wage line and the table fee shows 未满. There is no organizer card (R2). |
+| B-01 | P0 | Clock not started | A game with fees and players, Start not tapped. 1. Look at the game page. 2. Wait 3 minutes and settle. | 1. 对局计时器未开始，台费和工资暂不计时。 shows, and detail mode shows 在桌 0:00:00. 2. Folded cards have no fee line. Expanded, there is no wage line and the table fee shows 未满. There is no organizer card (R2). |
 | B-02 | P0 | Starting the clock | As above, tap Start. | The notice goes away and each player's time ticks every second. |
 | B-03 | P0 | Pause and resume | With the clock running, pause for 2 minutes, then resume. | While paused the notice says 已暂停 and times stop. They carry on after resuming, and the 2 minutes do not count. |
 | B-04 | P0 | Leaving and 回桌 | With the clock running, one player leaves and taps 回桌 3 minutes later. | Their time stops while away and carries on after 回桌. Settlement counts both stretches (R1). |
@@ -140,12 +140,16 @@ Priorities and severities are defined in the [testing README](README.md).
 | ID | Priority | Case | Preconditions and steps | Expected |
 | --- | --- | --- | --- | --- |
 | C-01 | P0 | Default | Open a game with fees and one without. | With fees, 详细模式 at the top right of 桌上玩家 starts on. Without fees, it starts off. |
-| C-02 | P0 | What it shows | A game with fees, clock running. | Each player's first row is unchanged. Below it, two columns: 在局 H:MM:SS, 台费 (the amount, or 未满 差 N 分 in gold), 工资, and 含费水上 or 含费水下 (green for a win, red for a loss). |
-| C-03 | P0 | Checking the numbers | Wages ¥60 an hour, table fee ¥100 after 2 minutes, 1:1. After 3 minutes on the clock, set a player's stack 100 above their buy-in. | 台费 ¥100, 工资 ¥3, 含费水下 -¥3 (100 − 100 − 3). |
+| C-02 | P0 | What it shows | A game with fees, clock running. | Each player's first row is unchanged. Below it, as on their settlement card: the Buy-in record folding from 带入, 带出 with the current time and chips, 在桌 H:MM:SS with 计费, 工资 at each rate and 台费 (the amount, or 未满 差 N 分 with a dash), each charge with a box, then 合计 with 结算并下桌 (green for a win, red for a loss). |
+| C-03 | P0 | Checking the numbers | Wages ¥60 an hour, table fee ¥100 after 2 minutes, 1:1. After 3 minutes on the clock, set a player's stack 100 above their buy-in. | 台费 -¥100.00, 工资 -¥3.00, 合计 -¥3.00 (100 − 100 − 3). |
 | C-04 | P1 | The switch | Turn it off and on, then leave and reopen the game. | The details hide and show without changing data. Reopening the game resets the switch to its default. |
-| C-05 | P1 | Games without fees | Turn detail mode on in a game without fees. | Only 在局 and 水上 or 水下 show. |
+| C-05 | P1 | Games without fees | Turn detail mode on in a game without fees. | The Buy-in record, 带出 and 合计 show, with no time or charges. |
 | C-06 | P1 | The insurance seat | A game with insurance, detail mode on. | The insurance row shows no details. |
-| C-07 | P1 | Waivers carry over | Waive a player's table fee at settlement, then reopen the game. | Detail mode shows 台费 ¥0, and the result no longer subtracts it (R7). |
+| C-07 | P1 | Waivers carry over | Waive a player's table fee at settlement, then reopen the game. | Detail mode shows the table fee struck through with its box unticked, and 合计 no longer subtracts it (R7). |
+| C-08 | P0 | Settling one player | Open a player's card and tap 结算并下桌 once. Tap again while it is lit. | First tap: the button lifts, reads 确认结算 and its green fill runs out from the right over 5 seconds, and the player's Buy-in and chips blink and stay gold. Second tap: the player moves to 已离桌 with the chips on the page, and no dialog opens. |
+| C-09 | P0 | The light goes out | Tap 结算并下桌 once and wait 5 seconds, then tap once more. | After 5 seconds the button reads 结算并下桌 again and nobody has left. The next tap only lights it again. |
+| C-10 | P1 | A double tap | Tap 结算并下桌 twice as fast as you can. | The button is lit and the player is still at the table. |
+| C-11 | P1 | Waiving from the game page | Untick a player's table fee on their open card, then settle the game. | 合计 on the card drops the fee at once, and the settlement page shows the same box unticked. |
 
 ### D. Settlement amounts
 

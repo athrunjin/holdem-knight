@@ -142,9 +142,10 @@ export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProp
   });
   const timesBought = rows.filter((r) => r.action === "sit" || r.action === "add").length;
   const [open, setOpen] = useState(rows.length <= MAX_OPEN_RECORDS);
+  // Spaced only while one digit, so two digits still fit the width of a time
   const times = (
     <>
-      共<span className="px-0.5">{timesBought}</span>次
+      共<span className={cn(timesBought < 10 && "px-0.5")}>{timesBought}</span>次
     </>
   );
 
@@ -163,7 +164,8 @@ export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProp
               aria-hidden
             />
           </span>
-          <span className="hidden min-w-9.5 shrink-0 pr-0.5 @[22.5rem]:block">{times}</span>
+          {/* As wide as a line's time whatever it holds, so 带入 starts where 上桌 and 带出 do */}
+          <span className="hidden w-9.5 shrink-0 @[22.5rem]:block">{times}</span>
           <span className="font-medium text-win">带入</span>
         </span>
         <span className="text-center">{handChips === undefined ? "—" : count(held)}</span>

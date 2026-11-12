@@ -93,7 +93,7 @@ export function ColumnTitles({ first }: { first: string }) {
 }
 
 /** One line under a card's row, with a box to waive it where it is a charge the organizer can drop. */
-function Line({ line, currency }: { line: ResultLine; currency: Currency }) {
+export function Line({ line, currency }: { line: ResultLine; currency: Currency }) {
   const { label, amount, tone, waiver } = line;
   if (line.note) {
     return <p className="flex min-h-7 items-center pl-6 text-xs text-muted">{label}</p>;
@@ -181,7 +181,7 @@ function Summary({ card, currency }: { card: ResultCard; currency: Currency }) {
  * One person's card: a tinted row with their chips and result, then their Buy-in record, the
  * adjustments to the result and a total. A card that folds shows the row and a one-line summary.
  */
-export function Card({
+function Card({
   card,
   currency,
   open = false,

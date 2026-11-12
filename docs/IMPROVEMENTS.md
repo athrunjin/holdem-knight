@@ -798,7 +798,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - Each seated player is a card with the settlement page's five columns. 金额 always shows what the chips come to, on the organizer's row too. Charges only count in 合计.
   - Each card folds from an arrow before the name, as on the settlement page. Open, it shows time seated, table fee and wages where the game has them, then 合计. Closed cards have no summary line, so a full table stays short.
   - The 详细模式 switch opens every card, or closes them once all are open. It starts on in games with a table fee or wages. A first try named it 明细 and put a leave icon before the name.
-  - Leaving is a 结算并下桌 button on the 合计 line, before the amount, for players and for an organizer who plays. It opens the leave dialog.
+  - Leaving is a 结算并下桌 button on the 合计 line, before the amount, for players and for an organizer who plays. It opened a leave dialog, described in the lines below. #I-044 replaced the dialog with the open card itself.
   - The leave dialog, titled 结算并下桌, is the player's settlement card: the title row and the tinted row with their name, Buy-ins, chips, 水上/下 and cash, then the record, the time sat and charged, wages at each rate and the table fee with their boxes to waive, and 合计. It has no fields: the Buy-ins and chips are the ones on the game page.
   - The record folds from a gray line in the card, with its arrow in the column of the waiver boxes: 「共 4 次」, a green 「带入」, then the Buy-ins, the chips bought and their cash value under the card's Buy-in, 筹码 and 金额 columns. It starts open up to 8 lines.
   - Each record line sits in the same columns. The day takes the arrow's place, on the first line and on the first line of each later day. Then the time as 17:37, what happened and how many Buy-ins it moved, and under Buy-in the Buy-ins held after it. 上桌 is gold, 补码 green and 退码 red. 离桌 and 回桌 are gray, and a 离桌 shows only when a 回桌 follows it.
@@ -834,6 +834,24 @@ Records discussions of feature and process improvements: what was proposed, how 
   - On the settlement page the organizer's card shows their hands, chips and result, and they are not listed among the players.
 - Decision: do.
 - Tracking: PR #82, ADR [0028](adr/0028-organizer-seat.md)
+
+### #I-044 Settle from the open card on the game page
+
+- Type: feature
+- Date: proposed and decided 2026-11-13
+- Source: trying #I-042 on a phone
+- Problem: the leave dialog showed a card the game page could show itself, so leaving took a tap, a dialog and a confirm, and the reminder before it depended on when the figures last changed, which nobody could see.
+- Proposal: an open card on the game page is the leave dialog's card, and 结算并下桌 settles from it with a second tap.
+- Settled details:
+  - A seated player's open card, from its arrow or 详细模式, is their settlement card as it would be if they left now: the Buy-in record, 带出 with the current time and chips, the rule, the time sat to the second with the time charged, wages at each rate and the table fee with their boxes to waive, and 合计 with the button. A table fee not yet due reads 「未满 差 12 分」. A waiver made here holds at settlement.
+  - 结算并下桌 always takes two taps. The first lights the button for 5 seconds and blinks the player's Buy-in and chips, which stay gold while it is lit. Lit, the button lifts and grows a little, reads 确认结算 and is filled with green that runs out from the right, with the label dark over the green and green where it has gone. A tap while it is lit settles the player at once, with the chips on the page, and no dialog. When it goes out the button is as before, and the next tap only lights it again.
+  - The rule of #I-042 that let a tap go straight through within 5 minutes of a change or of the last reminder is gone.
+  - Two taps within a third of a second count as one, so a double tap does not settle by accident. This was added in building it, not asked for.
+  - The organizer's card keeps its own lines. Its 结算并下桌, for an organizer who plays, works the same way.
+  - The leave dialog is removed, and with it the wide dialog layout and leaving at an earlier moment.
+  - 带入 on the folding line starts exactly where 上桌, 补码 and 带出 do: the count before it has a fixed width, where ten or more times bought used to push it right.
+- Decision: do.
+- Tracking: PR to follow on `feat/live-table-cards`
 
 ## Not doing or deferred
 

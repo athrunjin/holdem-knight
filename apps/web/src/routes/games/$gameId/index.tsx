@@ -25,10 +25,9 @@ import { ChipAmountDialog } from "@/components/game/ChipAmountDialog";
 import { GameOptionLine, GameTitle } from "@/components/game/GameOptions";
 import { GameTimer } from "@/components/game/GameTimer";
 import { HandsDialog } from "@/components/game/HandsDialog";
-import { LeaveDialog } from "@/components/game/LeaveDialog";
 import { LedgerLog } from "@/components/game/LedgerLog";
 import { LedgerPlayers } from "@/components/game/LedgerPlayers";
-import { usePlayerDetails } from "@/components/game/PlayerDetails";
+import { useLiveCharges } from "@/components/game/liveCharges";
 import { SettleDialog } from "@/components/game/SettleDialog";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
@@ -72,11 +71,11 @@ function GamePage() {
 
 /**
  * The record being entered.
- * `buy` and `stack` take chips, `leave` confirms both, and the others take hands:
+ * `buy` and `stack` take chips, and the others take hands:
  * `join` is a first buy-in and `edit` sets a target.
  */
 type PendingEntry = {
-  kind: "buy" | "stack" | "leave" | "join" | "edit";
+  kind: "buy" | "stack" | "join" | "edit";
   playerId: string;
   name: string;
   /** Hands changed from a Buy-in on the page, which shows the change before it is applied */
@@ -117,13 +116,7 @@ function GameLedger({ game }: { game: Game }) {
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
   const balanceChips = ledgerTotals(ledger).balanceChips;
-  // Games that charge for time always count, since the organizer's figures show the charges
-  const details = usePlayerDetails(
-    game,
-    events,
-    people,
-    game.tableFee !== undefined || game.wage !== undefined,
-  );
+  const live = useLiveCharges(game, events);
   const totals = ledgerTotals(people);
   const nameOf = gameNameOf(players, game);
   const money = (chips: number) => formatGameMoney(chipsToCents(chips, chipRatio), currency);
@@ -162,18 +155,9 @@ function GameLedger({ game }: { game: Game }) {
     );
   }
 
-  function handleLeave(playerId: string, chips: number, at: number) {
-    leaveTable.mutate({ playerId, chips, at }, { onSuccess: closeDialog });
-  }
-
-  /** When each player's chips or Buy-ins last changed, by any record or its reversal. */
-  const lastChangeAt = new Map<string, number>();
-  const eventsById = new Map(events.map((event) => [event.id, event]));
-  for (const event of events) {
-    const target = event.type === "reversal" ? eventsById.get(event.reversedEventId) : event;
-    if (!target || target.type === "reversal") continue;
-    const latest = Math.max(lastChangeAt.get(target.playerId) ?? 0, event.occurredAt);
-    lastChangeAt.set(target.playerId, latest);
+  /** The player leaves now, with the chips on the page, which the organizer has just confirmed. */
+  function handleLeave(playerId: string) {
+    leaveTable.mutate({ playerId, chips: playerTotals(playerId).stackChips });
   }
 
   function handleHands(playerId: string, change: HandChange, onSuccess?: () => void) {
@@ -319,10 +303,12 @@ function GameLedger({ game }: { game: Game }) {
       </dl>
 
       <LedgerPlayers
-        gameId={gameId}
+        game={game}
+        events={events}
         organizerName={nameOf(ORGANIZER_PLAYER_ID)}
-        insuranceOn={game.insurance !== undefined}
-        charged={{ tableFee: game.tableFee !== undefined, wage: game.wage !== undefined }}
+        live={live}
+        onWaive={(key, waived) => saveGame.mutate(waiveCharge(game, key, waived))}
+        waiving={saveGame.isPending}
         onJoin={(playerId) =>
           setPending({
             kind: handChips === undefined ? "buy" : "join",
@@ -334,9 +320,6 @@ function GameLedger({ game }: { game: Game }) {
         onReturnAll={handleReturnAll}
         players={ledger}
         nameOf={nameOf}
-        handChips={handChips}
-        ratio={chipRatio}
-        currency={currency}
         editable={editable}
         onEditHands={(playerId) =>
           setPending({ kind: "edit", playerId, name: nameOf(playerId), review: true })
@@ -344,11 +327,9 @@ function GameLedger({ game }: { game: Game }) {
         onEditStack={(playerId) => setPending({ kind: "stack", playerId, name: nameOf(playerId) })}
         onRebuy={(playerId) => setPending({ kind: "buy", playerId, name: nameOf(playerId) })}
         onReturn={handleReturn}
-        onLeave={(playerId) => setPending({ kind: "leave", playerId, name: nameOf(playerId) })}
-        lastChangeAt={lastChangeAt}
+        onLeave={handleLeave}
         detailMode={detailMode}
         onDetailModeChange={setDetailMode}
-        details={details}
         addPlayer={
           editable && (
             <AddPlayerToGame
@@ -385,21 +366,6 @@ function GameLedger({ game }: { game: Game }) {
           saveFailed={leaveAll.isError || saveGame.isError}
           onSubmit={confirmSettle}
           onClose={() => setSettling(false)}
-        />
-      )}
-
-      {pending?.kind === "leave" && (
-        <LeaveDialog
-          key={pending.playerId}
-          game={game}
-          events={events}
-          playerId={pending.playerId}
-          name={pending.name}
-          saving={leaveTable.isPending}
-          saveFailed={leaveTable.isError}
-          onWaive={(key, waived) => saveGame.mutate(waiveCharge(game, key, waived))}
-          onSubmit={(chips, at) => handleLeave(pending.playerId, chips, at)}
-          onClose={closeDialog}
         />
       )}
 
