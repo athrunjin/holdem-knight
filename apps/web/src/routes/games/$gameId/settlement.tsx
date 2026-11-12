@@ -31,11 +31,12 @@ import {
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { ChargeSummary } from "@/components/game/ChargeSummary";
 import { GameOptionLine, GameTitle } from "@/components/game/GameOptions";
+import { GameRules, hasGameRules } from "@/components/game/GameRules";
 import { PickerRow } from "@/components/game/PickerRow";
 import { type ResultCard, ResultCards, type ResultLine } from "@/components/game/ResultCards";
 import { SettlementSummary } from "@/components/game/SettlementSummary";
+import { InfoButton } from "@/components/InfoButton";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
@@ -435,7 +436,10 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
         organizer={organizerCard[0]}
         cards={playerCards}
         currency={currency}
-        details={<ChargeSummary game={game} charges={charges} />}
+        settings={hasGameRules(game) && <GameRules game={game} charges={charges} />}
+        settingsInfo={
+          ruleNotes.length > 0 && <InfoButton title="计费规则" text={ruleNotes.join("\n")} />
+        }
       />
 
       <section className="mt-4">

@@ -3,6 +3,7 @@ import {
   type ChargeClock,
   type Currency,
   cents,
+  formatOdds,
   type Game,
   type Timestamp,
   type WagePart,
@@ -100,17 +101,40 @@ function wagePartName(rule: WageRule, part: WagePart) {
 const partOrder = (part: WagePart) =>
   part === "base" ? "0" : part === "adjusted" || part.startsWith("time-") ? `1${part}` : `2${part}`;
 
+/** Outs whose odds a game's rules name, where the table has them. */
+const SHOWN_OUTS = [1, 3, 8, 9];
+
 /**
- * The game's wage and table fee settings in brief, for the top of the settlement details. Only
- * rates some player was charged at are named, so a segment the game never reached is left out.
+ * The game's insurance, table fee and wages in brief, in that order, for the top of the
+ * settlement cards. Insurance names whether tie cards count, whether a hit hands back the premium,
+ * and the odds for a few outs. Only wage rates some player was charged at are named, so a segment
+ * the game never reached is left out.
  */
-export function chargeSettingLines(
-  { wage, tableFee }: Pick<Game, "wage" | "tableFee">,
+export function gameRuleLines(
+  { insurance, wage, tableFee }: Pick<Game, "insurance" | "wage" | "tableFee">,
   charges: readonly Charge[],
   currency: Currency,
 ): { label: string; items: string[] }[] {
   const money = (amount: number) => formatGameMoney(cents(amount), currency);
   const lines: { label: string; items: string[] }[] = [];
+  if (insurance) {
+    const odds = SHOWN_OUTS.flatMap((outs) => {
+      const hundredths = insurance.oddsHundredths[outs - 1];
+      return hundredths === undefined ? [] : [`${outs}张赔${formatOdds(hundredths)}`];
+    });
+    lines.push({
+      label: "保险",
+      items: [
+        `平分牌${insurance.tieOuts === "include" ? "算" : "不算"} outs`,
+        `击中${insurance.refundPremium ? "退" : "不退"}保费`,
+        ...odds,
+      ],
+    });
+  }
+  if (tableFee) {
+    const least = tableFee.minMinutes > 0 ? [`在桌满 ${tableFee.minMinutes} 分钟`] : [];
+    lines.push({ label: "台费", items: [`${money(tableFee.amount)}/人`, ...least] });
+  }
   if (wage) {
     const used = new Map<WagePart, number>();
     for (const { part, hourly } of charges) {
@@ -123,10 +147,6 @@ export function chargeSettingLines(
     const rounding = wage.rounding ?? (wage.roundUp ? "up" : "down");
     const how = [UNIT_NAMES[wage.unitMinutes ?? 1], ROUNDING_NAMES[rounding]];
     lines.push({ label: "工资", items: [...rates, ...how] });
-  }
-  if (tableFee) {
-    const least = tableFee.minMinutes > 0 ? [`在桌满 ${tableFee.minMinutes} 分钟`] : [];
-    lines.push({ label: "台费", items: [`${money(tableFee.amount)}/人`, ...least] });
   }
   return lines;
 }

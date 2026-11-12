@@ -233,22 +233,26 @@ function Card({
 /**
  * Settlement results as one card per person: a tinted row with their chips and result, then the
  * adjustments to it and a total. Cards fold to that row and a one-line summary, and the 明细
- * switch opens them all, or closes them once all are open. `details` shows above the cards while
- * all are open. An organizer with anything to receive comes first under a title row of their own,
+ * switch opens them all, or closes them once all are open. `settings`, when given, opens from a
+ * 设置 button beside the heading, with `settingsInfo` next to it. An organizer with anything to receive comes first under a title row of their own,
  * and the players follow under theirs.
  */
 export function ResultCards({
   organizer,
   cards,
   currency,
-  details,
+  settings,
+  settingsInfo,
 }: {
   organizer?: ResultCard | undefined;
   cards: readonly ResultCard[];
   currency: Currency;
-  details?: ReactNode;
+  /** The game's rules in brief. Missing when the game has none to show. */
+  settings?: ReactNode;
+  settingsInfo?: ReactNode;
 }) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const everyone = organizer ? [organizer, ...cards] : cards;
   const foldable = everyone.filter((card) => card.collapsible && card.lines.length > 0);
   const allOpen = foldable.length > 0 && foldable.every((card) => open.has(card.id));
@@ -280,7 +284,27 @@ export function ResultCards({
   return (
     <div className="mt-3 flex flex-col gap-2">
       <div className="-mb-2 flex min-h-11 items-center justify-between gap-2">
-        <h3 className="font-semibold">对局总览</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold">对局总览</h3>
+          {settings && (
+            <button
+              type="button"
+              aria-expanded={settingsOpen}
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              className="flex min-h-11 items-center gap-0.5 text-xs text-muted"
+            >
+              设置
+              <ChevronRight
+                className={cn(
+                  "size-3.5 transition-transform",
+                  settingsOpen ? "-rotate-90" : "rotate-90",
+                )}
+                aria-hidden
+              />
+            </button>
+          )}
+          {settingsOpen && settingsInfo}
+        </div>
         {foldable.length > 0 && (
           <MiniSwitch
             label="明细"
@@ -289,7 +313,7 @@ export function ResultCards({
           />
         )}
       </div>
-      {allOpen && details}
+      {settingsOpen && settings}
       {organizer && (
         <>
           {titles("组织者")}
