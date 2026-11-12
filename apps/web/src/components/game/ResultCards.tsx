@@ -9,6 +9,7 @@ import { formatGameAmount } from "@/lib/currency";
 /**
  * Shared by the column titles and every row under them, so all amounts share one right edge.
  * Buy-ins are sized for two digits, and chips and the win or loss for four with a separator.
+ * Buy-ins and chips are centered in their columns, and the win or loss and the amount end at the right.
  */
 export const columnsClass =
   "grid grid-cols-[minmax(0,1fr)_2.5rem_3.25rem_3.75rem_6.25rem] items-center tabular-nums";
@@ -74,7 +75,7 @@ export function ColumnTitles({ first }: { first: string }) {
     <div className={cn(columnsClass, "px-2 text-xs text-muted")}>
       <span>{first}</span>
       <span className="text-center">Buy-in</span>
-      <span className="text-right">筹码</span>
+      <span className="text-center">筹码</span>
       <span className="text-right">水上/下</span>
       <span className="text-right">金额</span>
     </div>
@@ -195,7 +196,7 @@ function Card({
         <span className="truncate">{name}</span>
       </span>
       <span className="text-center">{hands}</span>
-      <span className="text-right">{chips}</span>
+      <span className="text-center">{chips}</span>
       <span
         className={cn("text-right", netChips === undefined ? "text-muted" : netColor(netChips))}
       >

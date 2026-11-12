@@ -10,8 +10,8 @@ import {
   type LedgerEvent,
   summarizeByPlayer,
 } from "@holdem-knight/core";
-import { ChevronRight } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { ChevronRight, LogIn, LogOut } from "lucide-react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { formatSeatTime, gameMinuteOfDay } from "@/lib/charges";
 import { formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
@@ -36,7 +36,6 @@ const ACTIONS = {
   back: ["退码", "text-loss"],
   away: ["离桌", "text-muted"],
   return: ["回桌", "text-muted"],
-  settle: ["结算", "text-highlight"],
 } as const;
 
 interface RecordRow {
@@ -44,10 +43,26 @@ interface RecordRow {
   readonly action: keyof typeof ACTIONS;
   /** The Buy-ins this row moved. */
   readonly moved?: string;
-  /** Missing on the row for the settlement being confirmed. */
-  readonly at?: number;
+  readonly at: number;
   /** Buy-ins held after the row, where it changes them. */
   readonly total?: string;
+}
+
+/** Chips or cash with a mark just left of them: green for what went in, gold for what comes out. */
+function Marked({ out, children }: { out?: boolean; children: ReactNode }) {
+  const Icon = out ? LogOut : LogIn;
+  return (
+    <span className="relative inline-block">
+      <Icon
+        className={cn(
+          "absolute top-1/2 right-full mr-0.5 size-3 -translate-y-1/2",
+          out ? "text-highlight" : "text-win",
+        )}
+        aria-hidden
+      />
+      {children}
+    </span>
+  );
 }
 
 interface LeaveDialogProps {
@@ -166,21 +181,21 @@ export function LeaveDialog({
         return [];
     }
   });
-  // The settlement being confirmed closes the record, with the chips taken out and their value
-  const settleRow: RecordRow = { id: "settle", action: "settle", total: count(boughtChips) };
   const timesBought = rows.filter((r) => r.action === "sit" || r.action === "add").length;
   const [recordOpen, setRecordOpen] = useState(rows.length <= MAX_OPEN_RECORDS);
+  const times = (
+    <>
+      共<span className="px-0.5">{timesBought}</span>次
+    </>
+  );
 
   /** The day shows on the first row and again on the first row of each later day. */
   function dayOf(row: RecordRow, previous: RecordRow | undefined) {
-    if (row.at === undefined) return "";
     const day = new Date(row.at).getDate();
-    const before = previous?.at === undefined ? undefined : new Date(previous.at).getDate();
-    return day === before ? "" : `${day}日`;
+    return previous && day === new Date(previous.at).getDate() ? "" : `${day}日`;
   }
 
   function timeOf({ at }: RecordRow) {
-    if (at === undefined) return "";
     const time = new Date(at);
     const pad = (value: number) => String(value).padStart(2, "0");
     return `${pad(time.getHours())}:${pad(time.getMinutes())}`;
@@ -212,7 +227,7 @@ export function LeaveDialog({
             <span className="text-center">
               {handChips === undefined ? "—" : boughtChips / handChips}
             </span>
-            <span className="text-right">{chips.toLocaleString("zh-CN")}</span>
+            <span className="text-center">{chips.toLocaleString("zh-CN")}</span>
             <span className={cn("text-right", netColor(net))}>{formatSignedChips(net)}</span>
             <span className={cn("text-right whitespace-nowrap", netColor(cash))}>
               {formatGameAmount(cash, currency, cash === 0 ? "auto" : "exceptZero")}
@@ -221,8 +236,10 @@ export function LeaveDialog({
           <div className="@container px-2">
             {/*
               The record's lines sit in the card's columns: Buy-ins under Buy-in, chips under 筹码.
-              A card under 21.625rem, on the smallest phones, has no room for a line's time before
-              the Buy-in column, so the time moves to the 水上/下 column, which these lines leave empty.
+              Their text starts where the charges' text does, and what happened starts one time's
+              width further in, so 带入 and 带出 line up with 上桌 and 补码. A card under 21.625rem,
+              on the smallest phones, has no room for that width before the Buy-in column, so what
+              would fill it moves to the 水上/下 column, which these lines leave empty.
             */}
             <button
               type="button"
@@ -230,37 +247,39 @@ export function LeaveDialog({
               onClick={() => setRecordOpen(!recordOpen)}
               className={cn(columnsClass, "min-h-7 w-full text-left text-xs text-muted")}
             >
-              <span className="flex items-center gap-2 whitespace-nowrap">
-                <ChevronRight
-                  className={cn("size-4 shrink-0 transition-transform", recordOpen && "rotate-90")}
-                  aria-hidden
-                />
-                <span>
-                  共 {timesBought} 次<span className="hidden @[21.625rem]:inline">带入</span>
+              <span className="flex items-center whitespace-nowrap">
+                <span className="flex w-6 shrink-0">
+                  <ChevronRight
+                    className={cn("size-4 transition-transform", recordOpen && "rotate-90")}
+                    aria-hidden
+                  />
                 </span>
+                <span className="hidden min-w-10 shrink-0 pr-1 @[21.625rem]:block">{times}</span>
+                <span className="font-medium text-win">带入</span>
               </span>
               <span className="text-center">
                 {handChips === undefined ? "—" : count(boughtChips)}
               </span>
-              <span className="text-right">{boughtChips.toLocaleString("zh-CN")}</span>
-              <span />
+              <span className="text-center">
+                <Marked>{boughtChips.toLocaleString("zh-CN")}</Marked>
+              </span>
+              <span className="text-right @[21.625rem]:invisible">{times}</span>
               <span className="text-right whitespace-nowrap">
-                {formatGameAmount(chipsToCents(boughtChips, ratio), currency)}
+                <Marked>{formatGameAmount(chipsToCents(boughtChips, ratio), currency)}</Marked>
               </span>
             </button>
             {recordOpen && (
-              <ul className="pb-1 text-xs">
-                {[...rows, settleRow].map((row, index, all) => {
+              <ul className="text-xs">
+                {rows.map((row, index) => {
                   const [action, tone] = ACTIONS[row.action];
-                  const settling = row.action === "settle";
                   return (
                     <li key={row.id} className={cn(columnsClass, "min-h-6")}>
-                      {/* The day takes the arrow's place and the time keeps its space when empty */}
+                      {/* The day takes the arrow's place */}
                       <span className="flex items-center whitespace-nowrap">
-                        <span className="w-6 shrink-0 text-[0.6875rem] tracking-tight text-muted">
-                          {dayOf(row, all[index - 1])}
+                        <span className="w-6 shrink-0 text-[0.625rem] tracking-tight text-muted">
+                          {dayOf(row, rows[index - 1])}
                         </span>
-                        <span className="hidden w-10 shrink-0 pr-1 text-right text-muted @[21.625rem]:block">
+                        <span className="hidden w-10 shrink-0 text-muted @[21.625rem]:block">
                           {timeOf(row)}
                         </span>
                         <span className={cn("font-medium", tone)}>{action}</span>
@@ -269,20 +288,31 @@ export function LeaveDialog({
                       <span className="text-center">
                         {handChips === undefined ? "" : row.total}
                       </span>
-                      <span className="text-right">
-                        {settling && chips.toLocaleString("zh-CN")}
-                      </span>
+                      <span />
                       <span className="text-right text-muted @[21.625rem]:invisible">
                         {timeOf(row)}
-                      </span>
-                      <span className="text-right whitespace-nowrap">
-                        {settling && formatGameAmount(chipsToCents(chips, ratio), currency)}
                       </span>
                     </li>
                   );
                 })}
               </ul>
             )}
+            {/* What the settlement being confirmed takes out, in view however the record is folded */}
+            <div className={cn(columnsClass, "min-h-6 pb-1 text-xs")}>
+              <span className="pl-6 font-medium whitespace-nowrap text-highlight @[21.625rem]:pl-16">
+                带出
+              </span>
+              <span className="text-center">
+                {handChips === undefined ? "" : count(boughtChips)}
+              </span>
+              <span className="text-center">
+                <Marked out>{chips.toLocaleString("zh-CN")}</Marked>
+              </span>
+              <span />
+              <span className="text-right whitespace-nowrap">
+                <Marked out>{formatGameAmount(chipsToCents(chips, ratio), currency)}</Marked>
+              </span>
+            </div>
             {status && (
               <p className="flex min-h-7 items-center pl-6 text-xs text-muted">
                 在桌 {formatSeatTime(status.seatedMs)}

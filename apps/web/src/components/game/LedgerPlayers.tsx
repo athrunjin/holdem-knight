@@ -248,14 +248,14 @@ export function LedgerPlayers({
   function stack({ playerId, stackChips, cashedOutChips, seated: atTable }: PlayerLedger) {
     if (!editable || !atTable) {
       const chips = atTable ? stackChips : cashedOutChips;
-      return <span className="text-right">{chips.toLocaleString("zh-CN")}</span>;
+      return <span className="text-center">{chips.toLocaleString("zh-CN")}</span>;
     }
     return (
       <button
         type="button"
         aria-label={`输入${nameOf(playerId)}的筹码，现在 ${stackChips}`}
         onClick={() => onEditStack(playerId)}
-        className={cn(cellButtonClass, "text-right", flash(playerId))}
+        className={cn(cellButtonClass, flash(playerId))}
       >
         {stackChips.toLocaleString("zh-CN")}
       </button>
@@ -364,7 +364,7 @@ export function LedgerPlayers({
         {!seat ? (
           <>
             {join(INSURANCE_PLAYER_ID, "保险 Buy-in")}
-            {dash("text-right")}
+            {dash("text-center")}
             {dash("text-right")}
             {dash("text-right")}
           </>
@@ -426,7 +426,7 @@ export function LedgerPlayers({
             <span className="truncate">{organizerName}</span>
           </button>
           {host ? hands(host) : join(ORGANIZER_PLAYER_ID, "组织者加入牌局")}
-          {host ? stack(host) : dash("text-right")}
+          {host ? stack(host) : dash("text-center")}
           {host ? net(host.netChips) : dash("text-right")}
           <span className="text-right whitespace-nowrap">
             {/* As on a player's card: what the organizer's own chips come to */}
