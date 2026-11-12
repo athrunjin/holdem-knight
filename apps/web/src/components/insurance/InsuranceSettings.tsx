@@ -146,7 +146,7 @@ export function InsuranceSettings({
       <Toggle
         label="保险"
         {...(locked && { detail: "这局已有保险记录，不能关闭" })}
-        info="开启后「保险」作为一席加入牌局，默认买入 1 手"
+        info="开启后「保险」作为一席加入牌局，默认 1 个 Buy-in"
         checked={enabled}
         disabled={locked}
         accessory={

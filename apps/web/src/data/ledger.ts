@@ -2,6 +2,7 @@ import {
   adjustHands,
   type HandChange,
   type LedgerEvent,
+  latestCashOut,
   summarizeByPlayer,
 } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,10 +40,14 @@ export function useAppendEvent(gameId: string) {
 }
 
 /** Events that bring a player to the new hand count. They share a timestamp so they count as one change. */
-function handEvents(gameId: string, events: readonly LedgerEvent[], input: HandsInput) {
+function handEvents(
+  gameId: string,
+  events: readonly LedgerEvent[],
+  input: HandsInput,
+  occurredAt = Date.now(),
+) {
   const { playerId, handChips, change } = input;
   const { reversedEventIds, buy } = adjustHands(events, playerId, handChips, change);
-  const occurredAt = Date.now();
   return [
     ...reversedEventIds.map(
       (reversedEventId): LedgerEvent => ({
@@ -78,23 +83,29 @@ interface LeaveInput {
   readonly chips: number;
   /** Final hands, for games that record them. */
   readonly hands?: { readonly handChips: number; readonly count: number };
+  /**
+   * When the player left, if not now: the moment their leave dialog opened, so the charges it
+   * showed are the charges made. Nothing else is written while the dialog is open.
+   */
+  readonly at?: number;
 }
 
 export function useLeaveTable(gameId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     scope: ledgerScope(gameId),
-    mutationFn: async ({ playerId, chips, hands }: LeaveInput) => {
+    mutationFn: async ({ playerId, chips, hands, at = Date.now() }: LeaveInput) => {
       const events = await repository.ledger.listByGame(gameId);
       const adjustment = hands
-        ? handEvents(gameId, events, {
-            playerId,
-            handChips: hands.handChips,
-            change: { to: hands.count },
-          })
+        ? handEvents(
+            gameId,
+            events,
+            { playerId, handChips: hands.handChips, change: { to: hands.count } },
+            at,
+          )
         : [];
       // One millisecond later, so the cash-out always sorts after the hand change
-      const leftAt = Date.now() + 1;
+      const leftAt = at + 1;
       await repository.ledger.appendAll([
         ...adjustment,
         { ...newEventMeta(gameId, leftAt), type: "cash_out", playerId, chips },
@@ -123,6 +134,28 @@ export function useLeaveAll(gameId: string) {
               chips: stackChips,
             }),
           ),
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ledger", gameId] }),
+  });
+}
+
+/** Brings the given players back to the table in one write, by taking back each one's cash-out. */
+export function useReturnAll(gameId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    scope: ledgerScope(gameId),
+    mutationFn: async (playerIds: readonly string[]) => {
+      const events = await repository.ledger.listByGame(gameId);
+      const returnedAt = Date.now();
+      await repository.ledger.appendAll(
+        playerIds.flatMap((playerId): LedgerEvent[] => {
+          const cashOut = latestCashOut(events, playerId);
+          if (!cashOut) return [];
+          return [
+            { ...newEventMeta(gameId, returnedAt), type: "reversal", reversedEventId: cashOut.id },
+          ];
+        }),
       );
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ledger", gameId] }),

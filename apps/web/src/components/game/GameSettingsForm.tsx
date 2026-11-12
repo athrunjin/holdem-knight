@@ -221,7 +221,7 @@ export function GameSettingsForm({
             </SettingRow>
             {showBuyIn && (
               <SettingRow
-                label="Buy in"
+                label="Buy-in"
                 detail={ratioLocked ? null : previewHand(values)}
                 disabled={ratioLocked}
                 onClick={() => setDialog("buyIn")}
@@ -232,7 +232,7 @@ export function GameSettingsForm({
           </div>
           {ratioLocked && (
             <p className="mt-2 text-sm text-muted">
-              已有账本记录，货币、筹码和 Buy in 不能再修改。
+              已有账本记录，货币、筹码和 Buy-in 不能再修改。
             </p>
           )}
         </div>

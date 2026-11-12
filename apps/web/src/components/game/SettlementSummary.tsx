@@ -63,7 +63,7 @@ export function SettlementSummary({ game, ledger, difference }: SettlementSummar
         {game.organizerId} · {formatStart(game.createdAt)}
       </p>
       <dl className="mt-2 grid grid-cols-3 gap-2">
-        <Tile label="总买入">
+        <Tile label="总 Buy-in">
           {money(boughtChips)}
           {hands}
         </Tile>

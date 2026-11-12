@@ -52,6 +52,17 @@
   }
 }
 
+@theme {
+  /* Two quick blinks that draw the eye to figures worth a last look */
+  --animate-flash: flash 0.45s ease-in-out 2;
+
+  @keyframes flash {
+    50% {
+      background-color: color-mix(in srgb, var(--highlight) 35%, transparent);
+    }
+  }
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);

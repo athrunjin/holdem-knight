@@ -18,22 +18,32 @@ export function HandsStepper({ value, inputRef, onChange }: HandsStepperProps) {
 
   return (
     <div className="flex items-end gap-2">
-      <button type="button" aria-label="减 1 手" onClick={() => step(-1)} className={stepClass}>
+      <button
+        type="button"
+        aria-label="减 1 个 Buy-in"
+        onClick={() => step(-1)}
+        className={stepClass}
+      >
         −
       </button>
       <div className="min-w-0 flex-1">
         <TextField
           id="hands"
-          label="手数"
+          label="Buy-in"
           value={value}
           issue={undefined}
-          suffix="手"
+          suffix="个"
           inputMode="numeric"
           {...(inputRef ? { inputRef } : {})}
           onChange={onChange}
         />
       </div>
-      <button type="button" aria-label="加 1 手" onClick={() => step(1)} className={stepClass}>
+      <button
+        type="button"
+        aria-label="加 1 个 Buy-in"
+        onClick={() => step(1)}
+        className={stepClass}
+      >
         +
       </button>
     </div>

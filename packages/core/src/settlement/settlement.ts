@@ -1,5 +1,10 @@
 /** Settlement: balance check, each player's result in cash, and transfers. */
-import { type ChipRatio, type ImbalanceHandling, INSURANCE_PLAYER_ID } from "../domain";
+import {
+  type ChipRatio,
+  type ImbalanceHandling,
+  INSURANCE_PLAYER_ID,
+  ORGANIZER_PLAYER_ID,
+} from "../domain";
 import { chipsToCents, type PlayerLedger } from "../ledger";
 import { allocate, type Cents, cents, InvalidMoneyError, sum, ZERO } from "../money";
 
@@ -112,8 +117,14 @@ export function settlementOutcome(
     return { nets: splitDifference(raw, difference), difference, unresolved: ZERO };
   }
   if (handling === "organizer") {
-    const organizer = { playerId: ORGANIZER_COLLECTOR, net: cents(-difference) };
-    return { nets: [...raw, organizer], difference, unresolved: ZERO };
+    // An organizer who is playing keeps one row: their own result less the difference
+    const playing = raw.some((p) => p.playerId === ORGANIZER_COLLECTOR);
+    const nets = playing
+      ? raw.map((p) =>
+          p.playerId === ORGANIZER_COLLECTOR ? { ...p, net: cents(p.net - difference) } : p,
+        )
+      : [...raw, { playerId: ORGANIZER_COLLECTOR, net: cents(-difference) }];
+    return { nets, difference, unresolved: ZERO };
   }
   return { nets: raw, difference, unresolved: difference };
 }
@@ -180,8 +191,8 @@ export function settleTransfers(nets: readonly PlayerNet[]): Transfer[] {
   }
 }
 
-/** The collector is an organizer who is not playing, rather than a player ID. */
-export const ORGANIZER_COLLECTOR = "organizer";
+/** The organizer as collector or recipient, whether or not they are playing. */
+export const ORGANIZER_COLLECTOR = ORGANIZER_PLAYER_ID;
 
 /** Transfers through one person: every loser pays the collector, who pays every winner. */
 export function collectorTransfers(nets: readonly PlayerNet[], collectorId: string): Transfer[] {

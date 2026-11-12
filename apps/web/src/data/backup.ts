@@ -6,12 +6,13 @@ import {
   IMBALANCE_HANDLINGS,
   INSURANCE_PLAYER_ID,
   type LegacyGame,
+  ORGANIZER_PLAYER_ID,
   upgradeLegacyGame,
 } from "@holdem-knight/core";
 import { z } from "zod";
 
 const FORMAT = "holdem-backup";
-const VERSION = 10;
+const VERSION = 11;
 
 const id = z.string().min(1);
 const money = z
@@ -262,7 +263,9 @@ function linksAreValid({ games, players, ledgerEvents, insuranceHands }: BackupD
   const gameIds = new Set(games.map((g) => g.id));
   const playerIds = new Set(players.map((p) => p.id));
   const eventIds = new Set(ledgerEvents.map((e) => e.id));
-  const isPlayer = (id: string) => id === INSURANCE_PLAYER_ID || playerIds.has(id);
+  // Version 11 lets the organizer play under their own ID, with no player record
+  const isPlayer = (id: string) =>
+    id === INSURANCE_PLAYER_ID || id === ORGANIZER_PLAYER_ID || playerIds.has(id);
   if (!insuranceHands.every((hand) => gameIds.has(hand.gameId))) return false;
   return ledgerEvents.every(
     (e) =>

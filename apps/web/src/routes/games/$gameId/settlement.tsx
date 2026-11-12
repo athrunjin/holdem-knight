@@ -3,6 +3,7 @@ import {
   attributeInsurance,
   type Cents,
   type Charge,
+  type ChargeWaiver,
   cents,
   chargeStatuses,
   chargesFrom,
@@ -12,7 +13,6 @@ import {
   collectorTransfers,
   type Game,
   INSURANCE_PLAYER_ID,
-  INSURANCE_PLAYER_NAME,
   isValidCollector,
   type LedgerEvent,
   ORGANIZER_COLLECTOR,
@@ -31,6 +31,8 @@ import {
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { BuyInRecord } from "@/components/game/BuyInRecord";
+import { chargeLines } from "@/components/game/chargeLines";
 import { GameOptionLine, GameTitle } from "@/components/game/GameOptions";
 import { GameRules, hasGameRules } from "@/components/game/GameRules";
 import { PickerRow } from "@/components/game/PickerRow";
@@ -41,16 +43,11 @@ import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
-import {
-  CHARGE_CLOCK_RULE,
-  chargeClock,
-  chargeRuleNotes,
-  chargeRuleSections,
-  formatSeatTime,
-} from "@/lib/charges";
+import { CHARGE_CLOCK_RULE, chargeClock, chargeRuleNotes, chargeRuleSections } from "@/lib/charges";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
+import { gameNameOf } from "@/lib/player-name";
 import { renderSettlementImage } from "@/lib/settlement-image";
 import { shareFile } from "@/lib/share";
 
@@ -67,9 +64,7 @@ function SettlementPage() {
   if (!game || !events || !players) return null;
 
   const ledger = summarizeByPlayer(events);
-  const names = new Map(players.map(({ id, name }) => [id, name]));
-  names.set(INSURANCE_PLAYER_ID, INSURANCE_PLAYER_NAME);
-  const nameOf = (playerId: string) => names.get(playerId) ?? "未知玩家";
+  const nameOf = gameNameOf(players, game);
   const seated = ledger
     .filter((p) => p.seated && p.playerId !== INSURANCE_PLAYER_ID)
     .map((p) => nameOf(p.playerId));
@@ -159,7 +154,11 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     collectorId: savedCollector,
     createdAt,
   } = game;
-  const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
+  // An organizer who plays has chips under the organizer's own ID, and stays on the organizer's card
+  const host = ledger.find((p) => p.playerId === ORGANIZER_COLLECTOR);
+  const people = ledger.filter(
+    (p) => p.playerId !== INSURANCE_PLAYER_ID && p.playerId !== ORGANIZER_COLLECTOR,
+  );
   const saveGame = useSaveGame();
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
@@ -180,7 +179,6 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
   // Each person's result from the chips alone, before a difference is split
   const chipNets = settlementOutcome(ledger, game.chipRatio, undefined).nets;
   const chargesLocked = saveGame.isPending || status === "settled";
-  const money = (value: number) => formatGameMoney(cents(value), currency);
 
   function insuranceLine(id: string): ResultLine[] {
     if (insuranceNet === 0 || id !== ownerId) return [];
@@ -189,62 +187,18 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     ];
   }
 
-  /**
-   * The time sat and the time charged, then wages at each rate and the table fee, each with a box
-   * to let the player off it.
-   */
-  function chargeLines(playerId: string): ResultLine[] {
-    const status = statuses.find((s) => s.playerId === playerId);
-    const billedMinutes = status?.wageParts.reduce((all, p) => all + p.minutes, 0) ?? 0;
-    const timeNote: ResultLine[] =
-      game.wage && status
-        ? [
-            {
-              key: "time",
-              label: `在桌 ${formatSeatTime(status.seatedMs)} · 计费 ${formatSeatTime(billedMinutes * 60_000)}`,
-              tone: "charge",
-              note: true,
-            },
-          ]
-        : [];
-    const line = (charge: Charge, label: string): ResultLine => ({
-      key: `${charge.kind}-${charge.part ?? ""}`,
-      label,
-      amount: cents(-charge.amount),
-      tone: "charge",
-      group: charge.kind === "wage" ? "工资" : "台费",
-      waiver: {
-        waived: charge.waived,
-        disabled: chargesLocked,
-        onChange: (waived) => {
-          const { kind, part } = charge;
-          const key = part ? { playerId, kind, part } : { playerId, kind };
-          saveGame.mutate(waiveCharge(game, key, waived));
-        },
-      },
-    });
-    const own = charges.filter((c) => c.playerId === playerId);
-    const rates = own.flatMap(({ hourly, minutes, ...charge }) =>
-      hourly === undefined || minutes === undefined
-        ? []
-        : [
-            line(
-              { ...charge, hourly, minutes },
-              `工资 ${money(hourly)}/时 × ${formatSeatTime(minutes * 60_000)}`,
-            ),
-          ],
-    );
-    const wages = [...timeNote, ...rates];
-    const fee = own.find((c) => c.kind === "table_fee");
-    const { tableFee } = game;
-    if (fee) return [...wages, line(fee, `台费 ${money(fee.amount)}/人`)];
-    if (!tableFee) return wages;
-    const short = `台费 ${money(tableFee.amount)}/人 · 未满 ${tableFee.minMinutes} 分钟`;
-    return [...wages, { key: "table_fee", label: short, tone: "charge", group: "台费" }];
-  }
+  const waiving = {
+    disabled: chargesLocked,
+    onWaive: (key: ChargeWaiver, waived: boolean) =>
+      saveGame.mutate(waiveCharge(game, key, waived)),
+  };
+  const record = (playerId: string) => (
+    <BuyInRecord game={game} events={events} playerId={playerId} />
+  );
 
   const playerCards = ledger
     .filter((p) => p.playerId !== INSURANCE_PLAYER_ID || separateInsurance)
+    .filter((p) => p.playerId !== ORGANIZER_COLLECTOR)
     .map((player): ResultCard => {
       const { playerId } = player;
       const base = netOf(chipNets, playerId);
@@ -268,14 +222,38 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
         chips: player.cashedOutChips.toLocaleString("zh-CN"),
         netChips: player.cashedOutChips - player.boughtChips,
         base,
-        lines: [...split, ...insuranceLine(playerId), ...chargeLines(playerId)],
+        record: record(playerId),
+        // What the chips come to first, then the charges, then what changes the result after them
+        lines: [
+          ...chargeLines(game, statuses, charges, playerId, waiving),
+          ...split,
+          ...insuranceLine(playerId),
+        ],
         total: netOf(nets, playerId),
         collapsible: true,
       };
     })
     .toSorted((a, b) => b.total - a.total);
 
-  const covered = netOf(outcome.nets, ORGANIZER_COLLECTOR);
+  // What handling the difference adds to the organizer, beyond their own chips if they play
+  const covered =
+    netOf(outcome.nets, ORGANIZER_COLLECTOR) - (host ? netOf(chipNets, ORGANIZER_COLLECTOR) : 0);
+  const coveredLine: ResultLine =
+    game.imbalanceHandling === "organizer"
+      ? {
+          key: "difference",
+          label: covered < 0 ? "补齐差额" : "收取差额",
+          amount: cents(covered),
+          tone: "adjustment",
+          group: "差额",
+        }
+      : {
+          key: "split",
+          label: "差额分摊",
+          amount: cents(covered),
+          tone: "adjustment",
+          group: "分摊",
+        };
   const income = (kind: Charge["kind"]) =>
     sum(charges.filter((c) => c.kind === kind && !c.waived).map((c) => c.amount));
   const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
@@ -291,17 +269,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     incomeLine("工资", receivesCharges ? income("wage") : ZERO),
     incomeLine("台费", receivesCharges ? income("table_fee") : ZERO),
     { key: "rake", label: "抽水", tone: "charge" },
-    ...(covered === 0
-      ? []
-      : [
-          {
-            key: "difference",
-            label: covered < 0 ? "补齐差额" : "收取差额",
-            amount: covered,
-            tone: "adjustment" as const,
-            group: "差额" as const,
-          },
-        ]),
+    ...(covered === 0 ? [] : [coveredLine]),
   ];
   const organizerCard: ResultCard[] =
     organizerNet === undefined
@@ -311,8 +279,13 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
             id: ORGANIZER_COLLECTOR,
             // The organizer's ID stands in until organizers have names (M6)
             name: game.organizerId,
-            hands: "—",
-            chips: "—",
+            hands: !host || handChips === undefined ? "—" : String(host.boughtChips / handChips),
+            chips: host ? host.cashedOutChips.toLocaleString("zh-CN") : "—",
+            ...(host && {
+              netChips: host.cashedOutChips - host.boughtChips,
+              base: netOf(chipNets, ORGANIZER_COLLECTOR),
+              record: record(ORGANIZER_COLLECTOR),
+            }),
             lines: organizerLines,
             total: organizerNet,
             collapsible: true,
@@ -329,7 +302,9 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     if (game.imbalanceHandling === "organizer") {
       return `组织者${difference > 0 ? "补齐" : "收取"} ${size}`;
     }
-    const count = playerCards.filter((r) => (r.netChips ?? 0) * difference > 0).length;
+    const count = [...playerCards, ...organizerCard].filter(
+      (r) => (r.netChips ?? 0) * difference > 0,
+    ).length;
     return difference > 0
       ? `水上多 ${size}，由 ${count} 位赢家按水上比例扣减`
       : `水下多 ${size}，由 ${count} 位输家按水下比例少付`;
@@ -501,7 +476,9 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
                   onChange={(event) => choosePlan(event.target.value)}
                   className="min-h-12 w-full rounded-xl border border-line bg-surface px-3"
                 >
-                  <option value={ORGANIZER_COLLECTOR}>组织者（不在局中）</option>
+                  <option value={ORGANIZER_COLLECTOR}>
+                    {host ? "组织者" : "组织者（不在局中）"}
+                  </option>
                   {playerCards
                     .filter(({ id }) => id !== INSURANCE_PLAYER_ID)
                     .map(({ id, name }) => (

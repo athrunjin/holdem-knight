@@ -32,6 +32,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0025](0025-wage-segments-and-billing-units.md) | Wage segments, billing units and rounding up | Superseded in part by 0027 |
 | [0026](0026-insurance-cover-limits-and-odds-tables.md) | Insurance cover limits, and odds tables kept apart from the rule's settings | Accepted |
 | [0027](0027-wage-units-rounding-and-game-time-zone.md) | Wage units at the longer rate, rounding modes, and the game's time zone | Accepted |
+| [0028](0028-organizer-seat.md) | The organizer plays under a seat of their own | Accepted |
 
 ## Template
 

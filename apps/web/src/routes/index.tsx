@@ -112,7 +112,7 @@ function HostGames() {
           <div className="max-w-sm space-y-3">
             <p className="text-lg font-medium">还没有进行中的牌局</p>
             <p className="text-muted">
-              开局后可以记录每位玩家的买入、补码和离桌，散局时自动算出谁该转给谁多少。
+              开局后可以记录每位玩家的 Buy-in、补码和离桌，散局时自动算出谁该转给谁多少。
             </p>
           </div>
         )}

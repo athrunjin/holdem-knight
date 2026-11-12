@@ -10,7 +10,7 @@ import {
 } from "@holdem-knight/core";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { TextField } from "@/components/TextField";
-import { CURRENCY_INFO, formatGameMoney } from "@/lib/currency";
+import { CURRENCY_INFO, formatGameAmount } from "@/lib/currency";
 import { formatMoneyText } from "@/lib/number-input";
 import { FormDialog } from "./FormDialog";
 
@@ -33,11 +33,12 @@ export function previewBlindCash({
   const chips = parseChips(ratioChips);
   const amount = tryParseMoney(ratioAmount);
   if (!small || !big || !chips || !amount) return null;
-  const cash = (blind: number) => formatGameMoney(chipsToCents(blind, { chips, amount }), currency);
+  const cash = (blind: number) =>
+    formatGameAmount(chipsToCents(blind, { chips, amount }), currency);
   return `${cash(small)}/${cash(big)}`;
 }
 
-/** One hand in chips and cash for the current input, or null while the input is incomplete. */
+/** One Buy-in in chips and cash for the current input, or null while the input is incomplete. */
 export function previewHand({
   currency,
   bigBlindChips,
@@ -51,8 +52,8 @@ export function previewHand({
   const amount = tryParseMoney(ratioAmount);
   if (!big || !multiple || !chips || !amount) return null;
   const handChips = big * multiple;
-  const cash = formatGameMoney(chipsToCents(handChips, { chips, amount }), currency);
-  return `1 手 = ${handChips.toLocaleString("zh-CN")} 筹码 = ${cash}`;
+  const cash = formatGameAmount(chipsToCents(handChips, { chips, amount }), currency);
+  return `${handChips.toLocaleString("zh-CN")} 筹码（${cash}）`;
 }
 
 interface SettingDialogProps {
@@ -166,7 +167,7 @@ export function BuyInDialog(props: SettingDialogProps) {
 
   return (
     <FormDialog
-      title="Buy in"
+      title="Buy-in"
       submitLabel="确定"
       saving={false}
       saveFailed={false}
@@ -176,7 +177,7 @@ export function BuyInDialog(props: SettingDialogProps) {
       <div>
         <TextField
           {...field("buyInBigBlinds")}
-          label="一个买入"
+          label="一个 Buy-in"
           suffix="BB"
           inputMode="numeric"
           inputRef={inputRef}

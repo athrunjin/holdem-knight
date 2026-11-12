@@ -31,6 +31,7 @@ import {
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
 import { formatSignedChips } from "@/lib/chips";
+import { gameNameOf } from "@/lib/player-name";
 
 export const Route = createFileRoute("/games/$gameId/insurance")({
   component: InsurancePage,
@@ -57,8 +58,7 @@ function GameInsurance({ game }: { game: Game }) {
 
   const navigate = Route.useNavigate();
   const editable = status === "open";
-  const names = new Map(players.map(({ id, name }) => [id, name]));
-  const nameOf = (playerId: string) => names.get(playerId) ?? "未知玩家";
+  const nameOf = gameNameOf(players, game);
   const ledger = summarizeByPlayer(events);
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const seats = ledger

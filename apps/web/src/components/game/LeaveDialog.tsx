@@ -1,105 +1,108 @@
-import { type ChipRatio, type Currency, chipsToCents, parseChips } from "@holdem-knight/core";
+import {
+  type ChargeWaiver,
+  cents,
+  chargeStatuses,
+  chargesFrom,
+  chipsToCents,
+  type Game,
+  type LedgerEvent,
+  summarizeByPlayer,
+} from "@holdem-knight/core";
 import { type FormEvent, useState } from "react";
-import { TextField } from "@/components/TextField";
-import { formatSignedChips, netColor } from "@/lib/chips";
-import { formatGameMoney } from "@/lib/currency";
+import { gameMinuteOfDay } from "@/lib/charges";
+import { BuyInRecord } from "./BuyInRecord";
+import { chargeLines } from "./chargeLines";
 import { FormDialog } from "./FormDialog";
-import { HandsStepper } from "./HandsStepper";
+import { Card, ColumnTitles } from "./ResultCards";
 
 interface LeaveDialogProps {
+  game: Game;
+  events: readonly LedgerEvent[];
+  playerId: string;
   name: string;
-  /** Chips per hand. Missing on older games, which have no hand count to confirm. */
-  handChips: number | undefined;
-  boughtChips: number;
-  cashedOutChips: number;
-  stackChips: number;
-  ratio: ChipRatio;
-  currency: Currency;
   saving: boolean;
   saveFailed: boolean;
-  onSubmit: (chips: number, hands: number | undefined) => void;
+  /** Lets the player off a charge, or charges it again, as on the settlement page. */
+  onWaive: (key: ChargeWaiver, waived: boolean) => void;
+  /** `leftAt` is when the dialog opened, so the charges shown are the charges made. */
+  onSubmit: (chips: number, leftAt: number) => void;
   onClose: () => void;
 }
 
-/** Confirms a player's final hands and chips before they leave the table. */
+/**
+ * A player's result before they leave the table, as their card on the settlement page: chips and
+ * cash, their Buy-in record, the time sat with the wages and table fee it comes to, and the total.
+ * The Buy-ins and chips are the ones on the game page, which is where they are changed. The charges
+ * are worked out once, for the moment the dialog opened, and stay still while it is open. Closing
+ * it without leaving changes nothing, so the time goes on counting.
+ */
 export function LeaveDialog({
+  game,
+  events,
+  playerId,
   name,
-  handChips,
-  boughtChips,
-  cashedOutChips,
-  stackChips,
-  ratio,
-  currency,
   saving,
   saveFailed,
+  onWaive,
   onSubmit,
   onClose,
 }: LeaveDialogProps) {
-  const initialHands = handChips === undefined ? undefined : boughtChips / handChips;
-  const [handsValue, setHandsValue] = useState(String(initialHands ?? ""));
-  const [countedHands, setCountedHands] = useState(initialHands ?? 0);
-  const [chipsValue, setChipsValue] = useState(String(stackChips));
-  const [issue, setIssue] = useState<string>();
-  const chips = parseChips(chipsValue);
+  const { handChips, chipRatio: ratio, currency } = game;
+  const [openedAt] = useState(Date.now);
+  const player = summarizeByPlayer(events).find((p) => p.playerId === playerId);
+  const boughtChips = player?.boughtChips ?? 0;
+  const chips = player?.stackChips ?? 0;
+  const net = chips + (player?.cashedOutChips ?? 0) - boughtChips;
+  const cash = chipsToCents(net, ratio);
 
-  /** Chips follow the hand count, as they do on the player row. */
-  function changeHands(next: string) {
-    setHandsValue(next);
-    setIssue(undefined);
-    const hands = parseChips(next);
-    if (handChips === undefined || !hands) return;
-    if (chips !== null) {
-      setChipsValue(String(Math.max(0, chips + (hands - countedHands) * handChips)));
-    }
-    setCountedHands(hands);
-  }
+  // Charged as of the moment the dialog opened, which is also when the player is recorded leaving
+  const statuses =
+    game.tableFee || game.wage
+      ? chargeStatuses(game, events, { now: openedAt, minuteOfDay: gameMinuteOfDay(game) })
+      : [];
+  const charges = chargesFrom(game, statuses);
+  const due = charges
+    .filter((c) => c.playerId === playerId && !c.waived)
+    .reduce((total, c) => total + c.amount, 0);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (chips === null) {
-      setIssue("请输入整数筹码数");
-    } else if (handChips !== undefined && !parseChips(handsValue)) {
-      setIssue("请输入大于 0 的整数手数");
-    } else {
-      onSubmit(chips, handChips === undefined ? undefined : countedHands);
-    }
+    onSubmit(chips, openedAt);
   }
-
-  const finalBought =
-    handChips === undefined
-      ? boughtChips
-      : boughtChips + (countedHands - (initialHands ?? 0)) * handChips;
-  const net = chips === null ? null : chips + cashedOutChips - finalBought;
 
   return (
     <FormDialog
-      title={`离桌 · ${name}`}
-      submitLabel="确认离桌"
+      title="结算并下桌"
+      submitLabel="确认下桌"
+      wide
       saving={saving}
       saveFailed={saveFailed}
       onSubmit={handleSubmit}
       onClose={onClose}
     >
-      {handChips !== undefined && <HandsStepper value={handsValue} onChange={changeHands} />}
-      <div>
-        <TextField
-          id="leave-chips"
-          label="筹码数"
-          value={chipsValue}
-          issue={issue}
-          suffix="筹码"
-          inputMode="numeric"
-          onChange={(next) => {
-            setIssue(undefined);
-            setChipsValue(next);
+      <div className="flex flex-col gap-1">
+        <ColumnTitles first="玩家" />
+        <Card
+          currency={currency}
+          card={{
+            id: playerId,
+            name,
+            hands: handChips === undefined ? "—" : String(boughtChips / handChips),
+            chips: chips.toLocaleString("zh-CN"),
+            netChips: net,
+            base: cash,
+            record: (
+              <BuyInRecord
+                game={game}
+                events={events}
+                playerId={playerId}
+                leaving={{ chips, at: openedAt }}
+              />
+            ),
+            lines: chargeLines(game, statuses, charges, playerId, { disabled: saving, onWaive }),
+            total: cents(cash - due),
           }}
         />
-        {chips !== null && net !== null && (
-          <p className="mt-1 text-sm text-muted">
-            {formatGameMoney(chipsToCents(chips, ratio), currency)}，
-            <span className={netColor(net)}>{net === 0 ? "不输不赢" : formatSignedChips(net)}</span>
-          </p>
-        )}
       </div>
     </FormDialog>
   );

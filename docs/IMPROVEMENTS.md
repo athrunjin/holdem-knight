@@ -778,6 +778,63 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked at phone size in the browser preview, dark mode, then on a phone with the preview build.
 - Tracking: PR #81, ADR [0027](adr/0027-wage-units-rounding-and-game-time-zone.md)
 
+### #I-042 Game page in the settlement page's style
+
+- Type: feature
+- Date: proposed and decided 2026-11-12
+- Source: comparing the game page with the settlement page from #I-041, then trying the preview
+- Problem: the game page in play looked different from the settlement page, the organizer's insurance, table fees and wages were spread around or hidden, and the hand steppers and leave buttons took room.
+- Proposal:
+  - Move what the organizer has so far above the seated players, folding open and closed.
+  - Give the seated players the settlement page's columns, sizes and spacing, without the − and + on Buy-in.
+  - Turn 离桌 into an icon before the name, where the settlement page has its fold arrow.
+  - Make the game record smaller, like the insurance records, and let the players who left fold away and come back in one tap.
+- Settled details:
+  - The organizer comes first under its own title row, as one card named by the organizer's ID. It shows in every open game. The insurance seat is a line of its own that never folds away, with its Buy-in and chips open to change. Folded, the card shows the total and a line with 工资 and 台费. Open, it lists wages and table fees so far, then 合计.
+  - A first try folded the insurance seat into the card. On the preview that read as the seat not having bought in, so it stays in view.
+  - A game with insurance but no seat in the ledger shows a + on the seat's Buy-in. A seat that left at a settle attempt shows 回桌 in place of its hands and chips.
+  - Wages and table fees so far count every player, those who left included, and keep counting while the clock runs. Their lines show before anyone has sat down.
+  - The insurance line's label, with a calculator icon, opens 算保险.
+  - Each seated player is a card with the settlement page's five columns. 金额 always shows what the chips come to, on the organizer's row too. Charges only count in 合计.
+  - Each card folds from an arrow before the name, as on the settlement page. Open, it shows time seated, table fee and wages where the game has them, then 合计. Closed cards have no summary line, so a full table stays short.
+  - The 详细模式 switch opens every card, or closes them once all are open. It starts on in games with a table fee or wages. A first try named it 明细 and put a leave icon before the name.
+  - Leaving is a 结算并下桌 button on the 合计 line, before the amount, for players and for an organizer who plays. It opens the leave dialog.
+  - The leave dialog, titled 结算并下桌, is the player's settlement card: the title row and the tinted row with their name, Buy-ins, chips, 水上/下 and cash, then the record, the time sat and charged, wages at each rate and the table fee with their boxes to waive, and 合计. It has no fields: the Buy-ins and chips are the ones on the game page.
+  - The record folds from a gray line in the card, with its arrow in the column of the waiver boxes: 「共 4 次」, a green 「带入」, then the Buy-ins, the chips bought and their cash value under the card's Buy-in, 筹码 and 金额 columns. It starts open up to 8 lines.
+  - Each record line sits in the same columns. The day takes the arrow's place, on the first line and on the first line of each later day. Then the time as 17:37, what happened and how many Buy-ins it moved, and under Buy-in the Buy-ins held after it. 上桌 is gold, 补码 green and 退码 red. 离桌 and 回桌 are gray, and a 离桌 shows only when a 回桌 follows it.
+  - Under the record is a gold 「带出」 line that stays in view when the record is folded: the time of leaving, the Buy-ins, the chips taken out and their value. A faint rule under it sets the record apart from the time sat, shown to the second as on the game page, and the charges. The chips and cash on the 带入 line carry a small green "in" mark and those on the 带出 line a gold "out" mark, so the two read as a pair.
+  - The text under the name starts on two lines. 「共 4 次」, the times, the time sat and the charges start where the waiver boxes end. 带入, 带出 and what happened on each record line start one time's width further in.
+  - The Buy-in column sits two digits' width further left, away from the chips, on the game page, the settlement page and in the dialog. Phones under 384 wide keep it where it was: the record has no room to give there.
+  - The time fits before the Buy-in column in the dialog from 412 wide, the user's phone, and on the settlement page from 412 too. On narrower ones the time and 「共 4 次」 move to the 水上/下 column, which these lines leave empty. The dialog is almost as wide as the screen to give the first column room. Layouts were compared over several rounds, the last ones at the widths of current Galaxy and iPhone models.
+  - The 筹码 column is centered, title and figures, in the dialog and on the game and settlement pages. 水上/下 and 金额 still end at the right.
+  - The figure columns are sized by a stress test on the narrowest iPhone in use, the 393 wide iPhone 16: four digits sit easily, five are close and six touch, in chips, 水上/下 and 金额 at once. That leaves the name what it can have. Seven digits wrap after a thousands separator in a card's first row, and a long name takes two lines there before it is cut short, so nothing runs into the next column. On a 360 wide phone six digits already touch the Buy-ins.
+  - The settlement page's cards are the same card: each person's record, 带出 with the time they left, the rule, the time sat and the charges. What changes the result after the charges, a share of a difference or the insurance result, comes last, under the table fee. The dialog and the page share one card, one record and one set of charge lines in the code.
+  - The dialog's charges are worked out for the moment it opened and stay still while it is open. Confirming records the player as leaving at that moment. Closing it without leaving records nothing, so the time goes on counting as if it had never opened, as the user confirmed.
+  - Since the dialog has no fields, 结算并下桌 reminds first. If the player's chips and Buy-ins have not changed in the last 5 minutes and the button has not lit in that time, the first tap lights it for 5 seconds and blinks the player's Buy-in and chips, which stay gold while it is lit. A second tap while it is lit opens the dialog, as does any tap in the 5 minutes after. A change counts whatever made it: chips typed, Buy-ins, insurance, leaving and returning.
+  - Tapping Buy-in opens the hand dialog with nothing selected. 确定 lights once the count differs, and leads to a second step titled 「张伟 增加 2 个 Buy-in」 with the old and new counts either side of an arrow carrying the change, green for more and red for fewer, and one line with only that change: 「筹码量 +400（+¥400.00）」. 确认 applies it and 返回 goes back a step. Adding a player from the + keeps one step.
+  - 买入 reads Buy-in across the app, and hands bought read 「x 个 Buy-in」. The game's line reads 「Buy-in 100 BB（200 筹码 / ¥200）」. In setup the row is Buy-in, with 「200 筹码（¥200.00）」 under the big blinds, and the blinds' cash value shows two decimals. The unit 手 stays on the settlement tile and in the shared image's column.
+  - A player at one hand with nothing else recorded can be taken out of the game from that dialog, where the − used to do it.
+  - 已离桌 folds from an arrow after its title, open by default. Open, a small 一键回桌 on the right brings everyone back after a confirm, the organizer and the insurance seat included. Each row's button reads 回桌, and the record says 回桌.
+  - 牌局记录 is one quiet line at the foot of the page, folded by default, with smaller rows that scroll inside 40% of the screen. It stays in the page instead of being pinned over it.
+- Decision: do.
+- Tracking: PR #82
+
+### #I-043 The organizer plays in their own game
+
+- Type: feature
+- Date: proposed and decided 2026-11-12
+- Source: trying #I-042 in the preview
+- Problem: an organizer who plays had to add themselves as a player, was charged their own table fee and wages, and had their chips apart from what they received as organizer.
+- Proposal: tapping Buy-in on the organizer's own row opens the buy-in dialog, and confirming seats the organizer, who stays on that row.
+- Settled details:
+  - A + shows on the organizer's Buy-in until they join. After that the row shows their hands, chips and result, open to change like a player's.
+  - The organizer stays on the organizer's card, apart from the insurance line, and only 合计 adds the two with the charges. 桌上玩家 counts them as one more.
+  - No table fee or wages apply to the organizer.
+  - 结算并下桌 and 回桌 for the organizer are on the open card's 合计 line. Taking the organizer out of a game they joined by mistake is in the hand dialog, as for a player.
+  - On the settlement page the organizer's card shows their hands, chips and result, and they are not listed among the players.
+- Decision: do.
+- Tracking: PR #82, ADR [0028](adr/0028-organizer-seat.md)
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
