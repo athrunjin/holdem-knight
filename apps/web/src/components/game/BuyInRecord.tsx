@@ -74,7 +74,9 @@ function RecordLine({
         <span className="w-6 shrink-0 text-[0.625rem] tracking-tight text-muted">
           {sameDay ? "" : `${day}日`}
         </span>
-        <span className="hidden w-9.5 shrink-0 text-muted @[22.5rem]:block">{timeOf(row.at)}</span>
+        <span className="hidden w-9.5 shrink-0 text-muted @[22.5rem]:block">
+          {timeOf(row.at)}
+        </span>
         <span className={cn("font-medium", tone)}>{action}</span>
         {row.moved && <span className="pl-1">{row.moved}</span>}
       </span>

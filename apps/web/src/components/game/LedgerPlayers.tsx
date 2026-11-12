@@ -12,11 +12,18 @@ import { Link } from "@tanstack/react-router";
 import { Calculator, ChevronDown, ChevronRight } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
-import { formatSignedChips, netColor } from "@/lib/chips";
+import { breakable, formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
 import { formatClock, type PlayerDetail } from "./PlayerDetails";
-import { ColumnTitles, columnsClass, labelClass, TotalChip } from "./ResultCards";
+import {
+  ColumnTitles,
+  columnsClass,
+  figureClass,
+  labelClass,
+  nameClass,
+  TotalChip,
+} from "./ResultCards";
 
 const actionClass = "min-h-11 shrink-0 rounded-lg border border-line px-2 text-sm font-medium";
 const listClass = "divide-y divide-line rounded-xl border border-line bg-surface px-2";
@@ -29,6 +36,7 @@ const RECENT_MS = 5 * 60_000;
 /** A card as on the settlement page: a tinted row of figures, then any lines under it. */
 const cardClass = "overflow-hidden rounded-xl border border-line bg-surface text-sm";
 const headClass = cn(columnsClass, "min-h-11 w-full bg-accent/15 px-2 text-left");
+
 /** Tappable figures keep a 44px target, wider than the Buy-in column they sit in. */
 const cellButtonClass = "min-h-11 tabular-nums";
 
@@ -248,23 +256,29 @@ export function LedgerPlayers({
   function stack({ playerId, stackChips, cashedOutChips, seated: atTable }: PlayerLedger) {
     if (!editable || !atTable) {
       const chips = atTable ? stackChips : cashedOutChips;
-      return <span className="text-center">{chips.toLocaleString("zh-CN")}</span>;
+      return (
+        <span className={cn(figureClass, "text-center")}>
+          {breakable(chips.toLocaleString("zh-CN"))}
+        </span>
+      );
     }
     return (
       <button
         type="button"
         aria-label={`输入${nameOf(playerId)}的筹码，现在 ${stackChips}`}
         onClick={() => onEditStack(playerId)}
-        className={cn(cellButtonClass, flash(playerId))}
+        className={cn(cellButtonClass, figureClass, flash(playerId))}
       >
-        {stackChips.toLocaleString("zh-CN")}
+        {breakable(stackChips.toLocaleString("zh-CN"))}
       </button>
     );
   }
 
   function net(netChips: number) {
     return (
-      <span className={cn("text-right", netColor(netChips))}>{formatSignedChips(netChips)}</span>
+      <span className={cn(figureClass, "text-right", netColor(netChips))}>
+        {breakable(formatSignedChips(netChips))}
+      </span>
     );
   }
 
@@ -300,15 +314,15 @@ export function LedgerPlayers({
               )}
               aria-hidden
             />
-            <span className="truncate">{name}</span>
+            <span className={nameClass}>{name}</span>
           </button>
           {hands(player)}
           {stack(player)}
           {net(netChips)}
           {/* Folded or open, this is what the chips come to. Charges only count in 合计 */}
-          <span className="text-right whitespace-nowrap">
+          <span className={cn(figureClass, "text-right")}>
             {open ? (
-              <span className={netColor(cash)}>{amount(cash)}</span>
+              <span className={netColor(cash)}>{breakable(amount(cash))}</span>
             ) : (
               <TotalChip total={cash} currency={currency} />
             )}
@@ -423,17 +437,17 @@ export function LedgerPlayers({
               )}
               aria-hidden
             />
-            <span className="truncate">{organizerName}</span>
+            <span className={nameClass}>{organizerName}</span>
           </button>
           {host ? hands(host) : join(ORGANIZER_PLAYER_ID, "组织者加入牌局")}
           {host ? stack(host) : dash("text-center")}
           {host ? net(host.netChips) : dash("text-right")}
-          <span className="text-right whitespace-nowrap">
+          <span className={cn(figureClass, "text-right")}>
             {/* As on a player's card: what the organizer's own chips come to */}
             {ownCash === undefined ? (
               dash("")
             ) : organizerOpen ? (
-              <span className={netColor(ownCash)}>{amount(ownCash)}</span>
+              <span className={netColor(ownCash)}>{breakable(amount(ownCash))}</span>
             ) : (
               <TotalChip total={ownCash} currency={currency} />
             )}

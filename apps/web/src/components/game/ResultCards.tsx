@@ -2,19 +2,25 @@ import { type Cents, type Currency, cents } from "@holdem-knight/core";
 import { ChevronRight } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
-import { formatSignedChips, netColor } from "@/lib/chips";
+import { breakable, formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
 
 /**
  * Shared by the column titles and every row under them, so all amounts share one right edge.
- * Buy-ins are sized for two digits, and chips and the win or loss for four with a separator.
+ * The columns give the name all the room they can: Buy-ins have two digits, and chips, the win or
+ * loss and the amount have exactly six, where a card's row of figures touch. Five are close and
+ * four sit easily. Longer figures wrap in a card's first row, as a long name does.
  * Buy-ins and chips are centered, and the win or loss and the amount end at the right. On screens
  * from 24rem wide the Buy-in column's cell, the second of a row that has more, keeps clear of the
  * chips by two digits' width. Narrower phones have no room to spare for that.
  */
 export const columnsClass =
-  "grid grid-cols-[minmax(0,1fr)_2.5rem_3.25rem_3.75rem_6.25rem] items-center tabular-nums min-[24rem]:grid-cols-[minmax(0,1fr)_3.375rem_3.25rem_3.75rem_6.25rem] min-[24rem]:[&>:nth-child(2):not(:last-child)]:pr-3.5";
+  "grid grid-cols-[minmax(0,1fr)_2.25rem_3.25rem_3.8125rem_6.1875rem] items-center tabular-nums min-[24rem]:grid-cols-[minmax(0,1fr)_3.125rem_3.25rem_3.8125rem_6.1875rem] min-[24rem]:[&>:nth-child(2):not(:last-child)]:pr-3.5";
+/** A name in a card's first row: two lines before it is cut short. */
+export const nameClass = "line-clamp-2 leading-tight [overflow-wrap:anywhere]";
+/** A figure in a card's first row, which wraps sooner than run into the next column. */
+export const figureClass = "leading-tight [overflow-wrap:anywhere]";
 /** The text of a detail line or the total, across the first four columns. */
 export const labelClass = "col-span-4 flex min-w-0 items-center gap-2";
 
@@ -63,12 +69,12 @@ export function TotalChip({ total, currency }: { total: Cents; currency: Currenc
   return (
     <span
       className={cn(
-        "rounded-md px-1.5 py-0.5 font-semibold",
+        "inline-block rounded-md px-1 py-0.5 font-semibold",
         netColor(total),
         total > 0 ? "bg-win/15" : total < 0 ? "bg-loss/15" : "bg-muted/15",
       )}
     >
-      {formatGameAmount(total, currency, "exceptZero")}
+      {breakable(formatGameAmount(total, currency, "exceptZero"))}
     </span>
   );
 }
@@ -203,27 +209,33 @@ export function Card({
             aria-hidden
           />
         )}
-        <span className="truncate">{name}</span>
+        <span className={nameClass}>{name}</span>
       </span>
       <span className="text-center">{hands}</span>
-      <span className="text-center">{chips}</span>
+      <span className={cn(figureClass, "text-center")}>{breakable(chips)}</span>
       <span
-        className={cn("text-right", netChips === undefined ? "text-muted" : netColor(netChips))}
+        className={cn(
+          figureClass,
+          "text-right",
+          netChips === undefined ? "text-muted" : netColor(netChips),
+        )}
       >
-        {netChips === undefined ? "—" : formatSignedChips(netChips)}
+        {netChips === undefined ? "—" : breakable(formatSignedChips(netChips))}
       </span>
-      <span className="text-right whitespace-nowrap">
+      <span className={cn(figureClass, "text-right")}>
         {!expanded ? (
           <TotalChip total={total} currency={currency} />
         ) : base === undefined ? (
           <span className="text-muted">—</span>
         ) : (
-          <span className={netColor(base)}>{formatGameAmount(base, currency, "exceptZero")}</span>
+          <span className={netColor(base)}>
+            {breakable(formatGameAmount(base, currency, "exceptZero"))}
+          </span>
         )}
       </span>
     </>
   );
-  const rowClass = cn(columnsClass, "min-h-11 w-full bg-accent/15 px-2 text-left");
+  const rowClass = cn(columnsClass, "min-h-11 w-full bg-accent/15 px-2 py-1 text-left");
 
   return (
     <section
