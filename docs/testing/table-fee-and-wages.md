@@ -64,7 +64,7 @@ Expected results follow these rules. Bug reports cite the rule number.
 | R9 | Last time's values: turning a switch on loads the latest game that had that option. With no earlier game, or after choosing 默认配置 in the config picker at the top right of game setup, the switches start off. Changing any number shows 自定义. |
 | R10 | Backups are version 10. Backups from versions 1–9 still restore. An older app refuses a version 10 backup as newer. |
 | R11 | Each game keeps the time zone it was started in, and rates by time of day follow it on every device. A game from before this build uses the viewing device's time zone. Dates on the page still show in the device's time. |
-| R12 | Settlement tells players how they were charged. Each card with wages shows 在桌 (time sat) and 计费 (time charged). A 设置 button beside 对局总览, shown when the game has insurance, a table fee or wages, opens the game's rules in brief, in the order 保险, 台费, 工资: for insurance, whether tie cards count, whether a hit hands back the premium and the odds for 1, 3, 8 and 9 outs; the table fee with its minimum time; and the wage rates some player was charged at with the unit and rounding. An info icon beside the button opens 计费规则 in words. The shared image carries those rules. |
+| R12 | Settlement tells players how they were charged. Each player's card shows their Buy-in record, then 在桌 (time sat, to the second) and, with wages, 计费 (time charged). A 设置 button beside 对局总览, shown when the game has insurance, a table fee or wages, opens the game's rules in brief, in the order 保险, 台费, 工资: for insurance, whether tie cards count, whether a hit hands back the premium and the odds for 1, 3, 8 and 9 outs; the table fee with its minimum time; and the wage rates some player was charged at with the unit and rounding. An info icon beside the button opens 计费规则 in words. The shared image carries those rules. |
 
 ## 3. Environment and data
 
@@ -160,7 +160,7 @@ Priorities and severities are defined in the [testing README](README.md).
 | D-07 | P0 | Waiving a table fee | Before settling, untick a player's table fee, then reload the page. | The line turns gray and struck through. The player's total rises by the fee, the organizer's table fee income falls, and the transfers update. The waiver survives the reload (R7). |
 | D-08 | P1 | Waiving one wage rate | A player with two wage lines. Untick one. | The other is still charged, and the folded line counts only what is still charged. |
 | D-09 | P0 | Locked once settled | Tap 确认结算 and try a box, then tap 重新打开牌局 and try again. | The boxes cannot change after settling, and can after reopening. |
-| D-10 | P1 | Fees and a difference | Unbalanced books, for example by recording extra chips on leaving. Try each handling. | 按比例分摊 adds 差额分摊 to the winners' cards. 组织者补齐 adds 补齐差额 to the organizer's card. 不做处理 adds neither. |
+| D-10 | P1 | Fees and a difference | Unbalanced books, for example by recording extra chips on leaving. Try each handling. | 按比例分摊 adds 差额分摊 to the winners' cards, as the last line, under the table fee. 组织者补齐 adds 补齐差额 to the organizer's card. 不做处理 adds neither. |
 | D-11 | P1 | Fees and insurance | Insurance with a result. Set the owner to the organizer, a player, then 单独列出. | The owner's card gets a 保险 line, or a separate 保险 card appears. All totals are right. |
 | D-12 | P2 | Australian dollars | A game in AUD. Settle. | Every amount shows $ and is formatted correctly. |
 
@@ -207,10 +207,10 @@ Cases around midnight need a game played across a real midnight, with the clock 
 | ID | Priority | Case | Preconditions and steps | Expected |
 | --- | --- | --- | --- | --- |
 | H-01 | P0 | Rounding list | Turn on 工资 and tap 取整方式. Open its info button. | The list has 四舍五入 (checked by default), 向上取整 and 向下取整. The info explains all three, the longer-rate rule and an example. |
-| H-02 | P0 | A unit across two rates | 向上取整. A player sits at 23:16 and leaves at 0:13. Settle and open their card. | 在桌 57分 · 计费 1小时00分, then ¥20/时 × 30分 -¥10 and ¥30/时 × 30分 -¥15: the second unit, 23:46–0:16, has 16 minutes after midnight (R4). |
+| H-02 | P0 | A unit across two rates | 向上取整. A player sits at 23:16 and leaves at 0:13. Settle and open their card. | 在桌 0:57:00 or a few seconds more · 计费 1小时00分, then ¥20/时 × 30分 -¥10 and ¥30/时 × 30分 -¥15: the second unit, 23:46–0:16, has 16 minutes after midnight (R4). |
 | H-03 | P0 | A tie takes the higher rate | 向上取整. A player sits at 23:45 and leaves at 0:15. | One line: ¥30/时 × 30分 -¥15. |
 | H-04 | P0 | The three rounding modes | No segments, 精确到30分. Players leave after 44, 45 and 59 minutes. Settle under each 取整方式 (change it in 设置 and reopen settlement). | 四舍五入: 30分, 1小时00分, 1小时00分. 向上取整: 1小时00分 for all three. 向下取整: 30分 for all three. A player under 30 minutes with 向下取整 has no wage line and 计费 0分. |
-| H-05 | P1 | Time away does not start a new unit | 向上取整, no segments. A player sits 20 minutes, leaves, taps 回桌 later and sits 40 more. | 在桌 1小时00分 · 计费 1小时00分, with nothing added. |
+| H-05 | P1 | Time away does not start a new unit | 向上取整, no segments. A player sits 20 minutes, leaves, taps 回桌 later and sits 40 more. | 在桌 1:00:00 or a few seconds more · 计费 1小时00分, with nothing added. |
 | H-06 | P0 | Starting inside a segment | 时段设置 22点 to 6点 at ¥40, base ¥25. Start the clock at about 23:00, play an hour and settle. | All time is at ¥40 (R5). Before this build it was all at the base rate. |
 | H-07 | P1 | A segment with no end | "0点" with no end. Start one game at about 1:00 and another in the afternoon. | The 1:00 game is at the segment's rate from the start. The afternoon game is at the base rate until midnight. |
 | H-08 | P0 | Another time zone | A settled game with a time segment. Export a backup, restore it on a phone in another time zone, or change this phone's time zone, and open the settlement. | Every wage line and total is the same (R11). The start time in the summary shows in the phone's time. |

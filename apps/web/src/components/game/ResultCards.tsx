@@ -9,10 +9,12 @@ import { formatGameAmount } from "@/lib/currency";
 /**
  * Shared by the column titles and every row under them, so all amounts share one right edge.
  * Buy-ins are sized for two digits, and chips and the win or loss for four with a separator.
- * Buy-ins and chips are centered in their columns, and the win or loss and the amount end at the right.
+ * Buy-ins and chips are centered, and the win or loss and the amount end at the right. On screens
+ * from 24rem wide the Buy-in column's cell, the second of a row that has more, keeps clear of the
+ * chips by two digits' width. Narrower phones have no room to spare for that.
  */
 export const columnsClass =
-  "grid grid-cols-[minmax(0,1fr)_2.5rem_3.25rem_3.75rem_6.25rem] items-center tabular-nums";
+  "grid grid-cols-[minmax(0,1fr)_2.5rem_3.25rem_3.75rem_6.25rem] items-center tabular-nums min-[24rem]:grid-cols-[minmax(0,1fr)_3.375rem_3.25rem_3.75rem_6.25rem] min-[24rem]:[&>:nth-child(2):not(:last-child)]:pr-3.5";
 /** The text of a detail line or the total, across the first four columns. */
 export const labelClass = "col-span-4 flex min-w-0 items-center gap-2";
 
@@ -38,7 +40,7 @@ export interface ResultLine {
 
 /** The items a collapsed card lists, left to right. */
 const SUMMARY_GROUPS = ["差额", "分摊", "保险", "工资", "台费"] as const;
-export type SummaryGroup = (typeof SUMMARY_GROUPS)[number];
+type SummaryGroup = (typeof SUMMARY_GROUPS)[number];
 
 export interface ResultCard {
   readonly id: string;
@@ -49,6 +51,8 @@ export interface ResultCard {
   readonly netChips?: number;
   /** The result from the chips, before the lines. Missing shows a dash. */
   readonly base?: Cents;
+  /** The person's Buy-in record, over the lines. Missing for an organizer who is not playing. */
+  readonly record?: ReactNode;
   readonly lines: readonly ResultLine[];
   readonly total: Cents;
   /** Whether the card folds to one row with a summary line. */
@@ -83,7 +87,7 @@ export function ColumnTitles({ first }: { first: string }) {
 }
 
 /** One line under a card's row, with a box to waive it where it is a charge the organizer can drop. */
-export function Line({ line, currency }: { line: ResultLine; currency: Currency }) {
+function Line({ line, currency }: { line: ResultLine; currency: Currency }) {
   const { label, amount, tone, waiver } = line;
   if (line.note) {
     return <p className="flex min-h-7 items-center pl-6 text-xs text-muted">{label}</p>;
@@ -167,20 +171,26 @@ function Summary({ card, currency }: { card: ResultCard; currency: Currency }) {
   );
 }
 
-function Card({
+/**
+ * One person's card: a tinted row with their chips and result, then their Buy-in record, the
+ * adjustments to the result and a total. A card that folds shows the row and a one-line summary.
+ */
+export function Card({
   card,
   currency,
-  open,
+  open = false,
   onToggle,
 }: {
   card: ResultCard;
   currency: Currency;
-  open: boolean;
-  onToggle: () => void;
+  /** Only a card that folds takes these. */
+  open?: boolean;
+  onToggle?: () => void;
 }) {
-  const { name, hands, chips, netChips, base, lines, total } = card;
-  const folds = card.collapsible === true && lines.length > 0;
-  const expanded = lines.length > 0 && (open || !folds);
+  const { name, hands, chips, netChips, base, record, lines, total } = card;
+  const hasBody = lines.length > 0 || record !== undefined;
+  const folds = card.collapsible === true && hasBody;
+  const expanded = hasBody && (open || !folds);
   const cells = (
     <>
       <span className="flex min-w-0 items-center font-medium">
@@ -229,10 +239,14 @@ function Card({
       )}
       {folds && !open && <Summary card={card} currency={currency} />}
       {expanded && (
-        <div className="px-2">
-          {lines.map((line) => (
-            <Line key={line.key} line={line} currency={currency} />
-          ))}
+        <div className="@container px-2">
+          {record}
+          {/* A faint rule sets the record apart from the time and charges under it */}
+          <div className={cn(record !== undefined && lines.length > 0 && "border-t border-line")}>
+            {lines.map((line) => (
+              <Line key={line.key} line={line} currency={currency} />
+            ))}
+          </div>
           <div className={cn(columnsClass, "min-h-11 border-t border-accent")}>
             <span className={cn(labelClass, "font-semibold")}>合计</span>
             <span className="text-right whitespace-nowrap">
@@ -246,8 +260,7 @@ function Card({
 }
 
 /**
- * Settlement results as one card per person: a tinted row with their chips and result, then the
- * adjustments to it and a total. Cards fold to that row and a one-line summary, and the 明细
+ * Settlement results as one card per person. Cards fold to their row and a one-line summary, and the 明细
  * switch opens them all, or closes them once all are open. `settings`, when given, opens from a
  * 设置 button beside the heading, with `settingsInfo` next to it. An organizer with anything to receive comes first under a title row of their own,
  * and the players follow under theirs.

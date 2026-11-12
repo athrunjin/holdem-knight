@@ -3,6 +3,7 @@ import {
   attributeInsurance,
   type Cents,
   type Charge,
+  type ChargeWaiver,
   cents,
   chargeStatuses,
   chargesFrom,
@@ -30,6 +31,8 @@ import {
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { BuyInRecord } from "@/components/game/BuyInRecord";
+import { chargeLines } from "@/components/game/chargeLines";
 import { GameOptionLine, GameTitle } from "@/components/game/GameOptions";
 import { GameRules, hasGameRules } from "@/components/game/GameRules";
 import { PickerRow } from "@/components/game/PickerRow";
@@ -40,13 +43,7 @@ import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
-import {
-  CHARGE_CLOCK_RULE,
-  chargeClock,
-  chargeRuleNotes,
-  chargeRuleSections,
-  formatSeatTime,
-} from "@/lib/charges";
+import { CHARGE_CLOCK_RULE, chargeClock, chargeRuleNotes, chargeRuleSections } from "@/lib/charges";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
@@ -182,7 +179,6 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
   // Each person's result from the chips alone, before a difference is split
   const chipNets = settlementOutcome(ledger, game.chipRatio, undefined).nets;
   const chargesLocked = saveGame.isPending || status === "settled";
-  const money = (value: number) => formatGameMoney(cents(value), currency);
 
   function insuranceLine(id: string): ResultLine[] {
     if (insuranceNet === 0 || id !== ownerId) return [];
@@ -191,59 +187,14 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     ];
   }
 
-  /**
-   * The time sat and the time charged, then wages at each rate and the table fee, each with a box
-   * to let the player off it.
-   */
-  function chargeLines(playerId: string): ResultLine[] {
-    const status = statuses.find((s) => s.playerId === playerId);
-    const billedMinutes = status?.wageParts.reduce((all, p) => all + p.minutes, 0) ?? 0;
-    const timeNote: ResultLine[] =
-      game.wage && status
-        ? [
-            {
-              key: "time",
-              label: `在桌 ${formatSeatTime(status.seatedMs)} · 计费 ${formatSeatTime(billedMinutes * 60_000)}`,
-              tone: "charge",
-              note: true,
-            },
-          ]
-        : [];
-    const line = (charge: Charge, label: string): ResultLine => ({
-      key: `${charge.kind}-${charge.part ?? ""}`,
-      label,
-      amount: cents(-charge.amount),
-      tone: "charge",
-      group: charge.kind === "wage" ? "工资" : "台费",
-      waiver: {
-        waived: charge.waived,
-        disabled: chargesLocked,
-        onChange: (waived) => {
-          const { kind, part } = charge;
-          const key = part ? { playerId, kind, part } : { playerId, kind };
-          saveGame.mutate(waiveCharge(game, key, waived));
-        },
-      },
-    });
-    const own = charges.filter((c) => c.playerId === playerId);
-    const rates = own.flatMap(({ hourly, minutes, ...charge }) =>
-      hourly === undefined || minutes === undefined
-        ? []
-        : [
-            line(
-              { ...charge, hourly, minutes },
-              `工资 ${money(hourly)}/时 × ${formatSeatTime(minutes * 60_000)}`,
-            ),
-          ],
-    );
-    const wages = [...timeNote, ...rates];
-    const fee = own.find((c) => c.kind === "table_fee");
-    const { tableFee } = game;
-    if (fee) return [...wages, line(fee, `台费 ${money(fee.amount)}/人`)];
-    if (!tableFee) return wages;
-    const short = `台费 ${money(tableFee.amount)}/人 · 未满 ${tableFee.minMinutes} 分钟`;
-    return [...wages, { key: "table_fee", label: short, tone: "charge", group: "台费" }];
-  }
+  const waiving = {
+    disabled: chargesLocked,
+    onWaive: (key: ChargeWaiver, waived: boolean) =>
+      saveGame.mutate(waiveCharge(game, key, waived)),
+  };
+  const record = (playerId: string) => (
+    <BuyInRecord game={game} events={events} playerId={playerId} />
+  );
 
   const playerCards = ledger
     .filter((p) => p.playerId !== INSURANCE_PLAYER_ID || separateInsurance)
@@ -271,7 +222,13 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
         chips: player.cashedOutChips.toLocaleString("zh-CN"),
         netChips: player.cashedOutChips - player.boughtChips,
         base,
-        lines: [...split, ...insuranceLine(playerId), ...chargeLines(playerId)],
+        record: record(playerId),
+        // What the chips come to first, then the charges, then what changes the result after them
+        lines: [
+          ...chargeLines(game, statuses, charges, playerId, waiving),
+          ...split,
+          ...insuranceLine(playerId),
+        ],
         total: netOf(nets, playerId),
         collapsible: true,
       };
@@ -327,6 +284,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
             ...(host && {
               netChips: host.cashedOutChips - host.boughtChips,
               base: netOf(chipNets, ORGANIZER_COLLECTOR),
+              record: record(ORGANIZER_COLLECTOR),
             }),
             lines: organizerLines,
             total: organizerNet,
