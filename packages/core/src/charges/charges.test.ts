@@ -510,6 +510,12 @@ describe("gameCharges", () => {
     ]);
   });
 
+  it("does not charge an organizer who plays", () => {
+    const withOrganizer = [...events, buy(ORGANIZER_COLLECTOR, 0), leave(ORGANIZER_COLLECTOR, 120)];
+    const game = { tableFee, wage: wage25, timer: allDay };
+    expect(gameCharges(game, withOrganizer, clock)).toEqual(gameCharges(game, events, clock));
+  });
+
   it("counts nothing before the clock starts", () => {
     expect(gameCharges({ tableFee, wage: wage25 }, events, clock)).toEqual([]);
   });

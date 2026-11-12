@@ -133,6 +133,13 @@ export const INSURANCE_PLAYER_ID = "insurance";
 /** Reserved: no player can take this name. */
 export const INSURANCE_PLAYER_NAME = "保险";
 
+/**
+ * The organizer in a game. Playing, they have chips under this ID like the insurance seat, with no
+ * record in the player list, and at settlement everything else they receive lands on the same row
+ * (ADR 0028).
+ */
+export const ORGANIZER_PLAYER_ID = "organizer";
+
 /** A flat fee each player pays once per game, if they sat long enough. */
 export interface TableFeeRule {
   readonly amount: Cents;

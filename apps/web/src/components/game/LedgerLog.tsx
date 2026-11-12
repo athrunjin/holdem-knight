@@ -9,7 +9,7 @@ const RECORD_LABEL: Record<RecordKind, string> = {
   reduce: "减手",
   remove: "移出",
   cash_out: "离桌",
-  return: "返回",
+  return: "回桌",
   stack_set: "改筹码",
   stack_undo: "撤销改筹码",
   insurance_buy: "买保险",
@@ -34,7 +34,10 @@ interface LedgerLogProps {
   nameOf: (playerId: string) => string;
 }
 
-/** Read-only game record, collapsed by default, oldest first, with a filter for one player. */
+/**
+ * Read-only game record, oldest first, with a filter for one player. Folded by default into one
+ * quiet line, like the insurance records.
+ */
 export function LedgerLog({ events, nameOf }: LedgerLogProps) {
   const [open, setOpen] = useState(false);
   const [playerId, setPlayerId] = useState("");
@@ -43,29 +46,29 @@ export function LedgerLog({ events, nameOf }: LedgerLogProps) {
   const shown = playerId ? entries.filter((entry) => entry.playerId === playerId) : entries;
 
   return (
-    <section className="mt-4 pb-8">
+    <section className="mt-2 border-t border-line pb-8">
       <h2>
         <button
           type="button"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
-          className="flex min-h-11 w-full items-center justify-between rounded-xl border border-line bg-surface px-3 font-medium"
+          className="flex min-h-11 w-full items-center gap-1 text-sm text-muted"
         >
-          <span>牌局记录（{entries.length}）</span>
+          牌局记录（{entries.length}）
           <ChevronDown
-            className={cn("size-5 text-muted transition-transform", open && "rotate-180")}
+            className={cn("size-4 transition-transform", open && "rotate-180")}
             aria-hidden
           />
         </button>
       </h2>
       {open && (
         <>
-          <label className="mt-2 block">
+          <label className="block">
             <span className="sr-only">查看玩家</span>
             <select
               value={playerId}
               onChange={(event) => setPlayerId(event.target.value)}
-              className="min-h-11 w-full rounded-xl border border-line bg-surface px-3"
+              className="min-h-11 w-full rounded-lg border border-line bg-surface px-2 text-sm"
             >
               <option value="">全部玩家</option>
               {playerIds.map((id) => (
@@ -75,9 +78,9 @@ export function LedgerLog({ events, nameOf }: LedgerLogProps) {
               ))}
             </select>
           </label>
-          <ul className="mt-2 divide-y divide-line rounded-xl border border-line bg-surface px-3">
+          <ul className="mt-1 max-h-[40dvh] divide-y divide-line overflow-y-auto overscroll-contain text-sm">
             {shown.map((entry) => (
-              <li key={entry.id} className="flex min-h-11 items-center gap-2 py-1">
+              <li key={entry.id} className="flex min-h-8 items-center gap-2 py-0.5">
                 <span className="shrink-0 text-xs text-muted tabular-nums">
                   {TIME.format(entry.occurredAt)}
                 </span>
@@ -95,7 +98,7 @@ export function LedgerLog({ events, nameOf }: LedgerLogProps) {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="mt-2 flex min-h-11 w-full items-center justify-center text-sm text-highlight"
+              className="flex min-h-11 w-full items-center justify-center text-xs text-highlight"
             >
               收起牌局记录
             </button>

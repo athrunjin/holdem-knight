@@ -2,6 +2,7 @@ import {
   adjustHands,
   type HandChange,
   type LedgerEvent,
+  latestCashOut,
   summarizeByPlayer,
 } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -123,6 +124,28 @@ export function useLeaveAll(gameId: string) {
               chips: stackChips,
             }),
           ),
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ledger", gameId] }),
+  });
+}
+
+/** Brings the given players back to the table in one write, by taking back each one's cash-out. */
+export function useReturnAll(gameId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    scope: ledgerScope(gameId),
+    mutationFn: async (playerIds: readonly string[]) => {
+      const events = await repository.ledger.listByGame(gameId);
+      const returnedAt = Date.now();
+      await repository.ledger.appendAll(
+        playerIds.flatMap((playerId): LedgerEvent[] => {
+          const cashOut = latestCashOut(events, playerId);
+          if (!cashOut) return [];
+          return [
+            { ...newEventMeta(gameId, returnedAt), type: "reversal", reversedEventId: cashOut.id },
+          ];
+        }),
       );
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ledger", gameId] }),

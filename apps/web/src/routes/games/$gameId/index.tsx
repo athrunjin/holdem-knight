@@ -5,12 +5,12 @@ import {
   type HandChange,
   type ImbalanceHandling,
   INSURANCE_PLAYER_ID,
-  INSURANCE_PLAYER_NAME,
   insuranceRecords,
   lastBuyChips,
   latestCashOut,
   ledgerTotals,
   nextBuyType,
+  ORGANIZER_PLAYER_ID,
   type Player,
   pauseTimer,
   soleBuyIn,
@@ -39,11 +39,13 @@ import {
   useLeaveAll,
   useLeaveTable,
   useLedger,
+  useReturnAll,
 } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
+import { gameNameOf } from "@/lib/player-name";
 
 export const Route = createFileRoute("/games/$gameId/")({
   component: GamePage,
@@ -97,6 +99,7 @@ function GameLedger({ game }: { game: Game }) {
   const adjustHands = useAdjustHands(gameId);
   const leaveTable = useLeaveTable(gameId);
   const leaveAll = useLeaveAll(gameId);
+  const returnAll = useReturnAll(gameId);
   const saveGame = useSaveGame();
   const navigate = Route.useNavigate();
   const [settling, setSettling] = useState(false);
@@ -119,9 +122,7 @@ function GameLedger({ game }: { game: Game }) {
     game.tableFee !== undefined || game.wage !== undefined,
   );
   const totals = ledgerTotals(people);
-  const names = new Map(players.map(({ id, name }) => [id, name]));
-  names.set(INSURANCE_PLAYER_ID, INSURANCE_PLAYER_NAME);
-  const nameOf = (playerId: string) => names.get(playerId) ?? "未知玩家";
+  const nameOf = gameNameOf(players, game);
   const money = (chips: number) => formatGameMoney(chipsToCents(chips, chipRatio), currency);
 
   function playerTotals(playerId: string) {
@@ -196,6 +197,15 @@ function GameLedger({ game }: { game: Game }) {
   /** Only a player at one hand who has done nothing else, so they were added by mistake. */
   function removable(playerId: string) {
     return boughtHands(playerId) === 1 && soleBuyIn(events, playerId) !== undefined;
+  }
+
+  /** Everyone who left comes back, the organizer and the insurance seat included. */
+  function handleReturnAll() {
+    const gone = ledger.filter((p) => !p.seated);
+    const count = gone.filter((p) => p.playerId !== INSURANCE_PLAYER_ID).length;
+    if (window.confirm(`让已离桌的 ${count} 人全部回桌？`)) {
+      returnAll.mutate(gone.map((p) => p.playerId));
+    }
   }
 
   function handleToggleTimer() {
@@ -306,8 +316,17 @@ function GameLedger({ game }: { game: Game }) {
 
       <LedgerPlayers
         gameId={gameId}
-        // The organizer's ID stands in until organizers have names (M6)
-        organizerName={game.organizerId}
+        organizerName={nameOf(ORGANIZER_PLAYER_ID)}
+        insuranceOn={game.insurance !== undefined}
+        charged={{ tableFee: game.tableFee !== undefined, wage: game.wage !== undefined }}
+        onJoin={(playerId) =>
+          setPending({
+            kind: handChips === undefined ? "buy" : "join",
+            playerId,
+            name: nameOf(playerId),
+          })
+        }
+        onReturnAll={handleReturnAll}
         players={ledger}
         nameOf={nameOf}
         handChips={handChips}
@@ -337,6 +356,7 @@ function GameLedger({ game }: { game: Game }) {
       {(appendEvent.isError ||
         adjustHands.isError ||
         leaveTable.isError ||
+        returnAll.isError ||
         (saveGame.isError && !settling)) &&
         !pending && (
           <p role="alert" className="mt-2 text-sm text-highlight">

@@ -35,7 +35,7 @@ Transfers (3 笔 · 最优方案):
 Game dated **2026-01-02** · blinds 5 / 10 · 人民币 · 1,000 chips = ¥100 · settled · file `02-collector-and-undo.json`
 
 - 张伟's rebuy at 19:30 was a mistake and is undone, so he shows 1 hand.
-- 赵磊 left at 20:00 with 1,500, came back at 20:15 (返回) and left for good with 2,600. Only the last cash-out counts.
+- 赵磊 left at 20:00 with 1,500, came back at 20:15 (回桌) and left for good with 2,600. Only the last cash-out counts.
 - 1,000 chips = ¥100. 赵磊 collects: everyone who lost pays him, so there are two transfers.
 
 Results:
@@ -144,7 +144,7 @@ Game dated **2026-01-06** · blinds 1 / 2 · 人民币 · 1 chip = ¥1 · settle
 - Table fee ¥20 a head after 60 counted minutes. Wages ¥30 an hour, ¥50 an hour once the clock shows 3 hours (22:20).
 - 张伟 sat 300 minutes, 280 counted: 180 at ¥30 and 100 at ¥50, ¥173.33.
 - 王芳 sat 45 minutes before the pause: no table fee, ¥22.50 of wages.
-- 李娜 left at 21:30 and came back at 22:20 (返回): 170 counted minutes, 100 at ¥30 and 70 at ¥50, ¥108.33.
+- 李娜 left at 21:30 and came back at 22:20 (回桌): 170 counted minutes, 100 at ¥30 and 70 at ¥50, ¥108.33.
 - 刘洋 counted 89 minutes 30 seconds: the part minute is not charged, so 89 minutes, ¥44.50.
 - The charges come off each player's cash result and go to the organizer, so the chips still balance while the amounts do not match the chips.
 

@@ -3,6 +3,7 @@ import {
   cents,
   INSURANCE_PLAYER_ID,
   type LedgerEvent,
+  ORGANIZER_PLAYER_ID,
   RULE_30,
 } from "@holdem-knight/core";
 import { describe, expect, it } from "vitest";
@@ -242,6 +243,19 @@ describe("backup file", () => {
     expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
   });
 
+  it("accepts an organizer who plays, with no player record", () => {
+    const meta = { organizerId: "guest", gameId: "g", occurredAt: 3 };
+    const buyIn: LedgerEvent = {
+      ...meta,
+      id: "o",
+      type: "buy_in",
+      playerId: ORGANIZER_PLAYER_ID,
+      chips: 1000,
+    };
+    const full = { ...data, ledgerEvents: [...data.ledgerEvents, buyIn] };
+    expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
+  });
+
   it("round-trips insurance rules, purchases and the insurance seat", () => {
     const rule = { ...RULE_30, riverCoverLimit: 50 };
     const [game] = data.games;
@@ -356,7 +370,7 @@ describe("backup file", () => {
 
   it("rejects backups from a newer version", () => {
     const text = edit((backup) => {
-      backup.version = 11;
+      backup.version = 12;
     });
     expect(parseBackup(text)).toEqual({ ok: false, issue: "newer-version" });
   });

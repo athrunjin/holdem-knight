@@ -782,23 +782,43 @@ Records discussions of feature and process improvements: what was proposed, how 
 
 - Type: feature
 - Date: proposed and decided 2026-11-12
-- Source: comparing the game page with the settlement page from #I-041
+- Source: comparing the game page with the settlement page from #I-041, then trying the preview
 - Problem: the game page in play looked different from the settlement page, the organizer's insurance, table fees and wages were spread around or hidden, and the hand steppers and leave buttons took room.
 - Proposal:
   - Move what the organizer has so far above the seated players, folding open and closed.
   - Give the seated players the settlement page's columns, sizes and spacing, without the − and + on Buy-in.
   - Turn 离桌 into an icon before the name, where the settlement page has its fold arrow.
+  - Make the game record smaller, like the insurance records, and let the players who left fold away and come back in one tap.
 - Settled details:
-  - The organizer comes first under its own title row, as one card named by the organizer's ID that folds like the settlement page's. Closed, it shows the total and a line with 保险, 工资 and 台费. Open, it lists the insurance seat with its Buy-in and chips, then wages and table fees so far, then 合计. It shows only in games with insurance, a table fee or wages.
-  - Wages and table fees so far count every player, those who left included, and keep counting while the clock runs.
+  - The organizer comes first under its own title row, as one card named by the organizer's ID. It shows in every open game. The insurance seat is a line of its own that never folds away, with its Buy-in and chips open to change. Folded, the card shows the total and a line with 工资 and 台费. Open, it lists wages and table fees so far, then 合计.
+  - A first try folded the insurance seat into the card. On the preview that read as the seat not having bought in, so it stays in view.
+  - A game with insurance but no seat in the ledger shows a + on the seat's Buy-in. A seat that left at a settle attempt shows 回桌 in place of its hands and chips.
+  - Wages and table fees so far count every player, those who left included, and keep counting while the clock runs. Their lines show before anyone has sat down.
   - The insurance line's label, with a calculator icon, opens 算保险.
   - Each seated player is a card with the settlement page's five columns. 金额 shows the cash result less the charges so far.
   - The 详细模式 switch is renamed 明细. On, each card opens on time seated, table fee and wages, and a 合计. Closed cards have no summary line, so a full table stays short.
   - Tapping Buy-in opens the hand dialog. A player at one hand with nothing else recorded can be taken out of the game from that dialog, where the − used to do it.
   - The leave icon and the name are one button, which keeps a 44px target and opens the leave dialog.
-  - The players who left keep their list as before.
+  - 已离桌 folds from an arrow after its title, open by default. Open, a small 一键回桌 on the right brings everyone back after a confirm, the organizer and the insurance seat included. Each row's button reads 回桌, and the record says 回桌.
+  - 牌局记录 is one quiet line at the foot of the page, folded by default, with smaller rows that scroll inside 40% of the screen. It stays in the page instead of being pinned over it.
 - Decision: do.
 - Tracking: PR #82
+
+### #I-043 The organizer plays in their own game
+
+- Type: feature
+- Date: proposed and decided 2026-11-12
+- Source: trying #I-042 in the preview
+- Problem: an organizer who plays had to add themselves as a player, was charged their own table fee and wages, and had their chips apart from what they received as organizer.
+- Proposal: tapping Buy-in on the organizer's own row opens the buy-in dialog, and confirming seats the organizer, who stays on that row.
+- Settled details:
+  - A + shows on the organizer's Buy-in until they join. After that the row shows their hands, chips and result, open to change like a player's.
+  - The organizer stays on the organizer's card, apart from the insurance line, and only 合计 adds the two with the charges. 桌上玩家 counts them as one more.
+  - No table fee or wages apply to the organizer.
+  - 组织者离桌 and 组织者回桌 are in the open card. Taking the organizer out of a game they joined by mistake is in the hand dialog, as for a player.
+  - On the settlement page the organizer's card shows their hands, chips and result, and they are not listed among the players.
+- Decision: do.
+- Tracking: PR #82, ADR [0028](adr/0028-organizer-seat.md)
 
 ## Not doing or deferred
 

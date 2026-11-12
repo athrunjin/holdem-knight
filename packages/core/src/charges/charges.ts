@@ -13,7 +13,7 @@ import type {
   WagePart,
   WageRule,
 } from "../domain";
-import { INSURANCE_PLAYER_ID } from "../domain";
+import { INSURANCE_PLAYER_ID, ORGANIZER_PLAYER_ID } from "../domain";
 import { timerRuns } from "../game";
 import { summarizeByPlayer } from "../ledger";
 import { type Cents, cents, multiply, sum, ZERO } from "../money";
@@ -469,7 +469,12 @@ function countedSessions(
   return { sessions, runs };
 }
 
-/** Counted time for each player in the game, in ledger order. The insurance seat has none. */
+/** The insurance seat and an organizer who plays are never charged: the organizer would pay themselves. */
+function isCharged(playerId: string) {
+  return playerId !== INSURANCE_PLAYER_ID && playerId !== ORGANIZER_PLAYER_ID;
+}
+
+/** Counted time for each charged player in the game, in ledger order. */
 export function seatTimes(
   game: Pick<Game, "timer">,
   events: readonly LedgerEvent[],
@@ -477,7 +482,7 @@ export function seatTimes(
 ): PlayerSeatTime[] {
   const { sessions } = countedSessions(game, events, now);
   return summarizeByPlayer(events)
-    .filter((p) => p.playerId !== INSURANCE_PLAYER_ID)
+    .filter((p) => isCharged(p.playerId))
     .map(({ playerId }) => ({ playerId, seatedMs: seatedMs(sessions.get(playerId) ?? [], now) }));
 }
 
@@ -502,7 +507,7 @@ export function chargeStatuses(
 ): PlayerChargeStatus[] {
   const { tableFee, wage } = game;
   const { sessions, runs } = countedSessions(game, events, clock.now);
-  const players = summarizeByPlayer(events).filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
+  const players = summarizeByPlayer(events).filter((p) => isCharged(p.playerId));
 
   // The game started when its clock first ran, or for an older clock, when the first player sat
   const starts = players.flatMap(({ playerId }) => sessions.get(playerId)?.[0]?.from ?? []);

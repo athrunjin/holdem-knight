@@ -12,7 +12,6 @@ import {
   collectorTransfers,
   type Game,
   INSURANCE_PLAYER_ID,
-  INSURANCE_PLAYER_NAME,
   isValidCollector,
   type LedgerEvent,
   ORGANIZER_COLLECTOR,
@@ -51,6 +50,7 @@ import {
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
+import { gameNameOf } from "@/lib/player-name";
 import { renderSettlementImage } from "@/lib/settlement-image";
 import { shareFile } from "@/lib/share";
 
@@ -67,9 +67,7 @@ function SettlementPage() {
   if (!game || !events || !players) return null;
 
   const ledger = summarizeByPlayer(events);
-  const names = new Map(players.map(({ id, name }) => [id, name]));
-  names.set(INSURANCE_PLAYER_ID, INSURANCE_PLAYER_NAME);
-  const nameOf = (playerId: string) => names.get(playerId) ?? "未知玩家";
+  const nameOf = gameNameOf(players, game);
   const seated = ledger
     .filter((p) => p.seated && p.playerId !== INSURANCE_PLAYER_ID)
     .map((p) => nameOf(p.playerId));
@@ -159,7 +157,11 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     collectorId: savedCollector,
     createdAt,
   } = game;
-  const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
+  // An organizer who plays has chips under the organizer's own ID, and stays on the organizer's card
+  const host = ledger.find((p) => p.playerId === ORGANIZER_COLLECTOR);
+  const people = ledger.filter(
+    (p) => p.playerId !== INSURANCE_PLAYER_ID && p.playerId !== ORGANIZER_COLLECTOR,
+  );
   const saveGame = useSaveGame();
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
@@ -245,6 +247,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
 
   const playerCards = ledger
     .filter((p) => p.playerId !== INSURANCE_PLAYER_ID || separateInsurance)
+    .filter((p) => p.playerId !== ORGANIZER_COLLECTOR)
     .map((player): ResultCard => {
       const { playerId } = player;
       const base = netOf(chipNets, playerId);
@@ -275,7 +278,25 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     })
     .toSorted((a, b) => b.total - a.total);
 
-  const covered = netOf(outcome.nets, ORGANIZER_COLLECTOR);
+  // What handling the difference adds to the organizer, beyond their own chips if they play
+  const covered =
+    netOf(outcome.nets, ORGANIZER_COLLECTOR) - (host ? netOf(chipNets, ORGANIZER_COLLECTOR) : 0);
+  const coveredLine: ResultLine =
+    game.imbalanceHandling === "organizer"
+      ? {
+          key: "difference",
+          label: covered < 0 ? "补齐差额" : "收取差额",
+          amount: cents(covered),
+          tone: "adjustment",
+          group: "差额",
+        }
+      : {
+          key: "split",
+          label: "差额分摊",
+          amount: cents(covered),
+          tone: "adjustment",
+          group: "分摊",
+        };
   const income = (kind: Charge["kind"]) =>
     sum(charges.filter((c) => c.kind === kind && !c.waived).map((c) => c.amount));
   const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
@@ -291,17 +312,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     incomeLine("工资", receivesCharges ? income("wage") : ZERO),
     incomeLine("台费", receivesCharges ? income("table_fee") : ZERO),
     { key: "rake", label: "抽水", tone: "charge" },
-    ...(covered === 0
-      ? []
-      : [
-          {
-            key: "difference",
-            label: covered < 0 ? "补齐差额" : "收取差额",
-            amount: covered,
-            tone: "adjustment" as const,
-            group: "差额" as const,
-          },
-        ]),
+    ...(covered === 0 ? [] : [coveredLine]),
   ];
   const organizerCard: ResultCard[] =
     organizerNet === undefined
@@ -311,8 +322,12 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
             id: ORGANIZER_COLLECTOR,
             // The organizer's ID stands in until organizers have names (M6)
             name: game.organizerId,
-            hands: "—",
-            chips: "—",
+            hands: !host || handChips === undefined ? "—" : String(host.boughtChips / handChips),
+            chips: host ? host.cashedOutChips.toLocaleString("zh-CN") : "—",
+            ...(host && {
+              netChips: host.cashedOutChips - host.boughtChips,
+              base: netOf(chipNets, ORGANIZER_COLLECTOR),
+            }),
             lines: organizerLines,
             total: organizerNet,
             collapsible: true,
@@ -329,7 +344,9 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     if (game.imbalanceHandling === "organizer") {
       return `组织者${difference > 0 ? "补齐" : "收取"} ${size}`;
     }
-    const count = playerCards.filter((r) => (r.netChips ?? 0) * difference > 0).length;
+    const count = [...playerCards, ...organizerCard].filter(
+      (r) => (r.netChips ?? 0) * difference > 0,
+    ).length;
     return difference > 0
       ? `水上多 ${size}，由 ${count} 位赢家按水上比例扣减`
       : `水下多 ${size}，由 ${count} 位输家按水下比例少付`;
@@ -501,7 +518,9 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
                   onChange={(event) => choosePlan(event.target.value)}
                   className="min-h-12 w-full rounded-xl border border-line bg-surface px-3"
                 >
-                  <option value={ORGANIZER_COLLECTOR}>组织者（不在局中）</option>
+                  <option value={ORGANIZER_COLLECTOR}>
+                    {host ? "组织者" : "组织者（不在局中）"}
+                  </option>
                   {playerCards
                     .filter(({ id }) => id !== INSURANCE_PLAYER_ID)
                     .map(({ id, name }) => (

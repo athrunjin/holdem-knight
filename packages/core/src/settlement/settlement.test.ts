@@ -238,6 +238,14 @@ describe("settlementOutcome", () => {
     expect(netOf(nets, ORGANIZER_COLLECTOR)).toBe(30_000);
   });
 
+  it("keeps one row for an organizer who plays and covers the difference", () => {
+    const players = [...excess, ledger(ORGANIZER_COLLECTOR, 1000, 1500)];
+    const { nets, unresolved } = settlementOutcome(players, oneToOne, "organizer");
+    expect(nets.filter((p) => p.playerId === ORGANIZER_COLLECTOR)).toHaveLength(1);
+    expect(netOf(nets, ORGANIZER_COLLECTOR)).toBe(50_000 - 80_000);
+    expect(unresolved).toBe(0);
+  });
+
   it("settles every transfer when the organizer covers the difference", () => {
     const { nets } = settlementOutcome(excess, oneToOne, "organizer");
     const balances = new Map<string, number>(nets.map((p) => [p.playerId, p.net]));
@@ -272,10 +280,14 @@ describe("settlementOutcome", () => {
         ratios,
         fc.constantFrom("split", "organizer") as fc.Arbitrary<"split">,
         (rows, ratio, handling) => {
-          const players = rows.map(([bought, out], i) => ledger(`p${i}`, bought, out));
+          // The first player is the organizer, so both playing and covering are exercised
+          const players = rows.map(([bought, out], i) =>
+            ledger(i === 0 ? ORGANIZER_COLLECTOR : `p${i}`, bought, out),
+          );
           const { nets, unresolved } = settlementOutcome(players, ratio, handling);
           expect(sum(nets.map((p) => p.net))).toBe(0);
           expect(unresolved).toBe(0);
+          expect(new Set(nets.map((p) => p.playerId)).size).toBe(nets.length);
         },
       ),
     );

@@ -33,7 +33,7 @@
 
 ### #71 Detail mode and itemized settlement
 
-- 桌上玩家 has a 详细模式 switch, on by default in games with fees. It shows each player's counted time (live), table
+- 桌上玩家 has a 明细 switch, on by default in games with fees. It shows each player's counted time (live), table
   fee, wages so far, and cash result less those charges.
 - Settlement shows one card per person. Wages are listed per rate, such as `¥25/时 × 1小时40分`, then the table fee.
   Each charge has a box; unticking it waives that charge for that player.
@@ -53,7 +53,7 @@ Expected results follow these rules. Bug reports cite the rule number.
 
 | Rule | Statement |
 | --- | --- |
-| R1 | Time at the table starts at buy-in, stops on leaving, and starts again on 返回. Time away does not count. Changing hands does not affect it. |
+| R1 | Time at the table starts at buy-in, stops on leaving, and starts again on 回桌. Time away does not count. Changing hands does not affect it. |
 | R2 | Only time while the game clock runs counts. In a game whose clock was never started, everyone's time is 0 and no table fee or wages are charged. A game whose clock was started before #70 has no pause history, so it counts from buy-in to leaving. |
 | R3 | Table fee: at most once per player per game, charged once their counted time reaches the minimum in minutes. A minimum of 0 charges everyone. The amount must be above 0, and the minimum a whole number from 0 to 1440. |
 | R4 | Wages, in games started on this build: a player's counted time is cut into billing units (1, 15, 30 or 60 minutes) from when they sat down, with pauses and time away left out. A part unit at the end counts as a whole one when it is half or more (四舍五入, the default), always (向上取整) or never (向下取整), and one that counts runs on past the moment they left. Each unit is charged at the rate that covers more of it, or the higher rate on a tie. Each rate rounds half up to the cent. Example: ¥20 before midnight, ¥30 after, 30-minute units, 向上取整, 23:16 to 0:13 is 30 minutes at ¥20 and 30 at ¥30. Earlier games keep the charging they started with. |
@@ -96,7 +96,7 @@ shows 3 hours.
 | 张伟 | 4小时40分 | ¥30 × 3小时00分; ¥50 × 1小时40分 | ¥20 | ¥173.33 | +¥216.67 |
 | 刘洋 | 1小时29分 | ¥30 × 1小时29分 (89 minutes 30 seconds, the part minute not charged) | ¥20 | ¥44.50 | -¥64.50 |
 | 王芳 | 45分 | ¥30 × 45分 | 未满 | ¥22.50 | -¥72.50 |
-| 李娜 | 2小时50分 | ¥30 × 1小时40分; ¥50 × 1小时10分 (left for 50 minutes, then 返回) | ¥20 | ¥108.33 | -¥488.33 |
+| 李娜 | 2小时50分 | ¥30 × 1小时40分; ¥50 × 1小时10分 (left for 50 minutes, then 回桌) | ¥20 | ¥108.33 | -¥488.33 |
 | 组织者 | — | 台费收入 ¥60 + 工资收入 ¥348.66 | — | — | +¥408.66 |
 
 Transfers, best plan, 4 in all: 李娜 → 组织者 ¥408.66, 李娜 → 张伟 ¥79.67, 王芳 → 张伟 ¥72.50, 刘洋 → 张伟 ¥64.50.
@@ -129,7 +129,7 @@ Priorities and severities are defined in the [testing README](README.md).
 | B-01 | P0 | Clock not started | A game with fees and players, Start not tapped. 1. Look at the game page. 2. Wait 3 minutes and settle. | 1. 对局计时器未开始，台费和工资暂不计时。 shows, and detail mode shows 在局 0:00:00. 2. Folded cards have no fee line. Expanded, there is no wage line and the table fee shows 未满. There is no organizer card (R2). |
 | B-02 | P0 | Starting the clock | As above, tap Start. | The notice goes away and each player's time ticks every second. |
 | B-03 | P0 | Pause and resume | With the clock running, pause for 2 minutes, then resume. | While paused the notice says 已暂停 and times stop. They carry on after resuming, and the 2 minutes do not count. |
-| B-04 | P0 | Leaving and 返回 | With the clock running, one player leaves and taps 返回 3 minutes later. | Their time stops while away and carries on after 返回. Settlement counts both stretches (R1). |
+| B-04 | P0 | Leaving and 回桌 | With the clock running, one player leaves and taps 回桌 3 minutes later. | Their time stops while away and carries on after 回桌. Settlement counts both stretches (R1). |
 | B-05 | P1 | Joining late | After 10 minutes on the clock, add a player. | Their time starts from 0. |
 | B-06 | P1 | Removing a mistake | A player with only 1 hand and nothing else, removed with −. | They are not in the settlement and are not charged. |
 | B-07 | P1 | Changing hands | With the clock running, add 2 hands to a player, then remove 1. | Their time is unaffected. |
@@ -139,7 +139,7 @@ Priorities and severities are defined in the [testing README](README.md).
 
 | ID | Priority | Case | Preconditions and steps | Expected |
 | --- | --- | --- | --- | --- |
-| C-01 | P0 | Default | Open a game with fees and one without. | With fees, 详细模式 at the top right of 桌上玩家 starts on. Without fees, it starts off. |
+| C-01 | P0 | Default | Open a game with fees and one without. | With fees, 明细 at the top right of 桌上玩家 starts on. Without fees, it starts off. |
 | C-02 | P0 | What it shows | A game with fees, clock running. | Each player's first row is unchanged. Below it, two columns: 在局 H:MM:SS, 台费 (the amount, or 未满 差 N 分 in gold), 工资, and 含费水上 or 含费水下 (green for a win, red for a loss). |
 | C-03 | P0 | Checking the numbers | Wages ¥60 an hour, table fee ¥100 after 2 minutes, 1:1. After 3 minutes on the clock, set a player's stack 100 above their buy-in. | 台费 ¥100, 工资 ¥3, 含费水下 -¥3 (100 − 100 − 3). |
 | C-04 | P1 | The switch | Turn it off and on, then leave and reopen the game. | The details hide and show without changing data. Reopening the game resets the switch to its default. |
@@ -210,7 +210,7 @@ Cases around midnight need a game played across a real midnight, with the clock 
 | H-02 | P0 | A unit across two rates | 向上取整. A player sits at 23:16 and leaves at 0:13. Settle and open their card. | 在桌 57分 · 计费 1小时00分, then ¥20/时 × 30分 -¥10 and ¥30/时 × 30分 -¥15: the second unit, 23:46–0:16, has 16 minutes after midnight (R4). |
 | H-03 | P0 | A tie takes the higher rate | 向上取整. A player sits at 23:45 and leaves at 0:15. | One line: ¥30/时 × 30分 -¥15. |
 | H-04 | P0 | The three rounding modes | No segments, 精确到30分. Players leave after 44, 45 and 59 minutes. Settle under each 取整方式 (change it in 设置 and reopen settlement). | 四舍五入: 30分, 1小时00分, 1小时00分. 向上取整: 1小时00分 for all three. 向下取整: 30分 for all three. A player under 30 minutes with 向下取整 has no wage line and 计费 0分. |
-| H-05 | P1 | Time away does not start a new unit | 向上取整, no segments. A player sits 20 minutes, leaves, taps 返回 later and sits 40 more. | 在桌 1小时00分 · 计费 1小时00分, with nothing added. |
+| H-05 | P1 | Time away does not start a new unit | 向上取整, no segments. A player sits 20 minutes, leaves, taps 回桌 later and sits 40 more. | 在桌 1小时00分 · 计费 1小时00分, with nothing added. |
 | H-06 | P0 | Starting inside a segment | 时段设置 22点 to 6点 at ¥40, base ¥25. Start the clock at about 23:00, play an hour and settle. | All time is at ¥40 (R5). Before this build it was all at the base rate. |
 | H-07 | P1 | A segment with no end | "0点" with no end. Start one game at about 1:00 and another in the afternoon. | The 1:00 game is at the segment's rate from the start. The afternoon game is at the base rate until midnight. |
 | H-08 | P0 | Another time zone | A settled game with a time segment. Export a backup, restore it on a phone in another time zone, or change this phone's time zone, and open the settlement. | Every wage line and total is the same (R11). The start time in the summary shows in the phone's time. |
@@ -254,4 +254,4 @@ These are not bugs:
 - A clock started late cannot be corrected, so time counts only from when it started.
 - Time-of-day rates use the phone's local time zone.
 - Rake (抽水) is not released and shows 开发中.
-- The 详细模式 switch is not saved and resets each time a game opens.
+- The 明细 switch is not saved and resets each time a game opens.
