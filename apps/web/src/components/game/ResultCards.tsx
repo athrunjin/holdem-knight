@@ -44,7 +44,7 @@ export interface ResultCard {
   readonly name: string;
   readonly hands: string;
   readonly chips: string;
-  /** Missing for the organizer, who has no chips: those cells stay empty. */
+  /** Missing for an organizer who is not playing, which shows a dash. */
   readonly netChips?: number;
   /** The result from the chips, before the lines. Missing shows a dash. */
   readonly base?: Cents;
@@ -182,8 +182,10 @@ function Card({
       </span>
       <span className="text-center">{hands}</span>
       <span className="text-right">{chips}</span>
-      <span className={cn("text-right", netChips !== undefined && netColor(netChips))}>
-        {netChips !== undefined && formatSignedChips(netChips)}
+      <span
+        className={cn("text-right", netChips === undefined ? "text-muted" : netColor(netChips))}
+      >
+        {netChips === undefined ? "—" : formatSignedChips(netChips)}
       </span>
       <span className="text-right whitespace-nowrap">
         {!expanded ? (
@@ -250,7 +252,15 @@ export function ResultCards({
   const everyone = organizer ? [organizer, ...cards] : cards;
   const foldable = everyone.filter((card) => card.collapsible && card.lines.length > 0);
   const allOpen = foldable.length > 0 && foldable.every((card) => open.has(card.id));
-  const titlesClass = cn(columnsClass, "px-2 text-xs text-muted");
+  const titles = (first: string) => (
+    <div className={cn(columnsClass, "px-2 text-xs text-muted")}>
+      <span>{first}</span>
+      <span className="text-center">Buy-in</span>
+      <span className="text-right">筹码</span>
+      <span className="text-right">水上/下</span>
+      <span className="text-right">金额</span>
+    </div>
+  );
 
   function toggle(id: string) {
     const next = new Set(open);
@@ -282,20 +292,11 @@ export function ResultCards({
       {allOpen && details}
       {organizer && (
         <>
-          <div className={titlesClass}>
-            <span className="col-span-4">组织者</span>
-            <span className="text-right">金额</span>
-          </div>
+          {titles("组织者")}
           {card(organizer)}
         </>
       )}
-      <div className={titlesClass}>
-        <span>玩家</span>
-        <span className="text-center">Buy-in</span>
-        <span className="text-right">筹码</span>
-        <span className="text-right">水上/下</span>
-        <span className="text-right">金额</span>
-      </div>
+      {titles("玩家")}
       {cards.map(card)}
     </div>
   );

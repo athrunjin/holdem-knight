@@ -32,6 +32,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { ChargeSummary } from "@/components/game/ChargeSummary";
+import { GameOptionLine, GameTitle } from "@/components/game/GameOptions";
 import { PickerRow } from "@/components/game/PickerRow";
 import { type ResultCard, ResultCards, type ResultLine } from "@/components/game/ResultCards";
 import { SettlementSummary } from "@/components/game/SettlementSummary";
@@ -69,7 +70,8 @@ function SettlementPage() {
 
   return (
     <Page
-      title="结算"
+      title={<GameTitle game={game} />}
+      subtitle={<GameOptionLine game={game} />}
       actions={
         <Link
           to="/games/$gameId"
@@ -269,15 +271,18 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
   const income = (kind: Charge["kind"]) =>
     sum(charges.filter((c) => c.kind === kind && !c.waived).map((c) => c.amount));
   const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
-  const incomeLine = (group: "台费" | "工资", amount: Cents): ResultLine[] =>
-    receivesCharges && amount !== 0
-      ? [{ key: group, label: `${group}收入`, amount, tone: "charge", group }]
-      : [];
-  // Each income on its own line, adding up to the organizer's total
+  /** A dash when the organizer receives none of it, so the four lines always show. */
+  const incomeLine = (group: "保险" | "工资" | "台费", amount: Cents): ResultLine => {
+    const line = { key: group, label: group, group, tone: "charge" as const };
+    return amount === 0 ? line : { ...line, amount };
+  };
+  const ownInsurance = ownerId === ORGANIZER_COLLECTOR ? insuranceNet : ZERO;
+  // What an organizer can receive, always in this order. Rake has no amount until M4
   const organizerLines: ResultLine[] = [
-    ...incomeLine("台费", income("table_fee")),
-    ...incomeLine("工资", income("wage")),
-    ...insuranceLine(ORGANIZER_COLLECTOR),
+    incomeLine("保险", ownInsurance),
+    incomeLine("工资", receivesCharges ? income("wage") : ZERO),
+    incomeLine("台费", receivesCharges ? income("table_fee") : ZERO),
+    { key: "rake", label: "抽水", tone: "charge" },
     ...(covered === 0
       ? []
       : [
@@ -298,8 +303,8 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
             id: ORGANIZER_COLLECTOR,
             // The organizer's ID stands in until organizers have names (M6)
             name: game.organizerId,
-            hands: "",
-            chips: "",
+            hands: "—",
+            chips: "—",
             lines: organizerLines,
             total: organizerNet,
             collapsible: true,
@@ -336,12 +341,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
   );
 
   // The image closes with the organizer, named as in the transfers
-  const imageOrganizer = organizerCard.map((card) => ({
-    ...card,
-    name: "组织者",
-    hands: "—",
-    chips: "—",
-  }));
+  const imageOrganizer = organizerCard.map((card) => ({ ...card, name: "组织者" }));
 
   async function handleShare() {
     setSharing(true);

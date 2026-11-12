@@ -12,6 +12,7 @@ import {
   ledgerTotals,
   nextBuyType,
   type Player,
+  pauseTimer,
   soleBuyIn,
   summarizeByPlayer,
   toggleTimer,
@@ -20,7 +21,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { AddPlayerToGame } from "@/components/game/AddPlayerToGame";
 import { ChipAmountDialog } from "@/components/game/ChipAmountDialog";
-import { GameOptions } from "@/components/game/GameOptions";
+import { GameOptionLine, GameTitle } from "@/components/game/GameOptions";
 import { GameTimer } from "@/components/game/GameTimer";
 import { HandsDialog } from "@/components/game/HandsDialog";
 import { LeaveDialog } from "@/components/game/LeaveDialog";
@@ -42,7 +43,7 @@ import {
 import { usePlayers } from "@/data/players";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
-import { CURRENCY_INFO, formatGameMoney } from "@/lib/currency";
+import { formatGameMoney } from "@/lib/currency";
 
 export const Route = createFileRoute("/games/$gameId/")({
   component: GamePage,
@@ -88,15 +89,7 @@ function handBigBlinds(handChips: number, bigBlindChips: number) {
 }
 
 function GameLedger({ game }: { game: Game }) {
-  const {
-    id: gameId,
-    currency,
-    smallBlindChips,
-    bigBlindChips,
-    chipRatio,
-    handChips,
-    status,
-  } = game;
+  const { id: gameId, currency, bigBlindChips, chipRatio, handChips, status } = game;
   const { data: events = [] } = useLedger(gameId);
   const { data: hands = [] } = useInsuranceHands(gameId);
   const { data: players = [] } = usePlayers();
@@ -218,7 +211,12 @@ function GameLedger({ game }: { game: Game }) {
   async function confirmSettle(handling: ImbalanceHandling | undefined) {
     try {
       if (anyoneSeated) await leaveAll.mutateAsync();
-      if (handling) await saveGame.mutateAsync(chooseImbalanceHandling(game, handling));
+      // Going to settle stops the clock, so no more time is charged while the results are read
+      const running = game.timer?.runningSince !== undefined;
+      const paused =
+        running && game.timer ? { ...game, timer: pauseTimer(game.timer, Date.now()) } : game;
+      const next = handling ? chooseImbalanceHandling(paused, handling) : paused;
+      if (next !== game) await saveGame.mutateAsync(next);
       goToSettlement();
     } catch {
       // The dialog stays open and shows the failure from the mutation state
@@ -227,20 +225,8 @@ function GameLedger({ game }: { game: Game }) {
 
   return (
     <Page
-      title={
-        <>
-          {smallBlindChips} / {bigBlindChips}{" "}
-          <small className="text-sm font-normal tracking-normal text-muted">
-            {CURRENCY_INFO[currency].label} {money(smallBlindChips)}/{money(bigBlindChips)}
-          </small>
-        </>
-      }
-      subtitle={
-        // Keeps its height with no options on, so the page does not shift
-        <p className="flex min-h-5 flex-wrap items-baseline gap-x-2">
-          <GameOptions game={game} />
-        </p>
-      }
+      title={<GameTitle game={game} />}
+      subtitle={<GameOptionLine game={game} />}
       actions={
         <div className="flex shrink-0 items-center gap-2">
           <GameTimer
