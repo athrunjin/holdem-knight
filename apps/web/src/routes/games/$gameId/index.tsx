@@ -16,6 +16,7 @@ import {
   soleBuyIn,
   summarizeByPlayer,
   toggleTimer,
+  waiveCharge,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -161,18 +162,18 @@ function GameLedger({ game }: { game: Game }) {
     );
   }
 
-  function handleLeave(playerId: string, chips: number, hands: number | undefined, at: number) {
-    leaveTable.mutate(
-      {
-        playerId,
-        chips,
-        at,
-        ...(handChips !== undefined && hands !== undefined
-          ? { hands: { handChips, count: hands } }
-          : {}),
-      },
-      { onSuccess: closeDialog },
-    );
+  function handleLeave(playerId: string, chips: number, at: number) {
+    leaveTable.mutate({ playerId, chips, at }, { onSuccess: closeDialog });
+  }
+
+  /** When each player's chips or Buy-ins last changed, by any record or its reversal. */
+  const lastChangeAt = new Map<string, number>();
+  const eventsById = new Map(events.map((event) => [event.id, event]));
+  for (const event of events) {
+    const target = event.type === "reversal" ? eventsById.get(event.reversedEventId) : event;
+    if (!target || target.type === "reversal") continue;
+    const latest = Math.max(lastChangeAt.get(target.playerId) ?? 0, event.occurredAt);
+    lastChangeAt.set(target.playerId, latest);
   }
 
   function handleHands(playerId: string, change: HandChange, onSuccess?: () => void) {
@@ -344,6 +345,7 @@ function GameLedger({ game }: { game: Game }) {
         onRebuy={(playerId) => setPending({ kind: "buy", playerId, name: nameOf(playerId) })}
         onReturn={handleReturn}
         onLeave={(playerId) => setPending({ kind: "leave", playerId, name: nameOf(playerId) })}
+        lastChangeAt={lastChangeAt}
         detailMode={detailMode}
         onDetailModeChange={setDetailMode}
         details={details}
@@ -395,7 +397,8 @@ function GameLedger({ game }: { game: Game }) {
           name={pending.name}
           saving={leaveTable.isPending}
           saveFailed={leaveTable.isError}
-          onSubmit={(chips, hands, at) => handleLeave(pending.playerId, chips, hands, at)}
+          onWaive={(key, waived) => saveGame.mutate(waiveCharge(game, key, waived))}
+          onSubmit={(chips, at) => handleLeave(pending.playerId, chips, at)}
           onClose={closeDialog}
         />
       )}

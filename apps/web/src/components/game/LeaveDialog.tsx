@@ -1,5 +1,6 @@
 import {
   type Cents,
+  type ChargeWaiver,
   cents,
   chargeStatuses,
   chargesFrom,
@@ -7,29 +8,46 @@ import {
   type Game,
   gameRecord,
   type LedgerEvent,
-  parseChips,
-  type RecordEntry,
   summarizeByPlayer,
 } from "@holdem-knight/core";
+import { ChevronRight } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { InfoButton } from "@/components/InfoButton";
-import { TextField } from "@/components/TextField";
 import { formatSeatTime, gameMinuteOfDay } from "@/lib/charges";
 import { formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
 import { FormDialog } from "./FormDialog";
-import { HandsStepper } from "./HandsStepper";
-import { TotalChip } from "./ResultCards";
+import {
+  ColumnTitles,
+  columnsClass,
+  Line,
+  labelClass,
+  type ResultLine,
+  TotalChip,
+} from "./ResultCards";
 
-/** More records than this open from an info icon instead of showing in the dialog. */
-const MAX_INLINE_RECORDS = 8;
+/** A record longer than this starts folded. */
+const MAX_OPEN_RECORDS = 8;
 
-const TIME = new Intl.DateTimeFormat("zh-CN", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
+/** What happened, in the color it is told apart by. */
+const ACTIONS = {
+  sit: ["上桌", "text-win"],
+  add: ["补码", "text-highlight"],
+  back: ["退码", "text-loss"],
+  away: ["离桌", "text-muted"],
+  return: ["回桌", "text-muted"],
+  settle: ["结算", "text-text"],
+} as const;
+
+interface RecordRow {
+  readonly id: string;
+  readonly action: keyof typeof ACTIONS;
+  readonly text?: string;
+  /** Missing on the row for the settlement being confirmed. */
+  readonly at?: number;
+  /** Buy-ins held after the row, where it changes them. */
+  readonly total?: string;
+}
 
 interface LeaveDialogProps {
   game: Game;
@@ -38,26 +56,19 @@ interface LeaveDialogProps {
   name: string;
   saving: boolean;
   saveFailed: boolean;
+  /** Lets the player off a charge, or charges it again, as on the settlement page. */
+  onWaive: (key: ChargeWaiver, waived: boolean) => void;
   /** `leftAt` is when the dialog opened, so the charges shown are the charges made. */
-  onSubmit: (chips: number, hands: number | undefined, leftAt: number) => void;
+  onSubmit: (chips: number, leftAt: number) => void;
   onClose: () => void;
 }
 
-function Line({ label, amount, off }: { label: string; amount?: string; off?: boolean }) {
-  const tone = off ? "text-muted line-through" : "text-muted";
-  return (
-    <div className="flex min-h-7 items-center justify-between gap-2">
-      <span className={cn("min-w-0 truncate", tone)}>{label}</span>
-      {amount !== undefined && <span className={cn("shrink-0 tabular-nums", tone)}>{amount}</span>}
-    </div>
-  );
-}
-
 /**
- * A player's result before they leave the table, laid out like their settlement card: final
- * Buy-ins and chips to confirm, the time sat with the wages and table fee it comes to, and their
- * Buy-in record. The charges are worked out once, for the moment the dialog opened, and stay still
- * while it is open. Closing it without leaving changes nothing, so the time goes on counting.
+ * A player's result before they leave the table, as their card on the settlement page: chips and
+ * cash, their Buy-in record, the time sat with the wages and table fee it comes to, and the total.
+ * The Buy-ins and chips are the ones on the game page, which is where they are changed. The charges
+ * are worked out once, for the moment the dialog opened, and stay still while it is open. Closing
+ * it without leaving changes nothing, so the time goes on counting.
  */
 export function LeaveDialog({
   game,
@@ -66,6 +77,7 @@ export function LeaveDialog({
   name,
   saving,
   saveFailed,
+  onWaive,
   onSubmit,
   onClose,
 }: LeaveDialogProps) {
@@ -73,50 +85,14 @@ export function LeaveDialog({
   const [openedAt] = useState(Date.now);
   const player = summarizeByPlayer(events).find((p) => p.playerId === playerId);
   const boughtChips = player?.boughtChips ?? 0;
-  const cashedOutChips = player?.cashedOutChips ?? 0;
-  const initialHands = handChips === undefined ? undefined : boughtChips / handChips;
-  const [handsValue, setHandsValue] = useState(String(initialHands ?? ""));
-  const [countedHands, setCountedHands] = useState(initialHands ?? 0);
-  const [chipsValue, setChipsValue] = useState(String(player?.stackChips ?? 0));
-  const [issue, setIssue] = useState<string>();
-  const chips = parseChips(chipsValue);
-  const money = (value: number) => formatGameMoney(chipsToCents(value, ratio), currency);
-  const amount = (value: Cents) =>
-    formatGameAmount(value, currency, value === 0 ? "auto" : "exceptZero");
+  const chips = player?.stackChips ?? 0;
+  const net = chips + (player?.cashedOutChips ?? 0) - boughtChips;
+  const cash = chipsToCents(net, ratio);
+  const money = (value: Cents) => formatGameMoney(value, currency);
   /** Buy-ins where the game counts them, chips where it does not. */
-  const buyIns = (value: number) =>
-    handChips === undefined
-      ? `${value.toLocaleString("zh-CN")} 筹码`
-      : `${value / handChips} 个 Buy-in`;
-
-  /** Chips follow the Buy-in count, as they do on the player row. */
-  function changeHands(next: string) {
-    setHandsValue(next);
-    setIssue(undefined);
-    const hands = parseChips(next);
-    if (handChips === undefined || !hands) return;
-    if (chips !== null) {
-      setChipsValue(String(Math.max(0, chips + (hands - countedHands) * handChips)));
-    }
-    setCountedHands(hands);
-  }
-
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (chips === null) {
-      setIssue("请输入整数筹码数");
-    } else if (handChips !== undefined && !parseChips(handsValue)) {
-      setIssue("请输入大于 0 的整数 Buy-in");
-    } else {
-      onSubmit(chips, handChips === undefined ? undefined : countedHands, openedAt);
-    }
-  }
-
-  const finalBought =
-    handChips === undefined
-      ? boughtChips
-      : boughtChips + (countedHands - (initialHands ?? 0)) * handChips;
-  const net = chips === null ? null : chips + cashedOutChips - finalBought;
+  const count = (value: number) =>
+    handChips === undefined ? value.toLocaleString("zh-CN") : String(value / handChips);
+  const unit = handChips === undefined ? "筹码" : "Buy-in";
 
   // Charged as of the moment the dialog opened, which is also when the player is recorded leaving
   const statuses =
@@ -124,155 +100,189 @@ export function LeaveDialog({
       ? chargeStatuses(game, events, { now: openedAt, minuteOfDay: gameMinuteOfDay(game) })
       : [];
   const status = statuses.find((s) => s.playerId === playerId);
-  const charges = chargesFrom(game, statuses).filter((c) => c.playerId === playerId);
-  const wages = charges.filter((c) => c.kind === "wage");
-  const fee = charges.find((c) => c.kind === "table_fee");
+  // Wages first, then the table fee, as on the settlement page
+  const charges = chargesFrom(game, statuses)
+    .filter((c) => c.playerId === playerId)
+    .toSorted((x, y) => Number(x.kind === "table_fee") - Number(y.kind === "table_fee"));
   const due = charges.filter((c) => !c.waived).reduce((total, c) => total + c.amount, 0);
   const billedMinutes = status?.wageParts.reduce((all, part) => all + part.minutes, 0) ?? 0;
-  const cash = net === null ? null : chipsToCents(net, ratio);
 
-  const records = gameRecord(events).filter((entry) => entry.playerId === playerId);
-  const timesBought = records.filter((r) => r.kind === "buy_in" || r.kind === "rebuy").length;
-  let running = 0;
-  const recordLines = records.flatMap((entry) => {
-    const text = recordText(entry);
-    return text ? [{ id: entry.id, time: TIME.format(entry.occurredAt), text }] : [];
+  const chargeLines = charges.map((charge): ResultLine => {
+    const { kind, part, hourly, minutes, amount, waived } = charge;
+    const label =
+      kind === "table_fee"
+        ? `台费 ${money(amount)}/人`
+        : hourly === undefined || minutes === undefined
+          ? "工资"
+          : `工资 ${money(hourly)}/时 × ${formatSeatTime(minutes * 60_000)}`;
+    return {
+      key: `${kind}-${part ?? ""}`,
+      label,
+      amount: cents(-amount),
+      tone: "charge",
+      waiver: {
+        waived,
+        disabled: saving,
+        onChange: (off) => onWaive(part ? { playerId, kind, part } : { playerId, kind }, off),
+      },
+    };
   });
+  const { tableFee } = game;
+  const shortFee: ResultLine[] =
+    tableFee && status && !charges.some((c) => c.kind === "table_fee")
+      ? [
+          {
+            key: "table_fee",
+            label: `台费 ${money(tableFee.amount)}/人 · 未满 ${tableFee.minMinutes} 分钟`,
+            tone: "charge",
+          },
+        ]
+      : [];
 
-  /** One line of the player's record, with the Buy-ins so far after each change. */
-  function recordText({ kind, chips: moved }: RecordEntry) {
-    const total = () => `${running.toLocaleString("zh-CN")} 筹码（${money(running)}）`;
+  // The Buy-in record: sitting down, topping up, handing back, and time away that ended in a return
+  const entries = gameRecord(events).filter((entry) => entry.playerId === playerId);
+  let held = 0;
+  const rows: RecordRow[] = entries.flatMap((entry, index): RecordRow[] => {
+    const { id, kind, chips: moved, occurredAt: at } = entry;
+    const change = `${count(moved)} ${unit}`;
     switch (kind) {
       case "buy_in":
-        running += moved;
-        return `上桌 · 带入 ${buyIns(moved)}`;
+        held += moved;
+        return [{ id, at, action: "sit", text: `带入 ${change}`, total: count(held) }];
       case "rebuy":
-        running += moved;
-        return `补码 ${buyIns(moved)} / ${total()}`;
+        held += moved;
+        return [{ id, at, action: "add", text: change, total: count(held) }];
       case "reduce":
-        running -= moved;
-        return `退回 ${buyIns(moved)} / ${total()}`;
       case "remove":
-        running -= moved;
-        return "移出";
-      case "cash_out": {
-        const result = moved - running;
-        const resultCash = formatGameMoney(chipsToCents(result, ratio), currency, "exceptZero");
-        return `下桌 · 带出 ${moved.toLocaleString("zh-CN")} 筹码 / ${formatSignedChips(result)} / ${resultCash}`;
-      }
+        held -= moved;
+        return [{ id, at, action: "back", text: change, total: count(held) }];
+      case "cash_out":
+        // A leave still in effect is a settlement, which has its own row
+        return entries[index + 1]?.kind === "return" ? [{ id, at, action: "away" }] : [];
       case "return":
-        return "回桌";
+        return [{ id, at, action: "return" }];
       default:
         // Stack changes and insurance are in the game record, not the Buy-in record
-        return undefined;
+        return [];
     }
+  });
+  const settleRow: RecordRow = {
+    id: "settle",
+    action: "settle",
+    text: `带出 ${chips.toLocaleString("zh-CN")} 筹码`,
+  };
+  const timesBought = rows.filter((r) => r.action === "sit" || r.action === "add").length;
+  const [recordOpen, setRecordOpen] = useState(rows.length <= MAX_OPEN_RECORDS);
+
+  /** The day shows on the first row and again on the first row of each later day. */
+  function dayOf(row: RecordRow, previous: RecordRow | undefined) {
+    if (row.at === undefined) return "";
+    const day = new Date(row.at).getDate();
+    const before = previous?.at === undefined ? undefined : new Date(previous.at).getDate();
+    return day === before ? "" : `${day}日`;
   }
 
-  const recordList = (
-    <ul className="divide-y divide-line text-xs">
-      {recordLines.map(({ id, time, text }) => (
-        <li key={id} className="flex min-h-7 items-center gap-2 py-0.5">
-          <span className="shrink-0 text-muted tabular-nums">{time}</span>
-          <span className="min-w-0">{text}</span>
-        </li>
-      ))}
-    </ul>
-  );
+  function timeOf({ at }: RecordRow) {
+    if (at === undefined) return "";
+    const time = new Date(at);
+    const pad = (value: number) => String(value).padStart(2, "0");
+    return `${pad(time.getHours())}时${pad(time.getMinutes())}分`;
+  }
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    onSubmit(chips, openedAt);
+  }
 
   return (
     <FormDialog
-      title={`结算并下桌 · ${name}`}
+      title="结算并下桌"
       submitLabel="确认下桌"
+      wide
       saving={saving}
       saveFailed={saveFailed}
       onSubmit={handleSubmit}
       onClose={onClose}
     >
-      {handChips !== undefined && <HandsStepper value={handsValue} onChange={changeHands} />}
-      <TextField
-        id="leave-chips"
-        label="筹码数"
-        value={chipsValue}
-        issue={issue}
-        suffix="筹码"
-        inputMode="numeric"
-        onChange={(next) => {
-          setIssue(undefined);
-          setChipsValue(next);
-        }}
-      />
-
-      <section aria-label="结算" className="overflow-hidden rounded-xl border border-line text-xs">
-        <div className="flex min-h-9 items-center justify-between gap-2 bg-accent/15 px-2 text-sm tabular-nums">
-          <span>
-            水上/下{" "}
-            <span className={net === null ? "text-muted" : netColor(net)}>
-              {net === null ? "—" : formatSignedChips(net)}
+      <div className="flex flex-col gap-1">
+        <ColumnTitles first="玩家" />
+        <section
+          aria-label={name}
+          className="overflow-hidden rounded-xl border border-line text-sm"
+        >
+          <div className={cn(columnsClass, "min-h-11 bg-accent/15 px-2")}>
+            <span className="truncate font-medium">{name}</span>
+            <span className="text-center">
+              {handChips === undefined ? "—" : boughtChips / handChips}
             </span>
-          </span>
-          <span className={cash === null ? "text-muted" : netColor(cash)}>
-            {cash === null ? "—" : amount(cash)}
-          </span>
-        </div>
-        <div className="px-2">
-          {status && (
-            <Line
-              label={`在桌 ${formatSeatTime(status.seatedMs)}${game.wage ? ` · 计费 ${formatSeatTime(billedMinutes * 60_000)}` : ""}`}
-            />
-          )}
-          {wages.map(({ part, hourly, minutes, amount: owed, waived }) => (
-            <Line
-              key={part ?? "wage"}
-              label={
-                hourly === undefined || minutes === undefined
-                  ? "工资"
-                  : `工资 ${formatGameMoney(hourly, currency)}/时 × ${formatSeatTime(minutes * 60_000)}`
-              }
-              amount={amount(cents(-owed))}
-              off={waived}
-            />
-          ))}
-          {fee ? (
-            <Line
-              label={`台费 ${formatGameMoney(fee.amount, currency)}/人`}
-              amount={amount(cents(-fee.amount))}
-              off={fee.waived}
-            />
-          ) : (
-            game.tableFee &&
-            status && (
-              <Line
-                label={`台费 ${formatGameMoney(game.tableFee.amount, currency)}/人 · 未满 ${game.tableFee.minMinutes} 分钟`}
-                amount="—"
-              />
-            )
-          )}
-          <div className="flex min-h-10 items-center justify-between border-t border-accent text-sm">
-            <span className="font-semibold">合计</span>
-            {cash === null ? (
-              <span className="text-muted">—</span>
-            ) : (
-              <TotalChip total={cents(cash - due)} currency={currency} />
-            )}
+            <span className="text-right">{chips.toLocaleString("zh-CN")}</span>
+            <span className={cn("text-right", netColor(net))}>{formatSignedChips(net)}</span>
+            <span className={cn("text-right whitespace-nowrap", netColor(cash))}>
+              {formatGameAmount(cash, currency, cash === 0 ? "auto" : "exceptZero")}
+            </span>
           </div>
-        </div>
-      </section>
-
-      <section aria-label="Buy-in 记录">
-        <div className="flex items-center justify-between gap-2 text-xs text-muted">
-          <p>
-            共计 {timesBought} 次带入 {buyIns(finalBought)}
-            {handChips !== undefined &&
-              ` / ${finalBought.toLocaleString("zh-CN")} 筹码（${money(finalBought)}）`}
-          </p>
-          {recordLines.length > MAX_INLINE_RECORDS && (
-            <InfoButton title="Buy-in 记录" small>
-              <div className="max-h-[50dvh] overflow-y-auto">{recordList}</div>
-            </InfoButton>
-          )}
-        </div>
-        {recordLines.length <= MAX_INLINE_RECORDS && <div className="mt-1">{recordList}</div>}
-      </section>
+          <div className="px-2">
+            <button
+              type="button"
+              aria-expanded={recordOpen}
+              onClick={() => setRecordOpen(!recordOpen)}
+              className="flex min-h-7 w-full items-center gap-2 py-1 text-left text-xs text-muted"
+            >
+              <ChevronRight
+                className={cn("size-4 shrink-0 transition-transform", recordOpen && "rotate-90")}
+                aria-hidden
+              />
+              {/* Too long for one line on a phone, so it breaks between the Buy-ins and the chips */}
+              <span className="flex flex-wrap gap-x-1">
+                <span className="whitespace-nowrap">
+                  共计 {timesBought} 次带入 {count(boughtChips)}{" "}
+                  {handChips === undefined ? "筹码" : "个 Buy-in"}
+                </span>
+                <span className="whitespace-nowrap">
+                  {handChips !== undefined && `/ ${boughtChips.toLocaleString("zh-CN")} 筹码`}（
+                  {formatGameAmount(chipsToCents(boughtChips, ratio), currency)}）
+                </span>
+              </span>
+            </button>
+            {recordOpen && (
+              <ul className="pb-1 pl-6 text-xs tabular-nums">
+                {[...rows, settleRow].map((row, index, all) => {
+                  const [action, tone] = ACTIONS[row.action];
+                  return (
+                    <li
+                      key={row.id}
+                      className="grid min-h-6 grid-cols-[2rem_3.75rem_minmax(0,1fr)_auto] items-center gap-x-1"
+                    >
+                      <span className="text-muted">{dayOf(row, all[index - 1])}</span>
+                      <span className="text-muted">{timeOf(row)}</span>
+                      <span className="truncate">
+                        <span className={cn("font-medium", tone)}>{action}</span>
+                        {row.text && ` ${row.text}`}
+                      </span>
+                      <span>{row.total}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {status && (
+              <p className="flex min-h-7 items-center pl-6 text-xs text-muted">
+                在桌 {formatSeatTime(status.seatedMs)}
+                {game.wage && ` · 计费 ${formatSeatTime(billedMinutes * 60_000)}`}
+              </p>
+            )}
+            {[...chargeLines, ...shortFee].map((line) => (
+              <Line key={line.key} line={line} currency={currency} />
+            ))}
+            <div className={cn(columnsClass, "min-h-11 border-t border-accent")}>
+              <span className={cn(labelClass, "font-semibold")}>合计</span>
+              <span className="text-right whitespace-nowrap">
+                <TotalChip total={cents(cash - due)} currency={currency} />
+              </span>
+            </div>
+          </div>
+        </section>
+      </div>
     </FormDialog>
   );
 }

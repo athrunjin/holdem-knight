@@ -10,7 +10,7 @@ import {
 } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { Calculator, ChevronDown, ChevronRight } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
@@ -21,6 +21,11 @@ import { ColumnTitles, columnsClass, labelClass, TotalChip } from "./ResultCards
 const actionClass = "min-h-11 shrink-0 rounded-lg border border-line px-2 text-sm font-medium";
 const listClass = "divide-y divide-line rounded-xl border border-line bg-surface px-2";
 const rowClass = "flex min-h-13 items-center gap-1.5 py-1";
+/** How long 结算并下桌 stays lit for a second tap. */
+const ARMED_MS = 5000;
+/** How recent a change or a reminder has to be for settling to go straight ahead. */
+const RECENT_MS = 5 * 60_000;
+
 /** A card as on the settlement page: a tinted row of figures, then any lines under it. */
 const cardClass = "overflow-hidden rounded-xl border border-line bg-surface text-sm";
 const headClass = cn(columnsClass, "min-h-11 w-full bg-accent/15 px-2 text-left");
@@ -52,6 +57,8 @@ interface LedgerPlayersProps {
   /** Everyone who left comes back, after the organizer confirms */
   onReturnAll: () => void;
   onLeave: (playerId: string) => void;
+  /** When each player's chips or Buy-ins last changed, for the reminder before settling them */
+  lastChangeAt: ReadonlyMap<string, number>;
   /** Shown at the foot of the seated players */
   addPlayer: ReactNode;
   /** Whether the seated players' cards start open, on their time, charges and total */
@@ -84,7 +91,9 @@ function TotalLine({
 }: {
   total: Cents;
   currency: Currency;
-  action?: { readonly label: string; readonly onClick: () => void } | undefined;
+  action?:
+    | { readonly label: string; readonly onClick: () => void; readonly armed?: boolean }
+    | undefined;
 }) {
   return (
     <div className={cn(columnsClass, "min-h-11 border-t border-accent")}>
@@ -93,7 +102,12 @@ function TotalLine({
         {action && (
           // The tap target is 44px tall; only the outline drawn inside it is small
           <button type="button" onClick={action.onClick} className="flex min-h-11 items-center">
-            <span className="rounded-lg border border-line px-2 py-1 text-xs font-medium">
+            <span
+              className={cn(
+                "rounded-lg border px-2 py-1 text-xs font-medium",
+                action.armed ? "border-highlight bg-highlight/15 text-highlight" : "border-line",
+              )}
+            >
               {action.label}
             </span>
           </button>
@@ -124,6 +138,7 @@ export function LedgerPlayers({
   onReturn,
   onReturnAll,
   onLeave,
+  lastChangeAt,
   addPlayer,
   detailMode,
   onDetailModeChange,
@@ -133,6 +148,35 @@ export function LedgerPlayers({
   const [leftOpen, setLeftOpen] = useState(true);
   // Cards opened or closed one by one, against the 详细模式 switch
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
+  // The player whose 结算并下桌 is lit, waiting for a second tap
+  const [armedId, setArmedId] = useState<string>();
+  const armedAt = useRef(new Map<string, number>());
+  const armTimer = useRef<number>(undefined);
+  useEffect(() => () => window.clearTimeout(armTimer.current), []);
+
+  /**
+   * Settling reads the Buy-ins and chips on the page, so a player whose figures have sat untouched
+   * for a while gets a reminder first: the button lights for a few seconds and the figures blink.
+   * A second tap while it is lit goes ahead, as does any tap for some minutes after.
+   */
+  function settle(playerId: string) {
+    const now = Date.now();
+    const fresh = (at: number | undefined) => at !== undefined && now - at < RECENT_MS;
+    if (fresh(lastChangeAt.get(playerId)) || fresh(armedAt.current.get(playerId))) {
+      setArmedId(undefined);
+      onLeave(playerId);
+      return;
+    }
+    armedAt.current.set(playerId, now);
+    setArmedId(playerId);
+    window.clearTimeout(armTimer.current);
+    armTimer.current = window.setTimeout(() => setArmedId(undefined), ARMED_MS);
+  }
+
+  /** The Buy-ins and chips to check, while their player's button is lit. */
+  const flash = (playerId: string) =>
+    playerId === armedId && "animate-flash rounded-md text-highlight";
+
   const seat = players.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   // An organizer who plays stays in the organizer's card, never among the players
   const host = players.find((p) => p.playerId === ORGANIZER_PLAYER_ID);
@@ -193,7 +237,7 @@ export function LedgerPlayers({
         type="button"
         aria-label={`输入${nameOf(playerId)}的 Buy-in，现在 ${count} 个`}
         onClick={() => onEditHands(playerId)}
-        className={cn(cellButtonClass, "-mx-0.5")}
+        className={cn(cellButtonClass, "-mx-0.5", flash(playerId))}
       >
         {count}
       </button>
@@ -211,7 +255,7 @@ export function LedgerPlayers({
         type="button"
         aria-label={`输入${nameOf(playerId)}的筹码，现在 ${stackChips}`}
         onClick={() => onEditStack(playerId)}
-        className={cn(cellButtonClass, "text-right")}
+        className={cn(cellButtonClass, "text-right", flash(playerId))}
       >
         {stackChips.toLocaleString("zh-CN")}
       </button>
@@ -289,7 +333,13 @@ export function LedgerPlayers({
               total={total}
               currency={currency}
               action={
-                editable ? { label: "结算并下桌", onClick: () => onLeave(playerId) } : undefined
+                editable
+                  ? {
+                      label: "结算并下桌",
+                      onClick: () => settle(playerId),
+                      armed: playerId === armedId,
+                    }
+                  : undefined
               }
             />
           </div>
@@ -411,7 +461,11 @@ export function LedgerPlayers({
                   !host || !editable
                     ? undefined
                     : host.seated
-                      ? { label: "结算并下桌", onClick: () => onLeave(ORGANIZER_PLAYER_ID) }
+                      ? {
+                          label: "结算并下桌",
+                          onClick: () => settle(ORGANIZER_PLAYER_ID),
+                          armed: armedId === ORGANIZER_PLAYER_ID,
+                        }
                       : { label: "回桌", onClick: () => onReturn(ORGANIZER_PLAYER_ID) }
                 }
               />
