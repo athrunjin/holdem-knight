@@ -15,6 +15,8 @@ interface HandsDialogProps {
   saving: boolean;
   saveFailed: boolean;
   onSubmit: (hands: number) => void;
+  /** Offered for a player added by mistake, who can still be taken out of the game */
+  onRemove?: (() => void) | undefined;
   onClose: () => void;
 }
 
@@ -28,6 +30,7 @@ export function HandsDialog({
   saving,
   saveFailed,
   onSubmit,
+  onRemove,
   onClose,
 }: HandsDialogProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -73,6 +76,15 @@ export function HandsDialog({
             {(hands * handChips).toLocaleString("zh-CN")} 筹码，
             {formatGameMoney(chipsToCents(hands * handChips, ratio), currency)}
           </p>
+        )}
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="mt-1 inline-flex min-h-11 items-center text-sm text-highlight"
+          >
+            移出这局
+          </button>
         )}
       </div>
     </FormDialog>

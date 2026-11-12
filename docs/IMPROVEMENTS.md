@@ -778,6 +778,28 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked at phone size in the browser preview, dark mode, then on a phone with the preview build.
 - Tracking: PR #81, ADR [0027](adr/0027-wage-units-rounding-and-game-time-zone.md)
 
+### #I-042 Game page in the settlement page's style
+
+- Type: feature
+- Date: proposed and decided 2026-11-12
+- Source: comparing the game page with the settlement page from #I-041
+- Problem: the game page in play looked different from the settlement page, the organizer's insurance, table fees and wages were spread around or hidden, and the hand steppers and leave buttons took room.
+- Proposal:
+  - Move what the organizer has so far above the seated players, folding open and closed.
+  - Give the seated players the settlement page's columns, sizes and spacing, without the − and + on Buy-in.
+  - Turn 离桌 into an icon before the name, where the settlement page has its fold arrow.
+- Settled details:
+  - The organizer comes first under its own title row, as one card named by the organizer's ID that folds like the settlement page's. Closed, it shows the total and a line with 保险, 工资 and 台费. Open, it lists the insurance seat with its Buy-in and chips, then wages and table fees so far, then 合计. It shows only in games with insurance, a table fee or wages.
+  - Wages and table fees so far count every player, those who left included, and keep counting while the clock runs.
+  - The insurance line's label, with a calculator icon, opens 算保险.
+  - Each seated player is a card with the settlement page's five columns. 金额 shows the cash result less the charges so far.
+  - The 详细模式 switch is renamed 明细. On, each card opens on time seated, table fee and wages, and a 合计. Closed cards have no summary line, so a full table stays short.
+  - Tapping Buy-in opens the hand dialog. A player at one hand with nothing else recorded can be taken out of the game from that dialog, where the − used to do it.
+  - The leave icon and the name are one button, which keeps a 44px target and opens the leave dialog.
+  - The players who left keep their list as before.
+- Decision: do.
+- Tracking: PR #82
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

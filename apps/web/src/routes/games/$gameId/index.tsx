@@ -111,7 +111,13 @@ function GameLedger({ game }: { game: Game }) {
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
   const balanceChips = ledgerTotals(ledger).balanceChips;
-  const details = usePlayerDetails(game, events, people, detailMode);
+  // Games that charge for time always count, since the organizer's figures show the charges
+  const details = usePlayerDetails(
+    game,
+    events,
+    people,
+    game.tableFee !== undefined || game.wage !== undefined,
+  );
   const totals = ledgerTotals(people);
   const names = new Map(players.map(({ id, name }) => [id, name]));
   names.set(INSURANCE_PLAYER_ID, INSURANCE_PLAYER_NAME);
@@ -181,7 +187,15 @@ function GameLedger({ game }: { game: Game }) {
 
   function handleRemove(playerId: string) {
     const buyIn = soleBuyIn(events, playerId);
-    if (buyIn && window.confirm(`把 ${nameOf(playerId)} 移出这局？`)) appendReversal(buyIn.id);
+    if (buyIn && window.confirm(`把 ${nameOf(playerId)} 移出这局？`)) {
+      appendReversal(buyIn.id);
+      closeDialog();
+    }
+  }
+
+  /** Only a player at one hand who has done nothing else, so they were added by mistake. */
+  function removable(playerId: string) {
+    return boughtHands(playerId) === 1 && soleBuyIn(events, playerId) !== undefined;
   }
 
   function handleToggleTimer() {
@@ -292,18 +306,17 @@ function GameLedger({ game }: { game: Game }) {
 
       <LedgerPlayers
         gameId={gameId}
+        // The organizer's ID stands in until organizers have names (M6)
+        organizerName={game.organizerId}
         players={ledger}
         nameOf={nameOf}
         handChips={handChips}
         ratio={chipRatio}
         currency={currency}
         editable={editable}
-        onStepHands={(playerId, by) => handleHands(playerId, { by })}
         onEditHands={(playerId) => setPending({ kind: "edit", playerId, name: nameOf(playerId) })}
         onEditStack={(playerId) => setPending({ kind: "stack", playerId, name: nameOf(playerId) })}
         onRebuy={(playerId) => setPending({ kind: "buy", playerId, name: nameOf(playerId) })}
-        removableIds={new Set(people.map((p) => p.playerId).filter((id) => soleBuyIn(events, id)))}
-        onRemove={handleRemove}
         onReturn={handleReturn}
         onLeave={(playerId) => setPending({ kind: "leave", playerId, name: nameOf(playerId) })}
         detailMode={detailMode}
@@ -376,6 +389,11 @@ function GameLedger({ game }: { game: Game }) {
             saving={adjustHands.isPending}
             saveFailed={adjustHands.isError}
             onSubmit={(hands) => handleHands(pending.playerId, { to: hands }, closeDialog)}
+            onRemove={
+              pending.kind === "edit" && removable(pending.playerId)
+                ? () => handleRemove(pending.playerId)
+                : undefined
+            }
             onClose={closeDialog}
           />
         )}

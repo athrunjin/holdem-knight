@@ -10,10 +10,10 @@ import { formatGameAmount } from "@/lib/currency";
  * Shared by the column titles and every row under them, so all amounts share one right edge.
  * Buy-ins are sized for two digits, and chips and the win or loss for four with a separator.
  */
-const columnsClass =
+export const columnsClass =
   "grid grid-cols-[minmax(0,1fr)_2.5rem_3.25rem_3.75rem_6.25rem] items-center tabular-nums";
 /** The text of a detail line or the total, across the first four columns. */
-const labelClass = "col-span-4 flex min-w-0 items-center gap-2";
+export const labelClass = "col-span-4 flex min-w-0 items-center gap-2";
 
 /** One adjustment under a person's name: a charge, insurance, or a share of a difference. */
 export interface ResultLine {
@@ -54,7 +54,7 @@ export interface ResultCard {
   readonly collapsible?: boolean;
 }
 
-function TotalChip({ total, currency }: { total: Cents; currency: Currency }) {
+export function TotalChip({ total, currency }: { total: Cents; currency: Currency }) {
   return (
     <span
       className={cn(
@@ -65,6 +65,19 @@ function TotalChip({ total, currency }: { total: Cents; currency: Currency }) {
     >
       {formatGameAmount(total, currency, "exceptZero")}
     </span>
+  );
+}
+
+/** The titles over a group of cards, in the cards' columns. */
+export function ColumnTitles({ first }: { first: string }) {
+  return (
+    <div className={cn(columnsClass, "px-2 text-xs text-muted")}>
+      <span>{first}</span>
+      <span className="text-center">Buy-in</span>
+      <span className="text-right">筹码</span>
+      <span className="text-right">水上/下</span>
+      <span className="text-right">金额</span>
+    </div>
   );
 }
 
@@ -256,15 +269,6 @@ export function ResultCards({
   const everyone = organizer ? [organizer, ...cards] : cards;
   const foldable = everyone.filter((card) => card.collapsible && card.lines.length > 0);
   const allOpen = foldable.length > 0 && foldable.every((card) => open.has(card.id));
-  const titles = (first: string) => (
-    <div className={cn(columnsClass, "px-2 text-xs text-muted")}>
-      <span>{first}</span>
-      <span className="text-center">Buy-in</span>
-      <span className="text-right">筹码</span>
-      <span className="text-right">水上/下</span>
-      <span className="text-right">金额</span>
-    </div>
-  );
 
   function toggle(id: string) {
     const next = new Set(open);
@@ -316,11 +320,11 @@ export function ResultCards({
       {settingsOpen && settings}
       {organizer && (
         <>
-          {titles("组织者")}
+          <ColumnTitles first="组织者" />
           {card(organizer)}
         </>
       )}
-      {titles("玩家")}
+      <ColumnTitles first="玩家" />
       {cards.map(card)}
     </div>
   );
