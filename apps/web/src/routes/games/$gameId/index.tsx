@@ -280,7 +280,7 @@ function GameLedger({ game }: { game: Game }) {
           {chipRatio.chips.toLocaleString("zh-CN")} 筹码 ={" "}
           {formatGameMoney(chipRatio.amount, currency)}
           {handChips !== undefined &&
-            ` · 1 手 ${handBigBlinds(handChips, bigBlindChips)} BB（${handChips.toLocaleString("zh-CN")} 筹码 / ${money(handChips)}）`}
+            ` · Buy-in ${handBigBlinds(handChips, bigBlindChips)} BB（${handChips.toLocaleString("zh-CN")} 筹码 / ${money(handChips)}）`}
         </p>
         {editable && (
           <Link
