@@ -2,8 +2,12 @@ import { type FormEvent, type ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 interface FormDialogProps {
-  title: string;
+  title: ReactNode;
   submitLabel: string;
+  /** False dims the confirm button until there is something to confirm */
+  canSubmit?: boolean;
+  /** A step back instead of 取消, which then does not close the dialog */
+  back?: { readonly label: string; readonly onBack: () => void };
   saving: boolean;
   saveFailed: boolean;
   onSubmit: (event: FormEvent) => void;
@@ -17,6 +21,8 @@ interface FormDialogProps {
 export function FormDialog({
   title,
   submitLabel,
+  canSubmit = true,
+  back,
   saving,
   saveFailed,
   onSubmit,
@@ -59,15 +65,15 @@ export function FormDialog({
           <button
             ref={cancelRef}
             type="button"
-            onClick={() => ref.current?.close()}
+            onClick={() => (back ? back.onBack() : ref.current?.close())}
             className="min-h-12 rounded-xl border border-line font-medium"
           >
-            取消
+            {back?.label ?? "取消"}
           </button>
           <button
             type="submit"
-            disabled={saving}
-            className="min-h-12 rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-60"
+            disabled={saving || !canSubmit}
+            className="min-h-12 rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40"
           >
             {submitLabel}
           </button>

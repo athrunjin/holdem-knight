@@ -78,6 +78,8 @@ type PendingEntry = {
   kind: "buy" | "stack" | "leave" | "join" | "edit";
   playerId: string;
   name: string;
+  /** Hands changed from a Buy-in on the page, which shows the change before it is applied */
+  review?: boolean;
 };
 
 const settleClass =
@@ -324,6 +326,7 @@ function GameLedger({ game }: { game: Game }) {
             kind: handChips === undefined ? "buy" : "join",
             playerId,
             name: nameOf(playerId),
+            review: true,
           })
         }
         onReturnAll={handleReturnAll}
@@ -333,7 +336,9 @@ function GameLedger({ game }: { game: Game }) {
         ratio={chipRatio}
         currency={currency}
         editable={editable}
-        onEditHands={(playerId) => setPending({ kind: "edit", playerId, name: nameOf(playerId) })}
+        onEditHands={(playerId) =>
+          setPending({ kind: "edit", playerId, name: nameOf(playerId), review: true })
+        }
         onEditStack={(playerId) => setPending({ kind: "stack", playerId, name: nameOf(playerId) })}
         onRebuy={(playerId) => setPending({ kind: "buy", playerId, name: nameOf(playerId) })}
         onReturn={handleReturn}
@@ -402,7 +407,14 @@ function GameLedger({ game }: { game: Game }) {
             key={pending.playerId}
             title={`${HANDS_TITLE[pending.kind]} · ${pending.name}`}
             initialHands={pending.kind === "edit" ? boughtHands(pending.playerId) : 1}
-            selectInput={pending.kind === "edit"}
+            review={
+              pending.review
+                ? {
+                    name: pending.name,
+                    currentHands: pending.kind === "edit" ? boughtHands(pending.playerId) : 0,
+                  }
+                : undefined
+            }
             handChips={handChips}
             ratio={chipRatio}
             currency={currency}

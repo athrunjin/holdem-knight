@@ -9,7 +9,7 @@ import {
   type PlayerLedger,
 } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
-import { Calculator, ChevronDown, ChevronRight, LogOut } from "lucide-react";
+import { Calculator, ChevronDown, ChevronRight } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { formatSignedChips, netColor } from "@/lib/chips";
@@ -54,7 +54,7 @@ interface LedgerPlayersProps {
   onLeave: (playerId: string) => void;
   /** Shown at the foot of the seated players */
   addPlayer: ReactNode;
-  /** Whether the seated players' cards are open on their time and charges */
+  /** Whether the seated players' cards start open, on their time, charges and total */
   detailMode: boolean;
   onDetailModeChange: (on: boolean) => void;
   /** Each player's time and charges so far. Missing when the game charges nothing. */
@@ -76,10 +76,29 @@ function Line({ label, amount, tone }: { label: string; amount?: ReactNode; tone
   );
 }
 
-function TotalLine({ total, currency }: { total: Cents; currency: Currency }) {
+/** The total under a card's lines, with an action for whoever the card is about before the amount. */
+function TotalLine({
+  total,
+  currency,
+  action,
+}: {
+  total: Cents;
+  currency: Currency;
+  action?: { readonly label: string; readonly onClick: () => void } | undefined;
+}) {
   return (
     <div className={cn(columnsClass, "min-h-11 border-t border-accent")}>
-      <span className={cn(labelClass, "font-semibold")}>合计</span>
+      <span className={cn(labelClass, "justify-between font-semibold")}>
+        合计
+        {action && (
+          // The tap target is 44px tall; only the outline drawn inside it is small
+          <button type="button" onClick={action.onClick} className="flex min-h-11 items-center">
+            <span className="rounded-lg border border-line px-2 py-1 text-xs font-medium">
+              {action.label}
+            </span>
+          </button>
+        )}
+      </span>
       <span className="text-right whitespace-nowrap">
         <TotalChip total={total} currency={currency} />
       </span>
@@ -112,6 +131,8 @@ export function LedgerPlayers({
 }: LedgerPlayersProps) {
   const [organizerOpen, setOrganizerOpen] = useState(false);
   const [leftOpen, setLeftOpen] = useState(true);
+  // Cards opened or closed one by one, against the 详细模式 switch
+  const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
   const seat = players.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   // An organizer who plays stays in the organizer's card, never among the players
   const host = players.find((p) => p.playerId === ORGANIZER_PLAYER_ID);
@@ -203,45 +224,56 @@ export function LedgerPlayers({
     );
   }
 
+  const isOpen = (playerId: string) => detailMode !== toggled.has(playerId);
+
+  function toggle(playerId: string) {
+    const next = new Set(toggled);
+    if (!next.delete(playerId)) next.add(playerId);
+    setToggled(next);
+  }
+
   function playerCard(player: PlayerLedger) {
     const { playerId, netChips } = player;
     const name = nameOf(playerId);
     const cash = chipsToCents(netChips, ratio);
     const detail = details?.get(playerId);
     const total = detail?.net ?? cash;
-    const open = detailMode && detail !== undefined;
+    const open = isOpen(playerId);
 
     return (
       <section key={playerId} aria-label={name} className={cardClass}>
         <div className={headClass}>
-          {editable ? (
-            <button
-              type="button"
-              aria-label={`${name}离桌`}
-              onClick={() => onLeave(playerId)}
-              className="flex min-h-11 min-w-0 items-center text-left font-medium"
-            >
-              <LogOut className="mr-0.5 -ml-1 size-4 shrink-0 text-muted" aria-hidden />
-              <span className="truncate">{name}</span>
-            </button>
-          ) : (
-            <span className="truncate font-medium">{name}</span>
-          )}
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => toggle(playerId)}
+            className="flex min-h-11 min-w-0 items-center text-left font-medium"
+          >
+            <ChevronRight
+              className={cn(
+                "-ml-1 size-4 shrink-0 text-muted transition-transform",
+                open && "rotate-90",
+              )}
+              aria-hidden
+            />
+            <span className="truncate">{name}</span>
+          </button>
           {hands(player)}
           {stack(player)}
           {net(netChips)}
+          {/* Folded or open, this is what the chips come to. Charges only count in 合计 */}
           <span className="text-right whitespace-nowrap">
             {open ? (
               <span className={netColor(cash)}>{amount(cash)}</span>
             ) : (
-              <TotalChip total={total} currency={currency} />
+              <TotalChip total={cash} currency={currency} />
             )}
           </span>
         </div>
         {open && (
           <div className="px-2">
-            <Line label={`在局 ${formatClock(detail.seatedMs)}`} />
-            {detail.tableFee !== undefined &&
+            {detail && <Line label={`在局 ${formatClock(detail.seatedMs)}`} />}
+            {detail?.tableFee !== undefined &&
               (detail.tableFeeShortMs > 0 ? (
                 <Line
                   label={`台费 未满 差 ${Math.ceil(detail.tableFeeShortMs / 60_000)} 分`}
@@ -250,10 +282,16 @@ export function LedgerPlayers({
               ) : (
                 <Line label="台费" amount={amount(cents(-detail.tableFee))} />
               ))}
-            {detail.wage !== undefined && (
+            {detail?.wage !== undefined && (
               <Line label="工资" amount={amount(cents(-detail.wage))} />
             )}
-            <TotalLine total={total} currency={currency} />
+            <TotalLine
+              total={total}
+              currency={currency}
+              action={
+                editable ? { label: "结算并下桌", onClick: () => onLeave(playerId) } : undefined
+              }
+            />
           </div>
         )}
       </section>
@@ -341,12 +379,13 @@ export function LedgerPlayers({
           {host ? stack(host) : dash("text-right")}
           {host ? net(host.netChips) : dash("text-right")}
           <span className="text-right whitespace-nowrap">
-            {!organizerOpen ? (
-              <TotalChip total={organizerTotal} currency={currency} />
-            ) : ownCash === undefined ? (
+            {/* As on a player's card: what the organizer's own chips come to */}
+            {ownCash === undefined ? (
               dash("")
-            ) : (
+            ) : organizerOpen ? (
               <span className={netColor(ownCash)}>{amount(ownCash)}</span>
+            ) : (
+              <TotalChip total={ownCash} currency={currency} />
             )}
           </span>
         </div>
@@ -365,19 +404,17 @@ export function LedgerPlayers({
             <>
               {charged.wage && <Line label="工资（至今）" amount={amount(wages)} />}
               {charged.tableFee && <Line label="台费（至今）" amount={amount(tableFees)} />}
-              {host && editable && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    host.seated ? onLeave(ORGANIZER_PLAYER_ID) : onReturn(ORGANIZER_PLAYER_ID)
-                  }
-                  className="flex min-h-11 items-center gap-1 text-xs text-muted"
-                >
-                  <LogOut className="size-4 shrink-0" aria-hidden />
-                  {host.seated ? "组织者离桌" : "组织者回桌"}
-                </button>
-              )}
-              <TotalLine total={organizerTotal} currency={currency} />
+              <TotalLine
+                total={organizerTotal}
+                currency={currency}
+                action={
+                  !host || !editable
+                    ? undefined
+                    : host.seated
+                      ? { label: "结算并下桌", onClick: () => onLeave(ORGANIZER_PLAYER_ID) }
+                      : { label: "回桌", onClick: () => onReturn(ORGANIZER_PLAYER_ID) }
+                }
+              />
             </>
           )}
         </div>
@@ -401,8 +438,15 @@ export function LedgerPlayers({
         <section aria-label="桌上玩家" className="mt-3 flex flex-col gap-2">
           <div className="-mb-2 flex min-h-11 items-center justify-between gap-2">
             <h2 className="font-semibold">桌上玩家（{seatedCount}）</h2>
-            {seated.length > 0 && details && (
-              <MiniSwitch label="明细" checked={detailMode} onChange={onDetailModeChange} />
+            {seated.length > 0 && (
+              <MiniSwitch
+                label="详细模式"
+                checked={seated.every((p) => isOpen(p.playerId))}
+                onChange={(on) => {
+                  setToggled(new Set());
+                  onDetailModeChange(on);
+                }}
+              />
             )}
           </div>
           {seated.length > 0 && <ColumnTitles first="玩家" />}

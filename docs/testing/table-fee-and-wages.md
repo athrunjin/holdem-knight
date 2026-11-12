@@ -33,7 +33,7 @@
 
 ### #71 Detail mode and itemized settlement
 
-- 桌上玩家 has a 明细 switch, on by default in games with fees. It shows each player's counted time (live), table
+- 桌上玩家 has a 详细模式 switch, on by default in games with fees. It shows each player's counted time (live), table
   fee, wages so far, and cash result less those charges.
 - Settlement shows one card per person. Wages are listed per rate, such as `¥25/时 × 1小时40分`, then the table fee.
   Each charge has a box; unticking it waives that charge for that player.
@@ -139,7 +139,7 @@ Priorities and severities are defined in the [testing README](README.md).
 
 | ID | Priority | Case | Preconditions and steps | Expected |
 | --- | --- | --- | --- | --- |
-| C-01 | P0 | Default | Open a game with fees and one without. | With fees, 明细 at the top right of 桌上玩家 starts on. Without fees, it starts off. |
+| C-01 | P0 | Default | Open a game with fees and one without. | With fees, 详细模式 at the top right of 桌上玩家 starts on. Without fees, it starts off. |
 | C-02 | P0 | What it shows | A game with fees, clock running. | Each player's first row is unchanged. Below it, two columns: 在局 H:MM:SS, 台费 (the amount, or 未满 差 N 分 in gold), 工资, and 含费水上 or 含费水下 (green for a win, red for a loss). |
 | C-03 | P0 | Checking the numbers | Wages ¥60 an hour, table fee ¥100 after 2 minutes, 1:1. After 3 minutes on the clock, set a player's stack 100 above their buy-in. | 台费 ¥100, 工资 ¥3, 含费水下 -¥3 (100 − 100 − 3). |
 | C-04 | P1 | The switch | Turn it off and on, then leave and reopen the game. | The details hide and show without changing data. Reopening the game resets the switch to its default. |
@@ -254,4 +254,4 @@ These are not bugs:
 - A clock started late cannot be corrected, so time counts only from when it started.
 - Time-of-day rates use the phone's local time zone.
 - Rake (抽水) is not released and shows 开发中.
-- The 明细 switch is not saved and resets each time a game opens.
+- The 详细模式 switch is not saved and resets each time a game opens.

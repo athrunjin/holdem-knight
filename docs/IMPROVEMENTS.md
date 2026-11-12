@@ -795,10 +795,12 @@ Records discussions of feature and process improvements: what was proposed, how 
   - A game with insurance but no seat in the ledger shows a + on the seat's Buy-in. A seat that left at a settle attempt shows 回桌 in place of its hands and chips.
   - Wages and table fees so far count every player, those who left included, and keep counting while the clock runs. Their lines show before anyone has sat down.
   - The insurance line's label, with a calculator icon, opens 算保险.
-  - Each seated player is a card with the settlement page's five columns. 金额 shows the cash result less the charges so far.
-  - The 详细模式 switch is renamed 明细. On, each card opens on time seated, table fee and wages, and a 合计. Closed cards have no summary line, so a full table stays short.
-  - Tapping Buy-in opens the hand dialog. A player at one hand with nothing else recorded can be taken out of the game from that dialog, where the − used to do it.
-  - The leave icon and the name are one button, which keeps a 44px target and opens the leave dialog.
+  - Each seated player is a card with the settlement page's five columns. 金额 always shows what the chips come to, on the organizer's row too. Charges only count in 合计.
+  - Each card folds from an arrow before the name, as on the settlement page. Open, it shows time seated, table fee and wages where the game has them, then 合计. Closed cards have no summary line, so a full table stays short.
+  - The 详细模式 switch opens every card, or closes them once all are open. It starts on in games with a table fee or wages. A first try named it 明细 and put a leave icon before the name.
+  - Leaving is a 结算并下桌 button on the 合计 line, before the amount, for players and for an organizer who plays. It opens the leave dialog.
+  - Tapping Buy-in opens the hand dialog with nothing selected. 确定 lights once the hands differ, and leads to a second step titled 「张伟 增加 2 手买入」 with the old and new hands either side of an arrow carrying the change, green for more and red for fewer. 确认 applies it and 返回 goes back a step. Adding a player from the + keeps one step.
+  - A player at one hand with nothing else recorded can be taken out of the game from that dialog, where the − used to do it.
   - 已离桌 folds from an arrow after its title, open by default. Open, a small 一键回桌 on the right brings everyone back after a confirm, the organizer and the insurance seat included. Each row's button reads 回桌, and the record says 回桌.
   - 牌局记录 is one quiet line at the foot of the page, folded by default, with smaller rows that scroll inside 40% of the screen. It stays in the page instead of being pinned over it.
 - Decision: do.
@@ -815,7 +817,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - A + shows on the organizer's Buy-in until they join. After that the row shows their hands, chips and result, open to change like a player's.
   - The organizer stays on the organizer's card, apart from the insurance line, and only 合计 adds the two with the charges. 桌上玩家 counts them as one more.
   - No table fee or wages apply to the organizer.
-  - 组织者离桌 and 组织者回桌 are in the open card. Taking the organizer out of a game they joined by mistake is in the hand dialog, as for a player.
+  - 结算并下桌 and 回桌 for the organizer are on the open card's 合计 line. Taking the organizer out of a game they joined by mistake is in the hand dialog, as for a player.
   - On the settlement page the organizer's card shows their hands, chips and result, and they are not listed among the players.
 - Decision: do.
 - Tracking: PR #82, ADR [0028](adr/0028-organizer-seat.md)
