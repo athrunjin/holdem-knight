@@ -851,7 +851,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The leave dialog is removed, and with it the wide dialog layout and leaving at an earlier moment.
   - 带入 on the folding line starts exactly where 上桌, 补码 and 带出 do: the count before it has a fixed width, where ten or more times bought used to push it right.
 - Decision: do.
-- Tracking: PR to follow on `feat/live-table-cards`
+- Tracking: PR #83
 
 ## Not doing or deferred
 
