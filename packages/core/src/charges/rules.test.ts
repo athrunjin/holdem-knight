@@ -42,7 +42,7 @@ describe("parseWage", () => {
   const form = toWageForm(DEFAULT_WAGE);
 
   it("round-trips the default: by the minute, rounded up, no segments", () => {
-    expect(form).toMatchObject({ hourly: "25.00", unitMinutes: 1, roundUp: true });
+    expect(form).toMatchObject({ hourly: "25.00", unitMinutes: 1, rounding: "nearest" });
     expect(form).toMatchObject({ timeOn: false, afterOn: false });
     expect(parseWage(form)).toEqual({ ok: true, rule: DEFAULT_WAGE });
   });
@@ -56,7 +56,7 @@ describe("parseWage", () => {
     const parsed = parseWage({
       ...form,
       unitMinutes: 60,
-      roundUp: false,
+      rounding: "down",
       timeOn: true,
       timeSegments: [
         { fromHour: "22", toHour: "2", hourly: "40" },
@@ -70,7 +70,7 @@ describe("parseWage", () => {
       rule: {
         hourly: cents(2500),
         unitMinutes: 60,
-        roundUp: false,
+        rounding: "down",
         timeSegments: [
           { fromHour: 22, toHour: 2, hourly: cents(4000) },
           { fromHour: 2, hourly: cents(3000) },
@@ -142,10 +142,20 @@ describe("parseWage", () => {
     } as const;
     expect(toWageForm(older)).toMatchObject({
       unitMinutes: 1,
-      roundUp: false,
+      rounding: "down",
       timeOn: true,
       timeSegments: [{ fromHour: "22", toHour: "2", hourly: "40.00" }],
       afterOn: false,
+    });
+  });
+
+  it("reads a rule from before rounding modes as rounding up or down", () => {
+    const earlier = { hourly: cents(2500), unitMinutes: 30 } as const;
+    expect(toWageForm({ ...earlier, roundUp: true }).rounding).toBe("up");
+    expect(toWageForm({ ...earlier, roundUp: false }).rounding).toBe("down");
+    expect(parseWage(toWageForm({ ...earlier, roundUp: true }))).toEqual({
+      ok: true,
+      rule: { hourly: cents(2500), unitMinutes: 30, rounding: "up" },
     });
   });
 });

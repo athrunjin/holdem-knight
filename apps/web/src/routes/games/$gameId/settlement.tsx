@@ -4,12 +4,13 @@ import {
   type Cents,
   type Charge,
   cents,
+  chargeStatuses,
+  chargesFrom,
   chipDifference,
   chooseCollector,
   chooseInsuranceOwner,
   collectorTransfers,
   type Game,
-  gameCharges,
   INSURANCE_PLAYER_ID,
   INSURANCE_PLAYER_NAME,
   isValidCollector,
@@ -30,6 +31,7 @@ import {
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { ChargeSummary } from "@/components/game/ChargeSummary";
 import { PickerRow } from "@/components/game/PickerRow";
 import { type ResultCard, ResultCards, type ResultLine } from "@/components/game/ResultCards";
 import { SettlementSummary } from "@/components/game/SettlementSummary";
@@ -37,10 +39,10 @@ import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
-import { chargeClock, formatSeatTime } from "@/lib/charges";
+import { chargeClock, chargeRuleNotes, formatSeatTime } from "@/lib/charges";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
-import { formatGameMoney } from "@/lib/currency";
+import { formatGameAmount, formatGameMoney } from "@/lib/currency";
 import { renderSettlementImage } from "@/lib/settlement-image";
 import { shareFile } from "@/lib/share";
 
@@ -133,7 +135,9 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
   const { insuranceNet, ownerId } = insured;
   // Table fees and wages come last, in cash, so they never touch the chip results above
   const clock = chargeClock(game);
-  const charges = gameCharges(game, events, clock);
+  const statuses = game.tableFee || game.wage ? chargeStatuses(game, events, clock) : [];
+  const charges = chargesFrom(game, statuses);
+  const ruleNotes = chargeRuleNotes(game, game.currency);
   const charged = applyCharges(insured.nets, charges);
   const { nets } = charged;
   const {
@@ -175,8 +179,24 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     ];
   }
 
-  /** Wages at each rate, then the table fee, each with a box to let the player off it. */
+  /**
+   * The time sat and the time charged, then wages at each rate and the table fee, each with a box
+   * to let the player off it.
+   */
   function chargeLines(playerId: string): ResultLine[] {
+    const status = statuses.find((s) => s.playerId === playerId);
+    const billedMinutes = status?.wageParts.reduce((all, p) => all + p.minutes, 0) ?? 0;
+    const timeNote: ResultLine[] =
+      game.wage && status
+        ? [
+            {
+              key: "time",
+              label: `在桌 ${formatSeatTime(status.seatedMs)} · 计费 ${formatSeatTime(billedMinutes * 60_000)}`,
+              tone: "charge",
+              note: true,
+            },
+          ]
+        : [];
     const line = (charge: Charge, label: string): ResultLine => ({
       key: `${charge.kind}-${charge.part ?? ""}`,
       label,
@@ -194,7 +214,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
       },
     });
     const own = charges.filter((c) => c.playerId === playerId);
-    const wages = own.flatMap(({ hourly, minutes, ...charge }) =>
+    const rates = own.flatMap(({ hourly, minutes, ...charge }) =>
       hourly === undefined || minutes === undefined
         ? []
         : [
@@ -204,6 +224,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
             ),
           ],
     );
+    const wages = [...timeNote, ...rates];
     const fee = own.find((c) => c.kind === "table_fee");
     const { tableFee } = game;
     if (fee) return [...wages, line(fee, `台费 ${money(fee.amount)}/人`)];
@@ -248,12 +269,14 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
   const income = (kind: Charge["kind"]) =>
     sum(charges.filter((c) => c.kind === kind && !c.waived).map((c) => c.amount));
   const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
-  const incomeLine = (key: string, label: string, amount: Cents): ResultLine[] =>
-    receivesCharges && amount !== 0 ? [{ key, label, amount, tone: "charge" }] : [];
+  const incomeLine = (group: "台费" | "工资", amount: Cents): ResultLine[] =>
+    receivesCharges && amount !== 0
+      ? [{ key: group, label: `${group}收入`, amount, tone: "charge", group }]
+      : [];
   // Each income on its own line, adding up to the organizer's total
   const organizerLines: ResultLine[] = [
-    ...incomeLine("table-fee", "台费收入", income("table_fee")),
-    ...incomeLine("wage", "工资收入", income("wage")),
+    ...incomeLine("台费", income("table_fee")),
+    ...incomeLine("工资", income("wage")),
     ...insuranceLine(ORGANIZER_COLLECTOR),
     ...(covered === 0
       ? []
@@ -263,14 +286,14 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
             label: covered < 0 ? "补齐差额" : "收取差额",
             amount: covered,
             tone: "adjustment" as const,
+            group: "差额" as const,
           },
         ]),
   ];
-  const cards: ResultCard[] =
+  const organizerCard: ResultCard[] =
     organizerNet === undefined
-      ? playerCards
+      ? []
       : [
-          ...playerCards,
           {
             id: ORGANIZER_COLLECTOR,
             name: "组织者",
@@ -278,8 +301,11 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
             chips: "—",
             lines: organizerLines,
             total: organizerNet,
+            collapsible: true,
           },
         ];
+  // The organizer leads on the page and closes the shared image
+  const cards = [...organizerCard, ...playerCards];
 
   function imbalanceNote() {
     if (difference === 0) return undefined;
@@ -324,15 +350,17 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
           to: collectorName(to),
           amount: formatGameMoney(amount, currency),
         })),
-        notes,
-        results: cards.map(({ name, hands, chips, netChips, total }) => ({
-          name,
-          hands,
-          chips,
-          net: netChips === undefined ? "—" : formatSignedChips(netChips),
-          amount: formatGameMoney(total, currency, "exceptZero"),
-          outcome: Math.sign(total),
-        })),
+        notes: [...notes, ...ruleNotes],
+        results: [...playerCards, ...organizerCard].map(
+          ({ name, hands, chips, netChips, total }) => ({
+            name,
+            hands,
+            chips,
+            net: netChips === undefined ? "—" : formatSignedChips(netChips),
+            amount: formatGameAmount(total, currency, "exceptZero"),
+            outcome: Math.sign(total),
+          }),
+        ),
       });
       const day = [date.getFullYear(), date.getMonth() + 1, date.getDate()].join("-");
       await shareFile(image, `结算-${day}.png`);
@@ -396,7 +424,11 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
         </PickerRow>
       )}
 
-      <ResultCards cards={cards} currency={currency} />
+      <ResultCards
+        cards={cards}
+        currency={currency}
+        details={<ChargeSummary game={game} charges={charges} />}
+      />
 
       <section className="mt-4">
         <h2>

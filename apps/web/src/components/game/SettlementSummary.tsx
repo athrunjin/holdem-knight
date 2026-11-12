@@ -61,11 +61,14 @@ export function SettlementSummary({ game, ledger, difference }: SettlementSummar
 
   return (
     <section aria-label="牌局信息">
-      <h2 className="text-2xl font-semibold">结果</h2>
-      <p className="mt-0.5 text-xs text-muted">
-        {smallBlindChips}/{bigBlindChips} {CURRENCY_INFO[currency].label} ·{" "}
-        {formatStart(game.createdAt)} · Host：{HOST_PLACEHOLDER}
-      </p>
+      <h2 className="flex flex-wrap items-baseline gap-x-1.5 text-sm text-muted">
+        <span className="text-lg font-semibold text-text">
+          {smallBlindChips}/{bigBlindChips}
+        </span>
+        <span>
+          {CURRENCY_INFO[currency].label} · {formatStart(game.createdAt)} · {HOST_PLACEHOLDER}
+        </span>
+      </h2>
       <dl className="mt-2 grid grid-cols-3 gap-2">
         <Tile label="总买入">
           {money(boughtChips)}

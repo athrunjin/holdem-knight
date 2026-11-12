@@ -20,3 +20,12 @@ export function formatGameMoney(
     trimZeroCents: true,
   });
 }
+
+/** Always with two decimals, for a column of amounts read against each other. */
+export function formatGameAmount(
+  value: Cents,
+  currency: Currency,
+  signDisplay: "auto" | "exceptZero" = "auto",
+) {
+  return formatMoney(value, { currency, locale: CURRENCY_INFO[currency].locale, signDisplay });
+}

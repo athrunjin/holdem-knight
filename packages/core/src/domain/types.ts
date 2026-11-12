@@ -189,6 +189,9 @@ export interface WageAfterStartSegment {
 /** Wages are charged in whole units of these minutes. */
 export type WageUnitMinutes = 1 | 15 | 30 | 60;
 
+/** What happens to a part unit at the end of a player's time: half or more counts, any counts, or none. */
+export type WageRounding = "nearest" | "up" | "down";
+
 /** One charge the organizer let a player off at settlement (ADR 0024). */
 export interface ChargeWaiver {
   readonly playerId: string;
@@ -206,7 +209,15 @@ export interface WageRule {
    * down and may have one `adjustment` instead.
    */
   readonly unitMinutes?: WageUnitMinutes;
-  /** Whether a part unit counts as a whole one. */
+  /**
+   * Set on rules charged unit by unit, each unit at the rate that covers more of it (ADR 0027).
+   * Missing on earlier rules, which keep their own charging.
+   */
+  readonly rounding?: WageRounding;
+  /**
+   * Rules with `unitMinutes` from before `rounding` (ADR 0025): whether a part unit counts as a
+   * whole one. They round the total time and give the difference to the last rate.
+   */
   readonly roundUp?: boolean;
   readonly adjustment?: WageAdjustment;
   /** Up to 3, each starting where the last ended. Only the last may run to the end. */
@@ -284,6 +295,11 @@ export interface Game {
   readonly wage?: WageRule;
   /** Charges let off at settlement. Missing means none. */
   readonly waivedCharges?: readonly ChargeWaiver[];
+  /**
+   * IANA time zone the game was started in, such as `Asia/Shanghai`. Wage rates by time of day
+   * follow it on every device. Missing on earlier games, which use the viewing device's zone.
+   */
+  readonly timeZone?: string;
 }
 
 export interface Player {

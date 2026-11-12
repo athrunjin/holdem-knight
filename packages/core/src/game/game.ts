@@ -130,6 +130,8 @@ export interface NewGameMeta {
   readonly id: string;
   readonly organizerId: OrganizerId;
   readonly createdAt: Timestamp;
+  /** The device's IANA time zone, kept on the game (ADR 0027). */
+  readonly timeZone?: string;
 }
 
 type GameOptions = Pick<GameSettings, "insurance" | "tableFee" | "wage">;

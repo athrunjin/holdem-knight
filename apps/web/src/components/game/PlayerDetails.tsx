@@ -10,7 +10,7 @@ import {
   type PlayerLedger,
 } from "@holdem-knight/core";
 import { type ReactNode, useEffect, useState } from "react";
-import { chargesByPlayer, minuteOfDay } from "@/lib/charges";
+import { chargesByPlayer, gameMinuteOfDay } from "@/lib/charges";
 import { netColor } from "@/lib/chips";
 import { formatGameMoney } from "@/lib/currency";
 
@@ -56,7 +56,7 @@ export function usePlayerDetails(
 
   const { tableFee, wage, chipRatio } = game;
   const netChips = new Map(players.map((p) => [p.playerId, p.netChips]));
-  const statuses = chargeStatuses(game, events, { now, minuteOfDay });
+  const statuses = chargeStatuses(game, events, { now, minuteOfDay: gameMinuteOfDay(game) });
   // Charges waived at settlement stay waived if the game is reopened
   const owed = chargesByPlayer(chargesFrom(game, statuses));
   return new Map(

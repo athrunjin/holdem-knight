@@ -2,6 +2,7 @@
 import type {
   TableFeeRule,
   WageAfterStartSegment,
+  WageRounding,
   WageRule,
   WageTimeSegment,
   WageUnitMinutes,
@@ -11,10 +12,12 @@ import { type Cents, cents, toDecimalString, tryParseMoney } from "../money";
 /** 100 in the game's currency once a player has sat for 10 minutes. */
 export const DEFAULT_TABLE_FEE: TableFeeRule = { amount: cents(10_000), minMinutes: 10 };
 
-/** 25 an hour in the game's currency, by the minute with a part minute counted. */
-export const DEFAULT_WAGE: WageRule = { hourly: cents(2_500), unitMinutes: 1, roundUp: true };
+/** 25 an hour in the game's currency, by the minute, with half a minute or more counted as one. */
+export const DEFAULT_WAGE: WageRule = { hourly: cents(2_500), unitMinutes: 1, rounding: "nearest" };
 
 export const WAGE_UNITS: readonly WageUnitMinutes[] = [1, 15, 30, 60];
+
+export const WAGE_ROUNDINGS: readonly WageRounding[] = ["nearest", "up", "down"];
 
 /** Most segments of each kind, and of both together. */
 export const MAX_WAGE_SEGMENTS = 3;
@@ -92,7 +95,7 @@ export interface WageAfterStartSegmentForm {
 export interface WageForm {
   readonly hourly: string;
   readonly unitMinutes: WageUnitMinutes;
-  readonly roundUp: boolean;
+  readonly rounding: WageRounding;
   readonly timeOn: boolean;
   readonly timeSegments: readonly WageTimeSegmentForm[];
   readonly afterOn: boolean;
@@ -135,9 +138,9 @@ export function toWageForm(rule: WageRule): WageForm {
       : []);
   return {
     hourly: formatRate(hourly),
-    // Older rules charged each whole minute and dropped the rest, which carries over as it was
+    // Older rules charged each whole minute and dropped the rest, which carries over as rounding down
     unitMinutes: rule.unitMinutes ?? 1,
-    roundUp: rule.roundUp ?? false,
+    rounding: rule.rounding ?? (rule.roundUp ? "up" : "down"),
     timeOn: time.length > 0,
     timeSegments:
       time.length > 0
@@ -231,7 +234,7 @@ export function parseWage(form: WageForm): ParsedWage {
     rule: {
       hourly,
       unitMinutes,
-      roundUp: form.roundUp,
+      rounding: form.rounding,
       ...(timeSegments.length > 0 && { timeSegments }),
       ...(afterStartSegments.length > 0 && { afterStartSegments }),
     },

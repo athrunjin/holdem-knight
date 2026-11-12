@@ -15,10 +15,12 @@ import {
   type TableFeeRule,
   toTableFeeForm,
   toWageForm,
+  WAGE_ROUNDINGS,
   WAGE_UNITS,
   type WageAfterStartSegmentForm,
   type WageForm,
   type WageIssues,
+  type WageRounding,
   type WageRule,
   type WageTimeSegmentForm,
   type WageUnitMinutes,
@@ -27,7 +29,6 @@ import { ChevronDown, Plus, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { InfoButton } from "@/components/InfoButton";
 import { ChoiceModal } from "@/components/insurance/ChoiceModal";
-import { MiniSwitch } from "@/components/MiniSwitch";
 import { SaveNameDialog } from "@/components/SaveNameDialog";
 import { TextField } from "@/components/TextField";
 import { Toggle } from "@/components/Toggle";
@@ -37,6 +38,7 @@ import {
   useRemoveChargeRule,
   useSaveChargeRule,
 } from "@/data/charge-rules";
+import { ROUNDING_NAMES, UNIT_NAMES } from "@/lib/charges";
 import { cn } from "@/lib/cn";
 import { CURRENCY_INFO } from "@/lib/currency";
 import { datedName } from "@/lib/dated-name";
@@ -492,12 +494,16 @@ export function TableFeeSettings({
   );
 }
 
-const UNIT_NAMES: Record<WageUnitMinutes, string> = {
-  1: "精确到分",
-  15: "精确到15分",
-  30: "精确到30分",
-  60: "每小时",
-};
+const ROUNDING_INFO = [
+  "每位玩家的在桌时间，从坐下起按计费单位切成一段一段。最后不满一段的部分：",
+  "四舍五入：满半段算一段，不满半段不收。",
+  "向上取整：不满一段也算一段。",
+  "向下取整：不满一段不收。",
+  "",
+  "一段时间跨两种时薪时，按占时较长的时薪收；一样长时按较高的收。算作一段的不满部分，顺延到离桌之后再比较。",
+  "",
+  "例如零点前 ¥20、零点后 ¥30，按 30 分钟计费、向上取整，23:16 坐到 0:13：23:16–23:46 按 ¥20；余下 27 分钟算一段（23:46–0:16），零点后占 16 分钟，按 ¥30。",
+].join("\n");
 
 /**
  * Turns wages on for a game: a base rate, how time is charged, and rates by time of day or by game
@@ -514,6 +520,7 @@ export function WageSettings({
   const { enabled, source, form } = value;
   const [segmentsOpen, setSegmentsOpen] = useState(false);
   const [pickingUnit, setPickingUnit] = useState(false);
+  const [pickingRounding, setPickingRounding] = useState(false);
   const symbol = CURRENCY_INFO[currency].symbol;
   const setForm = (next: Partial<WageForm>) =>
     onChange({ ...value, source: CUSTOM_PRESET, form: { ...form, ...next } });
@@ -638,17 +645,17 @@ export function WageSettings({
               </button>
             </span>
             <span className="flex items-center">
-              <InfoButton
-                title="向上取整"
-                text={
-                  "开启时，不足一个计费单位按一个单位算，例如按每小时计费，1 小时 10 分按 2 小时算。\n关闭时，不足的部分不收。"
-                }
-              />
-              <MiniSwitch
-                label="向上取整"
-                checked={form.roundUp}
-                onChange={(roundUp) => setForm({ roundUp })}
-              />
+              <InfoButton title="取整方式" text={ROUNDING_INFO} />
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                aria-label={`取整方式：${ROUNDING_NAMES[form.rounding]}`}
+                onClick={() => setPickingRounding(true)}
+                className="flex min-h-11 items-center gap-0.5 font-medium"
+              >
+                {ROUNDING_NAMES[form.rounding]}
+                <ChevronDown className="size-4 text-muted" aria-hidden />
+              </button>
             </span>
           </div>
 
@@ -676,7 +683,7 @@ export function WageSettings({
 
               <Toggle
                 label="时段设置"
-                info="按本地时间，从开局后第一次到达开始时间算起"
+                info="按开局所在地的时间。开局时已在时段内，从开局起就按该时段算；否则从下一次到达开始时间算起。"
                 checked={form.timeOn}
                 onChange={(on) => switchKind("time", on)}
               />
@@ -838,6 +845,19 @@ export function WageSettings({
             onSaved={(id) => onChange({ ...value, source: id })}
           />
         </>
+      )}
+
+      {pickingRounding && (
+        <ChoiceModal
+          title="取整方式"
+          choices={WAGE_ROUNDINGS.map((mode) => ({ id: mode, name: ROUNDING_NAMES[mode] }))}
+          selectedId={form.rounding}
+          onPick={(id) => {
+            setForm({ rounding: id as WageRounding });
+            setPickingRounding(false);
+          }}
+          onClose={() => setPickingRounding(false)}
+        />
       )}
 
       {pickingUnit && (

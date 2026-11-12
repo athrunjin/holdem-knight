@@ -733,6 +733,32 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked at phone size in the browser preview, dark mode, then on a phone with the preview build.
 - Tracking: PR #80, ADR [0025](adr/0025-wage-segments-and-billing-units.md)
 
+### #I-040 Wage units at the longer rate, rounding modes and the game's time zone
+
+- Type: feature
+- Date: proposed and decided 2026-11-12
+- Source: review of wages and table fees on the latest build
+- Problem: a night rate never began when the game started after its hour, segment ends were an hour off on daylight saving nights, the same game priced differently on a phone in another time zone, and minutes added by rounding all went to the last rate without the player seeing why.
+- Proposal:
+  - Charge each billing unit at the rate that covers more of it, the higher on a tie. A part unit that counts runs on past the moment the player left.
+  - 取整方式 becomes a list: 四舍五入 (default), 向上取整 and 向下取整, with the info text explaining all three and the longer-rate rule.
+  - A game that starts inside a time segment begins in it; a segment with no end counts as begun for 12 hours.
+  - Each game keeps its time zone, and segments switch on the real local clock.
+  - Settlement tells players how they were charged.
+- Settled details:
+  - Units run along the player's counted time from sitting down, so pauses and time away do not start a new unit.
+  - Each player's card shows 在桌 and 计费 times before the wage lines.
+  - With 明细 on, a block titled 工资和台费, 工资 or 台费, by what the game has on, shows above the cards in brief: the rates some player was charged at, so a segment the game never reached is left out, the unit and rounding, and the table fee with its minimum time. An info icon in its title opens 计费规则 in words. The shared image carries those rules.
+  - The organizer's card moves to the top and folds like the players'.
+  - The page does not say which time zone the rates follow. This was tried and removed.
+  - The large 结果 title is gone. The game's line leads the page instead, a little larger: blinds, currency, start time and the host placeholder with no Host label.
+  - The heading over the cards reads 对局总览.
+  - Every amount in the cards shows two decimals, so ¥150 reads ¥150.00, and the amount column is a little wider. The shared image's amounts match.
+  - Earlier games keep their charging and, with no zone kept, the viewing device's time. Amounts are not saved at settlement.
+  - Backups move to version 10. Sample backups are marked as Beijing time.
+- Decision: do. Checked at phone size in the browser preview, dark mode.
+- Tracking: ADR [0027](adr/0027-wage-units-rounding-and-game-time-zone.md)
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

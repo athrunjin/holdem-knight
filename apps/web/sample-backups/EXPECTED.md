@@ -202,3 +202,42 @@ Transfers (1 笔 · 最优方案):
 | From | To | Amount |
 | --- | --- | --: |
 | 赵磊 | 王芳 | ¥700 |
+
+## 08-wage-units-across-midnight: Wage units across midnight
+
+Game dated **2026-01-08** · blinds 1 / 2 · 人民币 · 1 chip = ¥1 · settled · file `08-wage-units-across-midnight.json`
+
+- Wages ¥20 an hour, ¥30 from midnight, charged by 30 minutes and rounded up. Table fee ¥100 after 10 minutes. The clock ran 19:00–0:30.
+- 张伟 sat 23:16–0:13, 57 minutes: 23:16–23:46 at ¥20, then the part unit runs on to 0:16 with 16 minutes after midnight, so ¥30. ¥25 in all.
+- 王芳 sat 23:45–0:15: 15 minutes on each side of midnight, so the higher ¥30 for the unit, ¥15.
+- 李娜 sat 8 minutes: rounded up to one unit at ¥20, ¥10, and no table fee.
+- 刘洋 sat 19:00–0:30: ten units at ¥20 and one at ¥30, ¥115.
+- Turn on 明细: the block above the cards names both rates, 精确到30分 and 向上取整.
+
+Results:
+
+| 玩家 | 手 | 筹码 | 水上/下 | 金额 |
+| --- | --: | --: | --: | --: |
+| 张伟 | 1 | 350 | +150 | +¥25 |
+| 李娜 | 1 | 180 | −20 | -¥30 |
+| 王芳 | 1 | 150 | −50 | -¥165 |
+| 刘洋 | 1 | 120 | −80 | -¥295 |
+| 组织者 | — | — | 0 | +¥465 |
+
+Table fee and wages: ¥465 in all, to the organizer.
+
+| 玩家 | 在桌 | 台费 | 工资 |
+| --- | --: | --: | --: |
+| 刘洋 | 5小时30分 | ¥100 | ¥115 |
+| 李娜 | 8分 | 未满时长 | ¥10 |
+| 张伟 | 57分 | ¥100 | ¥25 |
+| 王芳 | 30分 | ¥100 | ¥15 |
+
+Transfers (4 笔 · 最优方案):
+
+| From | To | Amount |
+| --- | --- | --: |
+| 刘洋 | 组织者 | ¥295 |
+| 王芳 | 组织者 | ¥165 |
+| 李娜 | 张伟 | ¥25 |
+| 李娜 | 组织者 | ¥5 |

@@ -173,6 +173,17 @@ describe("backup file", () => {
     expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
   });
 
+  it("round-trips a game's time zone and a wage's rounding", () => {
+    const [game] = data.games;
+    if (!game) throw new Error("Missing sample game");
+    const wage = { hourly: cents(2500), unitMinutes: 30, rounding: "nearest" } as const;
+    const full: BackupData = {
+      ...data,
+      games: [{ ...game, wage, timeZone: "Asia/Shanghai" }],
+    };
+    expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
+  });
+
   it("round-trips saved table fee and wage configs", () => {
     const saved = { organizerId: "guest", createdAt: 1 };
     const full: BackupData = {
@@ -345,7 +356,7 @@ describe("backup file", () => {
 
   it("rejects backups from a newer version", () => {
     const text = edit((backup) => {
-      backup.version = 10;
+      backup.version = 11;
     });
     expect(parseBackup(text)).toEqual({ ok: false, issue: "newer-version" });
   });
