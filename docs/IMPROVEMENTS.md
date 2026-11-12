@@ -753,6 +753,9 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The page does not say which time zone the rates follow. This was tried and removed.
   - The large 结果 title is gone. The game's line leads the page instead, a little larger: blinds, currency, start time and the host placeholder with no Host label.
   - The heading over the cards reads 对局总览.
+  - Under it, an organizer with anything to receive, insurance included, has a title row of their own (组织者, 金额) and a card named by the organizer's ID, which stands in until organizers have names. The players' title row follows before the players.
+  - The players' columns read 玩家, Buy-in, 筹码, 水上/下 and 金额. Buy-in is centered and sized for two digits, and chips and the win or loss for four.
+  - A player's open lines are as close together as the organizer's. The charge lines are 28px tall, under the 44px the project asks of touch targets, as the user chose.
   - Every amount in the cards shows two decimals, so ¥150 reads ¥150.00, and the amount column is a little wider. The shared image's amounts match.
   - Earlier games keep their charging and, with no zone kept, the viewing device's time. Amounts are not saved at settlement.
   - Backups move to version 10. Sample backups are marked as Beijing time.

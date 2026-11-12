@@ -296,16 +296,15 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
       : [
           {
             id: ORGANIZER_COLLECTOR,
-            name: "组织者",
-            hands: "—",
-            chips: "—",
+            // The organizer's ID stands in until organizers have names (M6)
+            name: game.organizerId,
+            hands: "",
+            chips: "",
             lines: organizerLines,
             total: organizerNet,
             collapsible: true,
           },
         ];
-  // The organizer leads on the page and closes the shared image
-  const cards = [...organizerCard, ...playerCards];
 
   function imbalanceNote() {
     if (difference === 0) return undefined;
@@ -336,6 +335,14 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
     (text) => text !== undefined,
   );
 
+  // The image closes with the organizer, named as in the transfers
+  const imageOrganizer = organizerCard.map((card) => ({
+    ...card,
+    name: "组织者",
+    hands: "—",
+    chips: "—",
+  }));
+
   async function handleShare() {
     setSharing(true);
     setShareFailed(false);
@@ -351,7 +358,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
           amount: formatGameMoney(amount, currency),
         })),
         notes: [...notes, ...ruleNotes],
-        results: [...playerCards, ...organizerCard].map(
+        results: [...playerCards, ...imageOrganizer].map(
           ({ name, hands, chips, netChips, total }) => ({
             name,
             hands,
@@ -425,7 +432,8 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
       )}
 
       <ResultCards
-        cards={cards}
+        organizer={organizerCard[0]}
+        cards={playerCards}
         currency={currency}
         details={<ChargeSummary game={game} charges={charges} />}
       />

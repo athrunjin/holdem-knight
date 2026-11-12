@@ -6,9 +6,12 @@ import { formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
 
-/** Shared by the column titles and every row under them, so all amounts share one right edge. */
+/**
+ * Shared by the column titles and every row under them, so all amounts share one right edge.
+ * Buy-ins are sized for two digits, and chips and the win or loss for four with a separator.
+ */
 const columnsClass =
-  "grid grid-cols-[minmax(0,1fr)_1.5rem_3.25rem_3.5rem_6.25rem] items-center tabular-nums";
+  "grid grid-cols-[minmax(0,1fr)_2.5rem_3.25rem_3.75rem_6.25rem] items-center tabular-nums";
 /** The text of a detail line or the total, across the first four columns. */
 const labelClass = "col-span-4 flex min-w-0 items-center gap-2";
 
@@ -41,7 +44,7 @@ export interface ResultCard {
   readonly name: string;
   readonly hands: string;
   readonly chips: string;
-  /** Missing for the organizer, who has no chips. */
+  /** Missing for the organizer, who has no chips: those cells stay empty. */
   readonly netChips?: number;
   /** The result from the chips, before the lines. Missing shows a dash. */
   readonly base?: Cents;
@@ -93,10 +96,10 @@ function Line({ line, currency }: { line: ResultLine; currency: Currency }) {
       </div>
     );
   }
-  // The whole line toggles the charge, so the tap target is the full row
+  // The whole line toggles the charge. It is as tall as the organizer's lines, by the user's choice
   return (
     <label
-      className={cn(columnsClass, "min-h-11 cursor-pointer text-xs has-disabled:cursor-default")}
+      className={cn(columnsClass, "min-h-7 cursor-pointer text-xs has-disabled:cursor-default")}
     >
       <span className={labelClass}>
         <input
@@ -177,12 +180,10 @@ function Card({
         )}
         <span className="truncate">{name}</span>
       </span>
-      <span className="text-right">{hands}</span>
+      <span className="text-center">{hands}</span>
       <span className="text-right">{chips}</span>
-      <span
-        className={cn("text-right", netChips === undefined ? "text-muted" : netColor(netChips))}
-      >
-        {netChips === undefined ? "—" : formatSignedChips(netChips)}
+      <span className={cn("text-right", netChips !== undefined && netColor(netChips))}>
+        {netChips !== undefined && formatSignedChips(netChips)}
       </span>
       <span className="text-right whitespace-nowrap">
         {!expanded ? (
@@ -231,62 +232,71 @@ function Card({
  * Settlement results as one card per person: a tinted row with their chips and result, then the
  * adjustments to it and a total. Cards fold to that row and a one-line summary, and the 明细
  * switch opens them all, or closes them once all are open. `details` shows above the cards while
- * all are open.
+ * all are open. An organizer with anything to receive comes first under a title row of their own,
+ * and the players follow under theirs.
  */
 export function ResultCards({
+  organizer,
   cards,
   currency,
   details,
 }: {
+  organizer?: ResultCard | undefined;
   cards: readonly ResultCard[];
   currency: Currency;
   details?: ReactNode;
 }) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
-  const foldable = cards.filter((card) => card.collapsible && card.lines.length > 0);
+  const everyone = organizer ? [organizer, ...cards] : cards;
+  const foldable = everyone.filter((card) => card.collapsible && card.lines.length > 0);
   const allOpen = foldable.length > 0 && foldable.every((card) => open.has(card.id));
+  const titlesClass = cn(columnsClass, "px-2 text-xs text-muted");
 
   function toggle(id: string) {
     const next = new Set(open);
     if (!next.delete(id)) next.add(id);
     setOpen(next);
   }
+  const card = (person: ResultCard) => (
+    <Card
+      key={person.id}
+      card={person}
+      currency={currency}
+      open={open.has(person.id)}
+      onToggle={() => toggle(person.id)}
+    />
+  );
 
   return (
     <div className="mt-3 flex flex-col gap-2">
-      <div className="flex min-h-11 items-center justify-between gap-2">
+      <div className="-mb-2 flex min-h-11 items-center justify-between gap-2">
         <h3 className="font-semibold">对局总览</h3>
         {foldable.length > 0 && (
           <MiniSwitch
             label="明细"
             checked={allOpen}
-            onChange={(on) => setOpen(new Set(on ? foldable.map((card) => card.id) : []))}
+            onChange={(on) => setOpen(new Set(on ? foldable.map(({ id }) => id) : []))}
           />
         )}
       </div>
       {allOpen && details}
-      <div
-        className={cn(
-          columnsClass,
-          allOpen && details ? "px-2" : "-mt-2 px-2",
-          "text-xs text-muted",
-        )}
-      >
+      {organizer && (
+        <>
+          <div className={titlesClass}>
+            <span className="col-span-4">组织者</span>
+            <span className="text-right">金额</span>
+          </div>
+          {card(organizer)}
+        </>
+      )}
+      <div className={titlesClass}>
         <span>玩家</span>
-        <span className="text-right">手</span>
+        <span className="text-center">Buy-in</span>
         <span className="text-right">筹码</span>
         <span className="text-right">水上/下</span>
         <span className="text-right">金额</span>
       </div>
-      {cards.map((card) => (
-        <Card
-          key={card.id}
-          card={card}
-          currency={currency}
-          open={open.has(card.id)}
-          onToggle={() => toggle(card.id)}
-        />
-      ))}
+      {cards.map(card)}
     </div>
   );
 }
