@@ -101,6 +101,17 @@ function wagePartName(rule: WageRule, part: WagePart) {
 const partOrder = (part: WagePart) =>
   part === "base" ? "0" : part === "adjusted" || part.startsWith("time-") ? `1${part}` : `2${part}`;
 
+export interface GameRuleLine {
+  readonly label: string;
+  /** Settings side by side, one array per row. */
+  readonly rows: readonly (readonly string[])[];
+  /** Insurance only: the whole odds table, shown on request. */
+  readonly oddsHundredths?: readonly number[];
+}
+
+/** Odds for a number of outs, such as 8赔3.5. */
+export const oddsText = (outs: number, hundredths: number) => `${outs}赔${formatOdds(hundredths)}`;
+
 /** Outs whose odds a game's rules name, where the table has them. */
 const SHOWN_OUTS = [1, 3, 8, 9];
 
@@ -114,26 +125,30 @@ export function gameRuleLines(
   { insurance, wage, tableFee }: Pick<Game, "insurance" | "wage" | "tableFee">,
   charges: readonly Charge[],
   currency: Currency,
-): { label: string; items: string[] }[] {
+): GameRuleLine[] {
   const money = (amount: number) => formatGameMoney(cents(amount), currency);
-  const lines: { label: string; items: string[] }[] = [];
+  const lines: GameRuleLine[] = [];
   if (insurance) {
     const odds = SHOWN_OUTS.flatMap((outs) => {
       const hundredths = insurance.oddsHundredths[outs - 1];
-      return hundredths === undefined ? [] : [`${outs}张赔${formatOdds(hundredths)}`];
+      return hundredths === undefined ? [] : [oddsText(outs, hundredths)];
     });
+    // The odds take a row of their own, under the two switches
     lines.push({
       label: "保险",
-      items: [
-        `平分牌${insurance.tieOuts === "include" ? "算" : "不算"} outs`,
-        `击中${insurance.refundPremium ? "退" : "不退"}保费`,
-        ...odds,
+      rows: [
+        [
+          `平分牌${insurance.tieOuts === "include" ? "算" : "不算"} outs`,
+          `击中${insurance.refundPremium ? "退" : "不退"}保费`,
+        ],
+        odds,
       ],
+      oddsHundredths: insurance.oddsHundredths,
     });
   }
   if (tableFee) {
     const least = tableFee.minMinutes > 0 ? [`在桌满 ${tableFee.minMinutes} 分钟`] : [];
-    lines.push({ label: "台费", items: [`${money(tableFee.amount)}/人`, ...least] });
+    lines.push({ label: "台费", rows: [[`${money(tableFee.amount)}/人`, ...least]] });
   }
   if (wage) {
     const used = new Map<WagePart, number>();
@@ -146,7 +161,7 @@ export function gameRuleLines(
       .map(([part, hourly]) => `${wagePartName(wage, part)} ${money(hourly)}/时`);
     const rounding = wage.rounding ?? (wage.roundUp ? "up" : "down");
     const how = [UNIT_NAMES[wage.unitMinutes ?? 1], ROUNDING_NAMES[rounding]];
-    lines.push({ label: "工资", items: [...rates, ...how] });
+    lines.push({ label: "工资", rows: [[...rates, ...how]] });
   }
   return lines;
 }
@@ -164,7 +179,7 @@ const UNIT_CHARGE: Record<number, string> = {
   60: "按每小时",
 };
 
-/** How a wage rule charges time, in a line short enough for the shared image. */
+/** How a wage rule charges time, without its subject: 按每 30 分钟计费，不足 30 分钟的部分四舍五入. */
 function wageUnitNote({ unitMinutes = 1, rounding, roundUp }: WageRule) {
   const length = UNIT_LENGTH[unitMinutes];
   const mode = rounding ?? (roundUp ? "up" : "down");
@@ -174,30 +189,45 @@ function wageUnitNote({ unitMinutes = 1, rounding, roundUp }: WageRule) {
       : mode === "up"
         ? `不足 ${length}按 ${length}计`
         : `不足 ${length}的部分不计`;
-  return `工资${UNIT_CHARGE[unitMinutes]}计费，${rest}`;
+  return `${UNIT_CHARGE[unitMinutes]}计费，${rest}`;
 }
 
+/** What time counts toward the table fee and wages. */
+export const CHARGE_CLOCK_RULE = "只计对局计时器运行期间的在桌时间";
+
 /**
- * The game's charging rules in plain words for the players, one short line each: how wages are
- * charged and rounded, what happens across two rates, the table fee, and what time counts.
+ * The game's charging rules in plain words for the players: the table fee, then how wages are
+ * charged and rounded and what happens across two rates. Each line is short enough for the
+ * shared image.
  */
-export function chargeRuleNotes(
+export function chargeRuleSections(
   { wage, tableFee }: Pick<Game, "wage" | "tableFee">,
   currency: Currency,
-): string[] {
-  if (!wage && !tableFee) return [];
+): { title: string; lines: string[] }[] {
   const rates = (wage?.timeSegments?.length ?? 0) + (wage?.afterStartSegments?.length ?? 0);
-  const feeNote =
-    tableFee &&
-    `台费每人 ${formatGameMoney(cents(tableFee.amount), currency)}${
-      tableFee.minMinutes > 0 ? `，在桌满 ${tableFee.minMinutes} 分钟才收` : ""
-    }`;
-  return [
-    ...(wage ? [wageUnitNote(wage)] : []),
-    ...(wage?.rounding && rates > 0 ? ["一段时间跨两种时薪时，按占时较长的时薪计"] : []),
-    ...(feeNote ? [feeNote] : []),
-    "只计对局计时器运行期间的在桌时间",
-  ];
+  const sections: { title: string; lines: string[] }[] = [];
+  if (tableFee) {
+    const least = tableFee.minMinutes > 0 ? `，在桌满 ${tableFee.minMinutes} 分钟才收` : "";
+    sections.push({
+      title: "台费",
+      lines: [`每人 ${formatGameMoney(cents(tableFee.amount), currency)}${least}`],
+    });
+  }
+  if (wage) {
+    const across = wage.rounding && rates > 0 ? ["一段时间跨两种时薪时，按占时较长的时薪计"] : [];
+    sections.push({ title: "工资", lines: [wageUnitNote(wage), ...across] });
+  }
+  return sections;
+}
+
+/** The same rules as lines of their own, each naming its subject, then what time counts. */
+export function chargeRuleNotes(game: Pick<Game, "wage" | "tableFee">, currency: Currency) {
+  const sections = chargeRuleSections(game, currency);
+  if (sections.length === 0) return [];
+  const named = sections.flatMap(({ title, lines }) =>
+    lines.map((line, i) => (i === 0 ? `${title}${line}` : line)),
+  );
+  return [...named, CHARGE_CLOCK_RULE];
 }
 
 /** Each player's table fee and wages still charged, 0 when there is none or it was waived. */

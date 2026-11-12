@@ -41,7 +41,13 @@ import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
-import { chargeClock, chargeRuleNotes, formatSeatTime } from "@/lib/charges";
+import {
+  CHARGE_CLOCK_RULE,
+  chargeClock,
+  chargeRuleNotes,
+  chargeRuleSections,
+  formatSeatTime,
+} from "@/lib/charges";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
@@ -141,6 +147,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
   const statuses = game.tableFee || game.wage ? chargeStatuses(game, events, clock) : [];
   const charges = chargesFrom(game, statuses);
   const ruleNotes = chargeRuleNotes(game, game.currency);
+  const ruleSections = chargeRuleSections(game, game.currency);
   const charged = applyCharges(insured.nets, charges);
   const { nets } = charged;
   const {
@@ -438,7 +445,23 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
         currency={currency}
         settings={hasGameRules(game) && <GameRules game={game} charges={charges} />}
         settingsInfo={
-          ruleNotes.length > 0 && <InfoButton title="计费规则" text={ruleNotes.join("\n")} />
+          ruleSections.length > 0 && (
+            <InfoButton title="计费规则" small>
+              <div className="flex flex-col gap-2 text-sm">
+                {ruleSections.map(({ title, lines }) => (
+                  <section key={title}>
+                    <h4 className="font-medium">{title}</h4>
+                    {lines.map((line) => (
+                      <p key={line} className="text-muted">
+                        {line}
+                      </p>
+                    ))}
+                  </section>
+                ))}
+                <p className="text-xs text-muted">{CHARGE_CLOCK_RULE}</p>
+              </div>
+            </InfoButton>
+          )
         }
       />
 

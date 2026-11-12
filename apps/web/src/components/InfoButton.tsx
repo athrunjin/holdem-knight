@@ -1,9 +1,20 @@
 import { Info } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Modal } from "@/components/insurance/Modal";
+import { cn } from "@/lib/cn";
+
+interface InfoButtonProps {
+  title: string;
+  /** Plain text, with line breaks kept. */
+  text?: string;
+  /** Laid-out content, in place of `text`. */
+  children?: ReactNode;
+  /** Sized to sit beside small text. */
+  small?: boolean;
+}
 
 /** A small info icon that explains something when tapped. */
-export function InfoButton({ title, text }: { title: string; text: string }) {
+export function InfoButton({ title, text, children, small = false }: InfoButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -12,13 +23,16 @@ export function InfoButton({ title, text }: { title: string; text: string }) {
         type="button"
         aria-label={`${title}说明`}
         onClick={() => setOpen(true)}
-        className="-my-2 grid size-9 shrink-0 place-items-center text-muted"
+        className={cn(
+          "grid shrink-0 place-items-center text-muted",
+          small ? "-mx-1 size-6" : "-my-2 size-9",
+        )}
       >
-        <Info className="size-4" aria-hidden />
+        <Info className={small ? "size-3.5" : "size-4"} aria-hidden />
       </button>
       {open && (
         <Modal title={title} onClose={() => setOpen(false)}>
-          <p className="text-sm whitespace-pre-line text-muted">{text}</p>
+          {children ?? <p className="text-sm whitespace-pre-line text-muted">{text}</p>}
           <button
             type="button"
             onClick={() => setOpen(false)}
