@@ -176,7 +176,7 @@ export function BuyInDialog(props: SettingDialogProps) {
       <div>
         <TextField
           {...field("buyInBigBlinds")}
-          label="一个买入"
+          label="一个 Buy-in"
           suffix="BB"
           inputMode="numeric"
           inputRef={inputRef}

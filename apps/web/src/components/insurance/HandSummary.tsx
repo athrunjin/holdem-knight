@@ -58,15 +58,15 @@ function PlayerResult({
         {refundChips > 0 && <Line label="退回未跟注">{chipText(refundChips)}</Line>}
         <Line label="保险盈亏">{formatSignedChips(insuranceChips)}</Line>
         {buyIn && handChips !== undefined && (
-          <Line label="需买入">
-            {buyIn.buyInChips / handChips} 手（{chipText(buyIn.buyInChips)}）
+          <Line label="需 Buy-in">
+            {buyIn.buyInChips / handChips} 个（{chipText(buyIn.buyInChips)}）
           </Line>
         )}
         <Line label="后手">{stackAfter === null ? "Cover 不适用" : chipText(stackAfter)}</Line>
       </dl>
       {shortChips > 0 && (
         <p className="mt-1 text-sm text-highlight">
-          还差 {chipText(shortChips)} 保费，确认时需要买入。
+          还差 {chipText(shortChips)} 保费，确认时需要 Buy-in。
         </p>
       )}
     </li>
@@ -123,7 +123,7 @@ export function HandSummary({
         <h3 className="font-semibold">保险</h3>
         <dl className="mt-1 flex flex-col gap-1">
           <Line label="本手盈亏">{formatSignedChips(seatChips)}</Line>
-          {topUp > 0 && <Line label="自动买入">{chipText(topUp)}</Line>}
+          {topUp > 0 && <Line label="自动 Buy-in">{chipText(topUp)}</Line>}
           {seat && <Line label="后手">{chipText(seat.stackChips + seatChips + topUp)}</Line>}
         </dl>
       </section>
@@ -145,19 +145,19 @@ export function HandSummary({
         </button>
       </div>
       {confirming && seat && (
-        <Modal title="需要自动买入" onClose={() => setConfirming(false)}>
+        <Modal title="需要自动 Buy-in" onClose={() => setConfirming(false)}>
           <p role="alert" className="font-medium text-highlight">
-            以下玩家不够支付保费，确认后会增加买入手数。
+            以下玩家不够支付保费，确认后会增加 Buy-in。
           </p>
           <ul className="mt-2 flex flex-col gap-2">
             {buyIns.map(({ playerId, shortChips, buyInChips, stackChips }) => (
               <li key={playerId} className="rounded-xl border border-line bg-bg p-3">
                 <p className="font-semibold">
-                  {nameOf(playerId)} · 买入 {buyInChips / seat.handChips} 手（
+                  {nameOf(playerId)} · {buyInChips / seat.handChips} 个 Buy-in（
                   {chipText(buyInChips)} 筹码）
                 </p>
                 <p className="text-sm text-muted tabular-nums">
-                  欠保费 {chipText(shortChips)} · 买入后后手 {chipText(stackChips)}
+                  欠保费 {chipText(shortChips)} · Buy-in 后后手 {chipText(stackChips)}
                 </p>
               </li>
             ))}
@@ -176,7 +176,7 @@ export function HandSummary({
               onClick={onConfirm}
               className="min-h-11 rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40"
             >
-              确认买入
+              确认 Buy-in
             </button>
           </div>
         </Modal>

@@ -85,7 +85,7 @@ type PendingEntry = {
 const settleClass =
   "inline-flex min-h-11 items-center rounded-xl bg-accent px-4 font-semibold text-accent-text";
 
-const HANDS_TITLE = { join: "买入", edit: "调整手数" } as const;
+const HANDS_TITLE = { join: "Buy-in", edit: "调整 Buy-in" } as const;
 
 /** Display only, so a hand that is not a whole number of big blinds rounds to one decimal. */
 function handBigBlinds(handChips: number, bigBlindChips: number) {
@@ -161,11 +161,12 @@ function GameLedger({ game }: { game: Game }) {
     );
   }
 
-  function handleLeave(playerId: string, chips: number, hands: number | undefined) {
+  function handleLeave(playerId: string, chips: number, hands: number | undefined, at: number) {
     leaveTable.mutate(
       {
         playerId,
         chips,
+        at,
         ...(handChips !== undefined && hands !== undefined
           ? { hands: { handChips, count: hands } }
           : {}),
@@ -300,7 +301,7 @@ function GameLedger({ game }: { game: Game }) {
 
       <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
         {[
-          ["总买入", formatGameMoney(chipsToCents(totals.boughtChips, chipRatio), currency)],
+          ["总 Buy-in", formatGameMoney(chipsToCents(totals.boughtChips, chipRatio), currency)],
           ["已离桌", formatGameMoney(chipsToCents(totals.cashedOutChips, chipRatio), currency)],
         ].map(([label, value]) => (
           <div key={label} className="rounded-xl border border-line bg-surface px-2 py-1.5">
@@ -388,14 +389,13 @@ function GameLedger({ game }: { game: Game }) {
       {pending?.kind === "leave" && (
         <LeaveDialog
           key={pending.playerId}
+          game={game}
+          events={events}
+          playerId={pending.playerId}
           name={pending.name}
-          handChips={handChips}
-          {...playerTotals(pending.playerId)}
-          ratio={chipRatio}
-          currency={currency}
           saving={leaveTable.isPending}
           saveFailed={leaveTable.isError}
-          onSubmit={(chips, hands) => handleLeave(pending.playerId, chips, hands)}
+          onSubmit={(chips, hands, at) => handleLeave(pending.playerId, chips, hands, at)}
           onClose={closeDialog}
         />
       )}
@@ -433,7 +433,7 @@ function GameLedger({ game }: { game: Game }) {
       {pending && (pending.kind === "buy" || pending.kind === "stack") && (
         <ChipAmountDialog
           key={pending.playerId}
-          title={`${pending.kind === "stack" ? "筹码" : nextBuyType(events, pending.playerId) === "buy_in" ? "买入" : "补码"} · ${pending.name}`}
+          title={`${pending.kind === "stack" ? "筹码" : nextBuyType(events, pending.playerId) === "buy_in" ? "Buy-in" : "补码"} · ${pending.name}`}
           submitLabel="确定"
           initialChips={
             pending.kind === "stack"

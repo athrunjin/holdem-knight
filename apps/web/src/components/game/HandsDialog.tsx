@@ -1,8 +1,9 @@
 import { type ChipRatio, type Currency, chipsToCents, parseChips } from "@holdem-knight/core";
 import { ArrowRight } from "lucide-react";
 import { type FormEvent, useState } from "react";
+import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
-import { formatGameMoney } from "@/lib/currency";
+import { formatGameAmount, formatGameMoney } from "@/lib/currency";
 import { FormDialog } from "./FormDialog";
 import { HandsStepper } from "./HandsStepper";
 
@@ -49,7 +50,7 @@ export function HandsDialog({
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!valid) {
-      setIssue("请输入大于 0 的整数手数");
+      setIssue("请输入大于 0 的整数 Buy-in");
     } else if (review && !confirming) {
       if (changed) setConfirming(true);
     } else {
@@ -65,8 +66,8 @@ export function HandsDialog({
       <FormDialog
         title={
           <>
-            {review.name} <span className={tone}>{by > 0 ? "增加" : "减少"}</span> {Math.abs(by)}{" "}
-            手买入
+            {review.name} <span className={tone}>{by > 0 ? "增加" : "减少"}</span> {Math.abs(by)} 个
+            Buy-in
           </>
         }
         submitLabel="确认"
@@ -79,7 +80,7 @@ export function HandsDialog({
         <div>
           <div
             role="img"
-            aria-label={`${review.currentHands} 手变为 ${hands} 手`}
+            aria-label={`${review.currentHands} 个 Buy-in 变为 ${hands} 个`}
             className="flex items-end justify-center gap-4 text-3xl font-semibold tabular-nums"
           >
             <span className="text-muted">{review.currentHands}</span>
@@ -92,10 +93,13 @@ export function HandsDialog({
             </span>
             <span className={tone}>{hands}</span>
           </div>
+          {/* Only this change. The stack follows it too, but that is not this step's news */}
           <p className="mt-2 text-center text-sm text-muted">
-            {(review.currentHands * handChips).toLocaleString("zh-CN")} →{" "}
-            {(hands * handChips).toLocaleString("zh-CN")} 筹码，{by > 0 ? "多买" : "退回"}{" "}
-            {money(Math.abs(by) * handChips)}
+            筹码量{" "}
+            <span className={cn("tabular-nums", tone)}>
+              {formatSignedChips(by * handChips)}（
+              {formatGameAmount(chipsToCents(by * handChips, ratio), currency, "exceptZero")}）
+            </span>
           </p>
         </div>
       </FormDialog>

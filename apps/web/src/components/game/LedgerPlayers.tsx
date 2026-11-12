@@ -191,7 +191,7 @@ export function LedgerPlayers({
     return (
       <button
         type="button"
-        aria-label={`输入${nameOf(playerId)}的手数，现在 ${count} 手`}
+        aria-label={`输入${nameOf(playerId)}的 Buy-in，现在 ${count} 个`}
         onClick={() => onEditHands(playerId)}
         className={cn(cellButtonClass, "-mx-0.5")}
       >
@@ -313,7 +313,7 @@ export function LedgerPlayers({
         </Link>
         {!seat ? (
           <>
-            {join(INSURANCE_PLAYER_ID, "保险买入")}
+            {join(INSURANCE_PLAYER_ID, "保险 Buy-in")}
             {dash("text-right")}
             {dash("text-right")}
             {dash("text-right")}
@@ -491,7 +491,7 @@ export function LedgerPlayers({
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{nameOf(playerId)}</p>
                     <p className="truncate text-xs">
-                      买入 {money(boughtChips)} · 离桌 {money(cashedOutChips)}
+                      Buy-in {money(boughtChips)} · 离桌 {money(cashedOutChips)}
                     </p>
                   </div>
                   <span

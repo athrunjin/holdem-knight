@@ -4,9 +4,9 @@ import { useState } from "react";
 import { cn } from "@/lib/cn";
 
 const RECORD_LABEL: Record<RecordKind, string> = {
-  buy_in: "买入",
+  buy_in: "Buy-in",
   rebuy: "补码",
-  reduce: "减手",
+  reduce: "退回 Buy-in",
   remove: "移出",
   cash_out: "离桌",
   return: "回桌",
