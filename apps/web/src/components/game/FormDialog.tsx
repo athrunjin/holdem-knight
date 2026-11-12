@@ -48,11 +48,11 @@ export function FormDialog({
       ref={ref}
       onClose={onClose}
       className={cn(
-        "m-auto max-w-sm overflow-y-auto rounded-2xl border border-line bg-surface text-text backdrop:bg-black/60",
-        wide ? "w-[calc(100%-1rem)] p-3" : "w-[calc(100%-2rem)] p-5",
+        "m-auto overflow-y-auto rounded-2xl border border-line bg-surface text-text backdrop:bg-black/60",
+        wide ? "w-[calc(100%-0.5rem)] max-w-md p-2" : "w-[calc(100%-2rem)] max-w-sm p-5",
       )}
     >
-      <h2 className="text-lg font-semibold">{title}</h2>
+      <h2 className={cn("text-lg font-semibold", wide && "px-1 pt-1")}>{title}</h2>
       <form
         onSubmit={(event) => {
           // React would otherwise carry the submit on to a form around the opener

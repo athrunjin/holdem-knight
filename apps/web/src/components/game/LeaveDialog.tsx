@@ -31,18 +31,19 @@ const MAX_OPEN_RECORDS = 8;
 
 /** What happened, in the color it is told apart by. */
 const ACTIONS = {
-  sit: ["上桌", "text-win"],
-  add: ["补码", "text-highlight"],
+  sit: ["上桌", "text-highlight"],
+  add: ["补码", "text-win"],
   back: ["退码", "text-loss"],
   away: ["离桌", "text-muted"],
   return: ["回桌", "text-muted"],
-  settle: ["结算", "text-text"],
+  settle: ["结算", "text-highlight"],
 } as const;
 
 interface RecordRow {
   readonly id: string;
   readonly action: keyof typeof ACTIONS;
-  readonly text?: string;
+  /** The Buy-ins this row moved. */
+  readonly moved?: string;
   /** Missing on the row for the settlement being confirmed. */
   readonly at?: number;
   /** Buy-ins held after the row, where it changes them. */
@@ -92,7 +93,6 @@ export function LeaveDialog({
   /** Buy-ins where the game counts them, chips where it does not. */
   const count = (value: number) =>
     handChips === undefined ? value.toLocaleString("zh-CN") : String(value / handChips);
-  const unit = handChips === undefined ? "筹码" : "Buy-in";
 
   // Charged as of the moment the dialog opened, which is also when the player is recorded leaving
   const statuses =
@@ -144,18 +144,18 @@ export function LeaveDialog({
   let held = 0;
   const rows: RecordRow[] = entries.flatMap((entry, index): RecordRow[] => {
     const { id, kind, chips: moved, occurredAt: at } = entry;
-    const change = `${count(moved)} ${unit}`;
+    const change = count(moved);
     switch (kind) {
       case "buy_in":
         held += moved;
-        return [{ id, at, action: "sit", text: `带入 ${change}`, total: count(held) }];
+        return [{ id, at, action: "sit", moved: change, total: count(held) }];
       case "rebuy":
         held += moved;
-        return [{ id, at, action: "add", text: change, total: count(held) }];
+        return [{ id, at, action: "add", moved: change, total: count(held) }];
       case "reduce":
       case "remove":
         held -= moved;
-        return [{ id, at, action: "back", text: change, total: count(held) }];
+        return [{ id, at, action: "back", moved: change, total: count(held) }];
       case "cash_out":
         // A leave still in effect is a settlement, which has its own row
         return entries[index + 1]?.kind === "return" ? [{ id, at, action: "away" }] : [];
@@ -166,11 +166,8 @@ export function LeaveDialog({
         return [];
     }
   });
-  const settleRow: RecordRow = {
-    id: "settle",
-    action: "settle",
-    text: `带出 ${chips.toLocaleString("zh-CN")} 筹码`,
-  };
+  // The settlement being confirmed closes the record, with the chips taken out and their value
+  const settleRow: RecordRow = { id: "settle", action: "settle", total: count(boughtChips) };
   const timesBought = rows.filter((r) => r.action === "sit" || r.action === "add").length;
   const [recordOpen, setRecordOpen] = useState(rows.length <= MAX_OPEN_RECORDS);
 
@@ -186,7 +183,7 @@ export function LeaveDialog({
     if (at === undefined) return "";
     const time = new Date(at);
     const pad = (value: number) => String(value).padStart(2, "0");
-    return `${pad(time.getHours())}时${pad(time.getMinutes())}分`;
+    return `${pad(time.getHours())}:${pad(time.getMinutes())}`;
   }
 
   function handleSubmit(event: FormEvent) {
@@ -221,45 +218,66 @@ export function LeaveDialog({
               {formatGameAmount(cash, currency, cash === 0 ? "auto" : "exceptZero")}
             </span>
           </div>
-          <div className="px-2">
+          <div className="@container px-2">
+            {/*
+              The record's lines sit in the card's columns: Buy-ins under Buy-in, chips under 筹码.
+              A card under 21.625rem, on the smallest phones, has no room for a line's time before
+              the Buy-in column, so the time moves to the 水上/下 column, which these lines leave empty.
+            */}
             <button
               type="button"
               aria-expanded={recordOpen}
               onClick={() => setRecordOpen(!recordOpen)}
-              className="flex min-h-7 w-full items-center gap-2 py-1 text-left text-xs text-muted"
+              className={cn(columnsClass, "min-h-7 w-full text-left text-xs text-muted")}
             >
-              <ChevronRight
-                className={cn("size-4 shrink-0 transition-transform", recordOpen && "rotate-90")}
-                aria-hidden
-              />
-              {/* Too long for one line on a phone, so it breaks between the Buy-ins and the chips */}
-              <span className="flex flex-wrap gap-x-1">
-                <span className="whitespace-nowrap">
-                  共计 {timesBought} 次带入 {count(boughtChips)}{" "}
-                  {handChips === undefined ? "筹码" : "个 Buy-in"}
+              <span className="flex items-center gap-2 whitespace-nowrap">
+                <ChevronRight
+                  className={cn("size-4 shrink-0 transition-transform", recordOpen && "rotate-90")}
+                  aria-hidden
+                />
+                <span>
+                  共 {timesBought} 次<span className="hidden @[21.625rem]:inline">带入</span>
                 </span>
-                <span className="whitespace-nowrap">
-                  {handChips !== undefined && `/ ${boughtChips.toLocaleString("zh-CN")} 筹码`}（
-                  {formatGameAmount(chipsToCents(boughtChips, ratio), currency)}）
-                </span>
+              </span>
+              <span className="text-center">
+                {handChips === undefined ? "—" : count(boughtChips)}
+              </span>
+              <span className="text-right">{boughtChips.toLocaleString("zh-CN")}</span>
+              <span />
+              <span className="text-right whitespace-nowrap">
+                {formatGameAmount(chipsToCents(boughtChips, ratio), currency)}
               </span>
             </button>
             {recordOpen && (
-              <ul className="pb-1 pl-6 text-xs tabular-nums">
+              <ul className="pb-1 text-xs">
                 {[...rows, settleRow].map((row, index, all) => {
                   const [action, tone] = ACTIONS[row.action];
+                  const settling = row.action === "settle";
                   return (
-                    <li
-                      key={row.id}
-                      className="grid min-h-6 grid-cols-[2rem_3.75rem_minmax(0,1fr)_auto] items-center gap-x-1"
-                    >
-                      <span className="text-muted">{dayOf(row, all[index - 1])}</span>
-                      <span className="text-muted">{timeOf(row)}</span>
-                      <span className="truncate">
+                    <li key={row.id} className={cn(columnsClass, "min-h-6")}>
+                      {/* The day takes the arrow's place and the time keeps its space when empty */}
+                      <span className="flex items-center whitespace-nowrap">
+                        <span className="w-6 shrink-0 text-[0.6875rem] tracking-tight text-muted">
+                          {dayOf(row, all[index - 1])}
+                        </span>
+                        <span className="hidden w-10 shrink-0 pr-1 text-right text-muted @[21.625rem]:block">
+                          {timeOf(row)}
+                        </span>
                         <span className={cn("font-medium", tone)}>{action}</span>
-                        {row.text && ` ${row.text}`}
+                        {row.moved && <span className="pl-1">{row.moved}</span>}
                       </span>
-                      <span>{row.total}</span>
+                      <span className="text-center">
+                        {handChips === undefined ? "" : row.total}
+                      </span>
+                      <span className="text-right">
+                        {settling && chips.toLocaleString("zh-CN")}
+                      </span>
+                      <span className="text-right text-muted @[21.625rem]:invisible">
+                        {timeOf(row)}
+                      </span>
+                      <span className="text-right whitespace-nowrap">
+                        {settling && formatGameAmount(chipsToCents(chips, ratio), currency)}
+                      </span>
                     </li>
                   );
                 })}
