@@ -6,12 +6,13 @@
 > A-10 still describe the setup before PR #80, and sample backup 06 is a game from before it, charged as it was.
 > See ADR [0025](../adr/0025-wage-segments-and-billing-units.md) and [0027](../adr/0027-wage-units-rounding-and-game-time-zone.md).
 
-- Build: `main` `eeaf651` (2026-11-09)
-- Pull requests: #68, #70, #71, #72
-- Test link: <https://feat-settlement-summary.holdem-knight.pages.dev> (the same code as `main`, with its own data)
+- Build: PR #81 (2026-11-12), on top of `main` `ad7fa4f`
+- Pull requests: #68, #70, #71, #72, #80, #81
+- Test link: <https://feat-wage-units-and-time-zon.holdem-knight.pages.dev> (PR #81's preview, with its own data)
 - Live site, final check only: <https://holdem-knight.pages.dev>
 - Decisions: ADR [0022](../adr/0022-table-fee-and-wages.md), [0023](../adr/0023-seat-time-follows-game-clock.md),
-  [0024](../adr/0024-itemized-charges-and-waivers.md); improvement log #I-029 to #I-033
+  [0024](../adr/0024-itemized-charges-and-waivers.md), [0025](../adr/0025-wage-segments-and-billing-units.md),
+  [0027](../adr/0027-wage-units-rounding-and-game-time-zone.md); improvement log #I-029 to #I-033 and #I-039 to #I-041
 
 ## 1. Release notes
 

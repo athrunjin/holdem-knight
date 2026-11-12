@@ -744,27 +744,39 @@ Records discussions of feature and process improvements: what was proposed, how 
   - 取整方式 becomes a list: 四舍五入 (default), 向上取整 and 向下取整, with the info text explaining all three and the longer-rate rule.
   - A game that starts inside a time segment begins in it; a segment with no end counts as begun for 12 hours.
   - Each game keeps its time zone, and segments switch on the real local clock.
-  - Settlement tells players how they were charged.
 - Settled details:
   - Units run along the player's counted time from sitting down, so pauses and time away do not start a new unit.
-  - Each player's card shows 在桌 and 计费 times before the wage lines.
-  - A small 设置 button beside 对局总览, shown when the game has insurance, a table fee or wages, opens the game's rules in plain lines with no box, in the order 保险, 台费, 工资. Insurance names whether tie cards count as outs, whether a hit hands back the premium, and the odds for 1, 3, 8 and 9 outs where the table has them. The odds read 1赔30, with no 张, on a second row under the two switches, and three dots after them open the whole table. The info icon beside 设置 is sized to the text and lists the table fee's rules, then the wages', each under its name. This replaces the block that 明细 used to open. The lines below describe what that block showed, which the 台费 and 工资 lines keep:
-  - With 明细 on, a block titled 工资和台费, 工资 or 台费, by what the game has on, shows above the cards in brief: the rates some player was charged at, so a segment the game never reached is left out, the unit and rounding, and the table fee with its minimum time. An info icon in its title opens 计费规则 in words. The shared image carries those rules.
-  - The organizer's card moves to the top and folds like the players'.
-  - The page does not say which time zone the rates follow. This was tried and removed.
-  - The large 结果 title is gone. The game's line leads the page instead, a little larger: blinds, currency, start time and the host placeholder with no Host label.
-  - The heading over the cards reads 对局总览.
-  - Under it, an organizer with anything to receive, insurance included, has a title row of their own (组织者, 金额) and a card named by the organizer's ID, which stands in until organizers have names. The players' title row follows before the players.
-  - The players' columns read 玩家, Buy-in, 筹码, 水上/下 and 金额. Buy-in is centered and sized for two digits, and chips and the win or loss for four.
+  - With ¥20 before midnight, ¥30 after, 30-minute units and rounding up, 23:16 to 0:13 is 23:16–23:46 at ¥20 and 23:46–0:16 at ¥30, as 16 of its minutes are after midnight.
+  - Earlier games keep their charging and, with no zone kept, the viewing device's time. A rule carried over from one reads as 向上取整 or 向下取整.
+  - The page does not say which time zone the rates follow, and dates show in the device's time. Naming the zone was tried and removed.
   - Going to settlement from the game page pauses a running game clock, so no more time is charged while the results are read. 返回牌局 leaves it paused.
-  - The settlement page uses the game page's header: the blinds, currency and their cash value, with the option labels under it. The line below reads the organizer's ID, then the start time.
-  - The organizer's title row has every column, with dashes for an organizer who is not playing. Its open card always lists 保险, 工资, 台费 and 抽水, with a dash for any the organizer does not receive.
+  - Amounts are not saved at settlement.
+  - Backups move to version 10. Sample backups are marked as Beijing time, and sample 08 covers wage units across midnight.
+- Decision: do. Checked at phone size in the browser preview, dark mode, then on a phone with the preview build.
+- Tracking: PR #81, ADR [0027](adr/0027-wage-units-rounding-and-game-time-zone.md)
+
+### #I-041 Settlement page: game header, organizer first and the game's settings
+
+- Type: feature
+- Date: proposed and decided 2026-11-12
+- Source: trying #I-040 in the preview
+- Problem: players could not see from the settlement page how they were charged, the organizer's card sat last, and the page opened with a title that said nothing about the game.
+- Proposal:
+  - Use the game page's header, put the organizer first, and show the game's rules on request.
+  - Show each player the time they sat and the time they were charged.
+- Settled details:
+  - The header is the game page's: the blinds, currency and their cash value, with the option labels under it. The line below reads the organizer's ID, which stands in until organizers have names, then the start time.
+  - The heading over the cards reads 对局总览. A small 设置 button beside it, shown when the game has insurance, a table fee or wages, opens the game's rules in plain lines with no box, in the order 保险, 台费, 工资. It does not depend on the 明细 switch.
+  - 保险 shows whether tie cards count as outs and whether a hit hands back the premium, then on a second row the odds for 1, 3, 8 and 9 outs where the table has them, as 1赔30. Three dots after them open the whole table.
+  - 台费 shows the amount and minimum time. 工资 shows only the rates some player was charged at, so a segment the game never reached is left out, then the unit and rounding.
+  - An info icon beside 设置, sized to the text, opens 计费规则: the table fee's rules, then the wages', each under its name, then what time counts. The shared image carries those rules.
+  - An organizer with anything to receive, insurance included, comes first under a title row of their own, with every column and dashes for an organizer who is not playing. The card is named by the organizer's ID and folds like the players'. Open, it always lists 保险, 工资, 台费 and 抽水, with a dash for any not received. The players' title row follows before the players.
+  - The columns read Buy-in, 筹码, 水上/下 and 金额. Buy-in is centered and sized for two digits, and chips and the win or loss for four.
+  - Each card with wages shows 在桌 and 计费 times before the wage lines.
   - A player's open lines are as close together as the organizer's. The charge lines are 28px tall, under the 44px the project asks of touch targets, as the user chose.
-  - Every amount in the cards shows two decimals, so ¥150 reads ¥150.00, and the amount column is a little wider. The shared image's amounts match.
-  - Earlier games keep their charging and, with no zone kept, the viewing device's time. Amounts are not saved at settlement.
-  - Backups move to version 10. Sample backups are marked as Beijing time.
-- Decision: do. Checked at phone size in the browser preview, dark mode.
-- Tracking: ADR [0027](adr/0027-wage-units-rounding-and-game-time-zone.md)
+  - Every amount in the cards shows two decimals, so ¥150 reads ¥150.00. The shared image's amounts match.
+- Decision: do. Checked at phone size in the browser preview, dark mode, then on a phone with the preview build.
+- Tracking: PR #81, ADR [0027](adr/0027-wage-units-rounding-and-game-time-zone.md)
 
 ## Not doing or deferred
 

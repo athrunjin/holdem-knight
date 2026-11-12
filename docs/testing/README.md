@@ -5,7 +5,7 @@ These plans cover what only a person on a real phone can check: flows, layout, t
 
 | Plan | Covers | Build |
 | --- | --- | --- |
-| [Table fee, wages and settlement UI](table-fee-and-wages.md) | PRs #68, #70, #71, #72 | `main` `eeaf651` |
+| [Table fee, wages and settlement UI](table-fee-and-wages.md) | PRs #68, #70, #71, #72, #80, #81 | PR #81 preview |
 
 ## Writing a plan
 

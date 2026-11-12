@@ -31,9 +31,9 @@ The user also asked for rounding to the nearest unit, as the default, beside rou
 - For these rules `localWageWindows` places time segments by the real local clock. A game that starts inside the segments begins in them: inside their hours when the last has an end, or within 12 hours of the first one's start when it has none. Otherwise they begin the next time the first one's hour comes round.
 - Segment ends are the moments the local clock reaches their hours. Where daylight saving skips an hour, the jump counts; where an hour comes twice, the first time counts. Local hours are searched by the quarter hour, which every time zone's offset is a multiple of.
 - `Game` gains `timeZone`, the device's IANA zone when the game is created. The app gives `core` the time of day in that zone. Games without it use the viewing device's zone, as before. The page does not name the zone: dates still show in the device's time, and only the rates follow the game's.
-- Settlement tells players how they were charged. Each card shows the time sat and the time charged. With 明细 on, a short block above the cards names the wages and table fee the game charged: only the rates some player was charged at, the unit and rounding, and the fee with its minimum time. Its info button states the rules in words: the unit and rounding, the longer-rate rule when the game has segments, the table fee and that only clock time counts. The shared image carries those lines.
-- The organizer's card leads the cards and folds like the players', with its incomes on the folded line and no sum, as that would repeat its total.
-- Backups move to version 10 for `rounding` and `timeZone`. Sample backups are marked as Beijing time.
+- Going to settlement from the game page pauses a running clock, so no more time is charged while the results are read.
+- Settlement tells players how they were charged. Each card shows the time sat and the time charged. A 设置 button beside the cards' heading opens the game's insurance, table fee and wages in brief, with only the wage rates some player was charged at. An info icon beside it states the table fee's and wages' rules in words, and the shared image carries them.
+- The organizer's card leads the cards under a title row of its own and folds like the players'. It always lists insurance, wages, the table fee and rake, with a dash for any not received.
 
 ## Consequences
 
