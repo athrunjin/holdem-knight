@@ -1,6 +1,6 @@
 import { chipsToCents, type Game } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeftRight, Check, X } from "lucide-react";
+import { ArrowLeftRight, Calculator, Check, Timer, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Modal } from "@/components/insurance/Modal";
 import { cn } from "@/lib/cn";
@@ -17,6 +17,30 @@ const labelClass = "flex items-center justify-center text-xs whitespace-nowrap t
  */
 export function GameTiles({ children }: { children: ReactNode }) {
   return <div className="mt-2 grid grid-cols-[1fr_1fr_1.2fr] gap-2">{children}</div>;
+}
+
+/** `2026-11-09 周一 19:00` in local time. */
+function formatStart(time: number) {
+  const date = new Date(time);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const weekday = date.toLocaleDateString("zh-CN", { weekday: "short" });
+  return `${day} ${weekday} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/**
+ * Whose game it is and when it started, over the boxes on the game page and the settlement page.
+ * The organizer's ID stands in until organizers have names (M6).
+ */
+export function GameHostLine({ game }: { game: Pick<Game, "organizerId" | "createdAt"> }) {
+  return (
+    <p className="mt-1 flex items-baseline gap-1.5 text-sm whitespace-nowrap text-muted tabular-nums">
+      <span className="truncate text-lg leading-tight font-semibold text-white">
+        {game.organizerId}
+      </span>
+      <span className="shrink-0">· {formatStart(game.createdAt)}</span>
+    </p>
+  );
 }
 
 /** A box with a label over a value. */
@@ -85,33 +109,29 @@ export function BuyInTile({ game, boughtChips }: { game: TileGame; boughtChips: 
 }
 
 /**
- * Whether the chips on the table add up: a tick or a cross, then how far out they are and which
- * way, in cash or, after a tap, in chips. It switches on its own, apart from the Buy-in box.
+ * Whether the chips on the table add up. Balanced, it says so on one line in green. Out, it says
+ * so in red over how far and which way: more chips on the table than were bought, or fewer. A tap
+ * switches that figure between cash and chips, apart from the Buy-in box.
  */
 export function BalanceTile({ game, balanceChips }: { game: TileGame; balanceChips: number }) {
   const { show, hint, toggle } = useCashOrChips(game);
-  const balanced = balanceChips === 0;
-  const Mark = balanced ? Check : X;
+  if (balanceChips === 0) {
+    return (
+      <div className={cn(tileClass, "flex items-center justify-center gap-1 text-win")}>
+        <span className="font-semibold whitespace-nowrap">筹码配平</span>
+        <Check className="size-4 shrink-0" aria-hidden />
+      </div>
+    );
+  }
   return (
-    <button type="button" onClick={toggle} className={tileClass}>
-      <span className={labelClass}>
-        牌桌平衡
-        <Mark className={cn("ml-0.5 size-3.5", balanced ? "text-win" : "text-loss")} aria-hidden />
-        <span className="sr-only">{balanced ? "平衡" : "不平衡"}</span>
-        {switchMark}
+    <button type="button" onClick={toggle} className={cn(tileClass, "text-loss")}>
+      <span className="flex items-center justify-center text-xs whitespace-nowrap">
+        未配平
+        <X className="ml-0.5 size-3.5" aria-hidden />
       </span>
-      <span
-        className={cn(
-          "flex items-baseline justify-center gap-1",
-          balanced ? "text-muted" : "text-highlight",
-        )}
-      >
-        {!balanced && (
-          <span className="text-[0.6875rem] whitespace-nowrap">
-            {balanceChips > 0 ? "水上多" : "水下多"}
-          </span>
-        )}
-        <Figure text={show(Math.abs(balanceChips))} beside={balanced ? "0rem" : "2.375rem"} />
+      <span className="flex items-baseline justify-center gap-1">
+        <span className="text-[0.6875rem] whitespace-nowrap">{balanceChips > 0 ? "多" : "少"}</span>
+        <Figure text={show(Math.abs(balanceChips))} beside="1rem" />
       </span>
       <span className="sr-only">{hint}</span>
     </button>
@@ -127,21 +147,21 @@ export function TableActionsTile({
   insuranceOn: boolean;
 }) {
   const [callTimeOpen, setCallTimeOpen] = useState(false);
-  // Each takes room by the length of its label, so the slash sits evenly between the two
-  const actionClass = "flex min-h-11 flex-auto items-center justify-center px-1 whitespace-nowrap";
+  const actionClass =
+    "flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap";
   return (
-    <div className={cn(tileClass, "flex items-stretch p-0 text-xs font-medium")}>
+    <div className={cn(tileClass, "flex items-stretch p-0 text-[0.6875rem] font-medium")}>
       <Link
         to="/games/$gameId/insurance"
         params={{ gameId }}
-        className={cn(actionClass, insuranceOn ? "text-highlight" : "text-muted")}
+        className={cn(actionClass, !insuranceOn && "text-muted")}
       >
+        <Calculator className="size-4" aria-hidden />
         算保险
       </Link>
-      <span className="self-center text-muted" aria-hidden>
-        /
-      </span>
+      <span className="my-2 w-px bg-line" aria-hidden />
       <button type="button" onClick={() => setCallTimeOpen(true)} className={actionClass}>
+        <Timer className="size-4" aria-hidden />
         Call time
       </button>
       {callTimeOpen && (

@@ -10,19 +10,10 @@ import {
 import { useSaveGame } from "@/data/games";
 import { formatDifference } from "@/lib/chips";
 import { formatGameMoney } from "@/lib/currency";
-import { BalanceTile, BuyInTile, GameTiles, Tile } from "./GameTiles";
+import { BalanceTile, BuyInTile, GameHostLine, GameTiles, Tile } from "./GameTiles";
 import { formatElapsed } from "./GameTimer";
 import { imbalanceChoices } from "./ImbalanceOptions";
 import { PickerRow } from "./PickerRow";
-
-/** `2026-11-09 周一 19:00` in local time. */
-function formatStart(time: number) {
-  const date = new Date(time);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  const weekday = date.toLocaleDateString("zh-CN", { weekday: "short" });
-  return `${day} ${weekday} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 interface SettlementSummaryProps {
   game: Game;
@@ -47,10 +38,7 @@ export function SettlementSummary({ game, ledger, difference }: SettlementSummar
 
   return (
     <section aria-label="牌局信息">
-      {/* The organizer's ID stands in until organizers have names (M6) */}
-      <p className="text-sm text-muted">
-        {game.organizerId} · {formatStart(game.createdAt)}
-      </p>
+      <GameHostLine game={game} />
       <GameTiles>
         <BuyInTile game={game} boughtChips={boughtChips} />
         <Tile label="时长">{elapsed ?? "—"}</Tile>

@@ -23,7 +23,13 @@ import { useState } from "react";
 import { AddPlayerToGame } from "@/components/game/AddPlayerToGame";
 import { ChipAmountDialog } from "@/components/game/ChipAmountDialog";
 import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
-import { BalanceTile, BuyInTile, GameTiles, TableActionsTile } from "@/components/game/GameTiles";
+import {
+  BalanceTile,
+  BuyInTile,
+  GameHostLine,
+  GameTiles,
+  TableActionsTile,
+} from "@/components/game/GameTiles";
 import { GameTimer } from "@/components/game/GameTimer";
 import { HandsDialog } from "@/components/game/HandsDialog";
 import { LedgerLog } from "@/components/game/LedgerLog";
@@ -234,26 +240,28 @@ function GameLedger({ game }: { game: Game }) {
       titleNote={<GameBlindsCash game={game} />}
       subtitle={<GameOptionLine game={game} settings={editable ? { kind: "edit" } : undefined} />}
       actions={
-        <div className="flex shrink-0 items-center gap-2">
-          <GameTimer
-            timer={game.timer}
-            editable={editable}
-            saving={saveGame.isPending}
-            onToggle={handleToggleTimer}
-          />
+        // The clock sits under the button that ends the game
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
           {people.length > 0 &&
             (editable ? (
               <button type="button" onClick={handleSettle} className={settleClass}>
-                结算
+                一键全桌结算
               </button>
             ) : (
               <Link to="/games/$gameId/settlement" params={{ gameId }} className={settleClass}>
                 查看结算
               </Link>
             ))}
+          <GameTimer
+            timer={game.timer}
+            editable={editable}
+            saving={saveGame.isPending}
+            onToggle={handleToggleTimer}
+          />
         </div>
       }
     >
+      <GameHostLine game={game} />
       <GameTiles>
         <BuyInTile game={game} boughtChips={totals.boughtChips} />
         <TableActionsTile gameId={gameId} insuranceOn={game.insurance !== undefined} />
