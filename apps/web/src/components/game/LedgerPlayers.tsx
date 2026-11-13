@@ -293,12 +293,25 @@ export function LedgerPlayers({
     );
   }
 
-  function net(netChips: number) {
+  /** A figure in a card's first row that folds the card open and closed, as the name does. */
+  function foldCell(open: boolean, onToggle: () => void, tone: string, figure: ReactNode) {
     return (
-      <span className={cn(figureClass, "text-right", netColor(netChips))}>
-        {breakable(formatSignedChips(netChips))}
-      </span>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className={cn(cellButtonClass, figureClass, "text-right", tone)}
+      >
+        {figure}
+      </button>
     );
+  }
+
+  /** The win or loss in chips. With `fold`, a tap on it folds its card. */
+  function net(netChips: number, fold?: { open: boolean; onToggle: () => void }) {
+    const figure = breakable(formatSignedChips(netChips));
+    if (fold) return foldCell(fold.open, fold.onToggle, netColor(netChips), figure);
+    return <span className={cn(figureClass, "text-right", netColor(netChips))}>{figure}</span>;
   }
 
   const isOpen = (playerId: string) => detailMode !== toggled.has(playerId);
@@ -319,6 +332,7 @@ export function LedgerPlayers({
     const cash = chipsToCents(netChips, ratio);
     const total = cents(cash - owed((c) => c.playerId === playerId));
     const open = isOpen(playerId);
+    const fold = { open, onToggle: () => toggle(playerId) };
     const lines = open
       ? chargeLines(game, live.statuses, live.charges, playerId, {
           disabled: waiving || !editable,
@@ -347,15 +361,18 @@ export function LedgerPlayers({
           </button>
           {hands(player)}
           {stack(player)}
-          {net(netChips)}
+          {net(netChips, fold)}
           {/* Folded or open, this is what the chips come to. Charges only count in 合计 */}
-          <span className={cn(figureClass, "text-right")}>
-            {open ? (
+          {foldCell(
+            open,
+            fold.onToggle,
+            "",
+            open ? (
               <span className={netColor(cash)}>{breakable(amount(cash))}</span>
             ) : (
               <TotalChip total={cash} currency={currency} />
-            )}
-          </span>
+            ),
+          )}
         </div>
         {open && (
           <div className="@container px-2">
@@ -439,6 +456,7 @@ export function LedgerPlayers({
    * line and the total moves up to the first row.
    */
   function organizerCard() {
+    const fold = { open: organizerOpen, onToggle: () => setOrganizerOpen(!organizerOpen) };
     const summary = [
       charged.wage && (["工资", wages] as const),
       charged.tableFee && (["台费", tableFees] as const),
@@ -450,7 +468,7 @@ export function LedgerPlayers({
           <button
             type="button"
             aria-expanded={organizerOpen}
-            onClick={() => setOrganizerOpen(!organizerOpen)}
+            onClick={fold.onToggle}
             className="flex min-h-11 min-w-0 items-center text-left font-medium"
           >
             <ChevronRight
@@ -464,17 +482,20 @@ export function LedgerPlayers({
           </button>
           {host ? hands(host) : join(ORGANIZER_PLAYER_ID, "组织者加入牌局")}
           {host ? stack(host) : dash("text-center")}
-          {host ? net(host.netChips) : dash("text-right")}
-          <span className={cn(figureClass, "text-right")}>
-            {/* As on a player's card: what the organizer's own chips come to */}
-            {ownCash === undefined ? (
+          {host ? net(host.netChips, fold) : foldCell(fold.open, fold.onToggle, "", dash(""))}
+          {/* As on a player's card: what the organizer's own chips come to */}
+          {foldCell(
+            fold.open,
+            fold.onToggle,
+            "",
+            ownCash === undefined ? (
               dash("")
             ) : organizerOpen ? (
               <span className={netColor(ownCash)}>{breakable(amount(ownCash))}</span>
             ) : (
               <TotalChip total={ownCash} currency={currency} />
-            )}
-          </span>
+            ),
+          )}
         </div>
         <div className="px-2">
           {showInsurance && insuranceRow()}

@@ -116,8 +116,8 @@ export const oddsText = (outs: number, hundredths: number) => `${outs}赔${forma
 const SHOWN_OUTS = [1, 3, 8, 9];
 
 /**
- * The game's insurance, table fee and wages in brief, in that order, for the top of the
- * settlement cards. Insurance names whether tie cards count, whether a hit hands back the premium,
+ * The game's insurance, wages and table fee in brief, in that order as on the line under a game
+ * page's title, for the settings the settlement page shows. Insurance names whether tie cards count, whether a hit hands back the premium,
  * and the odds for a few outs. Only wage rates some player was charged at are named, so a segment
  * the game never reached is left out.
  */
@@ -146,10 +146,6 @@ export function gameRuleLines(
       oddsHundredths: insurance.oddsHundredths,
     });
   }
-  if (tableFee) {
-    const least = tableFee.minMinutes > 0 ? [`在桌满 ${tableFee.minMinutes} 分钟`] : [];
-    lines.push({ label: "台费", rows: [[`${money(tableFee.amount)}/人`, ...least]] });
-  }
   if (wage) {
     const used = new Map<WagePart, number>();
     for (const { part, hourly } of charges) {
@@ -162,6 +158,10 @@ export function gameRuleLines(
     const rounding = wage.rounding ?? (wage.roundUp ? "up" : "down");
     const how = [UNIT_NAMES[wage.unitMinutes ?? 1], ROUNDING_NAMES[rounding]];
     lines.push({ label: "工资", rows: [[...rates, ...how]] });
+  }
+  if (tableFee) {
+    const least = tableFee.minMinutes > 0 ? [`在桌满 ${tableFee.minMinutes} 分钟`] : [];
+    lines.push({ label: "台费", rows: [[`${money(tableFee.amount)}/人`, ...least]] });
   }
   return lines;
 }
@@ -196,8 +196,8 @@ function wageUnitNote({ unitMinutes = 1, rounding, roundUp }: WageRule) {
 export const CHARGE_CLOCK_RULE = "只计对局计时器运行期间的在桌时间";
 
 /**
- * The game's charging rules in plain words for the players: the table fee, then how wages are
- * charged and rounded and what happens across two rates. Each line is short enough for the
+ * The game's charging rules in plain words for the players: how wages are charged and rounded
+ * and what happens across two rates, then the table fee. Each line is short enough for the
  * shared image.
  */
 export function chargeRuleSections(
@@ -206,16 +206,16 @@ export function chargeRuleSections(
 ): { title: string; lines: string[] }[] {
   const rates = (wage?.timeSegments?.length ?? 0) + (wage?.afterStartSegments?.length ?? 0);
   const sections: { title: string; lines: string[] }[] = [];
+  if (wage) {
+    const across = wage.rounding && rates > 0 ? ["一段时间跨两种时薪时，按占时较长的时薪计"] : [];
+    sections.push({ title: "工资", lines: [wageUnitNote(wage), ...across] });
+  }
   if (tableFee) {
     const least = tableFee.minMinutes > 0 ? `，在桌满 ${tableFee.minMinutes} 分钟才收` : "";
     sections.push({
       title: "台费",
       lines: [`每人 ${formatGameMoney(cents(tableFee.amount), currency)}${least}`],
     });
-  }
-  if (wage) {
-    const across = wage.rounding && rates > 0 ? ["一段时间跨两种时薪时，按占时较长的时薪计"] : [];
-    sections.push({ title: "工资", lines: [wageUnitNote(wage), ...across] });
   }
   return sections;
 }

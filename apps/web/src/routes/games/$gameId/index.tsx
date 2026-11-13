@@ -22,7 +22,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { AddPlayerToGame } from "@/components/game/AddPlayerToGame";
 import { ChipAmountDialog } from "@/components/game/ChipAmountDialog";
-import { GameOptionLine, GameTitle } from "@/components/game/GameOptions";
+import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
 import { GameTimer } from "@/components/game/GameTimer";
 import { HandsDialog } from "@/components/game/HandsDialog";
 import { LedgerLog } from "@/components/game/LedgerLog";
@@ -87,13 +87,8 @@ const settleClass =
 
 const HANDS_TITLE = { join: "Buy-in", edit: "调整 Buy-in" } as const;
 
-/** Display only, so a hand that is not a whole number of big blinds rounds to one decimal. */
-function handBigBlinds(handChips: number, bigBlindChips: number) {
-  return (handChips / bigBlindChips).toLocaleString("zh-CN", { maximumFractionDigits: 1 });
-}
-
 function GameLedger({ game }: { game: Game }) {
-  const { id: gameId, currency, bigBlindChips, chipRatio, handChips, status } = game;
+  const { id: gameId, currency, chipRatio, handChips, status } = game;
   const { data: events = [] } = useLedger(gameId);
   const { data: hands = [] } = useInsuranceHands(gameId);
   const { data: players = [] } = usePlayers();
@@ -119,7 +114,6 @@ function GameLedger({ game }: { game: Game }) {
   const live = useLiveCharges(game, events);
   const totals = ledgerTotals(people);
   const nameOf = gameNameOf(players, game);
-  const money = (chips: number) => formatGameMoney(chipsToCents(chips, chipRatio), currency);
 
   function playerTotals(playerId: string) {
     const player = ledger.find((p) => p.playerId === playerId);
@@ -238,7 +232,8 @@ function GameLedger({ game }: { game: Game }) {
   return (
     <Page
       title={<GameTitle game={game} />}
-      subtitle={<GameOptionLine game={game} />}
+      titleNote={<GameBlindsCash game={game} />}
+      subtitle={<GameOptionLine game={game} settings={editable ? { kind: "edit" } : undefined} />}
       actions={
         <div className="flex shrink-0 items-center gap-2">
           <GameTimer
@@ -260,24 +255,6 @@ function GameLedger({ game }: { game: Game }) {
         </div>
       }
     >
-      <div className="flex items-center justify-between gap-2">
-        <p className="min-w-0 text-sm text-muted">
-          {chipRatio.chips.toLocaleString("zh-CN")} 筹码 ={" "}
-          {formatGameMoney(chipRatio.amount, currency)}
-          {handChips !== undefined &&
-            ` · Buy-in ${handBigBlinds(handChips, bigBlindChips)} BB（${handChips.toLocaleString("zh-CN")} 筹码 / ${money(handChips)}）`}
-        </p>
-        {editable && (
-          <Link
-            to="/games/$gameId/settings"
-            params={{ gameId }}
-            className="inline-flex min-h-11 shrink-0 items-center text-sm text-highlight"
-          >
-            设置
-          </Link>
-        )}
-      </div>
-
       {editable && (game.tableFee || game.wage) && game.timer?.runningSince === undefined && (
         <p role="status" className="text-sm text-highlight">
           对局计时器{game.timer ? "已暂停" : "未开始"}，台费和工资暂不计时。

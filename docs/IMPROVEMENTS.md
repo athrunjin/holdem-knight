@@ -853,6 +853,24 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do.
 - Tracking: PR #83
 
+### #I-045 Game page header: Buy-in in big blinds, every option and a settings icon
+
+- Type: feature
+- Date: proposed and decided 2026-11-13
+- Source: trying #I-044 on a phone
+- Problem: the game page spent a gray line on the chip ratio and the Buy-in, the header only named the options that were on, so it changed shape from game to game, and 设置 sat in a different place on the game page and the settlement page.
+- Proposal: one header for both pages, with the Buy-in, all the options and the settings in the line under the blinds.
+- Settled details:
+  - The line under the blinds starts with the Buy-in in big blinds, small and bold: 「100BB」. Then 保险, 工资, 台费 and 抽水, always all four and in that order. One the game does not use is gray and struck through. 抽水 is always so until rake exists.
+  - A settings icon ends the line. On the game page it opens the settings page, where they can be changed. On the settlement page it shows the game's rules under the header, to read only, with the 计费规则 icon beside them. The 设置 link on the game page and the 设置 button beside 对局总览 are gone.
+  - The gray line 「10 筹码 = ¥1 · Buy-in 100 BB（…）」 is removed from the game page.
+  - The currency beside the blinds is an icon where it has one: a panda for 人民币. 澳元 keeps its name for now. The blinds' cash value shows two decimals: 「¥0.50/¥1.00」.
+  - Wages come before the table fee wherever the two are listed: this line, the rules it opens, the 计费规则 text and the shared image, as on the cards.
+  - The line fits on one row from 393 wide on the game page, beside the clock and 结算. Narrower, its parts wrap and never overlap. 「100BB」 ends under the second blind's first digit: lining its end up with the blinds' end would push the options onto a second row on a 393 wide phone.
+  - A tap on a card's 水上/下 or 金额 on the game page folds the card open and closed, as the name does. Buy-in and chips still open their dialogs.
+- Decision: do.
+- Tracking: PR #83
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

@@ -16,6 +16,7 @@ import {
   isValidCollector,
   type LedgerEvent,
   ORGANIZER_COLLECTOR,
+  type PlayerChargeStatus,
   type PlayerLedger,
   type PlayerNet,
   reopenGame,
@@ -33,7 +34,7 @@ import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { BuyInRecord } from "@/components/game/BuyInRecord";
 import { chargeLines } from "@/components/game/chargeLines";
-import { GameOptionLine, GameTitle } from "@/components/game/GameOptions";
+import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
 import { GameRules, hasGameRules } from "@/components/game/GameRules";
 import { PickerRow } from "@/components/game/PickerRow";
 import { type ResultCard, ResultCards, type ResultLine } from "@/components/game/ResultCards";
@@ -61,9 +62,16 @@ function SettlementPage() {
   const { data: events } = useLedger(gameId);
   const { data: players } = usePlayers();
 
+  const [rulesOpen, setRulesOpen] = useState(false);
+
   if (!game || !events || !players) return null;
 
   const ledger = summarizeByPlayer(events);
+  // Table fees and wages come last, in cash, so they never touch the chip results
+  const statuses =
+    game.tableFee || game.wage ? chargeStatuses(game, events, chargeClock(game)) : [];
+  const charges = chargesFrom(game, statuses);
+  const ruleSections = chargeRuleSections(game, game.currency);
   const nameOf = gameNameOf(players, game);
   const seated = ledger
     .filter((p) => p.seated && p.playerId !== INSURANCE_PLAYER_ID)
@@ -73,7 +81,13 @@ function SettlementPage() {
   return (
     <Page
       title={<GameTitle game={game} />}
-      subtitle={<GameOptionLine game={game} />}
+      titleNote={<GameBlindsCash game={game} />}
+      subtitle={
+        <GameOptionLine
+          game={game}
+          settings={{ kind: "view", open: rulesOpen, onToggle: () => setRulesOpen(!rulesOpen) }}
+        />
+      }
       actions={
         <Link
           to="/games/$gameId"
@@ -85,6 +99,36 @@ function SettlementPage() {
         </Link>
       }
     >
+      {/* The game's settings, to read only: they are changed from the game page */}
+      {rulesOpen && (
+        <section
+          aria-label="设置"
+          className="mb-3 flex items-start justify-between gap-2 rounded-xl border border-line bg-surface px-3 pt-2 pb-1"
+        >
+          {hasGameRules(game) ? (
+            <GameRules game={game} charges={charges} />
+          ) : (
+            <p className="pb-1 text-xs text-muted">这局没有开启保险、工资或台费。</p>
+          )}
+          {ruleSections.length > 0 && (
+            <InfoButton title="计费规则" small>
+              <div className="flex flex-col gap-2 text-sm">
+                {ruleSections.map(({ title, lines }) => (
+                  <section key={title}>
+                    <h4 className="font-medium">{title}</h4>
+                    {lines.map((line) => (
+                      <p key={line} className="text-muted">
+                        {line}
+                      </p>
+                    ))}
+                  </section>
+                ))}
+                <p className="text-xs text-muted">{CHARGE_CLOCK_RULE}</p>
+              </div>
+            </InfoButton>
+          )}
+        </section>
+      )}
       {seated.length > 0 ? (
         <Notice gameId={gameId}>
           还有 {seated.length} 人在桌：{seated.join("、")}。全部离桌后才能结算。
@@ -98,6 +142,8 @@ function SettlementPage() {
               outcome={settlementOutcome(ledger, game.chipRatio, game.imbalanceHandling)}
               ledger={ledger}
               events={events}
+              statuses={statuses}
+              charges={charges}
               nameOf={nameOf}
             />
           ) : (
@@ -129,20 +175,25 @@ interface SettlementResultProps {
   outcome: SettlementOutcome;
   ledger: readonly PlayerLedger[];
   events: readonly LedgerEvent[];
+  statuses: readonly PlayerChargeStatus[];
+  charges: readonly Charge[];
   nameOf: (playerId: string) => string;
 }
 
-function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementResultProps) {
+function SettlementResult({
+  game,
+  outcome,
+  ledger,
+  events,
+  statuses,
+  charges,
+  nameOf,
+}: SettlementResultProps) {
   const { difference, unresolved } = outcome;
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const insured = attributeInsurance(outcome.nets, game.insuranceOwner);
   const { insuranceNet, ownerId } = insured;
-  // Table fees and wages come last, in cash, so they never touch the chip results above
-  const clock = chargeClock(game);
-  const statuses = game.tableFee || game.wage ? chargeStatuses(game, events, clock) : [];
-  const charges = chargesFrom(game, statuses);
   const ruleNotes = chargeRuleNotes(game, game.currency);
-  const ruleSections = chargeRuleSections(game, game.currency);
   const charged = applyCharges(insured.nets, charges);
   const { nets } = charged;
   const {
@@ -414,31 +465,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
         </PickerRow>
       )}
 
-      <ResultCards
-        organizer={organizerCard[0]}
-        cards={playerCards}
-        currency={currency}
-        settings={hasGameRules(game) && <GameRules game={game} charges={charges} />}
-        settingsInfo={
-          ruleSections.length > 0 && (
-            <InfoButton title="计费规则" small>
-              <div className="flex flex-col gap-2 text-sm">
-                {ruleSections.map(({ title, lines }) => (
-                  <section key={title}>
-                    <h4 className="font-medium">{title}</h4>
-                    {lines.map((line) => (
-                      <p key={line} className="text-muted">
-                        {line}
-                      </p>
-                    ))}
-                  </section>
-                ))}
-                <p className="text-xs text-muted">{CHARGE_CLOCK_RULE}</p>
-              </div>
-            </InfoButton>
-          )
-        }
-      />
+      <ResultCards organizer={organizerCard[0]} cards={playerCards} currency={currency} />
 
       <section className="mt-4">
         <h2>
