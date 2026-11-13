@@ -1,37 +1,16 @@
 import {
-  chipsToCents,
   chooseImbalanceHandling,
   type Game,
+  type ImbalanceHandling,
   INSURANCE_PLAYER_ID,
   ledgerTotals,
   type PlayerLedger,
   timerElapsedMs,
 } from "@holdem-knight/core";
 import { useSaveGame } from "@/data/games";
-import { formatDifference, formatSignedChips } from "@/lib/chips";
-import { cn } from "@/lib/cn";
-import { formatGameMoney } from "@/lib/currency";
+import { BalanceTile, BuyInTile, GameHostLine, GameTiles, Tile } from "./GameTiles";
 import { formatElapsed } from "./GameTimer";
-import { imbalanceChoices } from "./ImbalanceOptions";
 import { PickerRow } from "./PickerRow";
-
-/** `2026-11-09 周一 19:00` in local time. */
-function formatStart(time: number) {
-  const date = new Date(time);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  const weekday = date.toLocaleDateString("zh-CN", { weekday: "short" });
-  return `${day} ${weekday} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function Tile({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="min-w-0 rounded-xl border border-line bg-surface px-2 py-1.5">
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="truncate text-sm font-semibold tabular-nums">{children}</dd>
-    </div>
-  );
-}
 
 interface SettlementSummaryProps {
   game: Game;
@@ -42,51 +21,45 @@ interface SettlementSummaryProps {
 
 /**
  * The top of the settlement page: the game's blinds, date and host, its totals, and how a chip
- * difference is handled, as one row that opens the choices.
+ * difference is handled, as small text over the balance box that opens the choices.
  */
 export function SettlementSummary({ game, ledger, difference }: SettlementSummaryProps) {
   const saveGame = useSaveGame();
-  const { currency, chipRatio, handChips, timer } = game;
+  const { timer } = game;
   const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
   const { boughtChips } = ledgerTotals(people);
-  const money = (chips: number) => formatGameMoney(chipsToCents(chips, chipRatio), currency);
-  const hands = handChips === undefined ? "" : ` · ${boughtChips / handChips} 手`;
   const elapsed = timer && formatElapsed(timerElapsedMs(timer, game.settledAt ?? Date.now()));
-  const cash = formatGameMoney(chipsToCents(Math.abs(difference), chipRatio), currency);
-  const choices = imbalanceChoices(difference, cash);
+  // Short enough to sit over the balance box; the box under it has the amount
+  const choices: readonly (readonly [ImbalanceHandling, string])[] = [
+    ["split", `水${difference > 0 ? "上" : "下"}比例分摊`],
+    ["organizer", `${game.organizerId} ${difference > 0 ? "承担" : "收取"}`],
+    ["ignore", "不做处理"],
+  ];
   const chosen = choices.find(([handling]) => handling === game.imbalanceHandling)?.[1];
 
   return (
     <section aria-label="牌局信息">
-      {/* The organizer's ID stands in until organizers have names (M6) */}
-      <p className="text-sm text-muted">
-        {game.organizerId} · {formatStart(game.createdAt)}
-      </p>
-      <dl className="mt-2 grid grid-cols-3 gap-2">
-        <Tile label="总 Buy-in">
-          {money(boughtChips)}
-          {hands}
-        </Tile>
+      <GameHostLine
+        game={game}
+        end={
+          difference !== 0 && (
+            <PickerRow
+              title="差额处理方案"
+              options={choices}
+              value={game.imbalanceHandling}
+              disabled={saveGame.isPending || game.status === "settled"}
+              onChange={(handling) => saveGame.mutate(chooseImbalanceHandling(game, handling))}
+            >
+              {chosen ?? "选择处理方案"}
+            </PickerRow>
+          )
+        }
+      />
+      <GameTiles>
+        <BuyInTile game={game} boughtChips={boughtChips} />
         <Tile label="时长">{elapsed ?? "—"}</Tile>
-        <Tile label="平衡">
-          <span className={cn(difference === 0 ? "text-win" : "text-highlight")}>
-            {difference === 0 ? "✓ 平衡" : `不平衡 ${formatSignedChips(difference)}`}
-          </span>
-        </Tile>
-      </dl>
-      {difference !== 0 && (
-        <PickerRow
-          title="差额处理方式"
-          options={choices}
-          value={game.imbalanceHandling}
-          disabled={saveGame.isPending || game.status === "settled"}
-          warn
-          onChange={(handling) => saveGame.mutate(chooseImbalanceHandling(game, handling))}
-        >
-          <span className="font-medium">差额 {formatDifference(difference, cash)}</span>
-          <span className="text-muted"> · {chosen ?? "未选择处理方式"}</span>
-        </PickerRow>
-      )}
+        <BalanceTile game={game} balanceChips={difference} />
+      </GameTiles>
       {saveGame.isError && (
         <p role="alert" className="mt-2 text-sm text-highlight">
           保存失败，请重试。

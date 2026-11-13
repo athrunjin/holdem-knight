@@ -29,12 +29,12 @@
 
 - A clock not started means the game has not started, and a paused clock means it is paused. Nobody's time counts then.
 - "开局 N 小时后" means once the clock shows N hours, skipping pauses.
-- In a game with fees, the game page says 对局计时器未开始 or 已暂停，台费和工资暂不计时 while the clock is not running.
+- The clock's color says whether time counts: green while it runs, gold while it is paused or not yet started. Nothing is charged while it is gold.
 
 ### #71 Detail mode and itemized settlement
 
-- 桌上玩家 has a 详细模式 switch, on by default in games with fees. It shows each player's counted time (live), table
-  fee, wages so far, and cash result less those charges.
+- 桌上玩家 has a 详细模式 switch, on by default in games with fees. It opens each player's card on their Buy-in
+  record, counted time (live), wages and table fee so far, and cash result less those charges.
 - Settlement shows one card per person. Wages are listed per rate, such as `¥25/时 × 1小时40分`, then the table fee.
   Each charge has a box; unticking it waives that charge for that player.
 - Each rate counts whole minutes and rounds to the cent on its own. Backups move to version 8.
@@ -64,7 +64,7 @@ Expected results follow these rules. Bug reports cite the rule number.
 | R9 | Last time's values: turning a switch on loads the latest game that had that option. With no earlier game, or after choosing 默认配置 in the config picker at the top right of game setup, the switches start off. Changing any number shows 自定义. |
 | R10 | Backups are version 10. Backups from versions 1–9 still restore. An older app refuses a version 10 backup as newer. |
 | R11 | Each game keeps the time zone it was started in, and rates by time of day follow it on every device. A game from before this build uses the viewing device's time zone. Dates on the page still show in the device's time. |
-| R12 | Settlement tells players how they were charged. Each player's card shows their Buy-in record, then 在桌 (time sat, to the second) and, with wages, 计费 (time charged). A 设置 button beside 对局总览, shown when the game has insurance, a table fee or wages, opens the game's rules in brief, in the order 保险, 台费, 工资: for insurance, whether tie cards count, whether a hit hands back the premium and the odds for 1, 3, 8 and 9 outs; the table fee with its minimum time; and the wage rates some player was charged at with the unit and rounding. An info icon beside the button opens 计费规则 in words. The shared image carries those rules. |
+| R12 | Settlement tells players how they were charged. Each player's card shows their Buy-in record, then 在桌 (time sat, to the second) and, with wages, 计费 (time charged). The settings icon at the end of the line under the blinds opens the game's rules in brief under the header, to read only, in the order 保险, 工资, 台费: for insurance, whether tie cards count, whether a hit hands back the premium and the odds for 1, 3, 8 and 9 outs; the table fee with its minimum time; and the wage rates some player was charged at with the unit and rounding. An info icon beside the rules opens 计费规则 in words. The shared image carries those rules. |
 
 ## 3. Environment and data
 
@@ -120,15 +120,15 @@ Priorities and severities are defined in the [testing README](README.md).
 | A-08 | P1 | Time segment checks | In 时段设置, pick hours from the lists: give the first row no end and try to add another; then chain two rows and make them cover more than 24 hours. | Only the last row may have no end, and none can follow it. Each later row starts where the one before ends. Overlap or more than 24 hours is refused. |
 | A-09 | P1 | After-hours checks | Enter 0, 49, 1 and 48 hours. | 0 and 49 are invalid. 1 and 48 start. |
 | A-10 | P1 | Saved configs | 1. Tap 保存当前配置 and name it. 2. On a new game, pick it in the config picker at the top right. 3. Pick 默认配置 there. | 2. The fees match what was saved. 3. 台费 and 工资 turn off (R9). |
-| A-11 | P1 | Changing settings mid-game | In an open game, tap 设置, turn off 台费, change 工资 and save. | The header labels update. Settlement prices the whole game with the new settings (R8). |
+| A-11 | P1 | Changing settings mid-game | In an open game, tap the settings icon in the header, turn off 台费, change 工资 and save. | In the header 台费 turns gray and struck through. Settlement prices the whole game with the new settings (R8). |
 
 ### B. Timing
 
 | ID | Priority | Case | Preconditions and steps | Expected |
 | --- | --- | --- | --- | --- |
-| B-01 | P0 | Clock not started | A game with fees and players, Start not tapped. 1. Look at the game page. 2. Wait 3 minutes and settle. | 1. 对局计时器未开始，台费和工资暂不计时。 shows, and detail mode shows 在局 0:00:00. 2. Folded cards have no fee line. Expanded, there is no wage line and the table fee shows 未满. There is no organizer card (R2). |
-| B-02 | P0 | Starting the clock | As above, tap Start. | The notice goes away and each player's time ticks every second. |
-| B-03 | P0 | Pause and resume | With the clock running, pause for 2 minutes, then resume. | While paused the notice says 已暂停 and times stop. They carry on after resuming, and the 2 minutes do not count. |
+| B-01 | P0 | Clock not started | A game with fees and players, Start not tapped. 1. Look at the game page. 2. Wait 3 minutes and settle. | 1. The clock reads Start in gold, with no notice, and detail mode shows 在桌 0:00:00. 2. Folded cards have no fee line. Expanded, there is no wage line and the table fee shows 未满. There is no organizer card (R2). |
+| B-02 | P0 | Starting the clock | As above, tap Start. | The clock turns green and each player's time ticks every second. |
+| B-03 | P0 | Pause and resume | With the clock running, pause for 2 minutes, then resume. | While paused the clock is gold and times stop. On resuming it turns green, times carry on, and the 2 minutes do not count. |
 | B-04 | P0 | Leaving and 回桌 | With the clock running, one player leaves and taps 回桌 3 minutes later. | Their time stops while away and carries on after 回桌. Settlement counts both stretches (R1). |
 | B-05 | P1 | Joining late | After 10 minutes on the clock, add a player. | Their time starts from 0. |
 | B-06 | P1 | Removing a mistake | A player with only 1 hand and nothing else, removed with −. | They are not in the settlement and are not charged. |
@@ -140,12 +140,16 @@ Priorities and severities are defined in the [testing README](README.md).
 | ID | Priority | Case | Preconditions and steps | Expected |
 | --- | --- | --- | --- | --- |
 | C-01 | P0 | Default | Open a game with fees and one without. | With fees, 详细模式 at the top right of 桌上玩家 starts on. Without fees, it starts off. |
-| C-02 | P0 | What it shows | A game with fees, clock running. | Each player's first row is unchanged. Below it, two columns: 在局 H:MM:SS, 台费 (the amount, or 未满 差 N 分 in gold), 工资, and 含费水上 or 含费水下 (green for a win, red for a loss). |
-| C-03 | P0 | Checking the numbers | Wages ¥60 an hour, table fee ¥100 after 2 minutes, 1:1. After 3 minutes on the clock, set a player's stack 100 above their buy-in. | 台费 ¥100, 工资 ¥3, 含费水下 -¥3 (100 − 100 − 3). |
+| C-02 | P0 | What it shows | A game with fees, clock running. | Each player's first row is unchanged. Below it, as on their settlement card: the Buy-in record folding from 带入, 带出 with the current time and chips, 在桌 H:MM:SS with 计费, 工资 at each rate and 台费 (the amount, or 未满 差 N 分 with a dash), each charge with a box, then 合计 with 结算并下桌 (green for a win, red for a loss). |
+| C-03 | P0 | Checking the numbers | Wages ¥60 an hour, table fee ¥100 after 2 minutes, 1:1. After 3 minutes on the clock, set a player's stack 100 above their buy-in. | 台费 -¥100.00, 工资 -¥3.00, 合计 -¥3.00 (100 − 100 − 3). |
 | C-04 | P1 | The switch | Turn it off and on, then leave and reopen the game. | The details hide and show without changing data. Reopening the game resets the switch to its default. |
-| C-05 | P1 | Games without fees | Turn detail mode on in a game without fees. | Only 在局 and 水上 or 水下 show. |
+| C-05 | P1 | Games without fees | Turn detail mode on in a game without fees. | The Buy-in record, 带出 and 合计 show, with no time or charges. |
 | C-06 | P1 | The insurance seat | A game with insurance, detail mode on. | The insurance row shows no details. |
-| C-07 | P1 | Waivers carry over | Waive a player's table fee at settlement, then reopen the game. | Detail mode shows 台费 ¥0, and the result no longer subtracts it (R7). |
+| C-07 | P1 | Waivers carry over | Waive a player's table fee at settlement, then reopen the game. | Detail mode shows the table fee struck through with its box unticked, and 合计 no longer subtracts it (R7). |
+| C-08 | P0 | Settling one player | Open a player's card and tap 结算并下桌 once. Tap again while it is lit. | First tap: the button lifts, reads 确认结算 and its green fill runs out from the right over 5 seconds, and the player's Buy-in and chips blink and stay gold. Second tap: the player moves to 已离桌 with the chips on the page, and no dialog opens. |
+| C-09 | P0 | The light goes out | Tap 结算并下桌 once and wait 5 seconds, then tap once more. | After 5 seconds the button reads 结算并下桌 again and nobody has left. The next tap only lights it again. |
+| C-10 | P1 | A double tap | Tap 结算并下桌 twice as fast as you can. | The button is lit and the player is still at the table. |
+| C-11 | P1 | Waiving from the game page | Untick a player's table fee on their open card, then settle the game. | 合计 on the card drops the fee at once, and the settlement page shows the same box unticked. |
 
 ### D. Settlement amounts
 
@@ -168,7 +172,7 @@ Priorities and severities are defined in the [testing README](README.md).
 
 | ID | Priority | Case | Preconditions and steps | Expected |
 | --- | --- | --- | --- | --- |
-| E-01 | P0 | Summary | Open any settlement. | The header is the game page's: the blinds, the currency and their cash value, and the option labels under it, with 返回牌局 on the right. Below, a line with the organizer's ID (guest for now) and the start date, weekday and time. Tiles for 总 Buy-in (amount · hands), 时长 (clock time, or — without a clock) and 平衡 (✓ 平衡, or 不平衡 ±N). The cards sit under 对局总览. |
+| E-01 | P0 | Summary | Open any settlement. | The header is the game page's: the blinds, the currency's icon and their cash value, and under it the Buy-in in big blinds, the four option labels and the settings icon, with 返回牌局 on the right. Below, a line with the organizer's ID (guest for now) and the start date, weekday and time. Three centered tiles: 总 Buy-in · the number of Buy-ins over their cash value; 时长 (clock time, or — without a clock); and 牌桌平衡 with a green tick, or a red cross over 水上多 or 水下多 and the difference in cash. A tap on the first or the last switches its figure to chips and back, each on its own. The cards sit under 对局总览. |
 | E-02 | P0 | Imbalance row | Unbalanced books, no handling chosen. 1. Look at the page. 2. Tap the row and pick one. 3. Tap it again and choose 取消. | 1. The row reads 差额 ±N 筹码（¥）· 未选择处理方式, and the results area says 选择差额处理方式后显示结果。 2. Three choices open, and picking one closes them and shows the results. 3. Nothing changes. With balanced books there is no row. |
 | E-03 | P0 | Insurance owner row | A game with insurance. Tap the 保险 · 归属 row. | 组织者, 单独列出 and each player open, with a check on the current one. Picking one updates the row. |
 | E-04 | P0 | Folded cards | A game with fees, as it opens. | Players' cards are folded. The amount column shows the total (green, red, or gray for 0). A small right-aligned line below lists 分摊, 保险, 工资 and 台费 in that order, where present, then 含费 or 含调整 in gray. With one item there is no sum. A group waived in full shows 已免. |
@@ -215,11 +219,11 @@ Cases around midnight need a game played across a real midnight, with the clock 
 | H-07 | P1 | A segment with no end | "0点" with no end. Start one game at about 1:00 and another in the afternoon. | The 1:00 game is at the segment's rate from the start. The afternoon game is at the base rate until midnight. |
 | H-08 | P0 | Another time zone | A settled game with a time segment. Export a backup, restore it on a phone in another time zone, or change this phone's time zone, and open the settlement. | Every wage line and total is the same (R11). The start time in the summary shows in the phone's time. |
 | H-09 | P2 | Daylight saving night | In a zone with daylight saving, a segment from 0点 to 6点 on the night the clocks change. | The segment ends when the local clock shows 6:00, an hour earlier or later than usual in real time. |
-| H-10 | P0 | The game's settings | A game with insurance, wages with three time segments of which players only sat in two, and a table fee. Settle and tap 设置 beside 对局总览. Tap the three dots, then the info icon, then 生成图片. | Plain lines open under the heading, with no box. 保险 has 平分牌算 or 不算 outs and 击中退 or 不退保费 on its first row, and odds such as 1赔30 3赔10 8赔3.5 9赔3 on a second row lined up under them, followed by three dots. 台费 has the amount and minimum time. 工资 has the base rate and the two segments used, not the third, then the unit and rounding. The dots open 赔率表 with every outs count. The info icon, the size of the 设置 text, opens 计费规则 with 台费 and its rule, then 工资 and its rules, then what time counts. Tapping 设置 again folds the lines. The image carries the rules (R12). |
+| H-10 | P0 | The game's settings | A game with insurance, wages with three time segments of which players only sat in two, and a table fee. Settle and tap the settings icon in the header. Tap the three dots, then the info icon, then 生成图片. | Plain lines open in a box under the header. 保险 has 平分牌算 or 不算 outs and 击中退 or 不退保费 on its first row, and odds such as 1赔30 3赔10 8赔3.5 9赔3 on a second row lined up under them, followed by three dots. 工资 has the base rate and the two segments used, not the third, then the unit and rounding. 台费 has the amount and minimum time. The dots open 赔率表 with every outs count. The info icon opens 计费规则 with 工资 and its rules, then 台费 and its rule, then what time counts. Tapping the settings icon again folds the lines. The image carries the rules (R12). |
 | H-11 | P0 | Earlier games keep their amounts | A game with wages settled before this build, with its settlement noted down. Update the app and open it. | Every wage line and total is unchanged. |
 | H-12 | P1 | Carrying a rule over | The latest game was started before this build with 向上取整 on or off. Start a new game. | 取整方式 shows 向上取整 or 向下取整 to match, and the new game is charged by R4. |
 | H-13 | P0 | The organizer's card | A game with fees. Settle, then tap the organizer's first row twice. | Under 对局总览 a title row reads 组织者, Buy-in, 筹码, 水上/下 and 金额, then a folded card named by the organizer's ID (guest for now), with dashes under the first three and a line such as 工资 +¥115.00 台费 +¥200.00 with no sum. Then the players' title row and the players. Open, the card always lists 保险, 工资, 台费 and 抽水, with a dash for any the organizer does not receive, then 合计. 明细 opens and folds it with the others. A game where the organizer receives nothing has only the players' title row. |
-| H-14 | P1 | Settings by what is on | Settle one game with only wages, one with only insurance, and one with none of the options. | The first shows only a 工资 line and the second only 保险. The third has no 设置 button. |
+| H-14 | P1 | Settings by what is on | Settle one game with only wages, one with only insurance, and one with none of the options. | The first shows only a 工资 line and the second only 保险. The third says 这局没有开启保险、工资或台费。 |
 | H-15 | P1 | Two decimals | Settle a game with whole and fractional amounts and open the cards. | Every amount in the cards shows two decimals, such as +¥150.00 and -¥10.00: first rows, detail lines, totals and the folded line. They share one right edge, and the shared image's amounts match. |
 | H-16 | P1 | Columns | A game with 12 and 25 buy-ins, four-digit chips and wins. Settle and open a player's card. | Buy-in counts sit centered under their title, and chips and 水上/下 fit with their separators. The open lines are as close together as the organizer's. |
 | H-17 | P0 | The clock stops for settlement | A game with wages and the clock running. Tap 结算 and, if asked, 一键离桌并结算. Wait a few minutes on the settlement page, then tap 返回牌局. | 时长 and every 在桌 time stay as they were on arrival. Back on the game page the clock shows the same time, paused, and can be resumed. |

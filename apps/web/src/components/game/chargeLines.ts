@@ -4,29 +4,32 @@ import {
   cents,
   type Game,
   type PlayerChargeStatus,
+  sum,
 } from "@holdem-knight/core";
-import { formatSeatTime } from "@/lib/charges";
+import { formatClock, formatSeatTime } from "@/lib/charges";
 import { formatGameMoney } from "@/lib/currency";
-import { formatClock } from "./PlayerDetails";
 import type { ResultLine } from "./ResultCards";
 
 interface Waiving {
   /** While a save is under way, or once the game is settled. */
   readonly disabled: boolean;
   readonly onWaive: (key: ChargeWaiver, waived: boolean) => void;
+  /** The player is still at the table, so a table fee not yet due says how long is left. */
+  readonly live?: boolean;
 }
 
 /**
  * The lines for what one player is charged, on their settlement card: the time sat, to the second,
  * and the time charged, then wages at each rate and the table fee, each with a box to let the
- * player off it. A table fee they sat too short for shows with a dash.
+ * player off it. A table fee they sat too short for, or have not sat long enough for yet, shows
+ * with a dash.
  */
 export function chargeLines(
   game: Pick<Game, "currency" | "tableFee" | "wage">,
   statuses: readonly PlayerChargeStatus[],
   charges: readonly Charge[],
   playerId: string,
-  { disabled, onWaive }: Waiving,
+  { disabled, onWaive, live = false }: Waiving,
 ): ResultLine[] {
   const { currency, tableFee, wage } = game;
   const money = (value: number) => formatGameMoney(cents(value), currency);
@@ -69,6 +72,34 @@ export function chargeLines(
   const fee = own.find((c) => c.kind === "table_fee");
   if (fee) return [time, ...wages, line(fee, `台费 ${money(fee.amount)}/人`)];
   if (!tableFee) return [time, ...wages];
-  const short = `台费 ${money(tableFee.amount)}/人 · 未满 ${tableFee.minMinutes} 分钟`;
+  const short = live
+    ? `台费 ${money(tableFee.amount)}/人 · 未满 差 ${Math.ceil(status.tableFeeShortMs / 60_000)} 分`
+    : `台费 ${money(tableFee.amount)}/人 · 未满 ${tableFee.minMinutes} 分钟`;
   return [time, ...wages, { key: "table_fee", label: short, tone: "charge", group: "台费" }];
+}
+
+/**
+ * What the organizer receives from the charges, on their card on both the game page and the
+ * settlement page: wages, then the table fee as its price times how many pay it. A line with
+ * nothing to receive shows a dash, so both always show.
+ */
+export function organizerIncomeLines(
+  game: Pick<Game, "currency" | "tableFee">,
+  charges: readonly Charge[],
+  /** False when the charges go to someone else. */
+  receives = true,
+): ResultLine[] {
+  const due = (kind: Charge["kind"]) =>
+    receives ? charges.filter((c) => c.kind === kind && !c.waived) : [];
+  const line = (group: "工资" | "台费", label: string, list: readonly Charge[]): ResultLine => {
+    const amount = sum(list.map((c) => c.amount));
+    const shown = { key: group, label, group, tone: "charge" as const };
+    return amount === 0 ? shown : { ...shown, amount };
+  };
+  const fees = due("table_fee");
+  const price = game.tableFee && formatGameMoney(cents(game.tableFee.amount), game.currency);
+  return [
+    line("工资", "工资", due("wage")),
+    line("台费", price ? `台费 ${price}/人 × ${fees.length}` : "台费", fees),
+  ];
 }

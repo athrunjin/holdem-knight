@@ -1,6 +1,5 @@
 import { type FormEvent, type ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { cn } from "@/lib/cn";
 
 interface FormDialogProps {
   title: ReactNode;
@@ -9,8 +8,6 @@ interface FormDialogProps {
   canSubmit?: boolean;
   /** A step back instead of 取消, which then does not close the dialog */
   back?: { readonly label: string; readonly onBack: () => void };
-  /** Less margin and padding, for content laid out in the settlement cards' columns */
-  wide?: boolean;
   saving: boolean;
   saveFailed: boolean;
   onSubmit: (event: FormEvent) => void;
@@ -26,7 +23,6 @@ export function FormDialog({
   submitLabel,
   canSubmit = true,
   back,
-  wide = false,
   saving,
   saveFailed,
   onSubmit,
@@ -47,12 +43,9 @@ export function FormDialog({
     <dialog
       ref={ref}
       onClose={onClose}
-      className={cn(
-        "m-auto overflow-y-auto rounded-2xl border border-line bg-surface text-text backdrop:bg-black/60",
-        wide ? "w-[calc(100%-0.5rem)] max-w-md p-2" : "w-[calc(100%-2rem)] max-w-sm p-5",
-      )}
+      className="m-auto w-[calc(100%-2rem)] max-w-sm overflow-y-auto rounded-2xl border border-line bg-surface p-5 text-text backdrop:bg-black/60"
     >
-      <h2 className={cn("text-lg font-semibold", wide && "px-1 pt-1")}>{title}</h2>
+      <h2 className="text-lg font-semibold">{title}</h2>
       <form
         onSubmit={(event) => {
           // React would otherwise carry the submit on to a form around the opener

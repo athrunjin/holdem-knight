@@ -40,13 +40,9 @@ export function useAppendEvent(gameId: string) {
 }
 
 /** Events that bring a player to the new hand count. They share a timestamp so they count as one change. */
-function handEvents(
-  gameId: string,
-  events: readonly LedgerEvent[],
-  input: HandsInput,
-  occurredAt = Date.now(),
-) {
+function handEvents(gameId: string, events: readonly LedgerEvent[], input: HandsInput) {
   const { playerId, handChips, change } = input;
+  const occurredAt = Date.now();
   const { reversedEventIds, buy } = adjustHands(events, playerId, handChips, change);
   return [
     ...reversedEventIds.map(
@@ -78,39 +74,13 @@ export function useAdjustHands(gameId: string) {
   });
 }
 
-interface LeaveInput {
-  readonly playerId: string;
-  readonly chips: number;
-  /** Final hands, for games that record them. */
-  readonly hands?: { readonly handChips: number; readonly count: number };
-  /**
-   * When the player left, if not now: the moment their leave dialog opened, so the charges it
-   * showed are the charges made. Nothing else is written while the dialog is open.
-   */
-  readonly at?: number;
-}
-
+/** One player leaves now, with the chips the organizer saw on the page. */
 export function useLeaveTable(gameId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     scope: ledgerScope(gameId),
-    mutationFn: async ({ playerId, chips, hands, at = Date.now() }: LeaveInput) => {
-      const events = await repository.ledger.listByGame(gameId);
-      const adjustment = hands
-        ? handEvents(
-            gameId,
-            events,
-            { playerId, handChips: hands.handChips, change: { to: hands.count } },
-            at,
-          )
-        : [];
-      // One millisecond later, so the cash-out always sorts after the hand change
-      const leftAt = at + 1;
-      await repository.ledger.appendAll([
-        ...adjustment,
-        { ...newEventMeta(gameId, leftAt), type: "cash_out", playerId, chips },
-      ]);
-    },
+    mutationFn: ({ playerId, chips }: { readonly playerId: string; readonly chips: number }) =>
+      repository.ledger.append({ ...newEventMeta(gameId), type: "cash_out", playerId, chips }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ledger", gameId] }),
   });
 }

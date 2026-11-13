@@ -6,9 +6,12 @@ import { cn } from "@/lib/cn";
 const pillClass =
   "inline-flex min-h-11 items-center gap-1 rounded-xl border border-line bg-surface px-2 text-sm font-semibold tabular-nums";
 
-/** `01:23:45`. Hours keep counting past 99 rather than wrapping. */
+/** The most the clock shows: 99:59:59. */
+const MAX_SECONDS = 100 * 3600 - 1;
+
+/** `01:23:45`. The display stops at 99:59:59, so it never grows wider. */
 export function formatElapsed(ms: number) {
-  const seconds = Math.floor(ms / 1000);
+  const seconds = Math.min(Math.floor(ms / 1000), MAX_SECONDS);
   return [seconds / 3600, (seconds / 60) % 60, seconds % 60]
     .map((part) => String(Math.floor(part)).padStart(2, "0"))
     .join(":");
@@ -22,7 +25,11 @@ interface GameTimerProps {
   onToggle: () => void;
 }
 
-/** How long the game has run. Only the display ticks; the time comes from timestamps. */
+/**
+ * How long the game has run. Only the display ticks; the time comes from timestamps. Its color
+ * says whether time is counting: green while the clock runs, gold while it is paused or not yet
+ * started, when no table fee or wages are charged either.
+ */
 export function GameTimer({ timer, editable, saving, onToggle }: GameTimerProps) {
   const [now, setNow] = useState(Date.now);
   const running = timer?.runningSince !== undefined;
@@ -60,7 +67,7 @@ export function GameTimer({ timer, editable, saving, onToggle }: GameTimerProps)
       aria-label={`${running ? "暂停" : "继续"}计时，已进行 ${elapsed}`}
       disabled={saving}
       onClick={onToggle}
-      className={cn(pillClass, running ? "text-highlight" : "text-muted")}
+      className={cn(pillClass, running ? "text-win" : "text-highlight")}
     >
       {elapsed}
       <Icon className="size-4" aria-hidden />

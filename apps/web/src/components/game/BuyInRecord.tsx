@@ -5,9 +5,6 @@ import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
 import { columnsClass } from "./ResultCards";
 
-/** A record longer than this starts folded. */
-const MAX_OPEN_RECORDS = 8;
-
 /** What happened, in the color it is told apart by. */
 const ACTIONS = {
   sit: ["上桌", "text-highlight"],
@@ -51,12 +48,16 @@ function timeOf(at: number) {
   return `${pad(time.getHours())}:${pad(time.getMinutes())}`;
 }
 
-/** One line of the record, in the card's columns. The day takes the folding arrow's place. */
+/**
+ * One line of the record, in the card's columns. Its day leads it, in the folding arrow's place
+ * and width, where it differs from the day of the line before.
+ */
 function RecordLine({
   row,
   previous,
   chips,
   cash,
+  onFold,
 }: {
   row: RecordRow;
   /** The line before, whose day is not repeated. */
@@ -64,12 +65,25 @@ function RecordLine({
   /** Only 带出 has chips and cash. */
   chips?: ReactNode;
   cash?: ReactNode;
+  /** Makes the whole line a button that folds the record. */
+  onFold?: (() => void) | undefined;
 }) {
   const [action, tone] = ACTIONS[row.action];
   const day = new Date(row.at).getDate();
   const sameDay = previous !== undefined && day === new Date(previous.at).getDate();
   return (
-    <li className={cn(columnsClass, "min-h-6")}>
+    <li
+      className={cn(columnsClass, "min-h-6", onFold && "cursor-pointer")}
+      {...(onFold && {
+        role: "button",
+        tabIndex: 0,
+        "aria-label": "收起带入记录",
+        onClick: onFold,
+        onKeyDown: (event) => {
+          if (event.key === "Enter" || event.key === " ") onFold();
+        },
+      })}
+    >
       <span className="flex items-center whitespace-nowrap">
         <span className="w-6 shrink-0 text-[0.625rem] tracking-tight text-muted">
           {sameDay ? "" : `${day}日`}
@@ -141,10 +155,13 @@ export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProp
     }
   });
   const timesBought = rows.filter((r) => r.action === "sit" || r.action === "add").length;
-  const [open, setOpen] = useState(rows.length <= MAX_OPEN_RECORDS);
+  // Folded on arrival, however short the record
+  const [open, setOpen] = useState(false);
+
+  // Spaced only while one digit, so two digits still fit the width of a time
   const times = (
     <>
-      共<span className="px-0.5">{timesBought}</span>次
+      共<span className={cn(timesBought < 10 && "px-0.5")}>{timesBought}</span>次
     </>
   );
 
@@ -163,7 +180,8 @@ export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProp
               aria-hidden
             />
           </span>
-          <span className="hidden min-w-9.5 shrink-0 pr-0.5 @[22.5rem]:block">{times}</span>
+          {/* As wide as a line's time whatever it holds, so 带入 starts where 上桌 and 带出 do */}
+          <span className="hidden w-9.5 shrink-0 @[22.5rem]:block">{times}</span>
           <span className="font-medium text-win">带入</span>
         </span>
         <span className="text-center">{handChips === undefined ? "—" : count(held)}</span>
@@ -184,7 +202,9 @@ export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProp
         {left && (
           <RecordLine
             row={{ id: "out", action: "out", at: left.at, total: count(held) }}
-            previous={rows.at(-1)}
+            // Folded, the line before it in view is the first of the record
+            previous={open ? rows.at(-1) : rows[0]}
+            onFold={open ? () => setOpen(false) : undefined}
             chips={<Marked out>{left.chips.toLocaleString("zh-CN")}</Marked>}
             cash={<Marked out>{cash(left.chips)}</Marked>}
           />

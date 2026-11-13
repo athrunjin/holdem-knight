@@ -61,6 +61,18 @@
       background-color: color-mix(in srgb, var(--highlight) 35%, transparent);
     }
   }
+
+  /* A fill that runs out from the right, for a button that stays lit a few seconds */
+  --animate-drain: drain 5s linear forwards;
+
+  @keyframes drain {
+    from {
+      clip-path: inset(0 0 0 0);
+    }
+    to {
+      clip-path: inset(0 100% 0 0);
+    }
+  }
 }
 
 @theme inline {

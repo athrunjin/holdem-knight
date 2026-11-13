@@ -2,12 +2,12 @@ import type { Game } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { GameOptions } from "@/components/game/GameOptions";
 import { InDevelopment } from "@/components/InDevelopment";
 import { Page } from "@/components/Page";
 import { useGames } from "@/data/games";
 import { cn } from "@/lib/cn";
-import { CURRENCY_INFO } from "@/lib/currency";
 
 export const Route = createFileRoute("/")({
   component: SessionsPage,
@@ -36,7 +36,7 @@ function GameRow({ game }: { game: Game }) {
         className="flex min-h-16 items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-2"
       >
         <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-          <span className="text-sm text-muted">{CURRENCY_INFO[game.currency].label}</span>
+          <CurrencyIcon currency={game.currency} className="size-4.5 self-center text-muted" />
           <span className="font-medium">
             {game.smallBlindChips} / {game.bigBlindChips}
           </span>

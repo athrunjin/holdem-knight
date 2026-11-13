@@ -22,13 +22,19 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { AddPlayerToGame } from "@/components/game/AddPlayerToGame";
 import { ChipAmountDialog } from "@/components/game/ChipAmountDialog";
-import { GameOptionLine, GameTitle } from "@/components/game/GameOptions";
+import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
+import {
+  BalanceTile,
+  BuyInTile,
+  GameHostLine,
+  GameTiles,
+  TableActionsTile,
+} from "@/components/game/GameTiles";
 import { GameTimer } from "@/components/game/GameTimer";
 import { HandsDialog } from "@/components/game/HandsDialog";
-import { LeaveDialog } from "@/components/game/LeaveDialog";
 import { LedgerLog } from "@/components/game/LedgerLog";
 import { LedgerPlayers } from "@/components/game/LedgerPlayers";
-import { usePlayerDetails } from "@/components/game/PlayerDetails";
+import { useLiveCharges } from "@/components/game/liveCharges";
 import { SettleDialog } from "@/components/game/SettleDialog";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
@@ -43,8 +49,6 @@ import {
   useReturnAll,
 } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
-import { formatSignedChips } from "@/lib/chips";
-import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { gameNameOf } from "@/lib/player-name";
 
@@ -72,11 +76,11 @@ function GamePage() {
 
 /**
  * The record being entered.
- * `buy` and `stack` take chips, `leave` confirms both, and the others take hands:
+ * `buy` and `stack` take chips, and the others take hands:
  * `join` is a first buy-in and `edit` sets a target.
  */
 type PendingEntry = {
-  kind: "buy" | "stack" | "leave" | "join" | "edit";
+  kind: "buy" | "stack" | "join" | "edit";
   playerId: string;
   name: string;
   /** Hands changed from a Buy-in on the page, which shows the change before it is applied */
@@ -88,13 +92,8 @@ const settleClass =
 
 const HANDS_TITLE = { join: "Buy-in", edit: "调整 Buy-in" } as const;
 
-/** Display only, so a hand that is not a whole number of big blinds rounds to one decimal. */
-function handBigBlinds(handChips: number, bigBlindChips: number) {
-  return (handChips / bigBlindChips).toLocaleString("zh-CN", { maximumFractionDigits: 1 });
-}
-
 function GameLedger({ game }: { game: Game }) {
-  const { id: gameId, currency, bigBlindChips, chipRatio, handChips, status } = game;
+  const { id: gameId, currency, chipRatio, handChips, status } = game;
   const { data: events = [] } = useLedger(gameId);
   const { data: hands = [] } = useInsuranceHands(gameId);
   const { data: players = [] } = usePlayers();
@@ -117,16 +116,9 @@ function GameLedger({ game }: { game: Game }) {
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
   const balanceChips = ledgerTotals(ledger).balanceChips;
-  // Games that charge for time always count, since the organizer's figures show the charges
-  const details = usePlayerDetails(
-    game,
-    events,
-    people,
-    game.tableFee !== undefined || game.wage !== undefined,
-  );
+  const live = useLiveCharges(game, events);
   const totals = ledgerTotals(people);
   const nameOf = gameNameOf(players, game);
-  const money = (chips: number) => formatGameMoney(chipsToCents(chips, chipRatio), currency);
 
   function playerTotals(playerId: string) {
     const player = ledger.find((p) => p.playerId === playerId);
@@ -162,18 +154,9 @@ function GameLedger({ game }: { game: Game }) {
     );
   }
 
-  function handleLeave(playerId: string, chips: number, at: number) {
-    leaveTable.mutate({ playerId, chips, at }, { onSuccess: closeDialog });
-  }
-
-  /** When each player's chips or Buy-ins last changed, by any record or its reversal. */
-  const lastChangeAt = new Map<string, number>();
-  const eventsById = new Map(events.map((event) => [event.id, event]));
-  for (const event of events) {
-    const target = event.type === "reversal" ? eventsById.get(event.reversedEventId) : event;
-    if (!target || target.type === "reversal") continue;
-    const latest = Math.max(lastChangeAt.get(target.playerId) ?? 0, event.occurredAt);
-    lastChangeAt.set(target.playerId, latest);
+  /** The player leaves now, with the chips on the page, which the organizer has just confirmed. */
+  function handleLeave(playerId: string) {
+    leaveTable.mutate({ playerId, chips: playerTotals(playerId).stackChips });
   }
 
   function handleHands(playerId: string, change: HandChange, onSuccess?: () => void) {
@@ -254,7 +237,8 @@ function GameLedger({ game }: { game: Game }) {
   return (
     <Page
       title={<GameTitle game={game} />}
-      subtitle={<GameOptionLine game={game} />}
+      titleNote={<GameBlindsCash game={game} />}
+      subtitle={<GameOptionLine game={game} settings={editable ? { kind: "edit" } : undefined} />}
       actions={
         <div className="flex shrink-0 items-center gap-2">
           <GameTimer
@@ -276,53 +260,20 @@ function GameLedger({ game }: { game: Game }) {
         </div>
       }
     >
-      <div className="flex items-center justify-between gap-2">
-        <p className="min-w-0 text-sm text-muted">
-          {chipRatio.chips.toLocaleString("zh-CN")} 筹码 ={" "}
-          {formatGameMoney(chipRatio.amount, currency)}
-          {handChips !== undefined &&
-            ` · Buy-in ${handBigBlinds(handChips, bigBlindChips)} BB（${handChips.toLocaleString("zh-CN")} 筹码 / ${money(handChips)}）`}
-        </p>
-        {editable && (
-          <Link
-            to="/games/$gameId/settings"
-            params={{ gameId }}
-            className="inline-flex min-h-11 shrink-0 items-center text-sm text-highlight"
-          >
-            设置
-          </Link>
-        )}
-      </div>
-
-      {editable && (game.tableFee || game.wage) && game.timer?.runningSince === undefined && (
-        <p role="status" className="text-sm text-highlight">
-          对局计时器{game.timer ? "已暂停" : "未开始"}，台费和工资暂不计时。
-        </p>
-      )}
-
-      <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
-        {[
-          ["总 Buy-in", formatGameMoney(chipsToCents(totals.boughtChips, chipRatio), currency)],
-          ["已离桌", formatGameMoney(chipsToCents(totals.cashedOutChips, chipRatio), currency)],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-xl border border-line bg-surface px-2 py-1.5">
-            <dt className="text-xs text-muted">{label}</dt>
-            <dd className="font-semibold">{value}</dd>
-          </div>
-        ))}
-        <div className="rounded-xl border border-line bg-surface px-2 py-1.5">
-          <dt className="text-xs text-muted">牌桌平衡</dt>
-          <dd className={cn("font-semibold", balanceChips !== 0 && "text-highlight")}>
-            {formatSignedChips(balanceChips)}
-          </dd>
-        </div>
-      </dl>
+      <GameHostLine game={game} />
+      <GameTiles>
+        <BuyInTile game={game} boughtChips={totals.boughtChips} />
+        <TableActionsTile gameId={gameId} insuranceOn={game.insurance !== undefined} />
+        <BalanceTile game={game} balanceChips={balanceChips} />
+      </GameTiles>
 
       <LedgerPlayers
-        gameId={gameId}
+        game={game}
+        events={events}
         organizerName={nameOf(ORGANIZER_PLAYER_ID)}
-        insuranceOn={game.insurance !== undefined}
-        charged={{ tableFee: game.tableFee !== undefined, wage: game.wage !== undefined }}
+        live={live}
+        onWaive={(key, waived) => saveGame.mutate(waiveCharge(game, key, waived))}
+        waiving={saveGame.isPending}
         onJoin={(playerId) =>
           setPending({
             kind: handChips === undefined ? "buy" : "join",
@@ -334,9 +285,6 @@ function GameLedger({ game }: { game: Game }) {
         onReturnAll={handleReturnAll}
         players={ledger}
         nameOf={nameOf}
-        handChips={handChips}
-        ratio={chipRatio}
-        currency={currency}
         editable={editable}
         onEditHands={(playerId) =>
           setPending({ kind: "edit", playerId, name: nameOf(playerId), review: true })
@@ -344,11 +292,9 @@ function GameLedger({ game }: { game: Game }) {
         onEditStack={(playerId) => setPending({ kind: "stack", playerId, name: nameOf(playerId) })}
         onRebuy={(playerId) => setPending({ kind: "buy", playerId, name: nameOf(playerId) })}
         onReturn={handleReturn}
-        onLeave={(playerId) => setPending({ kind: "leave", playerId, name: nameOf(playerId) })}
-        lastChangeAt={lastChangeAt}
+        onLeave={handleLeave}
         detailMode={detailMode}
         onDetailModeChange={setDetailMode}
-        details={details}
         addPlayer={
           editable && (
             <AddPlayerToGame
@@ -385,21 +331,6 @@ function GameLedger({ game }: { game: Game }) {
           saveFailed={leaveAll.isError || saveGame.isError}
           onSubmit={confirmSettle}
           onClose={() => setSettling(false)}
-        />
-      )}
-
-      {pending?.kind === "leave" && (
-        <LeaveDialog
-          key={pending.playerId}
-          game={game}
-          events={events}
-          playerId={pending.playerId}
-          name={pending.name}
-          saving={leaveTable.isPending}
-          saveFailed={leaveTable.isError}
-          onWaive={(key, waived) => saveGame.mutate(waiveCharge(game, key, waived))}
-          onSubmit={(chips, at) => handleLeave(pending.playerId, chips, at)}
-          onClose={closeDialog}
         />
       )}
 

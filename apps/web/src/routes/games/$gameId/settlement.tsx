@@ -1,7 +1,6 @@
 import {
   applyCharges,
   attributeInsurance,
-  type Cents,
   type Charge,
   type ChargeWaiver,
   cents,
@@ -9,13 +8,13 @@ import {
   chargesFrom,
   chipDifference,
   chooseCollector,
-  chooseInsuranceOwner,
   collectorTransfers,
   type Game,
   INSURANCE_PLAYER_ID,
   isValidCollector,
   type LedgerEvent,
   ORGANIZER_COLLECTOR,
+  type PlayerChargeStatus,
   type PlayerLedger,
   type PlayerNet,
   reopenGame,
@@ -23,7 +22,6 @@ import {
   settleGame,
   settlementOutcome,
   settleTransfers,
-  sum,
   summarizeByPlayer,
   waiveCharge,
   ZERO,
@@ -32,11 +30,15 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { BuyInRecord } from "@/components/game/BuyInRecord";
-import { chargeLines } from "@/components/game/chargeLines";
-import { GameOptionLine, GameTitle } from "@/components/game/GameOptions";
+import { chargeLines, organizerIncomeLines } from "@/components/game/chargeLines";
+import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
 import { GameRules, hasGameRules } from "@/components/game/GameRules";
-import { PickerRow } from "@/components/game/PickerRow";
-import { type ResultCard, ResultCards, type ResultLine } from "@/components/game/ResultCards";
+import {
+  InsuranceRow,
+  type ResultCard,
+  ResultCards,
+  type ResultLine,
+} from "@/components/game/ResultCards";
 import { SettlementSummary } from "@/components/game/SettlementSummary";
 import { InfoButton } from "@/components/InfoButton";
 import { Page } from "@/components/Page";
@@ -61,9 +63,16 @@ function SettlementPage() {
   const { data: events } = useLedger(gameId);
   const { data: players } = usePlayers();
 
+  const [rulesOpen, setRulesOpen] = useState(false);
+
   if (!game || !events || !players) return null;
 
   const ledger = summarizeByPlayer(events);
+  // Table fees and wages come last, in cash, so they never touch the chip results
+  const statuses =
+    game.tableFee || game.wage ? chargeStatuses(game, events, chargeClock(game)) : [];
+  const charges = chargesFrom(game, statuses);
+  const ruleSections = chargeRuleSections(game, game.currency);
   const nameOf = gameNameOf(players, game);
   const seated = ledger
     .filter((p) => p.seated && p.playerId !== INSURANCE_PLAYER_ID)
@@ -73,7 +82,13 @@ function SettlementPage() {
   return (
     <Page
       title={<GameTitle game={game} />}
-      subtitle={<GameOptionLine game={game} />}
+      titleNote={<GameBlindsCash game={game} />}
+      subtitle={
+        <GameOptionLine
+          game={game}
+          settings={{ kind: "view", open: rulesOpen, onToggle: () => setRulesOpen(!rulesOpen) }}
+        />
+      }
       actions={
         <Link
           to="/games/$gameId"
@@ -85,6 +100,36 @@ function SettlementPage() {
         </Link>
       }
     >
+      {/* The game's settings, to read only: they are changed from the game page */}
+      {rulesOpen && (
+        <section
+          aria-label="设置"
+          className="mb-3 flex items-start justify-between gap-2 rounded-xl border border-line bg-surface px-3 pt-2 pb-1"
+        >
+          {hasGameRules(game) ? (
+            <GameRules game={game} charges={charges} />
+          ) : (
+            <p className="pb-1 text-xs text-muted">这局没有开启保险、工资或台费。</p>
+          )}
+          {ruleSections.length > 0 && (
+            <InfoButton title="计费规则" small>
+              <div className="flex flex-col gap-2 text-sm">
+                {ruleSections.map(({ title, lines }) => (
+                  <section key={title}>
+                    <h4 className="font-medium">{title}</h4>
+                    {lines.map((line) => (
+                      <p key={line} className="text-muted">
+                        {line}
+                      </p>
+                    ))}
+                  </section>
+                ))}
+                <p className="text-xs text-muted">{CHARGE_CLOCK_RULE}</p>
+              </div>
+            </InfoButton>
+          )}
+        </section>
+      )}
       {seated.length > 0 ? (
         <Notice gameId={gameId}>
           还有 {seated.length} 人在桌：{seated.join("、")}。全部离桌后才能结算。
@@ -98,10 +143,12 @@ function SettlementPage() {
               outcome={settlementOutcome(ledger, game.chipRatio, game.imbalanceHandling)}
               ledger={ledger}
               events={events}
+              statuses={statuses}
+              charges={charges}
               nameOf={nameOf}
             />
           ) : (
-            <p className="mt-3 text-sm text-muted">选择差额处理方式后显示结果。</p>
+            <p className="mt-3 text-sm text-muted">在上方选择差额的处理方案后显示结果。</p>
           )}
         </>
       )}
@@ -129,20 +176,25 @@ interface SettlementResultProps {
   outcome: SettlementOutcome;
   ledger: readonly PlayerLedger[];
   events: readonly LedgerEvent[];
+  statuses: readonly PlayerChargeStatus[];
+  charges: readonly Charge[];
   nameOf: (playerId: string) => string;
 }
 
-function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementResultProps) {
+function SettlementResult({
+  game,
+  outcome,
+  ledger,
+  events,
+  statuses,
+  charges,
+  nameOf,
+}: SettlementResultProps) {
   const { difference, unresolved } = outcome;
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const insured = attributeInsurance(outcome.nets, game.insuranceOwner);
   const { insuranceNet, ownerId } = insured;
-  // Table fees and wages come last, in cash, so they never touch the chip results above
-  const clock = chargeClock(game);
-  const statuses = game.tableFee || game.wage ? chargeStatuses(game, events, clock) : [];
-  const charges = chargesFrom(game, statuses);
   const ruleNotes = chargeRuleNotes(game, game.currency);
-  const ruleSections = chargeRuleSections(game, game.currency);
   const charged = applyCharges(insured.nets, charges);
   const { nets } = charged;
   const {
@@ -156,9 +208,6 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
   } = game;
   // An organizer who plays has chips under the organizer's own ID, and stays on the organizer's card
   const host = ledger.find((p) => p.playerId === ORGANIZER_COLLECTOR);
-  const people = ledger.filter(
-    (p) => p.playerId !== INSURANCE_PLAYER_ID && p.playerId !== ORGANIZER_COLLECTOR,
-  );
   const saveGame = useSaveGame();
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
@@ -254,21 +303,21 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
           tone: "adjustment",
           group: "分摊",
         };
-  const income = (kind: Charge["kind"]) =>
-    sum(charges.filter((c) => c.kind === kind && !c.waived).map((c) => c.amount));
   const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
-  /** A dash when the organizer receives none of it, so the four lines always show. */
-  const incomeLine = (group: "保险" | "工资" | "台费", amount: Cents): ResultLine => {
-    const line = { key: group, label: group, group, tone: "charge" as const };
-    return amount === 0 ? line : { ...line, amount };
-  };
-  const ownInsurance = ownerId === ORGANIZER_COLLECTOR ? insuranceNet : ZERO;
-  // What an organizer can receive, always in this order. Rake has no amount until M4
+  // The insurance seat sits on the organizer's card as on the game page, when its result is theirs
+  const insuranceRow = seat && ownerId === ORGANIZER_COLLECTOR && (
+    <InsuranceRow
+      gameId={game.id}
+      hands={handChips === undefined ? "—" : String(seat.boughtChips / handChips)}
+      chips={seat.cashedOutChips.toLocaleString("zh-CN")}
+      netChips={seat.cashedOutChips - seat.boughtChips}
+      amount={insuranceNet}
+      currency={currency}
+    />
+  );
+  // What an organizer can receive besides insurance, always in this order
   const organizerLines: ResultLine[] = [
-    incomeLine("保险", ownInsurance),
-    incomeLine("工资", receivesCharges ? income("wage") : ZERO),
-    incomeLine("台费", receivesCharges ? income("table_fee") : ZERO),
-    { key: "rake", label: "抽水", tone: "charge" },
+    ...organizerIncomeLines(game, charges, receivesCharges),
     ...(covered === 0 ? [] : [coveredLine]),
   ];
   const organizerCard: ResultCard[] =
@@ -286,6 +335,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
               base: netOf(chipNets, ORGANIZER_COLLECTOR),
               record: record(ORGANIZER_COLLECTOR),
             }),
+            ...(insuranceRow && { pinned: insuranceRow }),
             lines: organizerLines,
             total: organizerNet,
             collapsible: true,
@@ -390,55 +440,7 @@ function SettlementResult({ game, outcome, ledger, events, nameOf }: SettlementR
 
   return (
     <>
-      {seat && (
-        <PickerRow
-          title={`保险盈亏 ${insuranceText} 归属`}
-          options={[
-            [ORGANIZER_COLLECTOR, "组织者"],
-            [INSURANCE_PLAYER_ID, "单独列出"],
-            ...people.map(({ playerId }) => [playerId, nameOf(playerId)] as const),
-          ]}
-          value={ownerId}
-          disabled={saveGame.isPending || status === "settled"}
-          onChange={(owner) =>
-            saveGame.mutate(
-              chooseInsuranceOwner(game, owner === ORGANIZER_COLLECTOR ? undefined : owner),
-            )
-          }
-        >
-          <span className="font-medium">保险 {insuranceText}</span>
-          <span className="text-muted">
-            {" "}
-            · 归属 {separateInsurance ? "单独列出" : collectorName(ownerId)}
-          </span>
-        </PickerRow>
-      )}
-
-      <ResultCards
-        organizer={organizerCard[0]}
-        cards={playerCards}
-        currency={currency}
-        settings={hasGameRules(game) && <GameRules game={game} charges={charges} />}
-        settingsInfo={
-          ruleSections.length > 0 && (
-            <InfoButton title="计费规则" small>
-              <div className="flex flex-col gap-2 text-sm">
-                {ruleSections.map(({ title, lines }) => (
-                  <section key={title}>
-                    <h4 className="font-medium">{title}</h4>
-                    {lines.map((line) => (
-                      <p key={line} className="text-muted">
-                        {line}
-                      </p>
-                    ))}
-                  </section>
-                ))}
-                <p className="text-xs text-muted">{CHARGE_CLOCK_RULE}</p>
-              </div>
-            </InfoButton>
-          )
-        }
-      />
+      <ResultCards organizer={organizerCard[0]} cards={playerCards} currency={currency} />
 
       <section className="mt-4">
         <h2>

@@ -798,7 +798,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - Each seated player is a card with the settlement page's five columns. 金额 always shows what the chips come to, on the organizer's row too. Charges only count in 合计.
   - Each card folds from an arrow before the name, as on the settlement page. Open, it shows time seated, table fee and wages where the game has them, then 合计. Closed cards have no summary line, so a full table stays short.
   - The 详细模式 switch opens every card, or closes them once all are open. It starts on in games with a table fee or wages. A first try named it 明细 and put a leave icon before the name.
-  - Leaving is a 结算并下桌 button on the 合计 line, before the amount, for players and for an organizer who plays. It opens the leave dialog.
+  - Leaving is a 结算并下桌 button on the 合计 line, before the amount, for players and for an organizer who plays. It opened a leave dialog, described in the lines below. #I-044 replaced the dialog with the open card itself.
   - The leave dialog, titled 结算并下桌, is the player's settlement card: the title row and the tinted row with their name, Buy-ins, chips, 水上/下 and cash, then the record, the time sat and charged, wages at each rate and the table fee with their boxes to waive, and 合计. It has no fields: the Buy-ins and chips are the ones on the game page.
   - The record folds from a gray line in the card, with its arrow in the column of the waiver boxes: 「共 4 次」, a green 「带入」, then the Buy-ins, the chips bought and their cash value under the card's Buy-in, 筹码 and 金额 columns. It starts open up to 8 lines.
   - Each record line sits in the same columns. The day takes the arrow's place, on the first line and on the first line of each later day. Then the time as 17:37, what happened and how many Buy-ins it moved, and under Buy-in the Buy-ins held after it. 上桌 is gold, 补码 green and 退码 red. 离桌 and 回桌 are gray, and a 离桌 shows only when a 回桌 follows it.
@@ -834,6 +834,89 @@ Records discussions of feature and process improvements: what was proposed, how 
   - On the settlement page the organizer's card shows their hands, chips and result, and they are not listed among the players.
 - Decision: do.
 - Tracking: PR #82, ADR [0028](adr/0028-organizer-seat.md)
+
+### #I-044 Settle from the open card on the game page
+
+- Type: feature
+- Date: proposed and decided 2026-11-13
+- Source: trying #I-042 on a phone
+- Problem: the leave dialog showed a card the game page could show itself, so leaving took a tap, a dialog and a confirm, and the reminder before it depended on when the figures last changed, which nobody could see.
+- Proposal: an open card on the game page is the leave dialog's card, and 结算并下桌 settles from it with a second tap.
+- Settled details:
+  - A seated player's open card, from its arrow or 详细模式, is their settlement card as it would be if they left now: the Buy-in record, 带出 with the current time and chips, the rule, the time sat to the second with the time charged, wages at each rate and the table fee with their boxes to waive, and 合计 with the button. A table fee not yet due reads 「未满 差 12 分」. A waiver made here holds at settlement.
+  - 结算并下桌 always takes two taps. The first lights the button for 5 seconds and blinks the player's Buy-in and chips, which stay gold while it is lit. Lit, the button lifts and grows a little, reads 确认结算 and is filled with green that runs out from the right, with the label dark over the green and green where it has gone. A tap while it is lit settles the player at once, with the chips on the page, and no dialog. When it goes out the button is as before, and the next tap only lights it again.
+  - The rule of #I-042 that let a tap go straight through within 5 minutes of a change or of the last reminder is gone.
+  - Two taps within a third of a second count as one, so a double tap does not settle by accident. This was added in building it, not asked for.
+  - The organizer's card keeps its own lines. Its 结算并下桌, for an organizer who plays, works the same way.
+  - The leave dialog is removed, and with it the wide dialog layout and leaving at an earlier moment.
+  - 带入 on the folding line starts exactly where 上桌, 补码 and 带出 do: the count before it has a fixed width, where ten or more times bought used to push it right.
+- Decision: do.
+- Tracking: PR #83
+
+### #I-045 Game page header: Buy-in in big blinds, every option and a settings icon
+
+- Type: feature
+- Date: proposed and decided 2026-11-13
+- Source: trying #I-044 on a phone
+- Problem: the game page spent a gray line on the chip ratio and the Buy-in, the header only named the options that were on, so it changed shape from game to game, and 设置 sat in a different place on the game page and the settlement page.
+- Proposal: one header for both pages, with the Buy-in, all the options and the settings in the line under the blinds.
+- Settled details:
+  - The line under the blinds starts with the Buy-in in big blinds, small and bold: 「100BB」. Then 保险, 工资, 台费 and 抽水, always all four and in that order. One the game does not use is gray and struck through. 抽水 is always so until rake exists.
+  - A settings icon ends the line. On the game page it opens the settings page, where they can be changed. On the settlement page it shows the game's rules under the header, to read only, with the 计费规则 icon beside them. The 设置 link on the game page and the 设置 button beside 对局总览 are gone.
+  - The gray line 「10 筹码 = ¥1 · Buy-in 100 BB（…）」 is removed from the game page.
+  - The currency beside the blinds is an icon where it has one: a panda for 人民币. 澳元 keeps its name for now. The blinds' cash value shows two decimals: 「¥0.50/¥1.00」.
+  - Wages come before the table fee wherever the two are listed: this line, the rules it opens, the 计费规则 text and the shared image, as on the cards.
+  - The line fits on one row from 393 wide on the game page, beside the clock and 结算. Narrower, its parts wrap and never overlap. 「100BB」 ends under the second blind's first digit: lining its end up with the blinds' end would push the options onto a second row on a 393 wide phone.
+  - A tap on a card's 水上/下 or 金额 on the game page folds the card open and closed, as the name does. Buy-in and chips still open their dialogs.
+- Decision: do.
+- Tracking: PR #83
+
+### #I-046 Currency marks, a clock that shows its state, and tiles that switch between cash and chips
+
+- Type: feature
+- Date: proposed and decided 2026-11-13
+- Source: trying #I-045 on a phone
+- Problem: the app named currencies in words, the paused clock put a notice in the page, and the three tiles under the header were laid out differently on the game page and the settlement page, with 已离桌 taking a tile nobody read.
+- Proposal: marks for the currencies, a clock whose color is its state, and one set of tiles for both pages.
+- Settled details:
+  - 人民币 is a sitting panda, chosen from several marks, and 澳元 a kangaroo. The panda was drawn for the app, since no open icon set has a whole panda in solid shapes. It uses two strengths of one color, because a panda in a single flat color reads as a bear. The kangaroo is from Material Design Icons (Apache 2.0). The marks stand in for the names beside the blinds, in the game list and in game setup.
+  - Setup says 积分 where it said 货币, on the row, in its list and in the note about what can no longer change. The list still names 人民币 and 澳元 beside their marks.
+  - The clock is green while it runs and gold while it is paused or not yet started. The notice 「对局计时器已暂停，台费和工资暂不计时」 is gone. The display stops at 99:59:59. Time goes on being counted from the timestamps past that.
+  - The three tiles are centered. The first reads 「总 Buy-in · 15」 over the cash value with two decimals. The last reads 牌桌平衡 with a thin green tick, or a red cross over 水上多 or 水下多 and the difference in cash. A tap anywhere on either switches its figure to chips and back, each on its own, and a small switch mark after the label says so.
+  - On the game page the middle tile is two actions, 「算保险 / Call time」. 算保险 opens the insurance page. Call time says it is in development. 已离桌 no longer has a tile. On the settlement page the middle tile is still 时长.
+  - Figures fit one line at any length: the type shrinks with the figure's length against the tile's width, and the last tile is a little wider than the others. Six digits with cents were checked at 393 wide.
+  - The user wrote 水下少 for the second label. The app says 水下多, as the settlement page's difference line already does, since 水下少 would mean the same as 水上多.
+- Decision: do.
+- Tracking: PR #83
+
+### #I-047 Host line, a plainer balance box, a folded Buy-in record, and one organizer card for both pages
+
+- Type: feature
+- Date: proposed and decided 2026-11-13
+- Source: trying #I-046 on a phone
+- Problem: the balance box said 水上多 or 水下多 in gold beside a switch mark, the middle box was two words with a slash, the host and start time showed only on the settlement page, and a card's Buy-in record opened by itself and sat looser than the lines under it. The organizer's card was built twice and read differently on the two pages, and the settlement page spent two full rows on choices that are rarely changed.
+- Proposal: say the balance in plain words and colors, give the two actions icons, show the host on both pages, tighten the opened card, build the organizer's card once, and move the difference handling into small text over the balance box.
+- Settled details:
+  - The middle box on the game page has an icon over each action with a hairline between them, chosen from seven previews. 算保险 is the text color like Call time, no longer gold, and gray when the game has no insurance.
+  - The balance box, on both pages: balanced, one centered line 筹码配平 with a tick, all green. Out, two lines, all red: 未配平 with a cross, then 多 or 少 before the difference, where it said 水上多 and 水下多. The switch mark is gone. A tap on the box when it is out still switches the difference between cash and chips.
+  - The line with the organizer's ID and the start time now heads the game page too, the same on both pages. The ID is larger and white, the two end on one line at the bottom, and there is a little more room before the boxes.
+  - 结算 and the clock stay side by side at the right of the header. 一键全桌结算 with the clock under it was tried on a phone and taken back. Four other places for the clock were previewed: the host line, the players' heading, a row of its own under the boxes, and a bar pinned above the navigation.
+  - A card's Buy-in record starts folded however short it is, where records of up to eight lines used to start open.
+  - Folded, 带出 is led by its day, as 13日, when that is not the day of the record's first line, in the room the folding arrow has above it, so the line does not move. A +n count of days was tried and dropped. Opened, a tap on 带出 folds the record; it carries no arrow of its own, and shows its day where that differs from the line before.
+  - The lines under the record, time at the table and each charge, are as tall as the record's own lines, 24px where they were 28px.
+  - A card's first row is 36px tall where it was 44px, on both pages. The amount at its end is plain colored text, the same weight as the other figures; the tinted, bold chip stays on 合计.
+  - An organizer who is not playing shows a gray dash under Buy-in where there was a gold plus. A tap on it still seats them.
+  - On the settlement page, a folded card whose result is more than its chips, with wages, a table fee or a share of a difference, keeps what the chips come to at the end of its row. The line under it lists each item and ends with 合计 and the final result as the tinted, bold chip, where it said 含费 or 含调整 with the sum of the items. The items run from the left and 合计 ends the line at the right, as large as the amount over it.
+  - On the settlement page the insurance seat has its own row on the organizer's card, as on the game page, when its result is the organizer's.
+  - In the balance box, 多 or 少 is set in the same type as the figure after it and shrinks with it.
+  - The organizer's card on the game page is the settlement page's own card, with tappable Buy-ins and chips. It folds on its own, apart from 详细模式, and starts open when the game has wages or a table fee; on the settlement page it follows 明细.
+  - On both pages the organizer's table fee line reads as the price times how many pay it, 台费 ¥100/人 × 5, and the line kept for rake is gone until rake exists.
+  - The settlement page loses its two rows for who takes the insurance result and how a difference is handled. The insurance result goes to the organizer unless a game already saved another choice. While the chips are out, small gold text over the balance box names the handling, with an arrow that opens the three choices: 水上比例分摊 or 水下比例分摊, the organizer's ID with 承担 or 收取, and 不做处理. The amount stays in the box under it.
+  - Opened, the organizer's card runs record, insurance seat, then wages and fees, with a faint rule between each; the record used to come after the insurance seat. Folded, a rule sets the insurance seat apart from the summary line under it.
+  - The organizer's card follows the players' in its first row too: the amount there is always what their own chips come to, a dash when they do not play, and the total is on the line under it, folded or open. Folded, the row used to show the total when they did not play.
+  - 明细 on the settlement page opens every card that folds. In a game with no wages, table fee or shared difference it used to skip the players' cards, which have only a Buy-in record.
+- Decision: do.
+- Tracking: PR #83
 
 ## Not doing or deferred
 
