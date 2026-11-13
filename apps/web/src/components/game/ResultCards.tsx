@@ -398,7 +398,10 @@ export function ResultCards({
 }) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const everyone = organizer ? [organizer, ...cards] : cards;
-  const foldable = everyone.filter((card) => card.collapsible && card.lines.length > 0);
+  // Every card that folds, as the card itself decides: one with lines or a Buy-in record
+  const foldable = everyone.filter(
+    (card) => card.collapsible && (card.lines.length > 0 || card.record !== undefined),
+  );
   const allOpen = foldable.length > 0 && foldable.every((card) => open.has(card.id));
 
   function toggle(id: string) {
