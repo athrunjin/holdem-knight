@@ -1,18 +1,15 @@
 import {
-  chipsToCents,
   chooseImbalanceHandling,
   type Game,
+  type ImbalanceHandling,
   INSURANCE_PLAYER_ID,
   ledgerTotals,
   type PlayerLedger,
   timerElapsedMs,
 } from "@holdem-knight/core";
 import { useSaveGame } from "@/data/games";
-import { formatDifference } from "@/lib/chips";
-import { formatGameMoney } from "@/lib/currency";
 import { BalanceTile, BuyInTile, GameHostLine, GameTiles, Tile } from "./GameTiles";
 import { formatElapsed } from "./GameTimer";
-import { imbalanceChoices } from "./ImbalanceOptions";
 import { PickerRow } from "./PickerRow";
 
 interface SettlementSummaryProps {
@@ -24,39 +21,46 @@ interface SettlementSummaryProps {
 
 /**
  * The top of the settlement page: the game's blinds, date and host, its totals, and how a chip
- * difference is handled, as one row that opens the choices.
+ * difference is handled, as small text over the balance box that opens the choices.
  */
 export function SettlementSummary({ game, ledger, difference }: SettlementSummaryProps) {
   const saveGame = useSaveGame();
-  const { currency, chipRatio, timer } = game;
+  const { timer } = game;
   const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
   const { boughtChips } = ledgerTotals(people);
   const elapsed = timer && formatElapsed(timerElapsedMs(timer, game.settledAt ?? Date.now()));
-  const cash = formatGameMoney(chipsToCents(Math.abs(difference), chipRatio), currency);
-  const choices = imbalanceChoices(difference, cash);
+  // Short enough to sit over the balance box; the box under it has the amount
+  const choices: readonly (readonly [ImbalanceHandling, string])[] = [
+    ["split", `水${difference > 0 ? "上" : "下"}比例分摊`],
+    ["organizer", `${game.organizerId} ${difference > 0 ? "承担" : "收取"}`],
+    ["ignore", "不做处理"],
+  ];
   const chosen = choices.find(([handling]) => handling === game.imbalanceHandling)?.[1];
 
   return (
     <section aria-label="牌局信息">
-      <GameHostLine game={game} />
+      <GameHostLine
+        game={game}
+        end={
+          difference !== 0 && (
+            <PickerRow
+              inline
+              title="差额处理方案"
+              options={choices}
+              value={game.imbalanceHandling}
+              disabled={saveGame.isPending || game.status === "settled"}
+              onChange={(handling) => saveGame.mutate(chooseImbalanceHandling(game, handling))}
+            >
+              {chosen ?? "选择处理方案"}
+            </PickerRow>
+          )
+        }
+      />
       <GameTiles>
         <BuyInTile game={game} boughtChips={boughtChips} />
         <Tile label="时长">{elapsed ?? "—"}</Tile>
         <BalanceTile game={game} balanceChips={difference} />
       </GameTiles>
-      {difference !== 0 && (
-        <PickerRow
-          title="差额处理方式"
-          options={choices}
-          value={game.imbalanceHandling}
-          disabled={saveGame.isPending || game.status === "settled"}
-          warn
-          onChange={(handling) => saveGame.mutate(chooseImbalanceHandling(game, handling))}
-        >
-          <span className="font-medium">差额 {formatDifference(difference, cash)}</span>
-          <span className="text-muted"> · {chosen ?? "未选择处理方式"}</span>
-        </PickerRow>
-      )}
       {saveGame.isError && (
         <p role="alert" className="mt-2 text-sm text-highlight">
           保存失败，请重试。

@@ -907,6 +907,10 @@ Records discussions of feature and process improvements: what was proposed, how 
   - A card's first row is 36px tall where it was 44px, on both pages. The amount at its end is plain colored text, the same weight as the other figures; the tinted, bold chip stays on 合计.
   - An organizer who is not playing shows a gray dash under Buy-in where there was a gold plus. A tap on it still seats them.
   - On the settlement page, a folded card whose result is more than its chips, with wages, a table fee or a share of a difference, keeps what the chips come to at the end of its row. The line under it lists each item and ends with 合计 and the final result as the tinted, bold chip, where it said 含费 or 含调整 with the sum of the items.
+  - In the balance box, 多 or 少 is set in the same type as the figure after it and shrinks with it.
+  - The organizer's card on the game page is the settlement page's own card, with tappable Buy-ins and chips. It folds on its own, apart from 详细模式, and starts open when the game has wages or a table fee; on the settlement page it follows 明细.
+  - On both pages the organizer's table fee line reads as the price times how many pay it, 台费 ¥100/人 × 5, and the line kept for rake is gone until rake exists.
+  - The settlement page loses its two rows for who takes the insurance result and how a difference is handled. The insurance result goes to the organizer unless a game already saved another choice. While the chips are out, small gold text over the balance box names the handling, with an arrow that opens the three choices: 水上比例分摊 or 水下比例分摊, the organizer's ID with 承担 or 收取, and 不做处理. The amount stays in the box under it.
 - Decision: do.
 - Tracking: PR #83
 

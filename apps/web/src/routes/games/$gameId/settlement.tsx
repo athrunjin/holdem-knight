@@ -1,7 +1,6 @@
 import {
   applyCharges,
   attributeInsurance,
-  type Cents,
   type Charge,
   type ChargeWaiver,
   cents,
@@ -9,7 +8,6 @@ import {
   chargesFrom,
   chipDifference,
   chooseCollector,
-  chooseInsuranceOwner,
   collectorTransfers,
   type Game,
   INSURANCE_PLAYER_ID,
@@ -24,7 +22,6 @@ import {
   settleGame,
   settlementOutcome,
   settleTransfers,
-  sum,
   summarizeByPlayer,
   waiveCharge,
   ZERO,
@@ -33,10 +30,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { BuyInRecord } from "@/components/game/BuyInRecord";
-import { chargeLines } from "@/components/game/chargeLines";
+import { chargeLines, organizerIncomeLines } from "@/components/game/chargeLines";
 import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
 import { GameRules, hasGameRules } from "@/components/game/GameRules";
-import { PickerRow } from "@/components/game/PickerRow";
 import {
   InsuranceRow,
   type ResultCard,
@@ -152,7 +148,7 @@ function SettlementPage() {
               nameOf={nameOf}
             />
           ) : (
-            <p className="mt-3 text-sm text-muted">选择差额处理方式后显示结果。</p>
+            <p className="mt-3 text-sm text-muted">在上方选择差额的处理方案后显示结果。</p>
           )}
         </>
       )}
@@ -212,9 +208,6 @@ function SettlementResult({
   } = game;
   // An organizer who plays has chips under the organizer's own ID, and stays on the organizer's card
   const host = ledger.find((p) => p.playerId === ORGANIZER_COLLECTOR);
-  const people = ledger.filter(
-    (p) => p.playerId !== INSURANCE_PLAYER_ID && p.playerId !== ORGANIZER_COLLECTOR,
-  );
   const saveGame = useSaveGame();
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
@@ -310,14 +303,7 @@ function SettlementResult({
           tone: "adjustment",
           group: "分摊",
         };
-  const income = (kind: Charge["kind"]) =>
-    sum(charges.filter((c) => c.kind === kind && !c.waived).map((c) => c.amount));
   const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
-  /** A dash when the organizer receives none of it, so the lines always show. */
-  const incomeLine = (group: "工资" | "台费", amount: Cents): ResultLine => {
-    const line = { key: group, label: group, group, tone: "charge" as const };
-    return amount === 0 ? line : { ...line, amount };
-  };
   // The insurance seat sits on the organizer's card as on the game page, when its result is theirs
   const insuranceRow = seat && ownerId === ORGANIZER_COLLECTOR && (
     <InsuranceRow
@@ -329,11 +315,9 @@ function SettlementResult({
       currency={currency}
     />
   );
-  // What an organizer can receive besides insurance, always in this order. Rake has no amount until M4
+  // What an organizer can receive besides insurance, always in this order
   const organizerLines: ResultLine[] = [
-    incomeLine("工资", receivesCharges ? income("wage") : ZERO),
-    incomeLine("台费", receivesCharges ? income("table_fee") : ZERO),
-    { key: "rake", label: "抽水", tone: "charge" },
+    ...organizerIncomeLines(game, charges, receivesCharges),
     ...(covered === 0 ? [] : [coveredLine]),
   ];
   const organizerCard: ResultCard[] =
@@ -456,30 +440,6 @@ function SettlementResult({
 
   return (
     <>
-      {seat && (
-        <PickerRow
-          title={`保险盈亏 ${insuranceText} 归属`}
-          options={[
-            [ORGANIZER_COLLECTOR, "组织者"],
-            [INSURANCE_PLAYER_ID, "单独列出"],
-            ...people.map(({ playerId }) => [playerId, nameOf(playerId)] as const),
-          ]}
-          value={ownerId}
-          disabled={saveGame.isPending || status === "settled"}
-          onChange={(owner) =>
-            saveGame.mutate(
-              chooseInsuranceOwner(game, owner === ORGANIZER_COLLECTOR ? undefined : owner),
-            )
-          }
-        >
-          <span className="font-medium">保险 {insuranceText}</span>
-          <span className="text-muted">
-            {" "}
-            · 归属 {separateInsurance ? "单独列出" : collectorName(ownerId)}
-          </span>
-        </PickerRow>
-      )}
-
       <ResultCards organizer={organizerCard[0]} cards={playerCards} currency={currency} />
 
       <section className="mt-4">

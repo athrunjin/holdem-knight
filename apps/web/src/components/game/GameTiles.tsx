@@ -32,15 +32,25 @@ function formatStart(time: number) {
  * Whose game it is and when it started, over the boxes on the game page and the settlement page.
  * The organizer's ID stands in until organizers have names (M6).
  */
-export function GameHostLine({ game }: { game: Pick<Game, "organizerId" | "createdAt"> }) {
+export function GameHostLine({
+  game,
+  end,
+}: {
+  game: Pick<Game, "organizerId" | "createdAt">;
+  /** Small text at the right end of the line, over the last box. */
+  end?: ReactNode;
+}) {
   return (
-    // Both parts end on one line at the bottom, with a little more room before the boxes
-    <p className="mt-1 mb-1 flex items-end gap-1.5 pb-0.5 text-sm leading-none whitespace-nowrap text-muted tabular-nums">
-      <span className="truncate text-lg leading-none font-semibold text-white">
-        {game.organizerId}
-      </span>
-      <span className="shrink-0 pb-px">· {formatStart(game.createdAt)}</span>
-    </p>
+    // Everything ends on one line at the bottom, with a little more room before the boxes
+    <div className="mt-1 mb-1 flex items-end justify-between gap-2 pb-0.5 leading-none">
+      <p className="flex min-w-0 items-end gap-1.5 text-sm leading-none whitespace-nowrap text-muted tabular-nums">
+        <span className="truncate text-lg leading-none font-semibold text-white">
+          {game.organizerId}
+        </span>
+        <span className="shrink-0 pb-px">· {formatStart(game.createdAt)}</span>
+      </p>
+      {end}
+    </div>
   );
 }
 
@@ -56,17 +66,20 @@ export function Tile({ label, children }: { label: string; children: ReactNode }
 
 /**
  * A figure that always fits its box on one line: type as large as the text around it while the
- * figure is short, and smaller in step with its length, measured against the box. `beside` is the
- * room a label on the same line takes. Six digits with cents fit a third of a 393 wide phone.
+ * figure is short, and smaller in step with its length, measured against the box. `lead` is a
+ * one-character word before it, in the same type. Six digits with cents fit a third of a 393 wide
+ * phone.
  */
-function Figure({ text, beside = "0rem" }: { text: string; beside?: string }) {
-  // A character of these figures is at most 0.58 of the type size wide
-  const fit = `calc((100cqw - ${beside}) / ${(text.length * 0.58).toFixed(2)})`;
+function Figure({ text, lead }: { text: string; lead?: string }) {
+  // A character of these figures is at most 0.58 of the type size wide; the word and its gap, 1.3
+  const width = text.length * 0.58 + (lead ? 1.3 : 0);
+  const fit = `calc(100cqw / ${width.toFixed(2)})`;
   return (
     <span
       style={{ fontSize: `min(1rem, ${fit})` }}
       className="font-semibold whitespace-nowrap tabular-nums"
     >
+      {lead && <span className="mr-[0.25em]">{lead}</span>}
       {text}
     </span>
   );
@@ -130,9 +143,8 @@ export function BalanceTile({ game, balanceChips }: { game: TileGame; balanceChi
         未配平
         <X className="ml-0.5 size-3.5" aria-hidden />
       </span>
-      <span className="flex items-baseline justify-center gap-1">
-        <span className="text-[0.6875rem] whitespace-nowrap">{balanceChips > 0 ? "多" : "少"}</span>
-        <Figure text={show(Math.abs(balanceChips))} beside="1rem" />
+      <span className="block">
+        <Figure text={show(Math.abs(balanceChips))} lead={balanceChips > 0 ? "多" : "少"} />
       </span>
       <span className="sr-only">{hint}</span>
     </button>

@@ -2,7 +2,6 @@ import {
   type Cents,
   type Charge,
   type ChargeWaiver,
-  type Currency,
   cents,
   chipsToCents,
   type Game,
@@ -19,16 +18,17 @@ import { breakable, formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
 import { BuyInRecord } from "./BuyInRecord";
-import { chargeLines } from "./chargeLines";
+import { chargeLines, organizerIncomeLines } from "./chargeLines";
 import type { LiveCharges } from "./liveCharges";
 import {
   ColumnTitles,
   columnsClass,
   figureClass,
   Line,
-  labelClass,
   nameClass,
-  TotalChip,
+  PersonCard,
+  type ResultCard,
+  TotalLine,
 } from "./ResultCards";
 
 const actionClass = "min-h-11 shrink-0 rounded-lg border border-line px-2 text-sm font-medium";
@@ -118,29 +118,6 @@ function SettleButton({ armed, onClick }: { armed: boolean; onClick: () => void 
   );
 }
 
-/** The total under a card's lines, with an action for whoever the card is about before the amount. */
-function TotalLine({
-  total,
-  currency,
-  action,
-}: {
-  total: Cents;
-  currency: Currency;
-  action?: ReactNode;
-}) {
-  return (
-    <div className={cn(columnsClass, "min-h-11 border-t border-accent")}>
-      <span className={cn(labelClass, "justify-between font-semibold")}>
-        合计
-        {action}
-      </span>
-      <span className="text-right whitespace-nowrap">
-        <TotalChip total={total} currency={currency} />
-      </span>
-    </div>
-  );
-}
-
 export function LedgerPlayers({
   game,
   events,
@@ -163,7 +140,10 @@ export function LedgerPlayers({
   onDetailModeChange,
 }: LedgerPlayersProps) {
   const { id: gameId, handChips, chipRatio: ratio, currency } = game;
-  const [organizerOpen, setOrganizerOpen] = useState(false);
+  // The organizer's card starts open when there are wages or table fees to watch
+  const [organizerOpen, setOrganizerOpen] = useState(
+    game.tableFee !== undefined || game.wage !== undefined,
+  );
   const [leftOpen, setLeftOpen] = useState(true);
   // Cards opened or closed one by one, against the 详细模式 switch
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
@@ -452,101 +432,59 @@ export function LedgerPlayers({
   }
 
   /**
-   * What the organizer has so far, as on the settlement page: their own chips if they play, the
-   * insurance seat, and the table fees and wages charged so far. Folded, the charges become one
-   * line and the total moves up to the first row.
+   * What the organizer has so far, in the settlement page's own card: their chips if they play,
+   * the insurance seat, and the wages and table fees charged so far. It folds on its own, apart
+   * from the 详细模式 switch.
    */
   function organizerCard() {
-    const fold = { open: organizerOpen, onToggle: () => setOrganizerOpen(!organizerOpen) };
-    const summary = [
-      charged.wage && (["工资", wages] as const),
-      charged.tableFee && (["台费", tableFees] as const),
-    ].filter((item) => item !== false);
-
-    return (
-      <section aria-label="组织者" className={cardClass}>
-        <div className={headClass}>
+    const card: ResultCard = {
+      id: ORGANIZER_PLAYER_ID,
+      name: organizerName,
+      hands: "—",
+      chips: "—",
+      handsCell: host ? hands(host) : join(ORGANIZER_PLAYER_ID, "组织者加入牌局"),
+      chipsCell: host ? stack(host) : dash("text-center"),
+      ...(host && {
+        netChips: host.netChips,
+        base: chipsToCents(host.netChips, ratio),
+        record: (
+          <BuyInRecord
+            game={game}
+            events={events}
+            playerId={ORGANIZER_PLAYER_ID}
+            {...(host.seated && { leaving: { chips: host.stackChips, at: live.now } })}
+          />
+        ),
+      }),
+      ...(showInsurance && { pinned: insuranceRow() }),
+      lines: organizerIncomeLines(game, live.charges),
+      total: organizerTotal,
+      collapsible: true,
+      action:
+        host &&
+        editable &&
+        (host.seated ? (
+          <SettleButton
+            armed={armedId === ORGANIZER_PLAYER_ID}
+            onClick={() => settle(ORGANIZER_PLAYER_ID)}
+          />
+        ) : (
           <button
             type="button"
-            aria-expanded={organizerOpen}
-            onClick={fold.onToggle}
-            className="flex min-h-11 min-w-0 items-center text-left font-medium"
+            onClick={() => onReturn(ORGANIZER_PLAYER_ID)}
+            className="flex min-h-11 items-center"
           >
-            <ChevronRight
-              className={cn(
-                "-ml-1 size-4 shrink-0 text-muted transition-transform",
-                organizerOpen && "rotate-90",
-              )}
-              aria-hidden
-            />
-            <span className={nameClass}>{organizerName}</span>
+            <span className={cn(pillClass, "border-line")}>回桌</span>
           </button>
-          {host ? hands(host) : join(ORGANIZER_PLAYER_ID, "组织者加入牌局")}
-          {host ? stack(host) : dash("text-center")}
-          {host ? net(host.netChips, fold) : foldCell(fold.open, fold.onToggle, "", dash(""))}
-          {/* As on a player's card: what the organizer's own chips come to */}
-          {foldCell(
-            fold.open,
-            fold.onToggle,
-            "",
-            ownCash === undefined ? (
-              dash("")
-            ) : (
-              <span className={netColor(ownCash)}>{breakable(amount(ownCash))}</span>
-            ),
-          )}
-        </div>
-        <div className="px-2">
-          {showInsurance && insuranceRow()}
-          {!organizerOpen && summary.length > 0 && (
-            <p className="flex flex-wrap gap-x-3 pt-0.5 pb-1.5 text-xs whitespace-nowrap text-muted tabular-nums">
-              {summary.map(([label, value]) => (
-                <span key={label}>
-                  {label} {amount(value)}
-                </span>
-              ))}
-            </p>
-          )}
-          {organizerOpen && (
-            <>
-              {charged.wage && (
-                <Line
-                  line={{ key: "wage", label: "工资（至今）", amount: wages, tone: "charge" }}
-                  currency={currency}
-                />
-              )}
-              {charged.tableFee && (
-                <Line
-                  line={{ key: "fee", label: "台费（至今）", amount: tableFees, tone: "charge" }}
-                  currency={currency}
-                />
-              )}
-              <TotalLine
-                total={organizerTotal}
-                currency={currency}
-                action={
-                  host &&
-                  editable &&
-                  (host.seated ? (
-                    <SettleButton
-                      armed={armedId === ORGANIZER_PLAYER_ID}
-                      onClick={() => settle(ORGANIZER_PLAYER_ID)}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => onReturn(ORGANIZER_PLAYER_ID)}
-                      className="flex min-h-11 items-center"
-                    >
-                      <span className={cn(pillClass, "border-line")}>回桌</span>
-                    </button>
-                  ))
-                }
-              />
-            </>
-          )}
-        </div>
-      </section>
+        )),
+    };
+    return (
+      <PersonCard
+        card={card}
+        currency={currency}
+        open={organizerOpen}
+        onToggle={() => setOrganizerOpen(!organizerOpen)}
+      />
     );
   }
 
