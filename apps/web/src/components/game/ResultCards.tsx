@@ -142,9 +142,9 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
 }
 
 /**
- * A collapsed card's line, right-aligned under the amount: each group's total, then the sum of
- * them all in gray. With a single item, that item takes the sum's place. The organizer has no
- * result from chips, so the sum would repeat the total and is left out.
+ * A collapsed card's line, right-aligned under the amount: each group's total, then 合计 with the
+ * final result picked out, since the row over it shows only what the chips come to. The organizer
+ * has no result from chips, so their row shows the total itself and the line leaves it out.
  */
 function Summary({ card, currency }: { card: ResultCard; currency: Currency }) {
   const items = SUMMARY_GROUPS.flatMap((group) => {
@@ -158,19 +158,18 @@ function Summary({ card, currency }: { card: ResultCard; currency: Currency }) {
     return [{ group, value, tone }];
   });
   if (items.length === 0) return null;
-  const onlyCharges = items.every((item) => item.tone === "charge");
-  const adjustment = cents(card.total - (card.base ?? 0));
 
   return (
-    <p className="flex flex-wrap justify-end gap-x-3 px-2 pt-0.5 pb-1.5 text-xs whitespace-nowrap tabular-nums">
+    <p className="flex flex-wrap items-center justify-end gap-x-3 px-2 pt-0.5 pb-1.5 text-xs whitespace-nowrap tabular-nums">
       {items.map(({ group, value, tone }) => (
         <span key={group} className={tone === "charge" ? "text-muted" : "text-highlight"}>
           {group} {value}
         </span>
       ))}
-      {items.length > 1 && card.base !== undefined && (
-        <span className="font-medium text-muted">
-          {onlyCharges ? "含费" : "含调整"} {formatGameAmount(adjustment, currency, "exceptZero")}
+      {card.base !== undefined && (
+        <span className="flex items-center gap-1 text-muted">
+          合计
+          <TotalChip total={card.total} currency={currency} />
         </span>
       )}
     </p>
@@ -223,12 +222,14 @@ function Card({
         {netChips === undefined ? "—" : breakable(formatSignedChips(netChips))}
       </span>
       <span className={cn(figureClass, "text-right")}>
-        {!expanded ? (
-          <span className={netColor(total)}>
-            {breakable(formatGameAmount(total, currency, "exceptZero"))}
-          </span>
-        ) : base === undefined ? (
-          <span className="text-muted">—</span>
+        {base === undefined ? (
+          expanded ? (
+            <span className="text-muted">—</span>
+          ) : (
+            <span className={netColor(total)}>
+              {breakable(formatGameAmount(total, currency, "exceptZero"))}
+            </span>
+          )
         ) : (
           <span className={netColor(base)}>
             {breakable(formatGameAmount(base, currency, "exceptZero"))}

@@ -906,6 +906,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The lines under the record, time at the table and each charge, are as tall as the record's own lines, 24px where they were 28px.
   - A card's first row is 36px tall where it was 44px, on both pages. The amount at its end is plain colored text, the same weight as the other figures; the tinted, bold chip stays on 合计.
   - An organizer who is not playing shows a gray dash under Buy-in where there was a gold plus. A tap on it still seats them.
+  - On the settlement page, a folded card whose result is more than its chips, with wages, a table fee or a share of a difference, keeps what the chips come to at the end of its row. The line under it lists each item and ends with 合计 and the final result as the tinted, bold chip, where it said 含费 or 含调整 with the sum of the items.
 - Decision: do.
 - Tracking: PR #83
 
