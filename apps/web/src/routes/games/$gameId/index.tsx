@@ -240,24 +240,23 @@ function GameLedger({ game }: { game: Game }) {
       titleNote={<GameBlindsCash game={game} />}
       subtitle={<GameOptionLine game={game} settings={editable ? { kind: "edit" } : undefined} />}
       actions={
-        // The clock sits under the button that ends the game
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          {people.length > 0 &&
-            (editable ? (
-              <button type="button" onClick={handleSettle} className={settleClass}>
-                一键全桌结算
-              </button>
-            ) : (
-              <Link to="/games/$gameId/settlement" params={{ gameId }} className={settleClass}>
-                查看结算
-              </Link>
-            ))}
+        <div className="flex shrink-0 items-center gap-2">
           <GameTimer
             timer={game.timer}
             editable={editable}
             saving={saveGame.isPending}
             onToggle={handleToggleTimer}
           />
+          {people.length > 0 &&
+            (editable ? (
+              <button type="button" onClick={handleSettle} className={settleClass}>
+                结算
+              </button>
+            ) : (
+              <Link to="/games/$gameId/settlement" params={{ gameId }} className={settleClass}>
+                查看结算
+              </Link>
+            ))}
         </div>
       }
     >

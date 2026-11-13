@@ -96,7 +96,7 @@ export function ColumnTitles({ first }: { first: string }) {
 export function Line({ line, currency }: { line: ResultLine; currency: Currency }) {
   const { label, amount, tone, waiver } = line;
   if (line.note) {
-    return <p className="flex min-h-7 items-center pl-6 text-xs text-muted">{label}</p>;
+    return <p className="flex min-h-6 items-center pl-6 text-xs text-muted">{label}</p>;
   }
   const off = waiver?.waived === true;
   const text = off
@@ -112,7 +112,7 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
 
   if (!waiver) {
     return (
-      <div className={cn(columnsClass, "min-h-7 text-xs")}>
+      <div className={cn(columnsClass, "min-h-6 text-xs")}>
         <span className={labelClass}>
           <span className="size-4 shrink-0" aria-hidden />
           <span className={cn("truncate", text)}>{label}</span>
@@ -121,10 +121,10 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
       </div>
     );
   }
-  // The whole line toggles the charge. It is as tall as the organizer's lines, by the user's choice
+  // The whole line toggles the charge. Every line is as tall as a line of the Buy-in record over it
   return (
     <label
-      className={cn(columnsClass, "min-h-7 cursor-pointer text-xs has-disabled:cursor-default")}
+      className={cn(columnsClass, "min-h-6 cursor-pointer text-xs has-disabled:cursor-default")}
     >
       <span className={labelClass}>
         <input

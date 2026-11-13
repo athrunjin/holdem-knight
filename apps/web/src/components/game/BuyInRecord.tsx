@@ -1,12 +1,9 @@
 import { chipsToCents, type Game, gameRecord, type LedgerEvent } from "@holdem-knight/core";
-import { ChevronRight, LogIn, LogOut } from "lucide-react";
+import { ChevronRight, ChevronUp, LogIn, LogOut } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
 import { columnsClass } from "./ResultCards";
-
-/** A record longer than this starts folded. */
-const MAX_OPEN_RECORDS = 8;
 
 /** What happened, in the color it is told apart by. */
 const ACTIONS = {
@@ -51,28 +48,54 @@ function timeOf(at: number) {
   return `${pad(time.getHours())}:${pad(time.getMinutes())}`;
 }
 
-/** One line of the record, in the card's columns. The day takes the folding arrow's place. */
+/** Whole days from one time's date to another's, by the calendar: 23:50 to 00:10 is one. */
+function daysBetween(from: number, to: number) {
+  const midnight = (at: number) => new Date(at).setHours(0, 0, 0, 0);
+  return Math.round((midnight(to) - midnight(from)) / 86_400_000);
+}
+
+/**
+ * One line of the record, in the card's columns. What leads it takes the folding arrow's place and
+ * its width: the day where it differs from the line before, or whatever `lead` gives instead.
+ */
 function RecordLine({
   row,
   previous,
+  lead,
   chips,
   cash,
+  onFold,
 }: {
   row: RecordRow;
   /** The line before, whose day is not repeated. */
   previous: RecordRow | undefined;
+  /** Stands in for the day. */
+  lead?: ReactNode;
   /** Only 带出 has chips and cash. */
   chips?: ReactNode;
   cash?: ReactNode;
+  /** Makes the whole line a button that folds the record. */
+  onFold?: (() => void) | undefined;
 }) {
   const [action, tone] = ACTIONS[row.action];
   const day = new Date(row.at).getDate();
   const sameDay = previous !== undefined && day === new Date(previous.at).getDate();
   return (
-    <li className={cn(columnsClass, "min-h-6")}>
+    <li
+      className={cn(columnsClass, "min-h-6", onFold && "cursor-pointer")}
+      {...(onFold && {
+        role: "button",
+        tabIndex: 0,
+        "aria-label": "收起带入记录",
+        onClick: onFold,
+        onKeyDown: (event) => {
+          if (event.key === "Enter" || event.key === " ") onFold();
+        },
+      })}
+    >
       <span className="flex items-center whitespace-nowrap">
-        <span className="w-6 shrink-0 text-[0.625rem] tracking-tight text-muted">
-          {sameDay ? "" : `${day}日`}
+        <span className="flex w-6 shrink-0 text-[0.625rem] tracking-tight text-muted">
+          {lead ?? (sameDay ? "" : `${day}日`)}
         </span>
         <span className="hidden w-9.5 shrink-0 text-muted @[22.5rem]:block">{timeOf(row.at)}</span>
         <span className={cn("font-medium", tone)}>{action}</span>
@@ -141,7 +164,11 @@ export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProp
     }
   });
   const timesBought = rows.filter((r) => r.action === "sit" || r.action === "add").length;
-  const [open, setOpen] = useState(rows.length <= MAX_OPEN_RECORDS);
+  // Folded on arrival, however short the record
+  const [open, setOpen] = useState(false);
+  // Folded, 带出 says how many days after the first line it was, where it was a later day
+  const first = rows[0];
+  const daysLater = left && first ? daysBetween(first.at, left.at) : 0;
   // Spaced only while one digit, so two digits still fit the width of a time
   const times = (
     <>
@@ -187,6 +214,16 @@ export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProp
           <RecordLine
             row={{ id: "out", action: "out", at: left.at, total: count(held) }}
             previous={rows.at(-1)}
+            lead={
+              open ? (
+                <ChevronUp className="size-4" aria-hidden />
+              ) : daysLater > 0 ? (
+                `+${daysLater}`
+              ) : (
+                ""
+              )
+            }
+            onFold={open ? () => setOpen(false) : undefined}
             chips={<Marked out>{left.chips.toLocaleString("zh-CN")}</Marked>}
             cash={<Marked out>{cash(left.chips)}</Marked>}
           />

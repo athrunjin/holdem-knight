@@ -34,11 +34,12 @@ function formatStart(time: number) {
  */
 export function GameHostLine({ game }: { game: Pick<Game, "organizerId" | "createdAt"> }) {
   return (
-    <p className="mt-1 flex items-baseline gap-1.5 text-sm whitespace-nowrap text-muted tabular-nums">
-      <span className="truncate text-lg leading-tight font-semibold text-white">
+    // Both parts end on one line at the bottom, with a little more room before the boxes
+    <p className="mt-1 mb-1 flex items-end gap-1.5 pb-0.5 text-sm leading-none whitespace-nowrap text-muted tabular-nums">
+      <span className="truncate text-lg leading-none font-semibold text-white">
         {game.organizerId}
       </span>
-      <span className="shrink-0">· {formatStart(game.createdAt)}</span>
+      <span className="shrink-0 pb-px">· {formatStart(game.createdAt)}</span>
     </p>
   );
 }

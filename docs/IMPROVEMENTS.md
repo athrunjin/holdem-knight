@@ -889,19 +889,21 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do.
 - Tracking: PR #83
 
-### #I-047 Game page: host line, a plainer balance box and the clock under the settle button
+### #I-047 Host line, a plainer balance box, and a Buy-in record that starts folded
 
 - Type: feature
 - Date: proposed and decided 2026-11-13
 - Source: trying #I-046 on a phone
-- Problem: the balance box said 水上多 or 水下多 in gold beside a switch mark, the middle box was two words with a slash, the host and start time showed only on the settlement page, and the clock crowded the header beside 结算.
-- Proposal: say the balance in plain words and colors, give the two actions icons, show the host on both pages, and move the clock down.
+- Problem: the balance box said 水上多 or 水下多 in gold beside a switch mark, the middle box was two words with a slash, the host and start time showed only on the settlement page, and a card's Buy-in record opened by itself and sat looser than the lines under it.
+- Proposal: say the balance in plain words and colors, give the two actions icons, show the host on both pages, and tighten the opened card.
 - Settled details:
   - The middle box on the game page has an icon over each action with a hairline between them, chosen from seven previews. 算保险 is the text color like Call time, no longer gold, and gray when the game has no insurance.
   - The balance box, on both pages: balanced, one centered line 筹码配平 with a tick, all green. Out, two lines, all red: 未配平 with a cross, then 多 or 少 before the difference, where it said 水上多 and 水下多. The switch mark is gone. A tap on the box when it is out still switches the difference between cash and chips.
-  - The line with the organizer's ID and the start time now heads the game page too, the same height on both pages. The ID is larger and white.
-  - 结算 reads 一键全桌结算.
-  - The clock sits under that button, at the right of the header. Four other places were previewed: the host line, the players' heading, a row of its own under the boxes, and a bar pinned above the navigation.
+  - The line with the organizer's ID and the start time now heads the game page too, the same on both pages. The ID is larger and white, the two end on one line at the bottom, and there is a little more room before the boxes.
+  - 结算 and the clock stay side by side at the right of the header. 一键全桌结算 with the clock under it was tried on a phone and taken back. Four other places for the clock were previewed: the host line, the players' heading, a row of its own under the boxes, and a bar pinned above the navigation.
+  - A card's Buy-in record starts folded however short it is, where records of up to eight lines used to start open.
+  - Folded, 带出 is led by +n in the day's small type when it came n days after the first line by the calendar, in the room the folding arrow has above it, so the line does not move. Opened, an upward arrow leads it instead, and a tap on the line folds the record.
+  - The lines under the record, time at the table and each charge, are as tall as the record's own lines, 24px where they were 28px.
 - Decision: do.
 - Tracking: PR #83
 
