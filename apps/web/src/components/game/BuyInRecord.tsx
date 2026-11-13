@@ -1,5 +1,5 @@
 import { chipsToCents, type Game, gameRecord, type LedgerEvent } from "@holdem-knight/core";
-import { ChevronRight, ChevronUp, LogIn, LogOut } from "lucide-react";
+import { ChevronRight, LogIn, LogOut } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
@@ -48,20 +48,13 @@ function timeOf(at: number) {
   return `${pad(time.getHours())}:${pad(time.getMinutes())}`;
 }
 
-/** Whole days from one time's date to another's, by the calendar: 23:50 to 00:10 is one. */
-function daysBetween(from: number, to: number) {
-  const midnight = (at: number) => new Date(at).setHours(0, 0, 0, 0);
-  return Math.round((midnight(to) - midnight(from)) / 86_400_000);
-}
-
 /**
- * One line of the record, in the card's columns. What leads it takes the folding arrow's place and
- * its width: the day where it differs from the line before, or whatever `lead` gives instead.
+ * One line of the record, in the card's columns. Its day leads it, in the folding arrow's place
+ * and width, where it differs from the day of the line before.
  */
 function RecordLine({
   row,
   previous,
-  lead,
   chips,
   cash,
   onFold,
@@ -69,8 +62,6 @@ function RecordLine({
   row: RecordRow;
   /** The line before, whose day is not repeated. */
   previous: RecordRow | undefined;
-  /** Stands in for the day. */
-  lead?: ReactNode;
   /** Only 带出 has chips and cash. */
   chips?: ReactNode;
   cash?: ReactNode;
@@ -94,8 +85,8 @@ function RecordLine({
       })}
     >
       <span className="flex items-center whitespace-nowrap">
-        <span className="flex w-6 shrink-0 text-[0.625rem] tracking-tight text-muted">
-          {lead ?? (sameDay ? "" : `${day}日`)}
+        <span className="w-6 shrink-0 text-[0.625rem] tracking-tight text-muted">
+          {sameDay ? "" : `${day}日`}
         </span>
         <span className="hidden w-9.5 shrink-0 text-muted @[22.5rem]:block">{timeOf(row.at)}</span>
         <span className={cn("font-medium", tone)}>{action}</span>
@@ -166,9 +157,7 @@ export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProp
   const timesBought = rows.filter((r) => r.action === "sit" || r.action === "add").length;
   // Folded on arrival, however short the record
   const [open, setOpen] = useState(false);
-  // Folded, 带出 says how many days after the first line it was, where it was a later day
-  const first = rows[0];
-  const daysLater = left && first ? daysBetween(first.at, left.at) : 0;
+
   // Spaced only while one digit, so two digits still fit the width of a time
   const times = (
     <>
@@ -213,16 +202,8 @@ export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProp
         {left && (
           <RecordLine
             row={{ id: "out", action: "out", at: left.at, total: count(held) }}
-            previous={rows.at(-1)}
-            lead={
-              open ? (
-                <ChevronUp className="size-4" aria-hidden />
-              ) : daysLater > 0 ? (
-                `+${daysLater}`
-              ) : (
-                ""
-              )
-            }
+            // Folded, the line before it in view is the first of the record
+            previous={open ? rows.at(-1) : rows[0]}
             onFold={open ? () => setOpen(false) : undefined}
             chips={<Marked out>{left.chips.toLocaleString("zh-CN")}</Marked>}
             cash={<Marked out>{cash(left.chips)}</Marked>}

@@ -902,8 +902,10 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The line with the organizer's ID and the start time now heads the game page too, the same on both pages. The ID is larger and white, the two end on one line at the bottom, and there is a little more room before the boxes.
   - 结算 and the clock stay side by side at the right of the header. 一键全桌结算 with the clock under it was tried on a phone and taken back. Four other places for the clock were previewed: the host line, the players' heading, a row of its own under the boxes, and a bar pinned above the navigation.
   - A card's Buy-in record starts folded however short it is, where records of up to eight lines used to start open.
-  - Folded, 带出 is led by +n in the day's small type when it came n days after the first line by the calendar, in the room the folding arrow has above it, so the line does not move. Opened, an upward arrow leads it instead, and a tap on the line folds the record.
+  - Folded, 带出 is led by its day, as 13日, when that is not the day of the record's first line, in the room the folding arrow has above it, so the line does not move. A +n count of days was tried and dropped. Opened, a tap on 带出 folds the record; it carries no arrow of its own, and shows its day where that differs from the line before.
   - The lines under the record, time at the table and each charge, are as tall as the record's own lines, 24px where they were 28px.
+  - A card's first row is 36px tall where it was 44px, on both pages. The amount at its end is plain colored text, the same weight as the other figures; the tinted, bold chip stays on 合计.
+  - An organizer who is not playing shows a gray dash under Buy-in where there was a gold plus. A tap on it still seats them.
 - Decision: do.
 - Tracking: PR #83
 

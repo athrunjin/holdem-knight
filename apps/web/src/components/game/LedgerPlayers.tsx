@@ -41,7 +41,8 @@ const DOUBLE_TAP_MS = 350;
 
 /** A card as on the settlement page: a tinted row of figures, then any lines under it. */
 const cardClass = "overflow-hidden rounded-xl border border-line bg-surface text-sm";
-const headClass = cn(columnsClass, "min-h-11 w-full bg-accent/15 px-2 text-left");
+/** The row is a little shorter than a 44px target, and so is everything tappable in it. */
+const headClass = cn(columnsClass, "min-h-9 w-full bg-accent/15 px-2 text-left [&_button]:min-h-9");
 
 /** Tappable figures keep a 44px target, wider than the Buy-in column they sit in. */
 const cellButtonClass = "min-h-11 tabular-nums";
@@ -227,17 +228,21 @@ export function LedgerPlayers({
     editable || host !== undefined || showInsurance || charged.tableFee || charged.wage;
   const dash = (align: string) => <span className={cn(align, "text-muted")}>—</span>;
 
-  /** A first buy-in, for the organizer or a missing insurance seat. */
+  /**
+   * A first buy-in, for the organizer or a missing insurance seat. The organizer's is a plain dash
+   * that still takes the tap: most organizers never play, so it does not ask to be pressed.
+   */
   function join(playerId: string, label: string) {
     if (!editable) return dash("text-center");
+    const quiet = playerId === ORGANIZER_PLAYER_ID;
     return (
       <button
         type="button"
         aria-label={label}
         onClick={() => onJoin(playerId)}
-        className={cn(cellButtonClass, "-mx-0.5 text-highlight")}
+        className={cn(cellButtonClass, "-mx-0.5", quiet ? "text-muted" : "text-highlight")}
       >
-        +
+        {quiet ? "—" : "+"}
       </button>
     );
   }
@@ -367,11 +372,7 @@ export function LedgerPlayers({
             open,
             fold.onToggle,
             "",
-            open ? (
-              <span className={netColor(cash)}>{breakable(amount(cash))}</span>
-            ) : (
-              <TotalChip total={cash} currency={currency} />
-            ),
+            <span className={netColor(cash)}>{breakable(amount(cash))}</span>,
           )}
         </div>
         {open && (
@@ -490,10 +491,8 @@ export function LedgerPlayers({
             "",
             ownCash === undefined ? (
               dash("")
-            ) : organizerOpen ? (
-              <span className={netColor(ownCash)}>{breakable(amount(ownCash))}</span>
             ) : (
-              <TotalChip total={ownCash} currency={currency} />
+              <span className={netColor(ownCash)}>{breakable(amount(ownCash))}</span>
             ),
           )}
         </div>

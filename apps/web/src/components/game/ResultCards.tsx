@@ -224,7 +224,9 @@ function Card({
       </span>
       <span className={cn(figureClass, "text-right")}>
         {!expanded ? (
-          <TotalChip total={total} currency={currency} />
+          <span className={netColor(total)}>
+            {breakable(formatGameAmount(total, currency, "exceptZero"))}
+          </span>
         ) : base === undefined ? (
           <span className="text-muted">—</span>
         ) : (
@@ -235,7 +237,7 @@ function Card({
       </span>
     </>
   );
-  const rowClass = cn(columnsClass, "min-h-11 w-full bg-accent/15 px-2 py-1 text-left");
+  const rowClass = cn(columnsClass, "min-h-9 w-full bg-accent/15 px-2 py-1 text-left");
 
   return (
     <section
