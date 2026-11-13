@@ -1,8 +1,9 @@
-import { type Currency, chipsToCents, type Game } from "@holdem-knight/core";
+import { chipsToCents, type Game } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
-import { type LucideIcon, Panda, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
+import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { cn } from "@/lib/cn";
-import { CURRENCY_INFO, formatGameAmount } from "@/lib/currency";
+import { formatGameAmount } from "@/lib/currency";
 
 /** What a game can charge or offer, in the order shown. Rake has no setting until M4. */
 function gameOptions(game: Game) {
@@ -30,18 +31,13 @@ export function GameTitle({ game }: { game: Game }) {
   return `${game.smallBlindChips} / ${game.bigBlindChips}`;
 }
 
-/** Currencies drawn as an icon beside the title. The others keep their name. */
-const CURRENCY_ICONS: Partial<Record<Currency, LucideIcon>> = { CNY: Panda };
-
 /** Beside a game page's title: the currency, then what the blinds are worth in it. */
 export function GameBlindsCash({ game }: { game: Game }) {
   const { smallBlindChips, bigBlindChips, currency, chipRatio } = game;
   const cash = (chips: number) => formatGameAmount(chipsToCents(chips, chipRatio), currency);
-  const { label } = CURRENCY_INFO[currency];
-  const Icon = CURRENCY_ICONS[currency];
   return (
     <p className="flex items-center gap-1 text-sm whitespace-nowrap text-muted tabular-nums">
-      {Icon ? <Icon role="img" aria-label={label} className="size-4 shrink-0" /> : label}
+      <CurrencyIcon currency={currency} className="size-4.5" />
       <span>
         {cash(smallBlindChips)}/{cash(bigBlindChips)}
       </span>

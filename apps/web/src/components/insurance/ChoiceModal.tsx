@@ -1,10 +1,13 @@
 import { Check, Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { Modal } from "./Modal";
 
 export interface Choice {
   readonly id: string;
   readonly name: string;
+  /** Drawn before the name */
+  readonly icon?: ReactNode;
   /** Saved choices can be deleted from the list */
   readonly removable?: boolean;
 }
@@ -30,7 +33,7 @@ export function ChoiceModal({
   return (
     <Modal title={title} onClose={onClose}>
       <ul className="max-h-[60dvh] divide-y divide-line overflow-y-auto rounded-xl border border-line">
-        {choices.map(({ id, name, removable }) => (
+        {choices.map(({ id, name, icon, removable }) => (
           <li key={id} className="flex">
             <button
               type="button"
@@ -40,7 +43,10 @@ export function ChoiceModal({
                 selectedId === id && "text-highlight",
               )}
             >
-              <span className="truncate">{name}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                {icon}
+                <span className="truncate">{name}</span>
+              </span>
               {selectedId === id && <Check className="size-5 shrink-0" aria-label="当前选中" />}
             </button>
             {removable && onRemove && (

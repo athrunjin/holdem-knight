@@ -871,6 +871,24 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do.
 - Tracking: PR #83
 
+### #I-046 Currency marks, a clock that shows its state, and tiles that switch between cash and chips
+
+- Type: feature
+- Date: proposed and decided 2026-11-13
+- Source: trying #I-045 on a phone
+- Problem: the app named currencies in words, the paused clock put a notice in the page, and the three tiles under the header were laid out differently on the game page and the settlement page, with 已离桌 taking a tile nobody read.
+- Proposal: marks for the currencies, a clock whose color is its state, and one set of tiles for both pages.
+- Settled details:
+  - 人民币 is a sitting panda, chosen from several marks, and 澳元 a kangaroo. The panda was drawn for the app, since no open icon set has a whole panda in solid shapes. It uses two strengths of one color, because a panda in a single flat color reads as a bear. The kangaroo is from Material Design Icons (Apache 2.0). The marks stand in for the names beside the blinds, in the game list and in game setup.
+  - Setup says 积分 where it said 货币, on the row, in its list and in the note about what can no longer change. The list still names 人民币 and 澳元 beside their marks.
+  - The clock is green while it runs and gold while it is paused or not yet started. The notice 「对局计时器已暂停，台费和工资暂不计时」 is gone. The display stops at 99:59:59. Time goes on being counted from the timestamps past that.
+  - The three tiles are centered. The first reads 「总 Buy-in · 15」 over the cash value with two decimals. The last reads 牌桌平衡 with a thin green tick, or a red cross over 水上多 or 水下多 and the difference in cash. A tap anywhere on either switches its figure to chips and back, each on its own, and a small switch mark after the label says so.
+  - On the game page the middle tile is two actions, 「算保险 / Call time」. 算保险 opens the insurance page. Call time says it is in development. 已离桌 no longer has a tile. On the settlement page the middle tile is still 时长.
+  - Figures fit one line at any length: the type shrinks with the figure's length against the tile's width, and the last tile is a little wider than the others. Six digits with cents were checked at 393 wide.
+  - The user wrote 水下少 for the second label. The app says 水下多, as the settlement page's difference line already does, since 水下少 would mean the same as 水上多.
+- Decision: do.
+- Tracking: PR #83
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

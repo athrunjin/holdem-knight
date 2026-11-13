@@ -29,7 +29,7 @@
 
 - A clock not started means the game has not started, and a paused clock means it is paused. Nobody's time counts then.
 - "开局 N 小时后" means once the clock shows N hours, skipping pauses.
-- In a game with fees, the game page says 对局计时器未开始 or 已暂停，台费和工资暂不计时 while the clock is not running.
+- The clock's color says whether time counts: green while it runs, gold while it is paused or not yet started. Nothing is charged while it is gold.
 
 ### #71 Detail mode and itemized settlement
 
@@ -126,9 +126,9 @@ Priorities and severities are defined in the [testing README](README.md).
 
 | ID | Priority | Case | Preconditions and steps | Expected |
 | --- | --- | --- | --- | --- |
-| B-01 | P0 | Clock not started | A game with fees and players, Start not tapped. 1. Look at the game page. 2. Wait 3 minutes and settle. | 1. 对局计时器未开始，台费和工资暂不计时。 shows, and detail mode shows 在桌 0:00:00. 2. Folded cards have no fee line. Expanded, there is no wage line and the table fee shows 未满. There is no organizer card (R2). |
-| B-02 | P0 | Starting the clock | As above, tap Start. | The notice goes away and each player's time ticks every second. |
-| B-03 | P0 | Pause and resume | With the clock running, pause for 2 minutes, then resume. | While paused the notice says 已暂停 and times stop. They carry on after resuming, and the 2 minutes do not count. |
+| B-01 | P0 | Clock not started | A game with fees and players, Start not tapped. 1. Look at the game page. 2. Wait 3 minutes and settle. | 1. The clock reads Start in gold, with no notice, and detail mode shows 在桌 0:00:00. 2. Folded cards have no fee line. Expanded, there is no wage line and the table fee shows 未满. There is no organizer card (R2). |
+| B-02 | P0 | Starting the clock | As above, tap Start. | The clock turns green and each player's time ticks every second. |
+| B-03 | P0 | Pause and resume | With the clock running, pause for 2 minutes, then resume. | While paused the clock is gold and times stop. On resuming it turns green, times carry on, and the 2 minutes do not count. |
 | B-04 | P0 | Leaving and 回桌 | With the clock running, one player leaves and taps 回桌 3 minutes later. | Their time stops while away and carries on after 回桌. Settlement counts both stretches (R1). |
 | B-05 | P1 | Joining late | After 10 minutes on the clock, add a player. | Their time starts from 0. |
 | B-06 | P1 | Removing a mistake | A player with only 1 hand and nothing else, removed with −. | They are not in the settlement and are not charged. |
@@ -172,7 +172,7 @@ Priorities and severities are defined in the [testing README](README.md).
 
 | ID | Priority | Case | Preconditions and steps | Expected |
 | --- | --- | --- | --- | --- |
-| E-01 | P0 | Summary | Open any settlement. | The header is the game page's: the blinds, the currency and their cash value, and the option labels under it, with 返回牌局 on the right. Below, a line with the organizer's ID (guest for now) and the start date, weekday and time. Tiles for 总 Buy-in (amount · hands), 时长 (clock time, or — without a clock) and 平衡 (✓ 平衡, or 不平衡 ±N). The cards sit under 对局总览. |
+| E-01 | P0 | Summary | Open any settlement. | The header is the game page's: the blinds, the currency's icon and their cash value, and under it the Buy-in in big blinds, the four option labels and the settings icon, with 返回牌局 on the right. Below, a line with the organizer's ID (guest for now) and the start date, weekday and time. Three centered tiles: 总 Buy-in · the number of Buy-ins over their cash value; 时长 (clock time, or — without a clock); and 牌桌平衡 with a green tick, or a red cross over 水上多 or 水下多 and the difference in cash. A tap on the first or the last switches its figure to chips and back, each on its own. The cards sit under 对局总览. |
 | E-02 | P0 | Imbalance row | Unbalanced books, no handling chosen. 1. Look at the page. 2. Tap the row and pick one. 3. Tap it again and choose 取消. | 1. The row reads 差额 ±N 筹码（¥）· 未选择处理方式, and the results area says 选择差额处理方式后显示结果。 2. Three choices open, and picking one closes them and shows the results. 3. Nothing changes. With balanced books there is no row. |
 | E-03 | P0 | Insurance owner row | A game with insurance. Tap the 保险 · 归属 row. | 组织者, 单独列出 and each player open, with a check on the current one. Picking one updates the row. |
 | E-04 | P0 | Folded cards | A game with fees, as it opens. | Players' cards are folded. The amount column shows the total (green, red, or gray for 0). A small right-aligned line below lists 分摊, 保险, 工资 and 台费 in that order, where present, then 含费 or 含调整 in gray. With one item there is no sum. A group waived in full shows 已免. |

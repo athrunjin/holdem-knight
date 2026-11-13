@@ -8,9 +8,9 @@ import {
   timerElapsedMs,
 } from "@holdem-knight/core";
 import { useSaveGame } from "@/data/games";
-import { formatDifference, formatSignedChips } from "@/lib/chips";
-import { cn } from "@/lib/cn";
+import { formatDifference } from "@/lib/chips";
 import { formatGameMoney } from "@/lib/currency";
+import { BalanceTile, BuyInTile, GameTiles, Tile } from "./GameTiles";
 import { formatElapsed } from "./GameTimer";
 import { imbalanceChoices } from "./ImbalanceOptions";
 import { PickerRow } from "./PickerRow";
@@ -22,15 +22,6 @@ function formatStart(time: number) {
   const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   const weekday = date.toLocaleDateString("zh-CN", { weekday: "short" });
   return `${day} ${weekday} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function Tile({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="min-w-0 rounded-xl border border-line bg-surface px-2 py-1.5">
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="truncate text-sm font-semibold tabular-nums">{children}</dd>
-    </div>
-  );
 }
 
 interface SettlementSummaryProps {
@@ -46,11 +37,9 @@ interface SettlementSummaryProps {
  */
 export function SettlementSummary({ game, ledger, difference }: SettlementSummaryProps) {
   const saveGame = useSaveGame();
-  const { currency, chipRatio, handChips, timer } = game;
+  const { currency, chipRatio, timer } = game;
   const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
   const { boughtChips } = ledgerTotals(people);
-  const money = (chips: number) => formatGameMoney(chipsToCents(chips, chipRatio), currency);
-  const hands = handChips === undefined ? "" : ` · ${boughtChips / handChips} 手`;
   const elapsed = timer && formatElapsed(timerElapsedMs(timer, game.settledAt ?? Date.now()));
   const cash = formatGameMoney(chipsToCents(Math.abs(difference), chipRatio), currency);
   const choices = imbalanceChoices(difference, cash);
@@ -62,18 +51,11 @@ export function SettlementSummary({ game, ledger, difference }: SettlementSummar
       <p className="text-sm text-muted">
         {game.organizerId} · {formatStart(game.createdAt)}
       </p>
-      <dl className="mt-2 grid grid-cols-3 gap-2">
-        <Tile label="总 Buy-in">
-          {money(boughtChips)}
-          {hands}
-        </Tile>
+      <GameTiles>
+        <BuyInTile game={game} boughtChips={boughtChips} />
         <Tile label="时长">{elapsed ?? "—"}</Tile>
-        <Tile label="平衡">
-          <span className={cn(difference === 0 ? "text-win" : "text-highlight")}>
-            {difference === 0 ? "✓ 平衡" : `不平衡 ${formatSignedChips(difference)}`}
-          </span>
-        </Tile>
-      </dl>
+        <BalanceTile game={game} balanceChips={difference} />
+      </GameTiles>
       {difference !== 0 && (
         <PickerRow
           title="差额处理方式"

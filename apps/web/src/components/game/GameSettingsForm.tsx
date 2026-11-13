@@ -17,6 +17,7 @@ import {
 } from "@holdem-knight/core";
 import { ChevronDown } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
+import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { ChoiceModal } from "@/components/insurance/ChoiceModal";
 import {
   InsuranceSettings,
@@ -157,7 +158,9 @@ export function GameSettingsForm({
   const [tableFeeIssues, setTableFeeIssues] = useState<TableFeeIssues>({});
   const [wage, setWage] = useState(() => initialWageChoice(initialWage, lastWage));
   const [wageIssues, setWageIssues] = useState<WageIssues>({});
-  const currencyLabel = CURRENCY_INFO[values.currency].label;
+  const currencyIcon = (
+    <CurrencyIcon currency={values.currency} className="size-5 align-[-0.2em]" />
+  );
   const ratioAmount = tryParseMoney(values.ratioAmount);
 
   function validate() {
@@ -200,17 +203,17 @@ export function GameSettingsForm({
         <div>
           <div className="divide-y divide-line rounded-xl border border-line bg-surface">
             <SettingRow
-              label="货币"
+              label="积分"
               picker
               disabled={ratioLocked}
               onClick={() => setDialog("currency")}
             >
-              {currencyLabel}
+              {currencyIcon}
             </SettingRow>
             <SettingRow label="筹码" disabled={ratioLocked} onClick={() => setDialog("ratio")}>
               {values.ratioChips} <small className="font-normal text-muted">筹码</small> :{" "}
               {ratioAmount === null ? values.ratioAmount : toDecimalString(ratioAmount)}{" "}
-              <small className="font-normal text-muted">{currencyLabel}</small>
+              <span className="text-muted">{currencyIcon}</span>
             </SettingRow>
             <SettingRow
               label="盲注"
@@ -232,7 +235,7 @@ export function GameSettingsForm({
           </div>
           {ratioLocked && (
             <p className="mt-2 text-sm text-muted">
-              已有账本记录，货币、筹码和 Buy-in 不能再修改。
+              已有账本记录，积分、筹码和 Buy-in 不能再修改。
             </p>
           )}
         </div>
@@ -301,10 +304,11 @@ export function GameSettingsForm({
       {/* Outside the form: a dialog's own form must not nest in it or submit it */}
       {dialog === "currency" && (
         <ChoiceModal
-          title="货币"
+          title="积分"
           choices={CURRENCIES.map((currency) => ({
             id: currency,
             name: CURRENCY_INFO[currency].label,
+            icon: <CurrencyIcon currency={currency} className="size-6" />,
           }))}
           selectedId={values.currency}
           onPick={(id) => {

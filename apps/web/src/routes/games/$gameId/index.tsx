@@ -23,6 +23,7 @@ import { useState } from "react";
 import { AddPlayerToGame } from "@/components/game/AddPlayerToGame";
 import { ChipAmountDialog } from "@/components/game/ChipAmountDialog";
 import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
+import { BalanceTile, BuyInTile, GameTiles, TableActionsTile } from "@/components/game/GameTiles";
 import { GameTimer } from "@/components/game/GameTimer";
 import { HandsDialog } from "@/components/game/HandsDialog";
 import { LedgerLog } from "@/components/game/LedgerLog";
@@ -42,8 +43,6 @@ import {
   useReturnAll,
 } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
-import { formatSignedChips } from "@/lib/chips";
-import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { gameNameOf } from "@/lib/player-name";
 
@@ -255,29 +254,11 @@ function GameLedger({ game }: { game: Game }) {
         </div>
       }
     >
-      {editable && (game.tableFee || game.wage) && game.timer?.runningSince === undefined && (
-        <p role="status" className="text-sm text-highlight">
-          对局计时器{game.timer ? "已暂停" : "未开始"}，台费和工资暂不计时。
-        </p>
-      )}
-
-      <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
-        {[
-          ["总 Buy-in", formatGameMoney(chipsToCents(totals.boughtChips, chipRatio), currency)],
-          ["已离桌", formatGameMoney(chipsToCents(totals.cashedOutChips, chipRatio), currency)],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-xl border border-line bg-surface px-2 py-1.5">
-            <dt className="text-xs text-muted">{label}</dt>
-            <dd className="font-semibold">{value}</dd>
-          </div>
-        ))}
-        <div className="rounded-xl border border-line bg-surface px-2 py-1.5">
-          <dt className="text-xs text-muted">牌桌平衡</dt>
-          <dd className={cn("font-semibold", balanceChips !== 0 && "text-highlight")}>
-            {formatSignedChips(balanceChips)}
-          </dd>
-        </div>
-      </dl>
+      <GameTiles>
+        <BuyInTile game={game} boughtChips={totals.boughtChips} />
+        <TableActionsTile gameId={gameId} insuranceOn={game.insurance !== undefined} />
+        <BalanceTile game={game} balanceChips={balanceChips} />
+      </GameTiles>
 
       <LedgerPlayers
         game={game}
