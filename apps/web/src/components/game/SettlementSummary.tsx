@@ -44,7 +44,6 @@ export function SettlementSummary({ game, ledger, difference }: SettlementSummar
         end={
           difference !== 0 && (
             <PickerRow
-              inline
               title="差额处理方案"
               options={choices}
               value={game.imbalanceHandling}

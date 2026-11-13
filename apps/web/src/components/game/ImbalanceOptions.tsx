@@ -12,7 +12,7 @@ interface ImbalanceOptionsProps {
 }
 
 /** Each way to settle a chip difference, with its label. */
-export function imbalanceChoices(
+function imbalanceChoices(
   differenceChips: number,
   cash: string,
 ): readonly (readonly [ImbalanceHandling, string])[] {

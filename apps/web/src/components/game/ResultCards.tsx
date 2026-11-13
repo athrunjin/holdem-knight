@@ -76,7 +76,7 @@ export interface ResultCard {
   readonly action?: ReactNode;
 }
 
-export function TotalChip({ total, currency }: { total: Cents; currency: Currency }) {
+function TotalChip({ total, currency }: { total: Cents; currency: Currency }) {
   return (
     <span
       className={cn(

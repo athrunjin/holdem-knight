@@ -889,13 +889,13 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do.
 - Tracking: PR #83
 
-### #I-047 Host line, a plainer balance box, and a Buy-in record that starts folded
+### #I-047 Host line, a plainer balance box, a folded Buy-in record, and one organizer card for both pages
 
 - Type: feature
 - Date: proposed and decided 2026-11-13
 - Source: trying #I-046 on a phone
-- Problem: the balance box said 水上多 or 水下多 in gold beside a switch mark, the middle box was two words with a slash, the host and start time showed only on the settlement page, and a card's Buy-in record opened by itself and sat looser than the lines under it.
-- Proposal: say the balance in plain words and colors, give the two actions icons, show the host on both pages, and tighten the opened card.
+- Problem: the balance box said 水上多 or 水下多 in gold beside a switch mark, the middle box was two words with a slash, the host and start time showed only on the settlement page, and a card's Buy-in record opened by itself and sat looser than the lines under it. The organizer's card was built twice and read differently on the two pages, and the settlement page spent two full rows on choices that are rarely changed.
+- Proposal: say the balance in plain words and colors, give the two actions icons, show the host on both pages, tighten the opened card, build the organizer's card once, and move the difference handling into small text over the balance box.
 - Settled details:
   - The middle box on the game page has an icon over each action with a hairline between them, chosen from seven previews. 算保险 is the text color like Call time, no longer gold, and gray when the game has no insurance.
   - The balance box, on both pages: balanced, one centered line 筹码配平 with a tick, all green. Out, two lines, all red: 未配平 with a cross, then 多 or 少 before the difference, where it said 水上多 and 水下多. The switch mark is gone. A tap on the box when it is out still switches the difference between cash and chips.
@@ -906,7 +906,8 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The lines under the record, time at the table and each charge, are as tall as the record's own lines, 24px where they were 28px.
   - A card's first row is 36px tall where it was 44px, on both pages. The amount at its end is plain colored text, the same weight as the other figures; the tinted, bold chip stays on 合计.
   - An organizer who is not playing shows a gray dash under Buy-in where there was a gold plus. A tap on it still seats them.
-  - On the settlement page, a folded card whose result is more than its chips, with wages, a table fee or a share of a difference, keeps what the chips come to at the end of its row. The line under it lists each item and ends with 合计 and the final result as the tinted, bold chip, where it said 含费 or 含调整 with the sum of the items.
+  - On the settlement page, a folded card whose result is more than its chips, with wages, a table fee or a share of a difference, keeps what the chips come to at the end of its row. The line under it lists each item and ends with 合计 and the final result as the tinted, bold chip, where it said 含费 or 含调整 with the sum of the items. The items run from the left and 合计 ends the line at the right, as large as the amount over it.
+  - On the settlement page the insurance seat has its own row on the organizer's card, as on the game page, when its result is the organizer's.
   - In the balance box, 多 or 少 is set in the same type as the figure after it and shrinks with it.
   - The organizer's card on the game page is the settlement page's own card, with tappable Buy-ins and chips. It folds on its own, apart from 详细模式, and starts open when the game has wages or a table fee; on the settlement page it follows 明细.
   - On both pages the organizer's table fee line reads as the price times how many pay it, 台费 ¥100/人 × 5, and the line kept for rake is gone until rake exists.
