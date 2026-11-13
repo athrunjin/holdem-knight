@@ -220,8 +220,7 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
 /**
  * A collapsed card's line: each group's total from the left, then 合计 at the right with the final
  * result picked out, as large as the amount over it, since that row shows only what the chips come
- * to. The organizer has no result from chips, so their row shows the total itself and the line
- * leaves it out.
+ * to.
  */
 function Summary({
   card,
@@ -243,7 +242,8 @@ function Summary({
       due.length === 0 ? "已免" : formatGameAmount(cents(amount), currency, "exceptZero");
     return [{ group, value, tone }];
   });
-  if (items.length === 0) return null;
+  // With no items the row over the line already shows the result, unless it has none from chips
+  if (items.length === 0 && card.base !== undefined) return null;
 
   return (
     <div
@@ -259,12 +259,10 @@ function Summary({
           </span>
         ))}
       </p>
-      {card.base !== undefined && (
-        <span className="flex shrink-0 items-center gap-1 text-muted">
-          合计
-          <TotalChip total={card.total} currency={currency} />
-        </span>
-      )}
+      <span className="flex shrink-0 items-center gap-1 text-muted">
+        合计
+        <TotalChip total={card.total} currency={currency} />
+      </span>
     </div>
   );
 }
@@ -307,16 +305,10 @@ export function PersonCard({
   );
   const net = netChips === undefined ? "—" : breakable(formatSignedChips(netChips));
   const netTone = netChips === undefined ? "text-muted" : netColor(netChips);
-  // An organizer who is not playing has no result from chips: folded, the row shows the total
+  // Always what the chips come to. An organizer who is not playing has none, so a dash
   const amount =
     base === undefined ? (
-      expanded ? (
-        <span className="text-muted">—</span>
-      ) : (
-        <span className={netColor(total)}>
-          {breakable(formatGameAmount(total, currency, "exceptZero"))}
-        </span>
-      )
+      <span className="text-muted">—</span>
     ) : (
       <span className={netColor(base)}>
         {breakable(formatGameAmount(base, currency, "exceptZero"))}

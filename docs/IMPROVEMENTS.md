@@ -912,6 +912,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - On both pages the organizer's table fee line reads as the price times how many pay it, 台费 ¥100/人 × 5, and the line kept for rake is gone until rake exists.
   - The settlement page loses its two rows for who takes the insurance result and how a difference is handled. The insurance result goes to the organizer unless a game already saved another choice. While the chips are out, small gold text over the balance box names the handling, with an arrow that opens the three choices: 水上比例分摊 or 水下比例分摊, the organizer's ID with 承担 or 收取, and 不做处理. The amount stays in the box under it.
   - Opened, the organizer's card runs record, insurance seat, then wages and fees, with a faint rule between each; the record used to come after the insurance seat. Folded, a rule sets the insurance seat apart from the summary line under it.
+  - The organizer's card follows the players' in its first row too: the amount there is always what their own chips come to, a dash when they do not play, and the total is on the line under it, folded or open. Folded, the row used to show the total when they did not play.
 - Decision: do.
 - Tracking: PR #83
 
