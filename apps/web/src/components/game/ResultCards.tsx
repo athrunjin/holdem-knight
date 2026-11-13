@@ -223,7 +223,16 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
  * to. The organizer has no result from chips, so their row shows the total itself and the line
  * leaves it out.
  */
-function Summary({ card, currency }: { card: ResultCard; currency: Currency }) {
+function Summary({
+  card,
+  currency,
+  divided,
+}: {
+  card: ResultCard;
+  currency: Currency;
+  /** A faint rule over the line, where a pinned row sits above it. */
+  divided: boolean;
+}) {
   const items = SUMMARY_GROUPS.flatMap((group) => {
     const lines = card.lines.filter((l) => l.group === group && l.amount !== undefined);
     if (lines.length === 0) return [];
@@ -237,7 +246,12 @@ function Summary({ card, currency }: { card: ResultCard; currency: Currency }) {
   if (items.length === 0) return null;
 
   return (
-    <div className="flex items-center justify-between gap-x-3 px-2 pt-0.5 pb-1.5 whitespace-nowrap tabular-nums">
+    <div
+      className={cn(
+        "flex items-center justify-between gap-x-3 pb-1.5 whitespace-nowrap tabular-nums",
+        divided ? "border-t border-line pt-1.5" : "pt-0.5",
+      )}
+    >
       <p className="flex min-w-0 flex-wrap gap-x-3 text-xs">
         {items.map(({ group, value, tone }) => (
           <span key={group} className={tone === "charge" ? "text-muted" : "text-highlight"}>
@@ -344,20 +358,34 @@ export function PersonCard({
       ) : (
         <div className={rowClass}>{cells}</div>
       )}
-      {pinned !== undefined && <div className="px-2">{pinned}</div>}
-      {folds && !open && <Summary card={card} currency={currency} />}
-      {expanded && (
-        <div className="@container px-2">
-          {record}
-          {/* A faint rule sets the record apart from the time and charges under it */}
-          <div className={cn(record !== undefined && lines.length > 0 && "border-t border-line")}>
-            {lines.map((line) => (
-              <Line key={line.key} line={line} currency={currency} />
-            ))}
+      {/* Open: the record, the pinned rows, then the lines, a faint rule between each */}
+      <div className="@container px-2">
+        {expanded && record}
+        {pinned !== undefined && (
+          <div className={cn(expanded && record !== undefined && "border-t border-line")}>
+            {pinned}
           </div>
-          <TotalLine total={total} currency={currency} action={card.action} />
-        </div>
-      )}
+        )}
+        {folds && !open && (
+          <Summary card={card} currency={currency} divided={pinned !== undefined} />
+        )}
+        {expanded && (
+          <>
+            <div
+              className={cn(
+                (record !== undefined || pinned !== undefined) &&
+                  lines.length > 0 &&
+                  "border-t border-line",
+              )}
+            >
+              {lines.map((line) => (
+                <Line key={line.key} line={line} currency={currency} />
+              ))}
+            </div>
+            <TotalLine total={total} currency={currency} action={card.action} />
+          </>
+        )}
+      </div>
     </section>
   );
 }
