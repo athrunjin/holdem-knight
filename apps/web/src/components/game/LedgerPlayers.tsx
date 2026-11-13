@@ -499,7 +499,7 @@ export function LedgerPlayers({
         <div className="px-2">
           {showInsurance && insuranceRow()}
           {!organizerOpen && summary.length > 0 && (
-            <p className="flex flex-wrap justify-end gap-x-3 pt-0.5 pb-1.5 text-xs whitespace-nowrap text-muted tabular-nums">
+            <p className="flex flex-wrap gap-x-3 pt-0.5 pb-1.5 text-xs whitespace-nowrap text-muted tabular-nums">
               {summary.map(([label, value]) => (
                 <span key={label}>
                   {label} {amount(value)}

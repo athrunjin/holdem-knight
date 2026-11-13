@@ -1,5 +1,6 @@
 import { type Cents, type Currency, cents } from "@holdem-knight/core";
-import { ChevronRight } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Calculator, ChevronRight } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { breakable, formatSignedChips, netColor } from "@/lib/chips";
@@ -59,6 +60,8 @@ export interface ResultCard {
   readonly base?: Cents;
   /** The person's Buy-in record, over the lines. Missing for an organizer who is not playing. */
   readonly record?: ReactNode;
+  /** Rows under the first one that stay in view however the card is folded: the insurance seat. */
+  readonly pinned?: ReactNode;
   readonly lines: readonly ResultLine[];
   readonly total: Cents;
   /** Whether the card folds to one row with a summary line. */
@@ -88,6 +91,48 @@ export function ColumnTitles({ first }: { first: string }) {
       <span className="text-center">筹码</span>
       <span className="text-right">水上/下</span>
       <span className="text-right">金额</span>
+    </div>
+  );
+}
+
+/**
+ * The insurance seat on the organizer's card, as the game page shows it: its own row in the card's
+ * columns, in the highlight color, whose name opens the insurance page.
+ */
+export function InsuranceRow({
+  gameId,
+  hands,
+  chips,
+  netChips,
+  amount,
+  currency,
+}: {
+  gameId: string;
+  hands: string;
+  chips: string;
+  netChips: number;
+  amount: Cents;
+  currency: Currency;
+}) {
+  return (
+    <div className={cn(columnsClass, "min-h-11 text-xs")}>
+      <Link
+        to="/games/$gameId/insurance"
+        params={{ gameId }}
+        aria-label="算保险"
+        className="flex min-h-11 min-w-0 items-center gap-0.5 text-highlight"
+      >
+        <Calculator className="size-4 shrink-0" aria-hidden />
+        <span className="truncate">保险</span>
+      </Link>
+      <span className="text-center">{hands}</span>
+      <span className={cn(figureClass, "text-center")}>{breakable(chips)}</span>
+      <span className={cn(figureClass, "text-right", netColor(netChips))}>
+        {breakable(formatSignedChips(netChips))}
+      </span>
+      <span className="text-right whitespace-nowrap text-highlight">
+        {formatGameAmount(amount, currency, amount === 0 ? "auto" : "exceptZero")}
+      </span>
     </div>
   );
 }
@@ -142,9 +187,10 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
 }
 
 /**
- * A collapsed card's line, right-aligned under the amount: each group's total, then 合计 with the
- * final result picked out, since the row over it shows only what the chips come to. The organizer
- * has no result from chips, so their row shows the total itself and the line leaves it out.
+ * A collapsed card's line: each group's total from the left, then 合计 at the right with the final
+ * result picked out, as large as the amount over it, since that row shows only what the chips come
+ * to. The organizer has no result from chips, so their row shows the total itself and the line
+ * leaves it out.
  */
 function Summary({ card, currency }: { card: ResultCard; currency: Currency }) {
   const items = SUMMARY_GROUPS.flatMap((group) => {
@@ -160,19 +206,21 @@ function Summary({ card, currency }: { card: ResultCard; currency: Currency }) {
   if (items.length === 0) return null;
 
   return (
-    <p className="flex flex-wrap items-center justify-end gap-x-3 px-2 pt-0.5 pb-1.5 text-xs whitespace-nowrap tabular-nums">
-      {items.map(({ group, value, tone }) => (
-        <span key={group} className={tone === "charge" ? "text-muted" : "text-highlight"}>
-          {group} {value}
-        </span>
-      ))}
+    <div className="flex items-center justify-between gap-x-3 px-2 pt-0.5 pb-1.5 whitespace-nowrap tabular-nums">
+      <p className="flex min-w-0 flex-wrap gap-x-3 text-xs">
+        {items.map(({ group, value, tone }) => (
+          <span key={group} className={tone === "charge" ? "text-muted" : "text-highlight"}>
+            {group} {value}
+          </span>
+        ))}
+      </p>
       {card.base !== undefined && (
-        <span className="flex items-center gap-1 text-muted">
+        <span className="flex shrink-0 items-center gap-1 text-muted">
           合计
           <TotalChip total={card.total} currency={currency} />
         </span>
       )}
-    </p>
+    </div>
   );
 }
 
@@ -192,7 +240,7 @@ function Card({
   open?: boolean;
   onToggle?: () => void;
 }) {
-  const { name, hands, chips, netChips, base, record, lines, total } = card;
+  const { name, hands, chips, netChips, base, record, pinned, lines, total } = card;
   const hasBody = lines.length > 0 || record !== undefined;
   const folds = card.collapsible === true && hasBody;
   const expanded = hasBody && (open || !folds);
@@ -252,6 +300,7 @@ function Card({
       ) : (
         <div className={rowClass}>{cells}</div>
       )}
+      {pinned !== undefined && <div className="px-2">{pinned}</div>}
       {folds && !open && <Summary card={card} currency={currency} />}
       {expanded && (
         <div className="@container px-2">

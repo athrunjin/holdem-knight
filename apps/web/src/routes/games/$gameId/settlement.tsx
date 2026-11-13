@@ -37,7 +37,12 @@ import { chargeLines } from "@/components/game/chargeLines";
 import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
 import { GameRules, hasGameRules } from "@/components/game/GameRules";
 import { PickerRow } from "@/components/game/PickerRow";
-import { type ResultCard, ResultCards, type ResultLine } from "@/components/game/ResultCards";
+import {
+  InsuranceRow,
+  type ResultCard,
+  ResultCards,
+  type ResultLine,
+} from "@/components/game/ResultCards";
 import { SettlementSummary } from "@/components/game/SettlementSummary";
 import { InfoButton } from "@/components/InfoButton";
 import { Page } from "@/components/Page";
@@ -308,15 +313,24 @@ function SettlementResult({
   const income = (kind: Charge["kind"]) =>
     sum(charges.filter((c) => c.kind === kind && !c.waived).map((c) => c.amount));
   const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
-  /** A dash when the organizer receives none of it, so the four lines always show. */
-  const incomeLine = (group: "保险" | "工资" | "台费", amount: Cents): ResultLine => {
+  /** A dash when the organizer receives none of it, so the lines always show. */
+  const incomeLine = (group: "工资" | "台费", amount: Cents): ResultLine => {
     const line = { key: group, label: group, group, tone: "charge" as const };
     return amount === 0 ? line : { ...line, amount };
   };
-  const ownInsurance = ownerId === ORGANIZER_COLLECTOR ? insuranceNet : ZERO;
-  // What an organizer can receive, always in this order. Rake has no amount until M4
+  // The insurance seat sits on the organizer's card as on the game page, when its result is theirs
+  const insuranceRow = seat && ownerId === ORGANIZER_COLLECTOR && (
+    <InsuranceRow
+      gameId={game.id}
+      hands={handChips === undefined ? "—" : String(seat.boughtChips / handChips)}
+      chips={seat.cashedOutChips.toLocaleString("zh-CN")}
+      netChips={seat.cashedOutChips - seat.boughtChips}
+      amount={insuranceNet}
+      currency={currency}
+    />
+  );
+  // What an organizer can receive besides insurance, always in this order. Rake has no amount until M4
   const organizerLines: ResultLine[] = [
-    incomeLine("保险", ownInsurance),
     incomeLine("工资", receivesCharges ? income("wage") : ZERO),
     incomeLine("台费", receivesCharges ? income("table_fee") : ZERO),
     { key: "rake", label: "抽水", tone: "charge" },
@@ -337,6 +351,7 @@ function SettlementResult({
               base: netOf(chipNets, ORGANIZER_COLLECTOR),
               record: record(ORGANIZER_COLLECTOR),
             }),
+            ...(insuranceRow && { pinned: insuranceRow }),
             lines: organizerLines,
             total: organizerNet,
             collapsible: true,
