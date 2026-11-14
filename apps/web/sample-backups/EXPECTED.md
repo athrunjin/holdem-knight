@@ -116,6 +116,7 @@ Game dated **2026-01-05** · blinds 5 / 10 · 人民币 · 10 chips = ¥1 · set
 - 张伟 bought 50 on 4 outs (pays 8): hit, the seat pays 400. 李娜 bought 150 on 10 outs (pays 2.5): miss, the seat keeps 150.
 - The insurance seat bought 1,000 and leaves with 800: −200 chips, −¥20.
 - The insurance result goes to 刘洋: his chips show −200, his amount −¥40 with 含保险 −¥20.
+- A game with insurance opens 积分管理 on its own, with the organizer collecting: each loser pays the organizer, who pays each winner.
 
 Insurance result: -¥20.
 
@@ -128,13 +129,14 @@ Results:
 | 刘洋 | 1 | 800 | −200 | -¥40 |
 | 李娜 | 1 | 0 | −1,000 | -¥100 |
 
-Transfers (3 笔 · 最优方案):
+Transfers (4 笔 · 代收人 组织者):
 
 | From | To | Amount |
 | --- | --- | --: |
-| 李娜 | 张伟 | ¥100 |
-| 刘洋 | 张伟 | ¥30 |
-| 刘洋 | 王芳 | ¥10 |
+| 李娜 | 组织者 | ¥100 |
+| 刘洋 | 组织者 | ¥40 |
+| 组织者 | 王芳 | ¥10 |
+| 组织者 | 张伟 | ¥130 |
 
 ## 06-table-fee-and-wages: Table fee and wages
 
@@ -147,6 +149,7 @@ Game dated **2026-01-06** · blinds 1 / 2 · 人民币 · 1 chip = ¥1 · settle
 - 李娜 left at 21:30 and came back at 22:20 (回桌): 170 counted minutes, 100 at ¥30 and 70 at ¥50, ¥108.33.
 - 刘洋 counted 89 minutes 30 seconds: the part minute is not charged, so 89 minutes, ¥44.50.
 - The charges come off each player's cash result and go to the organizer, so the chips still balance while the amounts do not match the chips.
+- The organizer collects, as in any game with charges: the three who owe pay in ¥625.33, of which ¥216.67 goes on to 张伟 and ¥408.66 stays.
 
 Results:
 
@@ -167,14 +170,14 @@ Table fee and wages: ¥408.66 in all, to the organizer.
 | 李娜 | 2小时50分 | ¥20 | ¥108.33 |
 | 刘洋 | 1小时29分 | ¥20 | ¥44.50 |
 
-Transfers (4 笔 · 最优方案):
+Transfers (4 笔 · 代收人 组织者):
 
 | From | To | Amount |
 | --- | --- | --: |
-| 李娜 | 组织者 | ¥408.66 |
-| 李娜 | 张伟 | ¥79.67 |
-| 王芳 | 张伟 | ¥72.50 |
-| 刘洋 | 张伟 | ¥64.50 |
+| 李娜 | 组织者 | ¥488.33 |
+| 王芳 | 组织者 | ¥72.50 |
+| 刘洋 | 组织者 | ¥64.50 |
+| 组织者 | 张伟 | ¥216.67 |
 
 ## 07-open-game: Game still open
 
@@ -233,11 +236,11 @@ Table fee and wages: ¥465 in all, to the organizer.
 | 张伟 | 57分 | ¥100 | ¥25 |
 | 王芳 | 30分 | ¥100 | ¥15 |
 
-Transfers (4 笔 · 最优方案):
+Transfers (4 笔 · 代收人 组织者):
 
 | From | To | Amount |
 | --- | --- | --: |
 | 刘洋 | 组织者 | ¥295 |
 | 王芳 | 组织者 | ¥165 |
-| 李娜 | 张伟 | ¥25 |
-| 李娜 | 组织者 | ¥5 |
+| 李娜 | 组织者 | ¥30 |
+| 组织者 | 张伟 | ¥25 |

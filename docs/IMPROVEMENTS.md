@@ -931,8 +931,25 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The game page's player cards are now the settlement page's card, as the organizer's already was.
   - 已离桌 reads 已结算 and starts folded, one quiet line in the type of 牌局记录 under it. Its rows say 带出 for what was taken out.
   - The settle dialog starts with the chips: 「筹码配平」 with a tick in green, said even when nothing is wrong, or 「筹码未配平，多 1,000 筹码（¥100）」 with a cross in red, in the words of the balance box. The choices follow, with the organizer named by their ID, 「guest 承担 ¥100」, first and chosen to begin with. The line about who is still seated comes under them. Balanced with nobody seated and no insurance open, there is still no dialog.
-  - The settlement page's 返回牌局 is replaced by the emblem, 48px tall, which keeps the header's height. The emblem still leads back to the game: an open game has no other way back on the page. This was added in building it, not asked for.
-  - Under the cards, after a rule: 确认结算, or 重新打开牌局 once settled. Then 生成图片 and 转账方案 side by side, with the transfers opening under the row.
+  - The settlement page's 返回牌局 is replaced by the emblem, 48px tall, which keeps the header's height. The emblem is a picture only. The way back to the game is a small 返回牌桌 button in the row of 确认结算, to its right.
+  - Under the cards, after a rule: 确认结算, or 重新打开牌局 once settled, with 返回牌桌 beside it. Then 生成图片 and 积分管理 (#I-049) side by side.
+- Decision: do.
+- Tracking: PR #84
+
+### #I-049 积分管理: one list for the transfer plan, and the organizer collecting where they are owed
+
+- Type: feature
+- Date: proposed and decided 2026-11-14
+- Source: trying #I-048 on a phone
+- Problem: the transfer plan took two buttons and a selection box to change, started on the optimal plan even in games where everyone pays the organizer, and could not be changed after 确认结算. The insurance row on the settlement page opened the insurance tool, which has nothing to do there.
+- Proposal: one small list for the plan, a default that follows the game, and a plan that stays open to change.
+- Settled details:
+  - 转账方案 on the button reads 积分管理, with no count of transfers.
+  - Opened, the section has the plan in small text at its top right with a chevron. A tap lists the plans and one more picks: 最优方案, then 代收人：the organizer's ID, then 代收人：each player in the order of the cards. The two buttons and the selection box are gone.
+  - A game with insurance, a table fee or wages (rake too, once it exists) starts with the section open and the organizer collecting. Any other game starts with it closed, and opens on the optimal plan.
+  - The plan can be changed after 确认结算 ([ADR 0029](adr/0029-default-transfer-plan.md)).
+  - The organizer is named by their ID in the plan, the transfers and the image.
+  - The insurance row on the settlement page is plain text and leads nowhere. On the game page it still opens 算保险.
 - Decision: do.
 - Tracking: PR #84
 

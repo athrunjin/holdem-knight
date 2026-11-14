@@ -173,7 +173,7 @@ Priorities and severities are defined in the [testing README](README.md).
 
 | ID | Priority | Case | Preconditions and steps | Expected |
 | --- | --- | --- | --- | --- |
-| E-01 | P0 | Summary | Open any settlement. | The header is the game page's: the blinds, the currency's icon and their cash value, and under it the Buy-in in big blinds, the four option labels and the settings icon, with the emblem on the right, which leads back to the game. Below, a line with the organizer's ID (guest for now) and the start date, weekday and time. Three centered tiles: 总 Buy-in · the number of Buy-ins over their cash value; 时长 (clock time, or — without a clock); and 牌桌平衡 with a green tick, or a red cross over 水上多 or 水下多 and the difference in cash. A tap on the first or the last switches its figure to chips and back, each on its own. The cards sit under 对局总览. |
+| E-01 | P0 | Summary | Open any settlement. | The header is the game page's: the blinds, the currency's icon and their cash value, and under it the Buy-in in big blinds, the four option labels and the settings icon, with the emblem on the right, which is a picture only. Below, a line with the organizer's ID (guest for now) and the start date, weekday and time. Three centered tiles: 总 Buy-in · the number of Buy-ins over their cash value; 时长 (clock time, or — without a clock); and 牌桌平衡 with a green tick, or a red cross over 水上多 or 水下多 and the difference in cash. A tap on the first or the last switches its figure to chips and back, each on its own. The cards sit under 对局总览. |
 | E-02 | P0 | Imbalance row | Unbalanced books, no handling chosen. 1. Look at the page. 2. Tap the row and pick one. 3. Tap it again and choose 取消. | 1. The row reads 差额 ±N 筹码（¥）· 未选择处理方式, and the results area says 选择差额处理方式后显示结果。 2. Three choices open, and picking one closes them and shows the results. 3. Nothing changes. With balanced books there is no row. |
 | E-03 | P0 | Insurance owner row | A game with insurance. Tap the 保险 · 归属 row. | 组织者, 单独列出 and each player open, with a check on the current one. Picking one updates the row. |
 | E-04 | P0 | Folded cards | A game with fees, as it opens. | Players' cards are folded. The amount column shows the total (green, red, or gray for 0). A small right-aligned line below lists 分摊, 保险, 工资 and 台费 in that order, where present, then 含费 or 含调整 in gray. With one item there is no sum. A group waived in full shows 已免. |
@@ -201,8 +201,11 @@ Priorities and severities are defined in the [testing README](README.md).
 | --- | --- | --- | --- | --- |
 | G-01 | P0 | Games without fees | Restore samples 01–05 and settle each. | Results and transfers match `EXPECTED.md`. |
 | G-02 | P1 | Insurance | A game with insurance. Work through one hit and one miss with 算保险. | The flow and the table's chips behave as before. |
-| G-03 | P1 | Collector | Choose 代收人 in the transfer plan and change who collects. | Transfers go through the collector with the right amounts. |
+| G-03 | P1 | Collector | Open 积分管理, tap the plan at the top right of the section and pick a 代收人, then another. | The list reads 最优方案, 代收人：the organizer's ID, then one line for each player. One tap picks and closes the list. Transfers go through the collector with the right amounts. |
 | G-04 | P1 | Settling from the table | Restore sample 07 and tap 结算 → 一键离桌并结算. | Everyone leaves and the settlement is right. |
+| G-05 | P0 | The plan a game starts with | Open the settlement of a game with insurance, a table fee or wages, then of a game with none of them. | The first opens with 积分管理 expanded and the organizer collecting, named by their ID. The second starts with it closed, and a tap opens the optimal plan. |
+| G-06 | P1 | The plan after settlement | On a settled game, change the plan, leave the page and come back. | The plan changes without reopening the game and is still the chosen one on return. Charges and the difference handling stay locked. |
+| G-07 | P1 | Leaving the settlement page | On an open game's settlement, tap 返回牌桌 beside 确认结算. Then tap the emblem and, in a game with insurance, the 保险 row on the organizer's card. | 返回牌桌 leads to the game page. The emblem and the 保险 row do nothing. |
 
 ### H. Wage units, rounding and time of day
 
@@ -227,7 +230,7 @@ Cases around midnight need a game played across a real midnight, with the clock 
 | H-14 | P1 | Settings by what is on | Settle one game with only wages, one with only insurance, and one with none of the options. | The first shows only a 工资 line and the second only 保险. The third says 这局没有开启保险、工资或台费。 |
 | H-15 | P1 | Two decimals | Settle a game with whole and fractional amounts and open the cards. | Every amount in the cards shows two decimals, such as +¥150.00 and -¥10.00: first rows, detail lines, totals and the folded line. They share one right edge, and the shared image's amounts match. |
 | H-16 | P1 | Columns | A game with 12 and 25 buy-ins, four-digit chips and wins. Settle and open a player's card. | Buy-in counts sit centered under their title, and chips and 水上/下 fit with their separators. The open lines are as close together as the organizer's. |
-| H-17 | P0 | The clock stops for settlement | A game with wages and the clock running. Tap 结算 and, if asked, 一键离桌并结算. Wait a few minutes on the settlement page, then tap the emblem at the top right. | 时长 and every 在桌 time stay as they were on arrival. Back on the game page the clock shows the same time, paused, and can be resumed. |
+| H-17 | P0 | The clock stops for settlement | A game with wages and the clock running. Tap 结算 and, if asked, 一键离桌并结算. Wait a few minutes on the settlement page, then tap 返回牌桌. | 时长 and every 在桌 time stay as they were on arrival. Back on the game page the clock shows the same time, paused, and can be resumed. |
 
 ## 5. Bug reports
 

@@ -140,6 +140,12 @@ export const INSURANCE_PLAYER_NAME = "保险";
  */
 export const ORGANIZER_PLAYER_ID = "organizer";
 
+/**
+ * The optimal transfer plan, chosen outright. It is saved where a collector's ID would be, so the
+ * choice holds in a game whose own default is a collector.
+ */
+export const OPTIMAL_PLAN = "optimal";
+
 /** A flat fee each player pays once per game, if they sat long enough. */
 export interface TableFeeRule {
   readonly amount: Cents;
@@ -281,7 +287,10 @@ export interface Game {
   readonly handChips?: number;
   readonly status: GameStatus;
   readonly createdAt: Timestamp;
-  /** Who collects and pays out at settlement: a player ID or `ORGANIZER_COLLECTOR`. Missing means the optimal plan. */
+  /**
+   * Who collects and pays out at settlement: a player ID, `ORGANIZER_COLLECTOR`, or `OPTIMAL_PLAN`
+   * for no collector. Missing means the game's own default (`transferCollector`).
+   */
   readonly collectorId?: string;
   /** How a chip difference is settled. Only used when the books do not balance. */
   readonly imbalanceHandling?: ImbalanceHandling;

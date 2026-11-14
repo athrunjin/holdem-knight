@@ -1,8 +1,10 @@
 /** Settlement: balance check, each player's result in cash, and transfers. */
 import {
   type ChipRatio,
+  type Game,
   type ImbalanceHandling,
   INSURANCE_PLAYER_ID,
+  OPTIMAL_PLAN,
   ORGANIZER_PLAYER_ID,
 } from "../domain";
 import { chipsToCents, type PlayerLedger } from "../ledger";
@@ -206,9 +208,25 @@ export function collectorTransfers(nets: readonly PlayerNet[], collectorId: stri
     );
 }
 
-/** A collector no longer in the game, for example after reopening it, falls back to the optimal plan. */
+/** Whether someone can collect: the organizer always can, a player only while in the game. */
 export function isValidCollector(nets: readonly PlayerNet[], collectorId: string | undefined) {
   return (
     collectorId === ORGANIZER_COLLECTOR || nets.some(({ playerId }) => playerId === collectorId)
   );
+}
+
+/**
+ * Who collects at settlement, or `undefined` for the optimal plan. A saved choice comes first.
+ * Without one, or with a collector no longer in the game (for example after reopening it), a game
+ * with insurance, a table fee or wages goes through the organizer, and any other game takes the
+ * optimal plan. Rake will count with them once it exists (M4).
+ */
+export function transferCollector(
+  game: Pick<Game, "collectorId" | "insurance" | "tableFee" | "wage">,
+  nets: readonly PlayerNet[],
+): string | undefined {
+  const { collectorId } = game;
+  if (collectorId === OPTIMAL_PLAN) return undefined;
+  if (collectorId !== undefined && isValidCollector(nets, collectorId)) return collectorId;
+  return game.insurance || game.tableFee || game.wage ? ORGANIZER_COLLECTOR : undefined;
 }

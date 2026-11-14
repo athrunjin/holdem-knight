@@ -1,7 +1,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { INSURANCE_PLAYER_ID } from "../domain";
+import { INSURANCE_PLAYER_ID, OPTIMAL_PLAN } from "../domain";
+import { RULE_30 } from "../insurance";
 import { chipsToCents, type PlayerLedger } from "../ledger";
 import { cents, sum } from "../money";
 import {
@@ -14,6 +15,7 @@ import {
   type PlayerNet,
   settlementOutcome,
   settleTransfers,
+  transferCollector,
 } from "./settlement";
 
 const ledger = (playerId: string, boughtChips: number, cashedOutChips: number): PlayerLedger => ({
@@ -174,6 +176,29 @@ describe("isValidCollector", () => {
     expect(isValidCollector(nets, ORGANIZER_COLLECTOR)).toBe(true);
     expect(isValidCollector(nets, "gone")).toBe(false);
     expect(isValidCollector(nets, undefined)).toBe(false);
+  });
+});
+
+describe("transferCollector", () => {
+  const nets = [net("a", 100), net("b", -100)];
+  const fee = { tableFee: { amount: cents(1000), minMinutes: 0 } };
+
+  it("takes the optimal plan in a plain game and the organizer in one with insurance or charges", () => {
+    expect(transferCollector({}, nets)).toBeUndefined();
+    expect(transferCollector(fee, nets)).toBe(ORGANIZER_COLLECTOR);
+    expect(transferCollector({ wage: { hourly: cents(1000) } }, nets)).toBe(ORGANIZER_COLLECTOR);
+    expect(transferCollector({ insurance: RULE_30 }, nets)).toBe(ORGANIZER_COLLECTOR);
+  });
+
+  it("keeps a saved choice, the optimal plan included", () => {
+    expect(transferCollector({ collectorId: "a" }, nets)).toBe("a");
+    expect(transferCollector({ ...fee, collectorId: "b" }, nets)).toBe("b");
+    expect(transferCollector({ ...fee, collectorId: OPTIMAL_PLAN }, nets)).toBeUndefined();
+  });
+
+  it("falls back to the game's default when the collector has left the game", () => {
+    expect(transferCollector({ collectorId: "gone" }, nets)).toBeUndefined();
+    expect(transferCollector({ ...fee, collectorId: "gone" }, nets)).toBe(ORGANIZER_COLLECTOR);
   });
 });
 

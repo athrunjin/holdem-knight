@@ -16,7 +16,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0009](0009-backup-format.md)           | Versioned JSON backups, and restore only adds records                                   | Accepted |
 | [0010](0010-buy-in-hands.md)            | Buying in by hands: games fix chips per hand, and the ledger keeps recording chips      | Accepted |
 | [0011](0011-chip-blinds-and-live-stacks.md) | Blinds in chips, and live stacks as ledger events | Accepted |
-| [0012](0012-settlement-collector.md) | Save the settlement collector on the game | Accepted |
+| [0012](0012-settlement-collector.md) | Save the settlement collector on the game | Superseded in part by 0029 |
 | [0013](0013-unbalanced-settlement.md) | Allow settling unbalanced books | Accepted |
 | [0014](0014-insurance-seat.md) | Insurance as a seat in the game | Superseded in part by 0015 |
 | [0015](0015-insurance-moves-only-the-seat.md) | Insurance moves only the seat, once its card is dealt | Superseded in part by 0017 |
@@ -33,6 +33,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0026](0026-insurance-cover-limits-and-odds-tables.md) | Insurance cover limits, and odds tables kept apart from the rule's settings | Accepted |
 | [0027](0027-wage-units-rounding-and-game-time-zone.md) | Wage units at the longer rate, rounding modes, and the game's time zone | Accepted |
 | [0028](0028-organizer-seat.md) | The organizer plays under a seat of their own | Accepted |
+| [0029](0029-default-transfer-plan.md) | The transfer plan a game starts with, and changing it after settlement | Accepted |
 
 ## Template
 

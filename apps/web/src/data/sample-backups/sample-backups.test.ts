@@ -11,13 +11,13 @@ import {
   gameCharges,
   INSURANCE_PLAYER_ID,
   INSURANCE_PLAYER_NAME,
-  isValidCollector,
   type LedgerEvent,
   ORGANIZER_COLLECTOR,
   seatTimes,
   settlementOutcome,
   settleTransfers,
   summarizeByPlayer,
+  transferCollector,
 } from "@holdem-knight/core";
 import Dexie from "dexie";
 import { describe, expect, it } from "vitest";
@@ -103,11 +103,9 @@ function settle(game: Game, recorded: readonly LedgerEvent[], nameOf: (id: strin
       ? players
       : [...players, { name: "组织者", netChips: organizerChips, net: organizerNet }];
 
-  const { collectorId } = game;
+  const collectorId = transferCollector(game, nets);
   const transfers = (
-    isValidCollector(nets, collectorId) && collectorId
-      ? collectorTransfers(nets, collectorId)
-      : settleTransfers(nets)
+    collectorId ? collectorTransfers(nets, collectorId) : settleTransfers(nets)
   ).map(({ from, to, amount }) => ({ from: nameOf(from), to: nameOf(to), amount }));
 
   const owed = chargesByPlayer(charges);
@@ -130,7 +128,7 @@ function settle(game: Game, recorded: readonly LedgerEvent[], nameOf: (id: strin
         }
       : {}),
   };
-  return expected;
+  return { expected, collectorId };
 }
 
 function gameOf({ data }: SampleScenario) {
@@ -159,7 +157,8 @@ function expectedMarkdown() {
     const { chips, amount } = game.chipRatio;
     const ratio = `${chips.toLocaleString("zh-CN")} chip${chips === 1 ? "" : "s"} = ${money(amount)}`;
     const status = game.status === "settled" ? "settled" : "open";
-    const plan = game.collectorId ? `代收人 ${nameOf(game.collectorId)}` : "最优方案";
+    const { collectorId } = settle(game, scenario.data.ledgerEvents, nameOf);
+    const plan = collectorId ? `代收人 ${nameOf(collectorId)}` : "最优方案";
 
     const lines = [
       `## ${scenario.slug}: ${scenario.title}`,
@@ -248,7 +247,7 @@ describe("sample backups", () => {
     (_, scenario) => {
       const game = gameOf(scenario);
       const actual = settle(game, scenario.data.ledgerEvents, namer(scenario.data));
-      expect(actual).toEqual(scenario.expected);
+      expect(actual.expected).toEqual(scenario.expected);
     },
   );
 
@@ -270,7 +269,7 @@ describe("sample backups", () => {
         if (!game) throw new Error(`${scenario.slug} was not restored`);
         const events = await repository.ledger.listByGame(game.id);
         const nameOf = namer({ ...parsed.data, players: await repository.players.list() });
-        expect(settle(game, events, nameOf), scenario.slug).toEqual(scenario.expected);
+        expect(settle(game, events, nameOf).expected, scenario.slug).toEqual(scenario.expected);
       }
     } finally {
       await Dexie.delete(db.name);

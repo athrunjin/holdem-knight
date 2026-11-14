@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import type { GameSettings } from "../domain";
+import { type GameSettings, OPTIMAL_PLAN } from "../domain";
 import { cents } from "../money";
 import {
   chooseCollector,
@@ -184,10 +184,10 @@ describe("upgradeLegacyGame", () => {
 describe("chooseCollector", () => {
   const game = createGame(meta, DEFAULT_GAME_SETTINGS);
 
-  it("saves a collector and clears it again", () => {
+  it("saves a collector, and the optimal plan as a choice of its own", () => {
     const chosen = chooseCollector(game, "p1");
     expect(chosen.collectorId).toBe("p1");
-    expect(chooseCollector(chosen, undefined)).toEqual(game);
+    expect(chooseCollector(chosen, undefined)).toEqual({ ...game, collectorId: OPTIMAL_PLAN });
   });
 });
 

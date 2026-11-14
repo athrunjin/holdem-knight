@@ -3,13 +3,14 @@
  *
  * Form values are strings typed by the user, converted here to integers (cents, chips).
  */
-import type {
-  Currency,
-  Game,
-  GameSettings,
-  ImbalanceHandling,
-  OrganizerId,
-  Timestamp,
+import {
+  type Currency,
+  type Game,
+  type GameSettings,
+  type ImbalanceHandling,
+  OPTIMAL_PLAN,
+  type OrganizerId,
+  type Timestamp,
 } from "../domain";
 import { type Cents, cents, toDecimalString, tryParseMoney } from "../money";
 import { pauseTimer } from "./timer";
@@ -163,10 +164,12 @@ export function settleGame(game: Game, settledAt: Timestamp): Game {
   return game.timer ? { ...settled, timer: pauseTimer(game.timer, settledAt) } : settled;
 }
 
-/** Saves who collects at settlement. `undefined` goes back to the optimal plan. */
+/**
+ * Saves who collects at settlement. `undefined` is the optimal plan, saved as a choice of its own
+ * so it holds in a game that would otherwise go through the organizer.
+ */
 export function chooseCollector(game: Game, collectorId: string | undefined): Game {
-  const { collectorId: _, ...rest } = game;
-  return collectorId === undefined ? rest : { ...rest, collectorId };
+  return { ...game, collectorId: collectorId ?? OPTIMAL_PLAN };
 }
 
 /** Saves who takes the insurance result. `undefined` goes back to the organizer. */

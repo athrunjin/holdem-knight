@@ -1,6 +1,5 @@
 import { type Cents, type Currency, cents } from "@holdem-knight/core";
-import { Link } from "@tanstack/react-router";
-import { Calculator, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { breakable, formatSignedChips, netColor } from "@/lib/chips";
@@ -128,17 +127,15 @@ export function ColumnTitles({ first }: { first: string }) {
 
 /**
  * The insurance seat on the organizer's card, as the game page shows it: its own row in the card's
- * columns, in the highlight color, whose name opens the insurance page.
+ * columns, in the highlight color. Here it is only read, so its name leads nowhere.
  */
 export function InsuranceRow({
-  gameId,
   hands,
   chips,
   netChips,
   amount,
   currency,
 }: {
-  gameId: string;
   hands: string;
   chips: string;
   netChips: number;
@@ -147,15 +144,7 @@ export function InsuranceRow({
 }) {
   return (
     <div className={cn(columnsClass, "min-h-11 text-xs")}>
-      <Link
-        to="/games/$gameId/insurance"
-        params={{ gameId }}
-        aria-label="算保险"
-        className="flex min-h-11 min-w-0 items-center gap-0.5 text-highlight"
-      >
-        <Calculator className="size-4 shrink-0" aria-hidden />
-        <span className="truncate">保险</span>
-      </Link>
+      <span className="truncate text-highlight">保险</span>
       <span className="text-center">{hands}</span>
       <span className={cn(figureClass, "text-center")}>{breakable(chips)}</span>
       <span className={cn(figureClass, "text-right", netColor(netChips))}>
