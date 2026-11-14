@@ -1,6 +1,6 @@
 # 0012. Save the settlement collector on the game
 
-- Status: Accepted
+- Status: Superseded in part by 0029
 - Date: 2026-11-04
 
 ## Context

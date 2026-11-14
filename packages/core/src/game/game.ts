@@ -3,13 +3,15 @@
  *
  * Form values are strings typed by the user, converted here to integers (cents, chips).
  */
-import type {
-  Currency,
-  Game,
-  GameSettings,
-  ImbalanceHandling,
-  OrganizerId,
-  Timestamp,
+import {
+  type Currency,
+  type Game,
+  type GameSettings,
+  type GameStage,
+  type ImbalanceHandling,
+  OPTIMAL_PLAN,
+  type OrganizerId,
+  type Timestamp,
 } from "../domain";
 import { type Cents, cents, toDecimalString, tryParseMoney } from "../money";
 import { pauseTimer } from "./timer";
@@ -155,6 +157,20 @@ export function createGame(meta: NewGameMeta, settings: GameSettings): Game {
 }
 
 /**
+ * Starts settling, from the settle step on the game page: the table is done and the results are
+ * being checked. Nothing can be marked as received yet, so marks from an earlier settlement go.
+ */
+export function startSettling(game: Game): Game {
+  const { doneTransfers: _, ...rest } = game;
+  return { ...rest, status: "settling" };
+}
+
+/** Back to the table from settling, so recording can continue. Any other game is left alone. */
+export function resumeGame(game: Game): Game {
+  return game.status === "settling" ? { ...game, status: "open" } : game;
+}
+
+/**
  * Confirms settlement and stops the clock at the final time.
  * Transfers are not saved because the ledger can always reproduce them.
  */
@@ -163,10 +179,40 @@ export function settleGame(game: Game, settledAt: Timestamp): Game {
   return game.timer ? { ...settled, timer: pauseTimer(game.timer, settledAt) } : settled;
 }
 
-/** Saves who collects at settlement. `undefined` goes back to the optimal plan. */
+/**
+ * Takes a settled game back to settling so its results can be changed. The marks on its transfers
+ * go, since the transfers follow the results, and with them the game being complete.
+ */
+export function reviseGame(game: Game): Game {
+  const { settledAt: _, allReceived: __, doneTransfers: ___, ...rest } = game;
+  return { ...rest, status: "settling" };
+}
+
+/**
+ * Saves whether every transfer of a settled game has been made. Whoever knows the plan's transfers
+ * calls this when the game is settled, when a transfer is ticked and when the plan changes. A game
+ * with nothing to transfer has everything in. A game not settled never has.
+ */
+export function markReceived(game: Game, allReceived: boolean): Game {
+  const { allReceived: _, ...rest } = game;
+  return game.status === "settled" && allReceived ? { ...rest, allReceived: true } : rest;
+}
+
+/** Where a game stands: a settled game is pending until every transfer is in. */
+export function gameStage({
+  status,
+  allReceived,
+}: Pick<Game, "status" | "allReceived">): GameStage {
+  if (status !== "settled") return status;
+  return allReceived ? "complete" : "pending";
+}
+
+/**
+ * Saves who collects at settlement. `undefined` is the optimal plan, saved as a choice of its own
+ * so it holds in a game that would otherwise go through the organizer.
+ */
 export function chooseCollector(game: Game, collectorId: string | undefined): Game {
-  const { collectorId: _, ...rest } = game;
-  return collectorId === undefined ? rest : { ...rest, collectorId };
+  return { ...game, collectorId: collectorId ?? OPTIMAL_PLAN };
 }
 
 /** Saves who takes the insurance result. `undefined` goes back to the organizer. */
@@ -177,12 +223,6 @@ export function chooseInsuranceOwner(game: Game, insuranceOwner: string | undefi
 
 export function chooseImbalanceHandling(game: Game, imbalanceHandling: ImbalanceHandling): Game {
   return { ...game, imbalanceHandling };
-}
-
-/** Reopens a settled game when a mistake turns up, so recording can continue. */
-export function reopenGame(game: Game): Game {
-  const { settledAt: _, ...rest } = game;
-  return { ...rest, status: "open" };
 }
 
 /**

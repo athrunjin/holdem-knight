@@ -1,19 +1,24 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { INSURANCE_PLAYER_ID } from "../domain";
+import { INSURANCE_PLAYER_ID, OPTIMAL_PLAN } from "../domain";
+import { createGame, DEFAULT_GAME_SETTINGS } from "../game";
+import { RULE_30 } from "../insurance";
 import { chipsToCents, type PlayerLedger } from "../ledger";
 import { cents, sum } from "../money";
 import {
   attributeInsurance,
   chipDifference,
   collectorTransfers,
+  isTransferDone,
   isValidCollector,
+  markTransfers,
   netCents,
   ORGANIZER_COLLECTOR,
   type PlayerNet,
   settlementOutcome,
   settleTransfers,
+  transferCollector,
 } from "./settlement";
 
 const ledger = (playerId: string, boughtChips: number, cashedOutChips: number): PlayerLedger => ({
@@ -174,6 +179,54 @@ describe("isValidCollector", () => {
     expect(isValidCollector(nets, ORGANIZER_COLLECTOR)).toBe(true);
     expect(isValidCollector(nets, "gone")).toBe(false);
     expect(isValidCollector(nets, undefined)).toBe(false);
+  });
+});
+
+describe("transferCollector", () => {
+  const nets = [net("a", 100), net("b", -100)];
+  const fee = { tableFee: { amount: cents(1000), minMinutes: 0 } };
+
+  it("takes the optimal plan in a plain game and the organizer in one with insurance or charges", () => {
+    expect(transferCollector({}, nets)).toBeUndefined();
+    expect(transferCollector(fee, nets)).toBe(ORGANIZER_COLLECTOR);
+    expect(transferCollector({ wage: { hourly: cents(1000) } }, nets)).toBe(ORGANIZER_COLLECTOR);
+    expect(transferCollector({ insurance: RULE_30 }, nets)).toBe(ORGANIZER_COLLECTOR);
+  });
+
+  it("keeps a saved choice, the optimal plan included", () => {
+    expect(transferCollector({ collectorId: "a" }, nets)).toBe("a");
+    expect(transferCollector({ ...fee, collectorId: "b" }, nets)).toBe("b");
+    expect(transferCollector({ ...fee, collectorId: OPTIMAL_PLAN }, nets)).toBeUndefined();
+  });
+
+  it("falls back to the game's default when the collector has left the game", () => {
+    expect(transferCollector({ collectorId: "gone" }, nets)).toBeUndefined();
+    expect(transferCollector({ ...fee, collectorId: "gone" }, nets)).toBe(ORGANIZER_COLLECTOR);
+  });
+});
+
+describe("markTransfers", () => {
+  const game = createGame({ id: "g", organizerId: "me", createdAt: 0 }, DEFAULT_GAME_SETTINGS);
+  const first = { from: "a", to: "b", amount: cents(100) };
+  const second = { from: "c", to: "b", amount: cents(250) };
+
+  it("marks a transfer as made and takes the mark off again", () => {
+    const marked = markTransfers(game, [first], true);
+    expect(isTransferDone(marked, first)).toBe(true);
+    expect(isTransferDone(marked, second)).toBe(false);
+    expect(markTransfers(marked, [first], false)).toEqual(game);
+  });
+
+  it("marks several at once without doubling one already marked", () => {
+    const marked = markTransfers(markTransfers(game, [first], true), [first, second], true);
+    expect(marked.doneTransfers).toEqual([first, second]);
+    expect(markTransfers(marked, [first, second], false)).toEqual(game);
+  });
+
+  it("does not carry a mark to the same people for another amount", () => {
+    const marked = markTransfers(game, [first], true);
+    expect(isTransferDone(marked, { ...first, amount: cents(101) })).toBe(false);
+    expect(isTransferDone(marked, { from: "b", to: "a", amount: cents(100) })).toBe(false);
   });
 });
 

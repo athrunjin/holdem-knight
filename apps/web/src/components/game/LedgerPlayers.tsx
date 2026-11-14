@@ -11,7 +11,7 @@ import {
   type PlayerLedger,
 } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
-import { Calculator, ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { breakable, formatSignedChips, netColor } from "@/lib/chips";
@@ -24,11 +24,10 @@ import {
   ColumnTitles,
   columnsClass,
   figureClass,
-  Line,
-  nameClass,
+  InsuranceName,
+  insuranceNameClass,
   PersonCard,
   type ResultCard,
-  TotalLine,
 } from "./ResultCards";
 
 const actionClass = "min-h-11 shrink-0 rounded-lg border border-line px-2 text-sm font-medium";
@@ -38,11 +37,6 @@ const rowClass = "flex min-h-13 items-center gap-1.5 py-1";
 const ARMED_MS = 5000;
 /** A second tap this soon after the first is the same tap twice, not a confirmation. */
 const DOUBLE_TAP_MS = 350;
-
-/** A card as on the settlement page: a tinted row of figures, then any lines under it. */
-const cardClass = "overflow-hidden rounded-xl border border-line bg-surface text-sm";
-/** The row is a little shorter than a 44px target, and so is everything tappable in it. */
-const headClass = cn(columnsClass, "min-h-9 w-full bg-accent/15 px-2 text-left [&_button]:min-h-9");
 
 /** Tappable figures keep a 44px target, wider than the Buy-in column they sit in. */
 const cellButtonClass = "min-h-11 tabular-nums";
@@ -74,7 +68,7 @@ interface LedgerPlayersProps {
   onLeave: (playerId: string) => void;
   /** Shown at the foot of the seated players */
   addPlayer: ReactNode;
-  /** Whether the seated players' cards start open, on their record, charges and total */
+  /** Whether the seated players' cards are open, on their record, charges and total */
   detailMode: boolean;
   onDetailModeChange: (on: boolean) => void;
 }
@@ -144,7 +138,11 @@ export function LedgerPlayers({
   const [organizerOpen, setOrganizerOpen] = useState(
     game.tableFee !== undefined || game.wage !== undefined,
   );
-  const [leftOpen, setLeftOpen] = useState(true);
+  const [leftOpen, setLeftOpen] = useState(false);
+  // Whether folded cards show what the players owe and their result after it. Games that charge
+  // players outside their chips have the switch, on to begin with and apart from 详细模式
+  const hasFees = game.tableFee !== undefined || game.wage !== undefined;
+  const [withFees, setWithFees] = useState(true);
   // Cards opened or closed one by one, against the 详细模式 switch
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
   // The player whose 结算并下桌 is lit, waiting for the tap that confirms it
@@ -278,25 +276,13 @@ export function LedgerPlayers({
     );
   }
 
-  /** A figure in a card's first row that folds the card open and closed, as the name does. */
-  function foldCell(open: boolean, onToggle: () => void, tone: string, figure: ReactNode) {
+  /** The win or loss in chips. */
+  function net(netChips: number) {
     return (
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={onToggle}
-        className={cn(cellButtonClass, figureClass, "text-right", tone)}
-      >
-        {figure}
-      </button>
+      <span className={cn(figureClass, "text-right", netColor(netChips))}>
+        {breakable(formatSignedChips(netChips))}
+      </span>
     );
-  }
-
-  /** The win or loss in chips. With `fold`, a tap on it folds its card. */
-  function net(netChips: number, fold?: { open: boolean; onToggle: () => void }) {
-    const figure = breakable(formatSignedChips(netChips));
-    if (fold) return foldCell(fold.open, fold.onToggle, netColor(netChips), figure);
-    return <span className={cn(figureClass, "text-right", netColor(netChips))}>{figure}</span>;
   }
 
   const isOpen = (playerId: string) => detailMode !== toggled.has(playerId);
@@ -308,78 +294,52 @@ export function LedgerPlayers({
   }
 
   /**
-   * A seated player's card. Open, it is their card on the settlement page as it would be if they
-   * left now: their Buy-in record, what they would take out, the time sat and the charges so far.
+   * A seated player's card, the settlement page's own. Open, it is their card there as it would
+   * be if they left now: their Buy-in record, what they would take out, the time sat and the
+   * charges so far. Folded, it is its first row, with the settlement page's line of charges and
+   * total under it while 含费 is on.
    */
   function playerCard(player: PlayerLedger) {
     const { playerId, netChips, stackChips } = player;
-    const name = nameOf(playerId);
     const cash = chipsToCents(netChips, ratio);
-    const total = cents(cash - owed((c) => c.playerId === playerId));
-    const open = isOpen(playerId);
-    const fold = { open, onToggle: () => toggle(playerId) };
-    const lines = open
-      ? chargeLines(game, live.statuses, live.charges, playerId, {
-          disabled: waiving || !editable,
-          onWaive,
-          live: true,
-        })
-      : [];
-
+    const card: ResultCard = {
+      id: playerId,
+      name: nameOf(playerId),
+      hands: "—",
+      chips: "—",
+      handsCell: hands(player),
+      chipsCell: stack(player),
+      netChips,
+      // Folded or open, the first row is what the chips come to. Charges only count in 合计
+      base: cash,
+      record: (
+        <BuyInRecord
+          game={game}
+          events={events}
+          playerId={playerId}
+          leaving={{ chips: stackChips, at: live.now }}
+        />
+      ),
+      lines: chargeLines(game, live.statuses, live.charges, playerId, {
+        disabled: waiving || !editable,
+        onWaive,
+        live: true,
+      }),
+      total: cents(cash - owed((c) => c.playerId === playerId)),
+      collapsible: true,
+      action: editable && (
+        <SettleButton armed={playerId === armedId} onClick={() => settle(playerId)} />
+      ),
+    };
     return (
-      <section key={playerId} aria-label={name} className={cardClass}>
-        <div className={headClass}>
-          <button
-            type="button"
-            aria-expanded={open}
-            onClick={() => toggle(playerId)}
-            className="flex min-h-11 min-w-0 items-center text-left font-medium"
-          >
-            <ChevronRight
-              className={cn(
-                "-ml-1 size-4 shrink-0 text-muted transition-transform",
-                open && "rotate-90",
-              )}
-              aria-hidden
-            />
-            <span className={nameClass}>{name}</span>
-          </button>
-          {hands(player)}
-          {stack(player)}
-          {net(netChips, fold)}
-          {/* Folded or open, this is what the chips come to. Charges only count in 合计 */}
-          {foldCell(
-            open,
-            fold.onToggle,
-            "",
-            <span className={netColor(cash)}>{breakable(amount(cash))}</span>,
-          )}
-        </div>
-        {open && (
-          <div className="@container px-2">
-            <BuyInRecord
-              game={game}
-              events={events}
-              playerId={playerId}
-              leaving={{ chips: stackChips, at: live.now }}
-            />
-            <div className={cn(lines.length > 0 && "border-t border-line")}>
-              {lines.map((line) => (
-                <Line key={line.key} line={line} currency={currency} />
-              ))}
-            </div>
-            <TotalLine
-              total={total}
-              currency={currency}
-              action={
-                editable && (
-                  <SettleButton armed={playerId === armedId} onClick={() => settle(playerId)} />
-                )
-              }
-            />
-          </div>
-        )}
-      </section>
+      <PersonCard
+        key={playerId}
+        card={card}
+        currency={currency}
+        open={isOpen(playerId)}
+        onToggle={() => toggle(playerId)}
+        summary={hasFees && withFees}
+      />
     );
   }
 
@@ -391,10 +351,9 @@ export function LedgerPlayers({
           to="/games/$gameId/insurance"
           params={{ gameId }}
           aria-label="算保险"
-          className="flex min-h-11 min-w-0 items-center gap-0.5 text-highlight"
+          className={cn(insuranceNameClass, "min-h-11")}
         >
-          <Calculator className="size-4 shrink-0" aria-hidden />
-          <span className="truncate">保险</span>
+          <InsuranceName />
         </Link>
         {!seat ? (
           <>
@@ -505,14 +464,17 @@ export function LedgerPlayers({
           <div className="-mb-2 flex min-h-11 items-center justify-between gap-2">
             <h2 className="font-semibold">桌上玩家（{seatedCount}）</h2>
             {seated.length > 0 && (
-              <MiniSwitch
-                label="详细模式"
-                checked={seated.every((p) => isOpen(p.playerId))}
-                onChange={(on) => {
-                  setToggled(new Set());
-                  onDetailModeChange(on);
-                }}
-              />
+              <div className="flex items-center gap-3">
+                {hasFees && <MiniSwitch label="含费" checked={withFees} onChange={setWithFees} />}
+                <MiniSwitch
+                  label="详细模式"
+                  checked={seated.every((p) => isOpen(p.playerId))}
+                  onChange={(on) => {
+                    setToggled(new Set());
+                    onDetailModeChange(on);
+                  }}
+                />
+              </div>
             )}
           </div>
           {seated.length > 0 && <ColumnTitles first="玩家" />}
@@ -523,17 +485,18 @@ export function LedgerPlayers({
         </section>
       )}
 
+      {/* Folded into one quiet line to begin with, like the game record under it */}
       {left.length > 0 && (
-        <section className="mt-2">
+        <section className="mt-2 border-t border-line">
           <div className="flex min-h-11 items-center justify-between gap-2">
             <h2>
               <button
                 type="button"
                 aria-expanded={leftOpen}
                 onClick={() => setLeftOpen(!leftOpen)}
-                className="flex min-h-11 items-center gap-1 text-sm font-medium text-muted"
+                className="flex min-h-11 items-center gap-1 text-sm text-muted"
               >
-                已离桌（{left.length}）
+                已结算（{left.length}）
                 <ChevronDown
                   className={cn("size-4 transition-transform", leftOpen && "rotate-180")}
                   aria-hidden
@@ -551,13 +514,13 @@ export function LedgerPlayers({
             )}
           </div>
           {leftOpen && (
-            <ul className={`${listClass} border-dashed bg-transparent`}>
+            <ul className={`${listClass} mb-2 border-dashed bg-transparent`}>
               {left.map(({ playerId, boughtChips, cashedOutChips, netChips }) => (
                 <li key={playerId} className={`${rowClass} text-muted`}>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{nameOf(playerId)}</p>
                     <p className="truncate text-xs">
-                      Buy-in {money(boughtChips)} · 离桌 {money(cashedOutChips)}
+                      Buy-in {money(boughtChips)} · 带出 {money(cashedOutChips)}
                     </p>
                   </div>
                   <span

@@ -1,7 +1,7 @@
-import type { Game } from "@holdem-knight/core";
+import { type Game, gameStage } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { GameOptions } from "@/components/game/GameOptions";
 import { InDevelopment } from "@/components/InDevelopment";
@@ -28,10 +28,12 @@ const ROLES: readonly { readonly role: Role; readonly label: string }[] = [
 ];
 
 function GameRow({ game }: { game: Game }) {
+  // A game being settled opens where it was left, on its results
+  const settling = game.status === "settling";
   return (
     <li>
       <Link
-        to="/games/$gameId"
+        to={settling ? "/games/$gameId/settlement" : "/games/$gameId"}
         params={{ gameId: game.id }}
         className="flex min-h-16 items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-2"
       >
@@ -42,19 +44,39 @@ function GameRow({ game }: { game: Game }) {
           </span>
           <GameOptions game={game} />
         </span>
-        <span className="shrink-0 text-sm text-muted">{STARTED_AT.format(game.createdAt)}</span>
+        <span className="flex shrink-0 items-center gap-2 text-sm text-muted">
+          {settling && (
+            <span className="rounded-md border border-highlight px-1.5 py-0.5 text-xs text-highlight">
+              结算中
+            </span>
+          )}
+          {STARTED_AT.format(game.createdAt)}
+        </span>
       </Link>
     </li>
   );
 }
 
-interface GameSectionProps {
-  title: string;
-  games: readonly Game[];
-  defaultOpen: boolean;
+function GameList({ games }: { games: readonly Game[] }) {
+  return games.length > 0 ? (
+    <ul className="mt-1 flex flex-col gap-2">
+      {games.map((game) => (
+        <GameRow key={game.id} game={game} />
+      ))}
+    </ul>
+  ) : (
+    <p className="px-1 py-2 text-sm text-muted">暂无牌局</p>
+  );
 }
 
-function GameSection({ title, games, defaultOpen }: GameSectionProps) {
+interface GameSectionProps {
+  /** The heading, with a count where one helps. */
+  title: string;
+  defaultOpen: boolean;
+  children: ReactNode;
+}
+
+function GameSection({ title, defaultOpen, children }: GameSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
@@ -66,33 +88,35 @@ function GameSection({ title, games, defaultOpen }: GameSectionProps) {
           onClick={() => setOpen(!open)}
           className="flex min-h-11 w-full items-center justify-between px-1 font-medium"
         >
-          <span>
-            {title}（{games.length}）
-          </span>
+          <span>{title}</span>
           <ChevronDown
             className={cn("size-5 text-muted transition-transform", open && "rotate-180")}
             aria-hidden
           />
         </button>
       </h2>
-      {open &&
-        (games.length > 0 ? (
-          <ul className="mt-1 flex flex-col gap-2">
-            {games.map((game) => (
-              <GameRow key={game.id} game={game} />
-            ))}
-          </ul>
-        ) : (
-          <p className="px-1 py-2 text-sm text-muted">暂无牌局</p>
-        ))}
+      {open && children}
+    </section>
+  );
+}
+
+/** One part of history under a small heading of its own. */
+function HistoryGroup({ title, games }: { title: string; games: readonly Game[] }) {
+  return (
+    <section className="mt-2">
+      <h3 className="px-1 text-sm text-muted">{title}</h3>
+      <GameList games={games} />
     </section>
   );
 }
 
 function HostGames() {
   const { data: games = [] } = useGames();
-  const openGames = games.filter((game) => game.status === "open");
-  const pastGames = games.filter((game) => game.status === "settled");
+  // Games at the table and games being settled are both still under way
+  const live = games.filter((game) => game.status !== "settled");
+  // History has the rest: pending from the moment it is settled, complete once every transfer is in
+  const pending = games.filter((game) => gameStage(game) === "pending");
+  const complete = games.filter((game) => gameStage(game) === "complete");
 
   return (
     <>
@@ -120,8 +144,13 @@ function HostGames() {
 
       {games.length > 0 && (
         <div className="flex flex-col gap-2 pb-6">
-          <GameSection title="进行中" games={openGames} defaultOpen />
-          <GameSection title="历史对局" games={pastGames} defaultOpen={false} />
+          <GameSection title={`进行中（${live.length}）`} defaultOpen>
+            <GameList games={live} />
+          </GameSection>
+          <GameSection title="历史对局" defaultOpen={false}>
+            <HistoryGroup title="积分待处理" games={pending} />
+            <HistoryGroup title="完成" games={complete} />
+          </GameSection>
         </div>
       )}
     </>

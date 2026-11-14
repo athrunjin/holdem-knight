@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import type { GameSettings } from "../domain";
+import { type GameSettings, OPTIMAL_PLAN } from "../domain";
 import { cents } from "../money";
 import {
   chooseCollector,
@@ -9,10 +9,14 @@ import {
   createGame,
   DEFAULT_GAME_SETTINGS,
   type GameSettingsForm,
+  gameStage,
   handChipsFor,
+  markReceived,
   parseGameSettings,
-  reopenGame,
+  resumeGame,
+  reviseGame,
   settleGame,
+  startSettling,
   toGameSettingsForm,
   updateGameSettings,
   upgradeLegacyGame,
@@ -184,10 +188,10 @@ describe("upgradeLegacyGame", () => {
 describe("chooseCollector", () => {
   const game = createGame(meta, DEFAULT_GAME_SETTINGS);
 
-  it("saves a collector and clears it again", () => {
+  it("saves a collector, and the optimal plan as a choice of its own", () => {
     const chosen = chooseCollector(game, "p1");
     expect(chosen.collectorId).toBe("p1");
-    expect(chooseCollector(chosen, undefined)).toEqual(game);
+    expect(chooseCollector(chosen, undefined)).toEqual({ ...game, collectorId: OPTIMAL_PLAN });
   });
 });
 
@@ -198,19 +202,58 @@ describe("chooseImbalanceHandling", () => {
   });
 });
 
-describe("settleGame / reopenGame", () => {
+describe("the stages of a game", () => {
   const game = createGame(meta, DEFAULT_GAME_SETTINGS);
+  const settling = startSettling(game);
+  const transfer = { from: "a", to: "b", amount: cents(100) };
 
-  it("records the time on settling and restores the game on reopening", () => {
-    const settled = settleGame(game, 2);
-    expect(settled).toEqual({ ...game, status: "settled", settledAt: 2 });
-    expect(reopenGame(settled)).toEqual(game);
+  it("goes from the table to settling, and back to the table", () => {
+    expect(settling).toEqual({ ...game, status: "settling" });
+    expect(resumeGame(settling)).toEqual(game);
   });
 
-  it("stops a running clock at settlement and leaves it paused on reopening", () => {
-    const settled = settleGame({ ...game, timer: { elapsedMs: 10, runningSince: 2 } }, 7);
+  it("leaves a game alone that is not settling when the table resumes", () => {
+    const settled = settleGame(settling, 2);
+    expect(resumeGame(game)).toBe(game);
+    expect(resumeGame(settled)).toBe(settled);
+  });
+
+  it("records the time on confirming and takes it away on revising", () => {
+    const settled = settleGame(settling, 2);
+    expect(settled).toEqual({ ...game, status: "settled", settledAt: 2 });
+    expect(reviseGame(settled)).toEqual(settling);
+  });
+
+  it("stops a running clock at settlement and leaves it paused on revising", () => {
+    const settled = settleGame({ ...settling, timer: { elapsedMs: 10, runningSince: 2 } }, 7);
     expect(settled.timer).toEqual({ elapsedMs: 15 });
-    expect(reopenGame(settled).timer).toEqual({ elapsedMs: 15 });
+    expect(reviseGame(settled).timer).toEqual({ elapsedMs: 15 });
+  });
+
+  it("drops the marks on transfers and the game being complete when the results are revised", () => {
+    const marked = { ...settleGame(settling, 2), doneTransfers: [transfer] };
+    expect(reviseGame(markReceived(marked, true))).toEqual(settling);
+  });
+
+  it("starts settling without marks left from before", () => {
+    expect(startSettling({ ...game, doneTransfers: [transfer] })).toEqual(settling);
+  });
+
+  it("is complete only while a settled game has every transfer in", () => {
+    const settled = settleGame(settling, 2);
+    const complete = markReceived(settled, true);
+    expect(complete).toEqual({ ...settled, allReceived: true });
+    expect(markReceived(complete, false)).toEqual(settled);
+    expect(markReceived(settled, false)).toEqual(settled);
+    expect(markReceived(settling, true)).toEqual(settling);
+  });
+
+  it("names the stage: pending once settled, complete once everything is in", () => {
+    const settled = settleGame(settling, 2);
+    expect(gameStage(game)).toBe("open");
+    expect(gameStage(settling)).toBe("settling");
+    expect(gameStage(settled)).toBe("pending");
+    expect(gameStage(markReceived(settled, true))).toBe("complete");
   });
 });
 

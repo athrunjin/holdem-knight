@@ -12,7 +12,7 @@ import {
 import { z } from "zod";
 
 const FORMAT = "holdem-backup";
-const VERSION = 11;
+const VERSION = 12;
 
 const id = z.string().min(1);
 const money = z
@@ -74,7 +74,8 @@ const gameFields = {
   imbalanceHandling: z.enum(IMBALANCE_HANDLINGS as ["split", "organizer", "ignore"]).optional(),
   insurance: insuranceRuleSchema.optional(),
   insuranceOwner: id.optional(),
-  status: z.enum(["open", "settled"]),
+  /** `settling` was added in version 12. */
+  status: z.enum(["open", "settling", "settled"]),
   createdAt: timestamp,
   settledAt: timestamp.optional(),
   /** Added in version 6. */
@@ -105,6 +106,10 @@ const gameFields = {
       }),
     )
     .optional(),
+  /** Added in version 12. */
+  allReceived: z.literal(true).optional(),
+  /** Added in version 12. */
+  doneTransfers: z.array(z.object({ from: id, to: id, amount: money })).optional(),
 };
 
 const gameSchema = z.object({

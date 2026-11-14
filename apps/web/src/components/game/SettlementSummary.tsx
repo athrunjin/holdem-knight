@@ -17,15 +17,18 @@ interface SettlementSummaryProps {
   ledger: readonly PlayerLedger[];
   /** Chips cashed out minus chips bought, 0 when the books balance */
   difference: number;
+  /** Takes a tap on the handling of a difference once the game is settled, when it cannot change */
+  onLocked: () => void;
 }
 
 /**
  * The top of the settlement page: the game's blinds, date and host, its totals, and how a chip
  * difference is handled, as small text over the balance box that opens the choices.
  */
-export function SettlementSummary({ game, ledger, difference }: SettlementSummaryProps) {
+export function SettlementSummary({ game, ledger, difference, onLocked }: SettlementSummaryProps) {
   const saveGame = useSaveGame();
   const { timer } = game;
+  const settled = game.status === "settled";
   const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
   const { boughtChips } = ledgerTotals(people);
   const elapsed = timer && formatElapsed(timerElapsedMs(timer, game.settledAt ?? Date.now()));
@@ -47,7 +50,8 @@ export function SettlementSummary({ game, ledger, difference }: SettlementSummar
               title="差额处理方案"
               options={choices}
               value={game.imbalanceHandling}
-              disabled={saveGame.isPending || game.status === "settled"}
+              disabled={saveGame.isPending || settled}
+              onLocked={settled ? onLocked : undefined}
               onChange={(handling) => saveGame.mutate(chooseImbalanceHandling(game, handling))}
             >
               {chosen ?? "选择处理方案"}

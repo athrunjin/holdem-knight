@@ -1,9 +1,12 @@
 /** Settlement: balance check, each player's result in cash, and transfers. */
 import {
   type ChipRatio,
+  type Game,
   type ImbalanceHandling,
   INSURANCE_PLAYER_ID,
+  OPTIMAL_PLAN,
   ORGANIZER_PLAYER_ID,
+  type Transfer,
 } from "../domain";
 import { chipsToCents, type PlayerLedger } from "../ledger";
 import { allocate, type Cents, cents, InvalidMoneyError, sum, ZERO } from "../money";
@@ -138,7 +141,7 @@ export interface InsuranceAttribution {
   readonly ownerId: string;
 }
 
-/** A player no longer in the game, for example after reopening it, falls back to the organizer. */
+/** A player no longer in the game, say after it went back to the table, falls back to the organizer. */
 export function attributeInsurance(
   nets: readonly PlayerNet[],
   savedOwner: string | undefined,
@@ -157,12 +160,6 @@ export function attributeInsurance(
     ? rest.map((p) => (p.playerId === ownerId ? { ...p, net: cents(p.net + insuranceNet) } : p))
     : [...rest, { playerId: ownerId, net: insuranceNet }];
   return { nets: moved, insuranceNet, ownerId };
-}
-
-export interface Transfer {
-  readonly from: string;
-  readonly to: string;
-  readonly amount: Cents;
 }
 
 function largest(balances: Map<string, number>, sign: 1 | -1): [string, number] | undefined {
@@ -206,9 +203,43 @@ export function collectorTransfers(nets: readonly PlayerNet[], collectorId: stri
     );
 }
 
-/** A collector no longer in the game, for example after reopening it, falls back to the optimal plan. */
+/** Whether someone can collect: the organizer always can, a player only while in the game. */
 export function isValidCollector(nets: readonly PlayerNet[], collectorId: string | undefined) {
   return (
     collectorId === ORGANIZER_COLLECTOR || nets.some(({ playerId }) => playerId === collectorId)
   );
+}
+
+/**
+ * Who collects at settlement, or `undefined` for the optimal plan. A saved choice comes first.
+ * Without one, or with a collector no longer in the game (for example after it went back to the
+ * table), a game with insurance, a table fee or wages goes through the organizer, and any other
+ * game takes the optimal plan. Rake will count with them once it exists (M4).
+ */
+export function transferCollector(
+  game: Pick<Game, "collectorId" | "insurance" | "tableFee" | "wage">,
+  nets: readonly PlayerNet[],
+): string | undefined {
+  const { collectorId } = game;
+  if (collectorId === OPTIMAL_PLAN) return undefined;
+  if (collectorId !== undefined && isValidCollector(nets, collectorId)) return collectorId;
+  return game.insurance || game.tableFee || game.wage ? ORGANIZER_COLLECTOR : undefined;
+}
+
+function sameTransfer(a: Transfer, b: Transfer) {
+  return a.from === b.from && a.to === b.to && a.amount === b.amount;
+}
+
+/** Whether a transfer has been marked as made. */
+export function isTransferDone(game: Pick<Game, "doneTransfers">, transfer: Transfer) {
+  return (game.doneTransfers ?? []).some((done) => sameTransfer(done, transfer));
+}
+
+/** Marks transfers as made, or as not made again. Marks on other transfers stay as they are. */
+export function markTransfers(game: Game, transfers: readonly Transfer[], done: boolean): Game {
+  const { doneTransfers = [], ...rest } = game;
+  const others = doneTransfers.filter((saved) => !transfers.some((t) => sameTransfer(saved, t)));
+  const marked = transfers.map(({ from, to, amount }) => ({ from, to, amount }));
+  const next = done ? [...others, ...marked] : others;
+  return next.length > 0 ? { ...rest, doneTransfers: next } : rest;
 }

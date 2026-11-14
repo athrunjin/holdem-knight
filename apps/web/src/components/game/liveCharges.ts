@@ -40,6 +40,6 @@ export function useLiveCharges(game: Game, events: readonly LedgerEvent[]): Live
   if (!game.tableFee && !game.wage) return { now, statuses: [], charges: [] };
 
   const statuses = chargeStatuses(game, events, { now, minuteOfDay: gameMinuteOfDay(game) });
-  // Charges waived on a card stay waived at settlement, and if the game is reopened
+  // Charges waived on a card stay waived at settlement, and if the game goes back to the table
   return { now, statuses, charges: chargesFrom(game, statuses) };
 }

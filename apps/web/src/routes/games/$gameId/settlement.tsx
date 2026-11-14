@@ -11,24 +11,27 @@ import {
   collectorTransfers,
   type Game,
   INSURANCE_PLAYER_ID,
-  isValidCollector,
+  isTransferDone,
   type LedgerEvent,
+  markReceived,
+  markTransfers,
   ORGANIZER_COLLECTOR,
   type PlayerChargeStatus,
   type PlayerLedger,
   type PlayerNet,
-  reopenGame,
+  reviseGame,
   type SettlementOutcome,
   settleGame,
   settlementOutcome,
   settleTransfers,
   summarizeByPlayer,
+  transferCollector,
   waiveCharge,
   ZERO,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { ChevronDown, Share2, Undo2 } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { BuyInRecord } from "@/components/game/BuyInRecord";
 import { chargeLines, organizerIncomeLines } from "@/components/game/chargeLines";
 import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
@@ -40,7 +43,10 @@ import {
   type ResultLine,
 } from "@/components/game/ResultCards";
 import { SettlementSummary } from "@/components/game/SettlementSummary";
+import type { TransferPlan } from "@/components/game/TransferPlanPicker";
+import { Transfers } from "@/components/game/Transfers";
 import { InfoButton } from "@/components/InfoButton";
+import { Modal } from "@/components/insurance/Modal";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
@@ -57,6 +63,28 @@ export const Route = createFileRoute("/games/$gameId/settlement")({
   component: SettlementPage,
 });
 
+/**
+ * The button the page points at when a tap cannot do what it asks: 确认结算 while the results are
+ * still open, 修改对局结果 once they are confirmed. A new one each time, so a second tap points again.
+ */
+interface Nudge {
+  readonly target: "confirm" | "revise";
+  readonly at: number;
+}
+
+/** How long the ring stays around the button. */
+const NUDGE_MS = 2400;
+
+function NudgeRing({ at }: { at: number }) {
+  return (
+    <span
+      key={at}
+      aria-hidden
+      className="pointer-events-none absolute -inset-1 animate-nudge rounded-2xl ring-2 ring-highlight"
+    />
+  );
+}
+
 function SettlementPage() {
   const { gameId } = Route.useParams();
   const { data: game } = useGame(gameId);
@@ -64,6 +92,7 @@ function SettlementPage() {
   const { data: players } = usePlayers();
 
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [nudge, setNudge] = useState<Nudge>();
 
   if (!game || !events || !players) return null;
 
@@ -90,14 +119,11 @@ function SettlementPage() {
         />
       }
       actions={
-        <Link
-          to="/games/$gameId"
-          params={{ gameId }}
-          className="inline-flex min-h-11 shrink-0 items-center gap-1 text-highlight"
-        >
-          <ArrowLeft className="size-5" strokeWidth={1.75} aria-hidden />
-          返回牌局
-        </Link>
+        // The emblem, no taller than the title and the line under it
+        <picture className="shrink-0">
+          <source srcSet="/emblem-on-dark.svg" media="(prefers-color-scheme: dark)" />
+          <img src="/emblem-on-light.svg" alt="" className="h-12 w-auto" />
+        </picture>
       }
     >
       {/* The game's settings, to read only: they are changed from the game page */}
@@ -136,7 +162,12 @@ function SettlementPage() {
         </Notice>
       ) : (
         <>
-          <SettlementSummary game={game} ledger={ledger} difference={difference} />
+          <SettlementSummary
+            game={game}
+            ledger={ledger}
+            difference={difference}
+            onLocked={() => setNudge({ target: "revise", at: Date.now() })}
+          />
           {difference === 0 || game.imbalanceHandling ? (
             <SettlementResult
               game={game}
@@ -146,6 +177,8 @@ function SettlementPage() {
               statuses={statuses}
               charges={charges}
               nameOf={nameOf}
+              nudge={nudge}
+              onNudge={setNudge}
             />
           ) : (
             <p className="mt-3 text-sm text-muted">在上方选择差额的处理方案后显示结果。</p>
@@ -179,6 +212,8 @@ interface SettlementResultProps {
   statuses: readonly PlayerChargeStatus[];
   charges: readonly Charge[];
   nameOf: (playerId: string) => string;
+  nudge: Nudge | undefined;
+  onNudge: (nudge: Nudge | undefined) => void;
 }
 
 function SettlementResult({
@@ -189,6 +224,8 @@ function SettlementResult({
   statuses,
   charges,
   nameOf,
+  nudge,
+  onNudge,
 }: SettlementResultProps) {
   const { difference, unresolved } = outcome;
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
@@ -197,37 +234,59 @@ function SettlementResult({
   const ruleNotes = chargeRuleNotes(game, game.currency);
   const charged = applyCharges(insured.nets, charges);
   const { nets } = charged;
-  const {
-    currency,
-    status,
-    smallBlindChips,
-    bigBlindChips,
-    handChips,
-    collectorId: savedCollector,
-    createdAt,
-  } = game;
+  const { currency, status, smallBlindChips, bigBlindChips, handChips, createdAt } = game;
   // An organizer who plays has chips under the organizer's own ID, and stays on the organizer's card
   const host = ledger.find((p) => p.playerId === ORGANIZER_COLLECTOR);
   const saveGame = useSaveGame();
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
-  const [transfersOpen, setTransfersOpen] = useState(false);
+  // A game with insurance or charges opens on its transfers, which then go through the organizer
+  const [transfersOpen, setTransfersOpen] = useState(() => hasGameRules(game));
+  const [revising, setRevising] = useState(false);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const manageRef = useRef<HTMLButtonElement>(null);
+  // Anything not yet confirmed is still being settled, however the page was reached
+  const settled = status === "settled";
+
+  useEffect(() => {
+    if (!nudge) return;
+    // 确认结算 only has to come into view. 修改对局结果 sits over 积分管理, which goes to the bottom
+    if (nudge.target === "confirm") {
+      confirmRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    } else {
+      manageRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    }
+    const timer = window.setTimeout(() => onNudge(undefined), NUDGE_MS);
+    return () => window.clearTimeout(timer);
+  }, [nudge, onNudge]);
+
+  const point = (target: Nudge["target"]) => onNudge({ target, at: Date.now() });
 
   const insuranceText = formatGameMoney(insuranceNet, currency, "exceptZero");
   const chargesText = formatGameMoney(charged.total, currency);
   const separateInsurance = ownerId === INSURANCE_PLAYER_ID;
 
-  const collectorId = isValidCollector(nets, savedCollector) ? savedCollector : undefined;
-  const transfers = collectorId ? collectorTransfers(nets, collectorId) : settleTransfers(nets);
-  const collectorName = (id: string) => (id === ORGANIZER_COLLECTOR ? "组织者" : nameOf(id));
-  const planName = collectorId ? `代收人 ${collectorName(collectorId)}` : "最优方案";
+  /** The transfers of the plan a game has, which may be this game with another plan chosen. */
+  function transfersOf(of: Game) {
+    const id = transferCollector(of, nets);
+    return id ? collectorTransfers(nets, id) : settleTransfers(nets);
+  }
+  /** A settled game is complete while every transfer of its plan is in: none at all counts too. */
+  const filed = (of: Game) =>
+    markReceived(
+      of,
+      transfersOf(of).every((transfer) => isTransferDone(of, transfer)),
+    );
+
+  const collectorId = transferCollector(game, nets);
+  const transfers = transfersOf(game);
+  const planName = collectorId ? `代收人 ${nameOf(collectorId)}` : "最优方案";
 
   const organizerNet = nets.find((p) => p.playerId === ORGANIZER_COLLECTOR)?.net;
   const netOf = (list: readonly PlayerNet[], id: string) =>
     list.find((p) => p.playerId === id)?.net ?? ZERO;
   // Each person's result from the chips alone, before a difference is split
   const chipNets = settlementOutcome(ledger, game.chipRatio, undefined).nets;
-  const chargesLocked = saveGame.isPending || status === "settled";
 
   function insuranceLine(id: string): ResultLine[] {
     if (insuranceNet === 0 || id !== ownerId) return [];
@@ -236,10 +295,12 @@ function SettlementResult({
     ];
   }
 
+  // Once settled a charge cannot change: the tap points at the button that opens the results again
   const waiving = {
-    disabled: chargesLocked,
+    disabled: saveGame.isPending,
+    locked: settled,
     onWaive: (key: ChargeWaiver, waived: boolean) =>
-      saveGame.mutate(waiveCharge(game, key, waived)),
+      settled ? point("revise") : saveGame.mutate(waiveCharge(game, key, waived)),
   };
   const record = (playerId: string) => (
     <BuyInRecord game={game} events={events} playerId={playerId} />
@@ -307,7 +368,6 @@ function SettlementResult({
   // The insurance seat sits on the organizer's card as on the game page, when its result is theirs
   const insuranceRow = seat && ownerId === ORGANIZER_COLLECTOR && (
     <InsuranceRow
-      gameId={game.id}
       hands={handChips === undefined ? "—" : String(seat.boughtChips / handChips)}
       chips={seat.cashedOutChips.toLocaleString("zh-CN")}
       netChips={seat.cashedOutChips - seat.boughtChips}
@@ -350,7 +410,7 @@ function SettlementResult({
       return `未处理差额 ${size}${holder}`;
     }
     if (game.imbalanceHandling === "organizer") {
-      return `组织者${difference > 0 ? "补齐" : "收取"} ${size}`;
+      return `${nameOf(ORGANIZER_COLLECTOR)} ${difference > 0 ? "补齐" : "收取"} ${size}`;
     }
     const count = [...playerCards, ...organizerCard].filter(
       (r) => (r.netChips ?? 0) * difference > 0,
@@ -362,19 +422,24 @@ function SettlementResult({
   function insuranceNote() {
     if (!seat || insuranceNet === 0) return undefined;
     if (separateInsurance) return `保险 ${insuranceText}，单独列出`;
-    return `保险 ${insuranceText}，计入${collectorName(ownerId)}`;
+    return `保险 ${insuranceText}，计入 ${nameOf(ownerId)}`;
   }
   function chargesNote() {
     if (charged.total === 0) return undefined;
     const kinds = [game.tableFee && "台费", game.wage && "工资"].filter(Boolean).join("和");
-    return `${kinds} ${chargesText}，计入${collectorName(charged.recipientId)}`;
+    return `${kinds} ${chargesText}，计入 ${nameOf(charged.recipientId)}`;
   }
   const notes = [imbalanceNote(), insuranceNote(), chargesNote()].filter(
     (text) => text !== undefined,
   );
 
-  // The image closes with the organizer, named as in the transfers
-  const imageOrganizer = organizerCard.map((card) => ({ ...card, name: "组织者" }));
+  // The plans in the order they are listed: the optimal one, the organizer, then the players
+  const plans: TransferPlan[] = [
+    { collectorId: undefined, label: "最优方案" },
+    ...[ORGANIZER_COLLECTOR, ...playerCards.map(({ id }) => id)]
+      .filter((id) => id !== INSURANCE_PLAYER_ID)
+      .map((id) => ({ collectorId: id, label: `代收人：${nameOf(id)}` })),
+  ];
 
   async function handleShare() {
     setSharing(true);
@@ -386,12 +451,12 @@ function SettlementResult({
         subtitle: `${date.toLocaleDateString("zh-CN")} · 盲注 ${smallBlindChips} / ${bigBlindChips}`,
         transferTitle: `转账方案 · ${planName}`,
         transfers: transfers.map(({ from, to, amount }) => ({
-          from: collectorName(from),
-          to: collectorName(to),
+          from: nameOf(from),
+          to: nameOf(to),
           amount: formatGameMoney(amount, currency),
         })),
         notes: [...notes, ...ruleNotes],
-        results: [...playerCards, ...imageOrganizer].map(
+        results: [...playerCards, ...organizerCard].map(
           ({ name, hands, chips, netChips, total }) => ({
             name,
             hands,
@@ -411,48 +476,89 @@ function SettlementResult({
     }
   }
 
-  function handleReopen() {
-    if (window.confirm("重新打开这局？可以继续记账，之后要再次结算。")) {
-      saveGame.mutate(reopenGame(game));
-    }
+  function revise() {
+    setRevising(false);
+    onNudge(undefined);
+    saveGame.mutate(reviseGame(game));
   }
 
-  function choosePlan(next: string | undefined) {
-    saveGame.mutate(chooseCollector(game, next));
+  /** Transfers already marked as received would no longer match, so they go, once the organizer agrees. */
+  function handleRevise() {
+    if (transfers.some((transfer) => isTransferDone(game, transfer))) setRevising(true);
+    else revise();
   }
 
-  function planButton(label: string, active: boolean, next: string | undefined) {
-    return (
-      <button
-        type="button"
-        aria-pressed={active}
-        disabled={saveGame.isPending || status === "settled"}
-        onClick={() => choosePlan(next)}
-        className={cn(
-          "min-h-11 rounded-xl border font-medium disabled:opacity-60",
-          active ? "border-accent bg-accent text-accent-text" : "border-line bg-surface",
-        )}
-      >
-        {label}
-      </button>
-    );
+  function handleConfirm() {
+    onNudge(undefined);
+    saveGame.mutate(filed(settleGame(game, Date.now())));
   }
 
   return (
     <>
       <ResultCards organizer={organizerCard[0]} cards={playerCards} currency={currency} />
 
-      <section className="mt-4">
-        <h2>
+      {/* The step that closes the game comes first, set apart from the cards by a rule */}
+      <div className="mt-5 border-t border-line pt-4">
+        <div className="flex gap-2">
+          {settled ? (
+            <button
+              type="button"
+              disabled={saveGame.isPending}
+              onClick={handleRevise}
+              className="relative min-h-12 min-w-0 flex-1 rounded-xl border border-line px-4 font-medium disabled:opacity-60"
+            >
+              修改对局结果
+              {nudge?.target === "revise" && <NudgeRing at={nudge.at} />}
+            </button>
+          ) : (
+            <button
+              ref={confirmRef}
+              type="button"
+              disabled={saveGame.isPending}
+              onClick={handleConfirm}
+              className="relative min-h-12 min-w-0 flex-1 scroll-mt-4 scroll-mb-24 rounded-xl bg-accent px-4 font-semibold text-accent-text disabled:opacity-60"
+            >
+              确认结算
+              {nudge?.target === "confirm" && <NudgeRing at={nudge.at} />}
+            </button>
+          )}
+          <Link
+            to="/games/$gameId"
+            params={{ gameId: game.id }}
+            className="flex min-h-12 shrink-0 items-center gap-1 rounded-xl border border-line px-3 text-sm font-medium"
+          >
+            <Undo2 className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+            返回牌桌
+          </Link>
+        </div>
+        {saveGame.isError && (
+          <p role="alert" className="mt-2 text-sm text-highlight">
+            保存失败，请重试。
+          </p>
+        )}
+      </div>
+
+      {/* Then what is shared with the players: the image, and the transfers, which open under the row */}
+      <section className="mt-2 pb-8">
+        <div className="grid grid-cols-2 gap-2">
           <button
+            type="button"
+            disabled={sharing}
+            onClick={handleShare}
+            className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line px-2 font-medium disabled:opacity-60"
+          >
+            <Share2 className="size-5 shrink-0" strokeWidth={1.75} aria-hidden />
+            生成图片
+          </button>
+          {/* Clear of the bar at the bottom of a phone when the page scrolls it to the bottom */}
+          <button
+            ref={manageRef}
             type="button"
             aria-expanded={transfersOpen}
             onClick={() => setTransfersOpen(!transfersOpen)}
-            className="flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 text-left font-medium"
+            className="flex min-h-12 scroll-mb-24 items-center justify-center gap-1 rounded-xl border border-line bg-surface px-2 font-medium whitespace-nowrap"
           >
-            <span className="min-w-0 truncate">
-              转账方案（{transfers.length} 笔）· {planName}
-            </span>
+            积分管理
             <ChevronDown
               className={cn(
                 "size-5 shrink-0 text-muted transition-transform",
@@ -461,102 +567,47 @@ function SettlementResult({
               aria-hidden
             />
           </button>
-        </h2>
+        </div>
+        {shareFailed && (
+          <p role="alert" className="mt-2 text-sm text-highlight">
+            图片生成失败，请重试。
+          </p>
+        )}
         {transfersOpen && (
-          <div className="mt-2">
-            <div className="grid grid-cols-2 gap-2">
-              {planButton("最优方案", collectorId === undefined, undefined)}
-              {planButton("代收人", collectorId !== undefined, collectorId ?? ORGANIZER_COLLECTOR)}
-            </div>
-
-            {collectorId !== undefined && (
-              <label className="mt-2 block">
-                <span className="mb-1 block text-sm text-muted">由谁代收</span>
-                <select
-                  value={collectorId}
-                  disabled={saveGame.isPending || status === "settled"}
-                  onChange={(event) => choosePlan(event.target.value)}
-                  className="min-h-12 w-full rounded-xl border border-line bg-surface px-3"
-                >
-                  <option value={ORGANIZER_COLLECTOR}>
-                    {host ? "组织者" : "组织者（不在局中）"}
-                  </option>
-                  {playerCards
-                    .filter(({ id }) => id !== INSURANCE_PLAYER_ID)
-                    .map(({ id, name }) => (
-                      <option key={id} value={id}>
-                        {name}
-                      </option>
-                    ))}
-                </select>
-              </label>
-            )}
-
-            {transfers.length === 0 ? (
-              <p className="mt-2 text-muted">没有输赢，不需要转账。</p>
-            ) : (
-              <ul className="mt-2 flex flex-col gap-2">
-                {transfers.map(({ from, to, amount }) => (
-                  <li
-                    key={`${from}-${to}`}
-                    className="flex min-h-14 items-center gap-2 rounded-xl border border-line bg-surface px-4"
-                  >
-                    <span className="min-w-0 truncate font-medium">{collectorName(from)}</span>
-                    <ArrowRight className="size-4 shrink-0 text-muted" aria-label="转给" />
-                    <span className="min-w-0 truncate font-medium">{collectorName(to)}</span>
-                    <span className="ml-auto shrink-0 text-lg font-semibold text-highlight">
-                      {formatGameMoney(amount, currency)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          // The plan can change at any stage, and the ticks once the results are confirmed
+          <Transfers
+            game={game}
+            transfers={transfers}
+            plans={plans}
+            collectorId={collectorId}
+            nameOf={nameOf}
+            disabled={saveGame.isPending}
+            onChoosePlan={(next) => saveGame.mutate(filed(chooseCollector(game, next)))}
+            onMark={(marked, done) => saveGame.mutate(filed(markTransfers(game, marked, done)))}
+            onUnsettled={() => point("confirm")}
+          />
         )}
       </section>
 
-      {saveGame.isError && (
-        <p role="alert" className="mt-2 text-sm text-highlight">
-          保存失败，请重试。
-        </p>
-      )}
-
-      {shareFailed && (
-        <p role="alert" className="mt-2 text-sm text-highlight">
-          图片生成失败，请重试。
-        </p>
-      )}
-
-      <div className="flex flex-col gap-2 pt-6 pb-8">
-        <button
-          type="button"
-          disabled={sharing}
-          onClick={handleShare}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-line px-6 font-medium disabled:opacity-60"
-        >
-          <Share2 className="size-5" strokeWidth={1.75} aria-hidden />
-          生成图片
-        </button>
-        {status === "open" ? (
+      {revising && (
+        <Modal title="修改对局结果" onClose={() => setRevising(false)}>
+          <p className="text-sm">已有积分转移被记录，是否删除并修改对局结果？</p>
           <button
             type="button"
-            disabled={saveGame.isPending}
-            onClick={() => saveGame.mutate(settleGame(game, Date.now()))}
-            className="min-h-12 w-full rounded-xl bg-accent px-6 font-semibold text-accent-text disabled:opacity-60"
+            onClick={revise}
+            className="mt-3 min-h-11 w-full rounded-xl bg-accent font-semibold text-accent-text"
           >
-            确认结算
+            确定
           </button>
-        ) : (
           <button
             type="button"
-            disabled={saveGame.isPending}
-            onClick={handleReopen}
-            className="min-h-12 w-full rounded-xl border border-line px-6 font-medium disabled:opacity-60"
+            onClick={() => setRevising(false)}
+            className="mt-2 min-h-11 w-full rounded-xl border border-line font-medium"
           >
-            重新打开牌局
+            取消
           </button>
-        )}
-      </div>
+        </Modal>
+      )}
     </>
   );
 }

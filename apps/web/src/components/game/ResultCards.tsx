@@ -1,5 +1,4 @@
 import { type Cents, type Currency, cents } from "@holdem-knight/core";
-import { Link } from "@tanstack/react-router";
 import { Calculator, ChevronRight } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
@@ -41,6 +40,8 @@ export interface ResultLine {
   readonly waiver?: {
     readonly waived: boolean;
     readonly disabled: boolean;
+    /** Shown as locked, though a tap still reaches `onChange`, which can say why. */
+    readonly locked?: boolean;
     readonly onChange: (waived: boolean) => void;
   };
 }
@@ -127,18 +128,32 @@ export function ColumnTitles({ first }: { first: string }) {
 }
 
 /**
+ * The insurance seat's name on the organizer's card, on the game page and the settlement page
+ * alike. It starts where the organizer's ID does, past the arrow that folds the card: that card
+ * always has lines, so it always has the arrow.
+ */
+export const insuranceNameClass = "flex min-w-0 items-center gap-0.5 pl-3 text-highlight";
+
+export function InsuranceName() {
+  return (
+    <>
+      <Calculator className="size-4 shrink-0" aria-hidden />
+      <span className="truncate">保险</span>
+    </>
+  );
+}
+
+/**
  * The insurance seat on the organizer's card, as the game page shows it: its own row in the card's
- * columns, in the highlight color, whose name opens the insurance page.
+ * columns, in the highlight color. Here it is only read, so its name leads nowhere.
  */
 export function InsuranceRow({
-  gameId,
   hands,
   chips,
   netChips,
   amount,
   currency,
 }: {
-  gameId: string;
   hands: string;
   chips: string;
   netChips: number;
@@ -147,15 +162,9 @@ export function InsuranceRow({
 }) {
   return (
     <div className={cn(columnsClass, "min-h-11 text-xs")}>
-      <Link
-        to="/games/$gameId/insurance"
-        params={{ gameId }}
-        aria-label="算保险"
-        className="flex min-h-11 min-w-0 items-center gap-0.5 text-highlight"
-      >
-        <Calculator className="size-4 shrink-0" aria-hidden />
-        <span className="truncate">保险</span>
-      </Link>
+      <span className={insuranceNameClass}>
+        <InsuranceName />
+      </span>
       <span className="text-center">{hands}</span>
       <span className={cn(figureClass, "text-center")}>{breakable(chips)}</span>
       <span className={cn(figureClass, "text-right", netColor(netChips))}>
@@ -208,7 +217,7 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
           checked={!off}
           disabled={waiver.disabled}
           onChange={(event) => waiver.onChange(!event.target.checked)}
-          className="size-4 shrink-0 accent-[var(--accent)]"
+          className={cn("size-4 shrink-0 accent-[var(--accent)]", waiver.locked && "opacity-50")}
         />
         <span className={cn("truncate", text)}>{label}</span>
       </span>
@@ -276,12 +285,15 @@ export function PersonCard({
   currency,
   open = false,
   onToggle,
+  summary = true,
 }: {
   card: ResultCard;
   currency: Currency;
   /** Only a card that folds takes these. */
   open?: boolean;
   onToggle?: () => void;
+  /** False folds the card to its first row alone, without the line of charges and the total. */
+  summary?: boolean;
 }) {
   const { name, hands, chips, netChips, base, record, pinned, lines, total } = card;
   const { handsCell, chipsCell } = card;
@@ -358,7 +370,7 @@ export function PersonCard({
             {pinned}
           </div>
         )}
-        {folds && !open && (
+        {folds && !open && summary && (
           <Summary card={card} currency={currency} divided={pinned !== undefined} />
         )}
         {expanded && (

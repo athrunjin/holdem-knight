@@ -1,6 +1,7 @@
 import type { ImbalanceHandling } from "@holdem-knight/core";
+import { Check, X } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { formatDifference } from "@/lib/chips";
+import { cn } from "@/lib/cn";
 import { FormDialog } from "./FormDialog";
 import { ImbalanceOptions } from "./ImbalanceOptions";
 
@@ -11,6 +12,8 @@ interface SettleDialogProps {
   balanceChips: number;
   /** The balance in cash, without a sign */
   cash: string;
+  /** The organizer by name, which is their ID until organizers have names */
+  organizerName: string;
   initialHandling: ImbalanceHandling | undefined;
   saving: boolean;
   saveFailed: boolean;
@@ -18,29 +21,30 @@ interface SettleDialogProps {
   onClose: () => void;
 }
 
-/** Shows whether the table balances before settling, and can seat everyone out in one step. */
+/**
+ * Settling the whole table. The chips come first: whether they add up, said either way, and if
+ * not, how the difference is handled, with the organizer taking it chosen to begin with. Under
+ * that, who is still seated and leaves with this step, and any insurance still open.
+ */
 export function SettleDialog({
   seatedCount,
   pendingInsurance,
   balanceChips,
   cash,
+  organizerName,
   initialHandling,
   saving,
   saveFailed,
   onSubmit,
   onClose,
 }: SettleDialogProps) {
-  const [handling, setHandling] = useState(initialHandling);
-  const [issue, setIssue] = useState<string>();
+  const [handling, setHandling] = useState<ImbalanceHandling>(initialHandling ?? "organizer");
   const balanced = balanceChips === 0;
+  const chips = Math.abs(balanceChips).toLocaleString("zh-CN");
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!balanced && !handling) {
-      setIssue("请选择差额怎么处理");
-    } else {
-      onSubmit(balanced ? undefined : handling);
-    }
+    onSubmit(balanced ? undefined : handling);
   }
 
   return (
@@ -52,9 +56,32 @@ export function SettleDialog({
       onSubmit={handleSubmit}
       onClose={onClose}
     >
-      <p role="status" className={balanced ? "text-win" : "text-highlight"}>
-        {balanced ? "水上下平衡" : `水上下不平衡，差额 ${formatDifference(balanceChips, cash)}`}
+      <p
+        role="status"
+        className={cn("flex items-center gap-1 font-medium", balanced ? "text-win" : "text-loss")}
+      >
+        {balanced ? (
+          <>
+            筹码配平
+            <Check className="size-4 shrink-0" aria-hidden />
+          </>
+        ) : (
+          <>
+            <X className="size-4 shrink-0" aria-hidden />
+            筹码未配平，{balanceChips > 0 ? "多" : "少"} {chips} 筹码（{cash}）
+          </>
+        )}
       </p>
+      {!balanced && (
+        <ImbalanceOptions
+          differenceChips={balanceChips}
+          cash={cash}
+          organizerName={organizerName}
+          value={handling}
+          disabled={saving}
+          onChange={setHandling}
+        />
+      )}
       {seatedCount > 0 && (
         <p className="text-sm text-muted">
           还有 {seatedCount}{" "}
@@ -65,21 +92,6 @@ export function SettleDialog({
         <p role="alert" className="text-sm text-highlight">
           还有 {pendingInsurance} 笔保险没有记录开奖结果。
         </p>
-      )}
-      {!balanced && (
-        <div>
-          <ImbalanceOptions
-            differenceChips={balanceChips}
-            cash={cash}
-            value={handling}
-            disabled={saving}
-            onChange={(next) => {
-              setIssue(undefined);
-              setHandling(next);
-            }}
-          />
-          {issue && <p className="mt-1 text-sm text-highlight">{issue}</p>}
-        </div>
       )}
     </FormDialog>
   );

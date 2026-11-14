@@ -437,6 +437,7 @@ function insurance(): SampleScenario {
       "张伟 bought 50 on 4 outs (pays 8): hit, the seat pays 400. 李娜 bought 150 on 10 outs (pays 2.5): miss, the seat keeps 150.",
       "The insurance seat bought 1,000 and leaves with 800: −200 chips, −¥20.",
       "The insurance result goes to 刘洋: his chips show −200, his amount −¥40 with 含保险 −¥20.",
+      "A game with insurance opens 积分管理 on its own, with the organizer collecting: each loser pays the organizer, who pays each winner.",
     ],
     data: g.data(),
     expected: {
@@ -450,9 +451,10 @@ function insurance(): SampleScenario {
         { name: "李娜", hands: 1, cashedOutChips: 0, netChips: -1000, net: cents(-10000) },
       ],
       transfers: [
-        { from: "李娜", to: "张伟", amount: cents(10000) },
-        { from: "刘洋", to: "张伟", amount: cents(3000) },
-        { from: "刘洋", to: "王芳", amount: cents(1000) },
+        { from: "李娜", to: "组织者", amount: cents(10000) },
+        { from: "刘洋", to: "组织者", amount: cents(4000) },
+        { from: "组织者", to: "王芳", amount: cents(1000) },
+        { from: "组织者", to: "张伟", amount: cents(13000) },
       ],
     },
   };
@@ -500,6 +502,7 @@ function charges(): SampleScenario {
       "李娜 left at 21:30 and came back at 22:20 (回桌): 170 counted minutes, 100 at ¥30 and 70 at ¥50, ¥108.33.",
       "刘洋 counted 89 minutes 30 seconds: the part minute is not charged, so 89 minutes, ¥44.50.",
       "The charges come off each player's cash result and go to the organizer, so the chips still balance while the amounts do not match the chips.",
+      "The organizer collects, as in any game with charges: the three who owe pay in ¥625.33, of which ¥216.67 goes on to 张伟 and ¥408.66 stays.",
     ],
     data: g.data(),
     expected: {
@@ -520,10 +523,10 @@ function charges(): SampleScenario {
         { name: "组织者", netChips: 0, net: cents(40866) },
       ],
       transfers: [
-        { from: "李娜", to: "组织者", amount: cents(40866) },
-        { from: "李娜", to: "张伟", amount: cents(7967) },
-        { from: "王芳", to: "张伟", amount: cents(7250) },
-        { from: "刘洋", to: "张伟", amount: cents(6450) },
+        { from: "李娜", to: "组织者", amount: cents(48833) },
+        { from: "王芳", to: "组织者", amount: cents(7250) },
+        { from: "刘洋", to: "组织者", amount: cents(6450) },
+        { from: "组织者", to: "张伟", amount: cents(21667) },
       ],
     },
   };
@@ -555,7 +558,7 @@ function open(): SampleScenario {
     ],
     steps: [
       "Open the game dated 2026-01-07 and tap 结算.",
-      "The dialog says 水上下平衡 and 还有 2 人在桌. Tap 一键离桌并结算.",
+      "The dialog says 筹码配平 and, under it, 还有 2 人在桌. Tap 一键离桌并结算.",
     ],
     data: g.data(),
     expected: {
@@ -630,8 +633,8 @@ function wageUnits(): SampleScenario {
       transfers: [
         { from: "刘洋", to: "组织者", amount: cents(29500) },
         { from: "王芳", to: "组织者", amount: cents(16500) },
-        { from: "李娜", to: "张伟", amount: cents(2500) },
-        { from: "李娜", to: "组织者", amount: cents(500) },
+        { from: "李娜", to: "组织者", amount: cents(3000) },
+        { from: "组织者", to: "张伟", amount: cents(2500) },
       ],
     },
   };

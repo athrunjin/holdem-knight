@@ -22,7 +22,17 @@ export interface ChipRatio {
 /** How to settle a chip difference: split it, have the organizer cover it, or leave it. */
 export type ImbalanceHandling = "split" | "organizer" | "ignore";
 
-export type GameStatus = "open" | "settled";
+/**
+ * `open` while the table plays, `settling` from the settle step on the game page until the results
+ * are confirmed, and `settled` after that (ADR 0031).
+ */
+export type GameStatus = "open" | "settling" | "settled";
+
+/**
+ * The four stages an organizer sees a game go through: at the table, results being checked,
+ * settled with transfers still to come in, and done.
+ */
+export type GameStage = "open" | "settling" | "pending" | "complete";
 
 /** Whether cards that split the pot count as outs. */
 export type TieOuts = "exclude" | "include";
@@ -139,6 +149,19 @@ export const INSURANCE_PLAYER_NAME = "保险";
  * (ADR 0028).
  */
 export const ORGANIZER_PLAYER_ID = "organizer";
+
+/** One payment at settlement: who pays whom, and how much. */
+export interface Transfer {
+  readonly from: string;
+  readonly to: string;
+  readonly amount: Cents;
+}
+
+/**
+ * The optimal transfer plan, chosen outright. It is saved where a collector's ID would be, so the
+ * choice holds in a game whose own default is a collector.
+ */
+export const OPTIMAL_PLAN = "optimal";
 
 /** A flat fee each player pays once per game, if they sat long enough. */
 export interface TableFeeRule {
@@ -281,12 +304,20 @@ export interface Game {
   readonly handChips?: number;
   readonly status: GameStatus;
   readonly createdAt: Timestamp;
-  /** Who collects and pays out at settlement: a player ID or `ORGANIZER_COLLECTOR`. Missing means the optimal plan. */
+  /**
+   * Who collects and pays out at settlement: a player ID, `ORGANIZER_COLLECTOR`, or `OPTIMAL_PLAN`
+   * for no collector. Missing means the game's own default (`transferCollector`).
+   */
   readonly collectorId?: string;
   /** How a chip difference is settled. Only used when the books do not balance. */
   readonly imbalanceHandling?: ImbalanceHandling;
-  /** When settlement was confirmed. Cleared on reopening. */
+  /** When settlement was confirmed. Cleared when the results are revised. */
   readonly settledAt?: Timestamp;
+  /**
+   * Set while every transfer of a settled game is marked as made, which makes the game complete.
+   * Saved so the games list need not settle each game again. Cleared when the results are revised.
+   */
+  readonly allReceived?: true;
   /** Missing until the organizer starts the clock. */
   readonly timer?: GameTimer;
   /** This game's insurance terms. Missing means insurance is off. */
@@ -302,6 +333,11 @@ export interface Game {
   readonly wage?: WageRule;
   /** Charges let off at settlement. Missing means none. */
   readonly waivedCharges?: readonly ChargeWaiver[];
+  /**
+   * Transfers marked as made. Each is the payment itself, so a mark holds in every plan that has
+   * the same payment and no longer applies once its amount changes. Missing means none.
+   */
+  readonly doneTransfers?: readonly Transfer[];
   /**
    * IANA time zone the game was started in, such as `Asia/Shanghai`. Wage rates by time of day
    * follow it on every device. Missing on earlier games, which use the viewing device's zone.
