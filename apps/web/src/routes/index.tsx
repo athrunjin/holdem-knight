@@ -55,12 +55,6 @@ const STAGES: readonly { readonly value: HistoryStage; readonly label: string }[
   { value: "complete", label: "已结清" },
 ];
 
-/** A settled game's stage as a small tag: gold while transfers are owed, green once all are in. */
-const STAGE_TAGS = {
-  pending: { label: "未结清", className: "bg-highlight/15 text-highlight" },
-  complete: { label: "已结清", className: "bg-win/15 text-win" },
-};
-
 const PERIODS: readonly { readonly value: HistoryPeriod; readonly label: string }[] = [
   { value: "all", label: "全部" },
   { value: "week", label: "过去一周" },
@@ -85,10 +79,9 @@ const CURRENCIES = [
 const chevronClass = (open: boolean) =>
   cn("size-5 text-muted transition-transform", open && "rotate-180");
 
-/** A game's line in the list. A settled game also says which stage it is in, before its date. */
+/** A game's line in the list. A settled game still owed transfers says so before its date. */
 function GameRow({ game }: { game: Game }) {
-  const stage = gameStage(game);
-  const tag = stage === "pending" || stage === "complete" ? STAGE_TAGS[stage] : undefined;
+  const owed = gameStage(game) === "pending";
   return (
     <li>
       <Link
@@ -105,9 +98,9 @@ function GameRow({ game }: { game: Game }) {
           <GameOptions game={game} />
         </span>
         <span className="flex shrink-0 items-center gap-2.5">
-          {tag && (
-            <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium", tag.className)}>
-              {tag.label}
+          {owed && (
+            <span className="rounded bg-highlight/15 px-1.5 py-0.5 text-xs font-medium text-highlight">
+              未结清
             </span>
           )}
           <span className="flex flex-col items-end text-sm leading-tight text-muted tabular-nums">
@@ -278,7 +271,17 @@ function HistorySection({ games }: { games: readonly Game[] }) {
     );
   }
 
-  const shown = historyGames(games, view, Date.now());
+  const now = Date.now();
+  const shown = historyGames(games, view, now);
+  // Each stage is listed with the number of games it would show under the filters in force
+  const stages = STAGES.map(({ value, label }) => ({
+    value,
+    label: `${label} (${
+      value === view.stage
+        ? shown.length
+        : historyGames(games, { ...view, stage: value }, now).length
+    })`,
+  }));
   return (
     <section>
       {/* The title, the stage and the number share one baseline, whatever font each falls to */}
@@ -298,10 +301,9 @@ function HistorySection({ games }: { games: readonly Game[] }) {
         </span>
         <TextMenu
           label="对局状态"
-          options={STAGES}
+          options={stages}
           value={view.stage}
           onChange={(stage) => change({ stage })}
-          suffix={`(${shown.length})`}
         />
         <div className="ml-auto flex shrink-0 self-center">
           {/* Filled while the filters are on show, and gold while any of them is set */}

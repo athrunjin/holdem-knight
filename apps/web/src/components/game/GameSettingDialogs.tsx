@@ -53,7 +53,7 @@ export function previewHand({
   if (!big || !multiple || !chips || !amount) return null;
   const handChips = big * multiple;
   const cash = formatGameAmount(chipsToCents(handChips, { chips, amount }), currency);
-  return `${handChips.toLocaleString("zh-CN")} 筹码（${cash}）`;
+  return `:${handChips.toLocaleString("zh-CN")}筹码/${cash}`;
 }
 
 interface SettingDialogProps {
