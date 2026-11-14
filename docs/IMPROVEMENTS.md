@@ -934,7 +934,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The settlement page's 返回牌局 is replaced by the emblem, 48px tall, which keeps the header's height. The emblem still leads back to the game: an open game has no other way back on the page. This was added in building it, not asked for.
   - Under the cards, after a rule: 确认结算, or 重新打开牌局 once settled. Then 生成图片 and 转账方案 side by side, with the transfers opening under the row.
 - Decision: do.
-- Tracking: PR to follow on `feat/live-table-cards`
+- Tracking: PR #84
 
 ## Not doing or deferred
 
