@@ -1,9 +1,9 @@
 import { type Currency, type Game, gameStage } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronDown, Funnel } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
-import { GameOptions } from "@/components/game/GameOptions";
+import { GameOptions, OPTION_MARKS } from "@/components/game/GameOptions";
 import { InDevelopment } from "@/components/InDevelopment";
 import { Page } from "@/components/Page";
 import { TextMenu } from "@/components/TextMenu";
@@ -12,7 +12,6 @@ import { cn } from "@/lib/cn";
 import {
   DEFAULT_HISTORY_VIEW,
   GAME_OPTIONS,
-  type GameOption,
   type HistoryPeriod,
   type HistoryStage,
   type HistoryView,
@@ -51,17 +50,19 @@ const PERIODS: readonly { readonly value: HistoryPeriod; readonly label: string 
 ];
 
 /** Each currency is shown by its mark alone, and named after the animal for a reader. */
-const CURRENCIES: readonly { readonly value: Currency; readonly name: string }[] = [
+const CURRENCY_NAMES: readonly { readonly value: Currency; readonly name: string }[] = [
   { value: "CNY", name: "熊猫" },
   { value: "AUD", name: "袋鼠" },
 ];
 
-const OPTION_LABELS: Record<GameOption, string> = {
-  insurance: "保险",
-  wage: "工资",
-  tableFee: "台费",
-  rake: "抽水",
-};
+const CURRENCIES = [
+  { value: "all" as const, label: "全部" },
+  ...CURRENCY_NAMES.map(({ value, name }) => ({
+    value,
+    name,
+    label: <CurrencyIcon currency={value} className="size-4.5" />,
+  })),
+];
 
 const chevronClass = (open: boolean) =>
   cn("size-5 text-muted transition-transform", open && "rotate-180");
@@ -73,7 +74,7 @@ function GameRow({ game, note }: { game: Game; note?: string | undefined }) {
         // Only a game at the table opens on its table. The rest open on their results
         to={game.status === "open" ? "/games/$gameId" : "/games/$gameId/settlement"}
         params={{ gameId: game.id }}
-        className="flex min-h-16 items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-2"
+        className="flex min-h-12 items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-1"
       >
         <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
           <CurrencyIcon currency={game.currency} className="size-4.5 self-center text-muted" />
@@ -109,7 +110,7 @@ function FoldHeading({ title, count, open, onToggle }: FoldHeadingProps) {
         className="flex min-h-11 w-full items-center justify-between px-1 font-medium"
       >
         <span>
-          {title}（{count}）
+          {title} ({count})
         </span>
         <ChevronDown className={chevronClass(open)} aria-hidden />
       </button>
@@ -136,84 +137,50 @@ function GameSection({ title, games }: { title: string; games: readonly Game[] }
   );
 }
 
-interface PillProps {
-  on: boolean;
-  onClick: () => void;
-  /** For a pill that shows no text */
-  label?: string;
-  className?: string;
-  children: ReactNode;
-}
-
-/** A small choice in a filter's row, gold while it is on. */
-function Pill({ on, onClick, label, className, children }: PillProps) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      aria-label={label}
-      onClick={onClick}
-      className={cn(
-        // The pill is 32px tall and the tap target reaching past it is 44px
-        "relative flex h-8 shrink-0 items-center rounded-full border px-2 text-sm after:absolute after:-inset-x-0.5 after:-inset-y-2",
-        on ? "border-highlight text-highlight" : "border-line text-muted",
-        className,
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-/** One filter: its name, then its choices as pills. */
-function FilterRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <fieldset className="flex min-h-11 items-center gap-1">
-      <legend className="float-left w-15 shrink-0 text-sm text-muted">{label}</legend>
-      {children}
-    </fieldset>
-  );
-}
-
 interface HistoryFiltersProps {
   view: HistoryView;
   onChange: (part: Partial<HistoryView>) => void;
 }
 
+/** The option's switch is 28px of text, and the tap target reaching past it is 44px. */
+const optionSwitch = "relative px-2 font-medium after:absolute after:-inset-y-3";
+
+/**
+ * What narrows history: the time and the currency as menus on one line, then the options a listed
+ * game may have on, each in its own color until it is switched off.
+ */
 function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
   const allOptions = view.options.length === GAME_OPTIONS.length;
   return (
-    <div className="mb-2 rounded-xl border border-line px-2.5 py-1">
-      <FilterRow label="对局时间">
-        {PERIODS.map(({ value, label }) => (
-          <Pill key={value} on={view.period === value} onClick={() => onChange({ period: value })}>
-            {label}
-          </Pill>
-        ))}
-      </FilterRow>
-      <FilterRow label="积分类型">
-        <Pill on={view.currency === "all"} onClick={() => onChange({ currency: "all" })}>
-          全部
-        </Pill>
-        {CURRENCIES.map(({ value, name }) => (
-          <Pill
-            key={value}
-            on={view.currency === value}
-            label={name}
-            onClick={() => onChange({ currency: value })}
-          >
-            <CurrencyIcon currency={value} className="size-4.5" />
-          </Pill>
-        ))}
-      </FilterRow>
+    <div className="mb-2 rounded-xl border border-line px-2.5 text-sm">
+      <div className="flex items-center gap-4">
+        <TextMenu
+          captioned
+          label="对局时间"
+          options={PERIODS}
+          value={view.period}
+          onChange={(period) => onChange({ period })}
+        />
+        <TextMenu
+          captioned
+          label="积分类型"
+          options={CURRENCIES}
+          value={view.currency}
+          onChange={(currency) => onChange({ currency })}
+        />
+      </div>
       {/* Every option starts on. Switching one off leaves out the games that have it */}
-      <FilterRow label="开启配置">
+      {/* biome-ignore lint/a11y/useSemanticElements: a fieldset does not lay its legend out in a line */}
+      <div role="group" aria-label="对局配置" className="flex min-h-11 items-center">
+        <span className="w-14 shrink-0 text-muted">对局配置</span>
         {GAME_OPTIONS.map((option) => {
           const on = view.options.includes(option);
+          const { label, className } = OPTION_MARKS[option];
           return (
-            <Pill
+            <button
               key={option}
-              on={on}
+              type="button"
+              aria-pressed={on}
               onClick={() =>
                 onChange({
                   // Kept in the fixed order, whatever order they were tapped in
@@ -222,20 +189,22 @@ function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
                   ),
                 })
               }
+              className={cn(optionSwitch, on ? className : "text-muted line-through")}
             >
-              {OPTION_LABELS[option]}
-            </Pill>
+              {label}
+            </button>
           );
         })}
-        <Pill
-          on={allOptions}
-          label={allOptions ? "关闭全部配置" : "开启全部配置"}
+        <button
+          type="button"
+          aria-pressed={allOptions}
+          aria-label={allOptions ? "关闭全部配置" : "开启全部配置"}
           onClick={() => onChange({ options: allOptions ? [] : GAME_OPTIONS })}
-          className="ml-auto"
+          className={cn(optionSwitch, "-mr-2 ml-auto", allOptions ? "text-text" : "text-muted")}
         >
           All
-        </Pill>
-      </FilterRow>
+        </button>
+      </div>
     </div>
   );
 }
@@ -290,7 +259,7 @@ function HistorySection({ games }: { games: readonly Game[] }) {
           onChange={(stage) => change({ stage })}
           className="font-medium"
         />
-        <span className="shrink-0">（{shown.length}）</span>
+        <span className="ml-1 shrink-0">({shown.length})</span>
         <div className="ml-auto flex shrink-0">
           {/* Filled while the filters are on show, and gold while any of them is set */}
           <button

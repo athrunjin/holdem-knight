@@ -30,7 +30,7 @@ export function isFiltered({ period, currency, options }: HistoryView) {
 }
 
 /** Rake has no setting until M4, so no game has it on yet. */
-function hasOption(game: Game, option: GameOption) {
+export function hasOption(game: Game, option: GameOption) {
   return option !== "rake" && game[option] !== undefined;
 }
 
