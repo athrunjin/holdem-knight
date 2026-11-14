@@ -14,6 +14,7 @@ import {
   isTransferDone,
   type LedgerEvent,
   markReceived,
+  markTransfers,
   ORGANIZER_COLLECTOR,
   type PlayerChargeStatus,
   type PlayerLedger,
@@ -582,7 +583,7 @@ function SettlementResult({
             nameOf={nameOf}
             disabled={saveGame.isPending}
             onChoosePlan={(next) => saveGame.mutate(filed(chooseCollector(game, next)))}
-            onSave={(next) => saveGame.mutate(next)}
+            onMark={(marked, done) => saveGame.mutate(filed(markTransfers(game, marked, done)))}
             onUnsettled={() => point("confirm")}
           />
         )}

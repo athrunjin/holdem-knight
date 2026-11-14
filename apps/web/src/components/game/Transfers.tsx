@@ -1,10 +1,4 @@
-import {
-  type Game,
-  isTransferDone,
-  markReceived,
-  markTransfers,
-  type Transfer,
-} from "@holdem-knight/core";
+import { type Game, isTransferDone, type Transfer } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Share2 } from "lucide-react";
 import { useState } from "react";
@@ -22,8 +16,8 @@ interface TransfersProps {
   /** While a save is under way. */
   disabled: boolean;
   onChoosePlan: (collectorId: string | undefined) => void;
-  /** Saves the game with transfers marked. */
-  onSave: (game: Game) => void;
+  /** Marks transfers as made, or as not made again. Only called once the results are confirmed. */
+  onMark: (transfers: readonly Transfer[], done: boolean) => void;
   /** Takes a tap on a tick before the results are confirmed. */
   onUnsettled: () => void;
 }
@@ -50,7 +44,7 @@ export function Transfers({
   nameOf,
   disabled,
   onChoosePlan,
-  onSave,
+  onMark,
   onUnsettled,
 }: TransfersProps) {
   const [notice, setNotice] = useState<Notice>();
@@ -60,17 +54,8 @@ export function Transfers({
   const allDone = transfers.length > 0 && made.length === transfers.length;
   const close = () => setNotice(undefined);
 
-  function mark(marked: readonly Transfer[], done: boolean) {
-    if (!settled) return onUnsettled();
-    const next = markTransfers(game, marked, done);
-    // The game is complete while every transfer is in, and pending again when one is cleared
-    onSave(
-      markReceived(
-        next,
-        transfers.every((t) => isTransferDone(next, t)),
-      ),
-    );
-  }
+  const mark = (marked: readonly Transfer[], done: boolean) =>
+    settled ? onMark(marked, done) : onUnsettled();
 
   return (
     <div>

@@ -24,7 +24,7 @@ export type ImbalanceHandling = "split" | "organizer" | "ignore";
 
 /**
  * `open` while the table plays, `settling` from the settle step on the game page until the results
- * are confirmed, and `settled` after that (ADR 0032).
+ * are confirmed, and `settled` after that (ADR 0031).
  */
 export type GameStatus = "open" | "settling" | "settled";
 
