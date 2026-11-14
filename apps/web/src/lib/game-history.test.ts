@@ -1,6 +1,12 @@
 import { cents, type Game, type InsuranceRule, type WageRule } from "@holdem-knight/core";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_HISTORY_VIEW, historyGames, isFiltered } from "./game-history";
+import {
+  DEFAULT_HISTORY_STATE,
+  DEFAULT_HISTORY_VIEW,
+  historyGames,
+  isFiltered,
+  parseHistoryState,
+} from "./game-history";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = 100 * DAY_MS;
@@ -118,5 +124,46 @@ describe("isFiltered", () => {
     expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, period: "week" })).toBe(true);
     expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, currency: "CNY" })).toBe(true);
     expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, options: ["insurance"] })).toBe(true);
+  });
+});
+
+describe("parseHistoryState", () => {
+  it("reads back a state as it was kept", () => {
+    const state = {
+      open: false,
+      filtering: false,
+      view: {
+        stage: "complete",
+        period: "month",
+        currency: "AUD",
+        options: ["insurance", "rake"],
+        newestFirst: false,
+      },
+    };
+    expect(parseHistoryState(JSON.parse(JSON.stringify(state)))).toEqual(state);
+    expect(parseHistoryState(JSON.parse(JSON.stringify(DEFAULT_HISTORY_STATE)))).toEqual(
+      DEFAULT_HISTORY_STATE,
+    );
+  });
+
+  it("keeps the options it knows, in the fixed order", () => {
+    const view = { ...DEFAULT_HISTORY_VIEW, options: ["rake", "tips", "insurance"] };
+    expect(parseHistoryState({ open: true, filtering: true, view })?.view.options).toEqual([
+      "insurance",
+      "rake",
+    ]);
+  });
+
+  it("gives nothing for anything else", () => {
+    const kept = { open: true, filtering: true, view: DEFAULT_HISTORY_VIEW };
+    expect(parseHistoryState(null)).toBeUndefined();
+    expect(parseHistoryState("open")).toBeUndefined();
+    expect(parseHistoryState({ ...kept, open: "yes" })).toBeUndefined();
+    expect(parseHistoryState({ open: true, filtering: true })).toBeUndefined();
+    expect(
+      parseHistoryState({ ...kept, view: { ...kept.view, stage: "archived" } }),
+    ).toBeUndefined();
+    expect(parseHistoryState({ ...kept, view: { ...kept.view, currency: "USD" } })).toBeUndefined();
+    expect(parseHistoryState({ ...kept, view: { ...kept.view, options: "all" } })).toBeUndefined();
   });
 });

@@ -20,7 +20,6 @@ import {
   type WageAfterStartSegmentForm,
   type WageForm,
   type WageIssues,
-  type WageRounding,
   type WageRule,
   type WageTimeSegmentForm,
   type WageUnitMinutes,
@@ -31,6 +30,7 @@ import { InfoButton } from "@/components/InfoButton";
 import { ChoiceModal } from "@/components/insurance/ChoiceModal";
 import { SaveNameDialog } from "@/components/SaveNameDialog";
 import { TextField } from "@/components/TextField";
+import { TextMenu } from "@/components/TextMenu";
 import { Toggle } from "@/components/Toggle";
 import {
   newChargeRule,
@@ -494,6 +494,13 @@ export function TableFeeSettings({
   );
 }
 
+const UNIT_OPTIONS = WAGE_UNITS.map((unit) => ({ value: String(unit), label: UNIT_NAMES[unit] }));
+
+const ROUNDING_OPTIONS = WAGE_ROUNDINGS.map((mode) => ({
+  value: mode,
+  label: ROUNDING_NAMES[mode],
+}));
+
 const ROUNDING_INFO = [
   "每位玩家的在桌时间，从坐下起按计费单位切成一段一段。最后不满一段的部分：",
   "四舍五入：满半段算一段，不满半段不收。",
@@ -519,8 +526,6 @@ export function WageSettings({
 }: ChargeSettingsProps<WageRule, WageForm, WageIssues>) {
   const { enabled, source, form } = value;
   const [segmentsOpen, setSegmentsOpen] = useState(false);
-  const [pickingUnit, setPickingUnit] = useState(false);
-  const [pickingRounding, setPickingRounding] = useState(false);
   const symbol = CURRENCY_INFO[currency].symbol;
   const setForm = (next: Partial<WageForm>) =>
     onChange({ ...value, source: CUSTOM_PRESET, form: { ...form, ...next } });
@@ -631,31 +636,24 @@ export function WageSettings({
           {shown.hourly && <p className="text-sm text-highlight">{issueText(shown.hourly)}</p>}
 
           <div className="flex flex-wrap items-center justify-between gap-x-3 text-sm">
-            <span className="flex items-center gap-1">
-              <span className="text-muted">计费方式</span>
-              <button
-                type="button"
-                aria-haspopup="dialog"
-                aria-label={`计费方式：${UNIT_NAMES[form.unitMinutes]}`}
-                onClick={() => setPickingUnit(true)}
-                className="flex min-h-11 items-center gap-0.5 font-medium"
-              >
-                {UNIT_NAMES[form.unitMinutes]}
-                <ChevronDown className="size-4 text-muted" aria-hidden />
-              </button>
-            </span>
+            <TextMenu
+              label="计费方式"
+              caption="计费方式"
+              options={UNIT_OPTIONS}
+              value={String(form.unitMinutes)}
+              onChange={(unit) => setForm({ unitMinutes: Number(unit) as WageUnitMinutes })}
+              className="font-medium"
+            />
             <span className="flex items-center">
               <InfoButton title="取整方式" text={ROUNDING_INFO} />
-              <button
-                type="button"
-                aria-haspopup="dialog"
-                aria-label={`取整方式：${ROUNDING_NAMES[form.rounding]}`}
-                onClick={() => setPickingRounding(true)}
-                className="flex min-h-11 items-center gap-0.5 font-medium"
-              >
-                {ROUNDING_NAMES[form.rounding]}
-                <ChevronDown className="size-4 text-muted" aria-hidden />
-              </button>
+              <TextMenu
+                label="取整方式"
+                options={ROUNDING_OPTIONS}
+                value={form.rounding}
+                onChange={(rounding) => setForm({ rounding })}
+                align="right"
+                className="font-medium"
+              />
             </span>
           </div>
 
@@ -845,32 +843,6 @@ export function WageSettings({
             onSaved={(id) => onChange({ ...value, source: id })}
           />
         </>
-      )}
-
-      {pickingRounding && (
-        <ChoiceModal
-          title="取整方式"
-          choices={WAGE_ROUNDINGS.map((mode) => ({ id: mode, name: ROUNDING_NAMES[mode] }))}
-          selectedId={form.rounding}
-          onPick={(id) => {
-            setForm({ rounding: id as WageRounding });
-            setPickingRounding(false);
-          }}
-          onClose={() => setPickingRounding(false)}
-        />
-      )}
-
-      {pickingUnit && (
-        <ChoiceModal
-          title="计费方式"
-          choices={WAGE_UNITS.map((unit) => ({ id: String(unit), name: UNIT_NAMES[unit] }))}
-          selectedId={String(form.unitMinutes)}
-          onPick={(id) => {
-            setForm({ unitMinutes: Number(id) as WageUnitMinutes });
-            setPickingUnit(false);
-          }}
-          onClose={() => setPickingUnit(false)}
-        />
       )}
     </section>
   );

@@ -1,4 +1,10 @@
-import { type Currency, type Game, gameStage, type Timestamp } from "@holdem-knight/core";
+import {
+  CURRENCIES,
+  type Currency,
+  type Game,
+  gameStage,
+  type Timestamp,
+} from "@holdem-knight/core";
 
 export type HistoryStage = "all" | "pending" | "complete";
 export type HistoryPeriod = "all" | "week" | "month";
@@ -23,6 +29,47 @@ export const DEFAULT_HISTORY_VIEW: HistoryView = {
   options: GAME_OPTIONS,
   newestFirst: true,
 };
+
+/** How the history section was left: unfolded or not, with its filters on show or not. */
+export interface HistoryState {
+  readonly open: boolean;
+  readonly filtering: boolean;
+  readonly view: HistoryView;
+}
+
+/** History is unfolded with its filters on show until it has been left another way. */
+export const DEFAULT_HISTORY_STATE: HistoryState = {
+  open: true,
+  filtering: true,
+  view: DEFAULT_HISTORY_VIEW,
+};
+
+const STAGES: readonly unknown[] = ["all", "pending", "complete"] satisfies HistoryStage[];
+const PERIODS: readonly unknown[] = ["all", "week", "month"] satisfies HistoryPeriod[];
+const CURRENCY_CHOICES: readonly unknown[] = ["all", ...CURRENCIES];
+
+/** Reads back a state that was kept between visits. Anything that is not one gives nothing. */
+export function parseHistoryState(stored: unknown): HistoryState | undefined {
+  if (typeof stored !== "object" || stored === null) return undefined;
+  const { open, filtering, view } = stored as Record<string, unknown>;
+  if (typeof open !== "boolean" || typeof filtering !== "boolean") return undefined;
+  if (typeof view !== "object" || view === null) return undefined;
+  const { stage, period, currency, options, newestFirst } = view as Record<string, unknown>;
+  if (!STAGES.includes(stage) || !PERIODS.includes(period)) return undefined;
+  if (!CURRENCY_CHOICES.includes(currency) || !Array.isArray(options)) return undefined;
+  if (typeof newestFirst !== "boolean") return undefined;
+  return {
+    open,
+    filtering,
+    view: {
+      stage: stage as HistoryStage,
+      period: period as HistoryPeriod,
+      currency: currency as Currency | "all",
+      options: GAME_OPTIONS.filter((option) => options.includes(option)),
+      newestFirst,
+    },
+  };
+}
 
 /** Whether the view leaves out any game for when it started, its currency or its options. */
 export function isFiltered({ period, currency, options }: HistoryView) {

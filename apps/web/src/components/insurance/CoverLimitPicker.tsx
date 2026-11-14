@@ -1,9 +1,8 @@
 import { FULL_POT_LIMIT, parseCoverLimit, STAKE_LIMIT } from "@holdem-knight/core";
-import { ChevronDown } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { FormDialog } from "@/components/game/FormDialog";
 import { TextField } from "@/components/TextField";
-import { ChoiceModal } from "./ChoiceModal";
+import { TextMenu } from "@/components/TextMenu";
 
 const CUSTOM = "custom";
 
@@ -14,8 +13,6 @@ const PRESETS = [
   { id: FULL_POT_LIMIT, name: "满池" },
 ] as const;
 
-const limitName = (limit: string) => PRESETS.find(({ id }) => id === limit)?.name ?? `${limit}%`;
-
 interface CoverLimitPickerProps {
   /** The street whose all-in buys this cover, such as 翻牌 */
   street: string;
@@ -24,9 +21,9 @@ interface CoverLimitPickerProps {
   onChange: (value: string) => void;
 }
 
-/** A street's cover limit as a small dropdown, with a percentage for anything else. */
+/** A street's cover limit as a small menu in the page, with a percentage for anything else. */
 export function CoverLimitPicker({ street, value, onChange }: CoverLimitPickerProps) {
-  const [step, setStep] = useState<"pick" | "custom" | null>(null);
+  const [customizing, setCustomizing] = useState(false);
   const [percent, setPercent] = useState("");
   const [issue, setIssue] = useState<string>();
   const isPreset = PRESETS.some(({ id }) => id === value);
@@ -39,50 +36,42 @@ export function CoverLimitPicker({ street, value, onChange }: CoverLimitPickerPr
       return;
     }
     onChange(limit === undefined ? FULL_POT_LIMIT : String(limit));
-    setStep(null);
+    setCustomizing(false);
   }
 
   return (
     <>
-      <button
-        type="button"
-        aria-haspopup="dialog"
-        aria-label={`${street}保费上限：${limitName(value)}`}
-        onClick={() => setStep("pick")}
-        className="flex min-h-11 items-center gap-0.5"
-      >
-        <span className="text-muted">{street}</span>
-        <span className="ml-1 font-medium">{limitName(value)}</span>
-        <ChevronDown className="size-4 text-muted" aria-hidden />
-      </button>
+      <TextMenu
+        label={`${street}保费上限`}
+        caption={street}
+        options={[
+          ...PRESETS.map(({ id, name }) => ({ value: id as string, label: name })),
+          // Its own percentage shows in the line, and picking it again changes the percentage
+          isPreset
+            ? { value: CUSTOM, label: "自定义" }
+            : { value: CUSTOM, label: `自定义（${value}%）`, chosen: `${value}%` },
+        ]}
+        value={isPreset ? value : CUSTOM}
+        onChange={(id) => {
+          if (id === CUSTOM) {
+            setPercent(isPreset ? "" : value);
+            setIssue(undefined);
+            setCustomizing(true);
+          } else {
+            onChange(id);
+          }
+        }}
+        className="font-medium"
+      />
 
-      {step === "pick" && (
-        <ChoiceModal
-          title={`${street}保费上限`}
-          choices={[...PRESETS, { id: CUSTOM, name: isPreset ? "自定义" : `自定义（${value}%）` }]}
-          selectedId={isPreset ? value : CUSTOM}
-          onPick={(id) => {
-            if (id === CUSTOM) {
-              setPercent(isPreset ? "" : value);
-              setIssue(undefined);
-              setStep("custom");
-            } else {
-              onChange(id);
-              setStep(null);
-            }
-          }}
-          onClose={() => setStep(null)}
-        />
-      )}
-
-      {step === "custom" && (
+      {customizing && (
         <FormDialog
           title={`${street}保费上限`}
           submitLabel="确定"
           saving={false}
           saveFailed={false}
           onSubmit={handleCustom}
-          onClose={() => setStep(null)}
+          onClose={() => setCustomizing(false)}
         >
           <TextField
             id={`${street}-limit`}

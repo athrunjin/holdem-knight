@@ -10,24 +10,26 @@ import { TextMenu } from "@/components/TextMenu";
 import { useGames } from "@/data/games";
 import { cn } from "@/lib/cn";
 import {
-  DEFAULT_HISTORY_VIEW,
+  DEFAULT_HISTORY_STATE,
   GAME_OPTIONS,
   type HistoryPeriod,
   type HistoryStage,
   type HistoryView,
   historyGames,
   isFiltered,
+  parseHistoryState,
 } from "@/lib/game-history";
+import { parseBoolean, useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/")({
   component: SessionsPage,
 });
 
-const STARTED_AT = new Intl.DateTimeFormat("zh-CN", {
+/** The day a game started, as 26/11/14 */
+const STARTED_ON = new Intl.DateTimeFormat("zh-CN", {
+  year: "2-digit",
   month: "numeric",
   day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
 });
 
 type Role = "host" | "player";
@@ -84,7 +86,7 @@ function GameRow({ game, note }: { game: Game; note?: string | undefined }) {
           <GameOptions game={game} />
         </span>
         <span className="flex shrink-0 flex-col items-end text-sm text-muted">
-          {STARTED_AT.format(game.createdAt)}
+          {STARTED_ON.format(game.createdAt)}
           {note && <span className="text-xs text-highlight">{note}</span>}
         </span>
       </Link>
@@ -118,9 +120,16 @@ function FoldHeading({ title, count, open, onToggle }: FoldHeadingProps) {
   );
 }
 
-/** Games still under way, open from the start. Left out of the page while it has none. */
-function GameSection({ title, games }: { title: string; games: readonly Game[] }) {
-  const [open, setOpen] = useState(true);
+interface GameSectionProps {
+  title: string;
+  games: readonly Game[];
+  /** Where the fold is kept between visits */
+  storageKey: string;
+}
+
+/** Games still under way, unfolded until it is left folded. Left out of the page while it has none. */
+function GameSection({ title, games, storageKey }: GameSectionProps) {
+  const [open, setOpen] = useStoredState(storageKey, true, parseBoolean);
   if (games.length === 0) return null;
 
   return (
@@ -155,15 +164,15 @@ function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
     <div className="mb-2 rounded-xl border border-line px-2.5 text-sm">
       <div className="flex items-center gap-4">
         <TextMenu
-          captioned
           label="对局时间"
+          caption="对局时间"
           options={PERIODS}
           value={view.period}
           onChange={(period) => onChange({ period })}
         />
         <TextMenu
-          captioned
           label="积分类型"
+          caption="积分类型"
           options={CURRENCIES}
           value={view.currency}
           onChange={(currency) => onChange({ currency })}
@@ -212,15 +221,20 @@ function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
 const iconButton = "grid size-11 shrink-0 place-items-center text-muted";
 
 /**
- * Settled games, folded at the start under their number. Unfolded, the heading carries what
- * narrows and orders the list: the stage after the title, with the number of games listed, then
- * the filter and the order at the right, next to the fold.
+ * Settled games, which come back the way they were left: unfolded at first. Folded, the heading
+ * has only their number. Unfolded, it carries what narrows and orders the list: the stage after
+ * the title, with the number of games listed, then the filter and the order at the right, next to
+ * the fold.
  */
 function HistorySection({ games }: { games: readonly Game[] }) {
-  const [open, setOpen] = useState(false);
-  const [filtering, setFiltering] = useState(true);
-  const [view, setView] = useState(DEFAULT_HISTORY_VIEW);
-  const change = (part: Partial<HistoryView>) => setView({ ...view, ...part });
+  const [state, setState] = useStoredState(
+    "games-list.history",
+    DEFAULT_HISTORY_STATE,
+    parseHistoryState,
+  );
+  const { open, filtering, view } = state;
+  const setOpen = (next: boolean) => setState({ ...state, open: next });
+  const change = (part: Partial<HistoryView>) => setState({ ...state, view: { ...view, ...part } });
 
   if (!open) {
     return (
@@ -257,7 +271,6 @@ function HistorySection({ games }: { games: readonly Game[] }) {
           options={STAGES}
           value={view.stage}
           onChange={(stage) => change({ stage })}
-          className="font-medium"
         />
         <span className="ml-1 shrink-0">({shown.length})</span>
         <div className="ml-auto flex shrink-0">
@@ -266,7 +279,7 @@ function HistorySection({ games }: { games: readonly Game[] }) {
             type="button"
             aria-label="筛选"
             aria-expanded={filtering}
-            onClick={() => setFiltering(!filtering)}
+            onClick={() => setState({ ...state, filtering: !filtering })}
             className={cn(
               iconButton,
               filtering && "text-text",
@@ -336,8 +349,16 @@ function HostGames() {
           </p>
         </div>
       )}
-      <GameSection title="进行中" games={games.filter((game) => game.status === "open")} />
-      <GameSection title="结算中" games={games.filter((game) => game.status === "settling")} />
+      <GameSection
+        title="进行中"
+        games={games.filter((game) => game.status === "open")}
+        storageKey="games-list.open"
+      />
+      <GameSection
+        title="结算中"
+        games={games.filter((game) => game.status === "settling")}
+        storageKey="games-list.settling"
+      />
       <HistorySection games={settled} />
     </div>
   );
