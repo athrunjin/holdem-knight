@@ -63,7 +63,7 @@ Expected results follow these rules. Bug reports cite the rule number.
 | R7 | Waivers apply to one charge: a player's table fee, or a player's wages at one rate. They lock once the game is settled and can change again after reopening it. A waived charge also drops out of detail mode. |
 | R8 | Fees are worked out for the whole game from the settings at settlement. Changing a rate during the game reprices all counted time, not only the time after the change. |
 | R9 | Last time's values: turning a switch on loads the latest game that had that option. With no earlier game, or after choosing 默认配置 in the config picker at the top right of game setup, the switches start off. Changing any number shows 自定义. |
-| R10 | Backups are version 10. Backups from versions 1–9 still restore. An older app refuses a version 10 backup as newer. |
+| R10 | Backups are version 12. Backups from versions 1–11 still restore. An older app refuses a version 12 backup as newer. |
 | R11 | Each game keeps the time zone it was started in, and rates by time of day follow it on every device. A game from before this build uses the viewing device's time zone. Dates on the page still show in the device's time. |
 | R12 | Settlement tells players how they were charged. Each player's card shows their Buy-in record, then 在桌 (time sat, to the second) and, with wages, 计费 (time charged). The settings icon at the end of the line under the blinds opens the game's rules in brief under the header, to read only, in the order 保险, 工资, 台费: for insurance, whether tie cards count, whether a hit hands back the premium and the odds for 1, 3, 8 and 9 outs; the table fee with its minimum time; and the wage rates some player was charged at with the unit and rounding. An info icon beside the rules opens 计费规则 in words. The shared image carries those rules. |
 
@@ -206,6 +206,8 @@ Priorities and severities are defined in the [testing README](README.md).
 | G-05 | P0 | The plan a game starts with | Open the settlement of a game with insurance, a table fee or wages, then of a game with none of them. | The first opens with 积分管理 expanded and the organizer collecting, named by their ID. The second starts with it closed, and a tap opens the optimal plan. |
 | G-06 | P1 | The plan after settlement | On a settled game, change the plan, leave the page and come back. | The plan changes without reopening the game and is still the chosen one on return. Charges and the difference handling stay locked. |
 | G-07 | P1 | Leaving the settlement page | On an open game's settlement, tap 返回牌桌 beside 确认结算. Then tap the emblem and, in a game with insurance, the 保险 row on the organizer's card. | 返回牌桌 leads to the game page. The emblem and the 保险 row do nothing. |
+| G-08 | P0 | Ticking transfers off | Open 积分管理 on a game with several transfers. Tick one transfer, then the box on the plan's line, then that box again. Tick two, leave the page and come back. Change the plan and change it back. | Every box starts empty. A ticked transfer dims. The box on the plan's line ticks them all, and clears them all when all are ticked. Ticks are kept on return, on open and settled games alike, and come back with the plan they were made in. |
+| G-09 | P2 | Sharing a transfer | Tap the share icon on the plan's line and on a transfer. | Both say 这个功能还在开发中. 生成图片 still makes the image. |
 
 ### H. Wage units, rounding and time of day
 

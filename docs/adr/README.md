@@ -34,6 +34,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0027](0027-wage-units-rounding-and-game-time-zone.md) | Wage units at the longer rate, rounding modes, and the game's time zone | Accepted |
 | [0028](0028-organizer-seat.md) | The organizer plays under a seat of their own | Accepted |
 | [0029](0029-default-transfer-plan.md) | The transfer plan a game starts with, and changing it after settlement | Accepted |
+| [0030](0030-transfers-marked-as-made.md) | Marking transfers as made | Accepted |
 
 ## Template
 

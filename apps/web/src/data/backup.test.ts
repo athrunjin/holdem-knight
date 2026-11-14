@@ -3,6 +3,7 @@ import {
   cents,
   INSURANCE_PLAYER_ID,
   type LedgerEvent,
+  OPTIMAL_PLAN,
   ORGANIZER_PLAYER_ID,
   RULE_30,
 } from "@holdem-knight/core";
@@ -170,6 +171,22 @@ describe("backup file", () => {
     const full: BackupData = {
       ...data,
       games: [{ ...game, wage, waivedCharges: [{ playerId: "p", kind: "wage", part: "time-2" }] }],
+    };
+    expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
+  });
+
+  it("round-trips a game's plan and the transfers marked as made", () => {
+    const [game] = data.games;
+    if (!game) throw new Error("Missing sample game");
+    const full: BackupData = {
+      ...data,
+      games: [
+        {
+          ...game,
+          collectorId: OPTIMAL_PLAN,
+          doneTransfers: [{ from: "p", to: ORGANIZER_PLAYER_ID, amount: cents(1250) }],
+        },
+      ],
     };
     expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
   });
@@ -370,7 +387,7 @@ describe("backup file", () => {
 
   it("rejects backups from a newer version", () => {
     const text = edit((backup) => {
-      backup.version = 12;
+      backup.version = 13;
     });
     expect(parseBackup(text)).toEqual({ ok: false, issue: "newer-version" });
   });

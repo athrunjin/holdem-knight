@@ -936,12 +936,12 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do.
 - Tracking: PR #84
 
-### #I-049 积分管理: one list for the transfer plan, and the organizer collecting where they are owed
+### #I-049 积分管理: one list for the transfer plan, ticks for transfers made, and the organizer collecting where they are owed
 
 - Type: feature
 - Date: proposed and decided 2026-11-14
 - Source: trying #I-048 on a phone
-- Problem: the transfer plan took two buttons and a selection box to change, started on the optimal plan even in games where everyone pays the organizer, and could not be changed after 确认结算. The insurance row on the settlement page opened the insurance tool, which has nothing to do there.
+- Problem: the transfer plan took two buttons and a selection box to change, started on the optimal plan even in games where everyone pays the organizer, and could not be changed after 确认结算. There was nowhere to tick off who had paid. The insurance row on the settlement page opened the insurance tool, which has nothing to do there.
 - Proposal: one small list for the plan, a default that follows the game, and a plan that stays open to change.
 - Settled details:
   - 转账方案 on the button reads 积分管理, with no count of transfers.
@@ -949,6 +949,11 @@ Records discussions of feature and process improvements: what was proposed, how 
   - A game with insurance, a table fee or wages (rake too, once it exists) starts with the section open and the organizer collecting. Any other game starts with it closed, and opens on the optimal plan.
   - The plan can be changed after 确认结算 ([ADR 0029](adr/0029-default-transfer-plan.md)).
   - The organizer is named by their ID in the plan, the transfers and the image.
+  - The line with 转账方案 and the plan is in 14px type. The transfers under it are smaller and closer: 14px in rows 44px tall, 6px apart.
+  - The plan's line and every transfer end in two buttons, a share icon and a box to tick, each a 44px target. The boxes start empty.
+  - A tick on a transfer marks it as made and dims its row. The tick on the plan's line marks every transfer as received, or clears them all when all are ticked. Marks are saved on the game and can be set before and after 确认结算 ([ADR 0030](adr/0030-transfers-marked-as-made.md)).
+  - The share icons say 这个功能还在开发中 for now. 生成图片 works as before.
+  - Backups move to version 12 for the marks.
   - The insurance row on the settlement page is plain text and leads nowhere. On the game page it still opens 算保险.
 - Decision: do.
 - Tracking: PR #84

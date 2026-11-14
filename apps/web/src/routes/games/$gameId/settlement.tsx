@@ -27,7 +27,7 @@ import {
   ZERO,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, ChevronDown, Share2, Undo2 } from "lucide-react";
+import { ChevronDown, Share2, Undo2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { BuyInRecord } from "@/components/game/BuyInRecord";
 import { chargeLines, organizerIncomeLines } from "@/components/game/chargeLines";
@@ -40,7 +40,8 @@ import {
   type ResultLine,
 } from "@/components/game/ResultCards";
 import { SettlementSummary } from "@/components/game/SettlementSummary";
-import { type TransferPlan, TransferPlanPicker } from "@/components/game/TransferPlanPicker";
+import type { TransferPlan } from "@/components/game/TransferPlanPicker";
+import { Transfers } from "@/components/game/Transfers";
 import { InfoButton } from "@/components/InfoButton";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
@@ -487,38 +488,17 @@ function SettlementResult({
           </p>
         )}
         {transfersOpen && (
-          <div>
-            {/* The plan can still be changed once the game is settled: it moves no results */}
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="shrink-0 text-xs text-muted">转账方案</h3>
-              <TransferPlanPicker
-                plans={plans}
-                collectorId={collectorId}
-                disabled={saveGame.isPending}
-                onChange={(next) => saveGame.mutate(chooseCollector(game, next))}
-              />
-            </div>
-
-            {transfers.length === 0 ? (
-              <p className="text-muted">没有输赢，不需要转账。</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {transfers.map(({ from, to, amount }) => (
-                  <li
-                    key={`${from}-${to}`}
-                    className="flex min-h-14 items-center gap-2 rounded-xl border border-line bg-surface px-4"
-                  >
-                    <span className="min-w-0 truncate font-medium">{nameOf(from)}</span>
-                    <ArrowRight className="size-4 shrink-0 text-muted" aria-label="转给" />
-                    <span className="min-w-0 truncate font-medium">{nameOf(to)}</span>
-                    <span className="ml-auto shrink-0 text-lg font-semibold text-highlight">
-                      {formatGameMoney(amount, currency)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          // The plan and its ticks can still be changed once the game is settled: they move no results
+          <Transfers
+            game={game}
+            transfers={transfers}
+            plans={plans}
+            collectorId={collectorId}
+            nameOf={nameOf}
+            disabled={saveGame.isPending}
+            onChoosePlan={(next) => saveGame.mutate(chooseCollector(game, next))}
+            onSave={(next) => saveGame.mutate(next)}
+          />
         )}
       </section>
     </>

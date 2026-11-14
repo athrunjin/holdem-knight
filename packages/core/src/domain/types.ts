@@ -140,6 +140,13 @@ export const INSURANCE_PLAYER_NAME = "保险";
  */
 export const ORGANIZER_PLAYER_ID = "organizer";
 
+/** One payment at settlement: who pays whom, and how much. */
+export interface Transfer {
+  readonly from: string;
+  readonly to: string;
+  readonly amount: Cents;
+}
+
 /**
  * The optimal transfer plan, chosen outright. It is saved where a collector's ID would be, so the
  * choice holds in a game whose own default is a collector.
@@ -311,6 +318,11 @@ export interface Game {
   readonly wage?: WageRule;
   /** Charges let off at settlement. Missing means none. */
   readonly waivedCharges?: readonly ChargeWaiver[];
+  /**
+   * Transfers marked as made. Each is the payment itself, so a mark holds in every plan that has
+   * the same payment and no longer applies once its amount changes. Missing means none.
+   */
+  readonly doneTransfers?: readonly Transfer[];
   /**
    * IANA time zone the game was started in, such as `Asia/Shanghai`. Wage rates by time of day
    * follow it on every device. Missing on earlier games, which use the viewing device's zone.

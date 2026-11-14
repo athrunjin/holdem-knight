@@ -6,6 +6,7 @@ import {
   INSURANCE_PLAYER_ID,
   OPTIMAL_PLAN,
   ORGANIZER_PLAYER_ID,
+  type Transfer,
 } from "../domain";
 import { chipsToCents, type PlayerLedger } from "../ledger";
 import { allocate, type Cents, cents, InvalidMoneyError, sum, ZERO } from "../money";
@@ -161,12 +162,6 @@ export function attributeInsurance(
   return { nets: moved, insuranceNet, ownerId };
 }
 
-export interface Transfer {
-  readonly from: string;
-  readonly to: string;
-  readonly amount: Cents;
-}
-
 function largest(balances: Map<string, number>, sign: 1 | -1): [string, number] | undefined {
   let best: [string, number] | undefined;
   for (const [id, balance] of balances) {
@@ -229,4 +224,22 @@ export function transferCollector(
   if (collectorId === OPTIMAL_PLAN) return undefined;
   if (collectorId !== undefined && isValidCollector(nets, collectorId)) return collectorId;
   return game.insurance || game.tableFee || game.wage ? ORGANIZER_COLLECTOR : undefined;
+}
+
+function sameTransfer(a: Transfer, b: Transfer) {
+  return a.from === b.from && a.to === b.to && a.amount === b.amount;
+}
+
+/** Whether a transfer has been marked as made. */
+export function isTransferDone(game: Pick<Game, "doneTransfers">, transfer: Transfer) {
+  return (game.doneTransfers ?? []).some((done) => sameTransfer(done, transfer));
+}
+
+/** Marks transfers as made, or as not made again. Marks on other transfers stay as they are. */
+export function markTransfers(game: Game, transfers: readonly Transfer[], done: boolean): Game {
+  const { doneTransfers = [], ...rest } = game;
+  const others = doneTransfers.filter((saved) => !transfers.some((t) => sameTransfer(saved, t)));
+  const marked = transfers.map(({ from, to, amount }) => ({ from, to, amount }));
+  const next = done ? [...others, ...marked] : others;
+  return next.length > 0 ? { ...rest, doneTransfers: next } : rest;
 }

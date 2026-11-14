@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import { INSURANCE_PLAYER_ID, OPTIMAL_PLAN } from "../domain";
+import { createGame, DEFAULT_GAME_SETTINGS } from "../game";
 import { RULE_30 } from "../insurance";
 import { chipsToCents, type PlayerLedger } from "../ledger";
 import { cents, sum } from "../money";
@@ -9,7 +10,9 @@ import {
   attributeInsurance,
   chipDifference,
   collectorTransfers,
+  isTransferDone,
   isValidCollector,
+  markTransfers,
   netCents,
   ORGANIZER_COLLECTOR,
   type PlayerNet,
@@ -199,6 +202,31 @@ describe("transferCollector", () => {
   it("falls back to the game's default when the collector has left the game", () => {
     expect(transferCollector({ collectorId: "gone" }, nets)).toBeUndefined();
     expect(transferCollector({ ...fee, collectorId: "gone" }, nets)).toBe(ORGANIZER_COLLECTOR);
+  });
+});
+
+describe("markTransfers", () => {
+  const game = createGame({ id: "g", organizerId: "me", createdAt: 0 }, DEFAULT_GAME_SETTINGS);
+  const first = { from: "a", to: "b", amount: cents(100) };
+  const second = { from: "c", to: "b", amount: cents(250) };
+
+  it("marks a transfer as made and takes the mark off again", () => {
+    const marked = markTransfers(game, [first], true);
+    expect(isTransferDone(marked, first)).toBe(true);
+    expect(isTransferDone(marked, second)).toBe(false);
+    expect(markTransfers(marked, [first], false)).toEqual(game);
+  });
+
+  it("marks several at once without doubling one already marked", () => {
+    const marked = markTransfers(markTransfers(game, [first], true), [first, second], true);
+    expect(marked.doneTransfers).toEqual([first, second]);
+    expect(markTransfers(marked, [first, second], false)).toEqual(game);
+  });
+
+  it("does not carry a mark to the same people for another amount", () => {
+    const marked = markTransfers(game, [first], true);
+    expect(isTransferDone(marked, { ...first, amount: cents(101) })).toBe(false);
+    expect(isTransferDone(marked, { from: "b", to: "a", amount: cents(100) })).toBe(false);
   });
 });
 

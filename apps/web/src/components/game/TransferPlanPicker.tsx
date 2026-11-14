@@ -39,7 +39,7 @@ export function TransferPlanPicker({
         aria-label={`转账方案：${current?.label ?? ""}`}
         disabled={disabled}
         onClick={() => setOpen(!open)}
-        className="flex min-h-11 max-w-full items-center gap-0.5 text-xs text-muted disabled:opacity-60"
+        className="flex min-h-11 max-w-full items-center gap-0.5 text-sm text-muted disabled:opacity-60"
       >
         <span className="truncate">{current?.label}</span>
         <ChevronDown

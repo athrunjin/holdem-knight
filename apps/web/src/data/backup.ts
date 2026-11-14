@@ -12,7 +12,7 @@ import {
 import { z } from "zod";
 
 const FORMAT = "holdem-backup";
-const VERSION = 11;
+const VERSION = 12;
 
 const id = z.string().min(1);
 const money = z
@@ -105,6 +105,8 @@ const gameFields = {
       }),
     )
     .optional(),
+  /** Added in version 12. */
+  doneTransfers: z.array(z.object({ from: id, to: id, amount: money })).optional(),
 };
 
 const gameSchema = z.object({
