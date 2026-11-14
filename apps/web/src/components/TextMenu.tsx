@@ -17,6 +17,8 @@ interface TextMenuProps<T extends string> {
   label: string;
   /** Shown before the choice */
   caption?: string;
+  /** Shown after the choice, before the chevron */
+  suffix?: ReactNode;
   options: readonly TextMenuOption<T>[];
   value: T;
   /** Also called for the choice already in force */
@@ -39,6 +41,7 @@ const readerText = ({ label, name }: TextMenuOption<string>) =>
 export function TextMenu<T extends string>({
   label,
   caption,
+  suffix,
   options,
   value,
   onChange,
@@ -73,6 +76,7 @@ export function TextMenu<T extends string>({
         <span className="flex min-w-0 items-center truncate">
           {current?.chosen ?? current?.label}
         </span>
+        {suffix !== undefined && <span className="shrink-0">{suffix}</span>}
         <ChevronDown
           className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")}
           aria-hidden

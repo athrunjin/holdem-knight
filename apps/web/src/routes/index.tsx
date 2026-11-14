@@ -32,6 +32,16 @@ const STARTED_ON = new Intl.DateTimeFormat("zh-CN", {
   day: "numeric",
 });
 
+/** Its day of the week, as 周六 */
+const STARTED_WEEKDAY = new Intl.DateTimeFormat("zh-CN", { weekday: "short" });
+
+/** The time it started, as 21:05 */
+const STARTED_AT = new Intl.DateTimeFormat("zh-CN", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
 type Role = "host" | "player";
 
 const ROLES: readonly { readonly role: Role; readonly label: string }[] = [
@@ -41,9 +51,15 @@ const ROLES: readonly { readonly role: Role; readonly label: string }[] = [
 
 const STAGES: readonly { readonly value: HistoryStage; readonly label: string }[] = [
   { value: "all", label: "全部" },
-  { value: "pending", label: "积分待处理" },
-  { value: "complete", label: "已完成" },
+  { value: "pending", label: "未结清" },
+  { value: "complete", label: "已结清" },
 ];
+
+/** A settled game's stage as a small tag: gold while transfers are owed, green once all are in. */
+const STAGE_TAGS = {
+  pending: { label: "未结清", className: "bg-highlight/15 text-highlight" },
+  complete: { label: "已结清", className: "bg-win/15 text-win" },
+};
 
 const PERIODS: readonly { readonly value: HistoryPeriod; readonly label: string }[] = [
   { value: "all", label: "全部" },
@@ -69,7 +85,10 @@ const CURRENCIES = [
 const chevronClass = (open: boolean) =>
   cn("size-5 text-muted transition-transform", open && "rotate-180");
 
-function GameRow({ game, note }: { game: Game; note?: string | undefined }) {
+/** A game's line in the list. A settled game also says which stage it is in, before its date. */
+function GameRow({ game }: { game: Game }) {
+  const stage = gameStage(game);
+  const tag = stage === "pending" || stage === "complete" ? STAGE_TAGS[stage] : undefined;
   return (
     <li>
       <Link
@@ -85,9 +104,18 @@ function GameRow({ game, note }: { game: Game; note?: string | undefined }) {
           </span>
           <GameOptions game={game} />
         </span>
-        <span className="flex shrink-0 flex-col items-end text-sm text-muted">
-          {STARTED_ON.format(game.createdAt)}
-          {note && <span className="text-xs text-highlight">{note}</span>}
+        <span className="flex shrink-0 items-center gap-2.5">
+          {tag && (
+            <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium", tag.className)}>
+              {tag.label}
+            </span>
+          )}
+          <span className="flex flex-col items-end text-sm leading-tight text-muted tabular-nums">
+            {STARTED_ON.format(game.createdAt)}
+            <span className="text-xs leading-tight">
+              {STARTED_WEEKDAY.format(game.createdAt)}·{STARTED_AT.format(game.createdAt)}
+            </span>
+          </span>
         </span>
       </Link>
     </li>
@@ -218,7 +246,8 @@ function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
   );
 }
 
-const iconButton = "grid size-11 shrink-0 place-items-center text-muted";
+/** Kept 36px wide so the three icons at the end of the heading sit close together. */
+const iconButton = "grid h-11 w-9 shrink-0 place-items-center text-muted";
 
 /**
  * Settled games, which come back the way they were left: unfolded at first. Folded, the heading
@@ -252,7 +281,8 @@ function HistorySection({ games }: { games: readonly Game[] }) {
   const shown = historyGames(games, view, Date.now());
   return (
     <section>
-      <div className="flex min-h-11 items-center font-medium">
+      {/* The title, the stage and the number share one baseline, whatever font each falls to */}
+      <div className="flex min-h-11 items-baseline font-medium">
         <h2 className="shrink-0">
           <button
             type="button"
@@ -271,9 +301,9 @@ function HistorySection({ games }: { games: readonly Game[] }) {
           options={STAGES}
           value={view.stage}
           onChange={(stage) => change({ stage })}
+          suffix={`(${shown.length})`}
         />
-        <span className="ml-1 shrink-0">({shown.length})</span>
-        <div className="ml-auto flex shrink-0">
+        <div className="ml-auto flex shrink-0 self-center">
           {/* Filled while the filters are on show, and gold while any of them is set */}
           <button
             type="button"
@@ -305,7 +335,7 @@ function HistorySection({ games }: { games: readonly Game[] }) {
             type="button"
             aria-label="收起历史对局"
             onClick={() => setOpen(false)}
-            className={cn(iconButton, "-mr-2")}
+            className={cn(iconButton, "-mr-1")}
           >
             <ChevronDown className={chevronClass(true)} aria-hidden />
           </button>
@@ -315,14 +345,7 @@ function HistorySection({ games }: { games: readonly Game[] }) {
       {shown.length > 0 ? (
         <ul className="mt-1 flex flex-col gap-2">
           {shown.map((game) => (
-            <GameRow
-              key={game.id}
-              game={game}
-              // With every stage listed together, the games still owed transfers say so
-              note={
-                view.stage === "all" && gameStage(game) === "pending" ? "积分待处理" : undefined
-              }
-            />
+            <GameRow key={game.id} game={game} />
           ))}
         </ul>
       ) : (
