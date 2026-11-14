@@ -181,17 +181,30 @@ export function settleGame(game: Game, settledAt: Timestamp): Game {
 
 /**
  * Takes a settled game back to settling so its results can be changed. The marks on its transfers
- * go, since the transfers follow the results, and so does its place in the archive.
+ * go, since the transfers follow the results, and with them the game being complete.
  */
 export function reviseGame(game: Game): Game {
-  const { settledAt: _, archive: __, doneTransfers: ___, ...rest } = game;
+  const { settledAt: _, allReceived: __, doneTransfers: ___, ...rest } = game;
   return { ...rest, status: "settling" };
 }
 
-/** Where a game stands: a settled game is pending until it is archived as complete. */
-export function gameStage({ status, archive }: Pick<Game, "status" | "archive">): GameStage {
+/**
+ * Saves whether every transfer of a settled game has been made. Whoever knows the plan's transfers
+ * calls this when the game is settled, when a transfer is ticked and when the plan changes. A game
+ * with nothing to transfer has everything in. A game not settled never has.
+ */
+export function markReceived(game: Game, allReceived: boolean): Game {
+  const { allReceived: _, ...rest } = game;
+  return game.status === "settled" && allReceived ? { ...rest, allReceived: true } : rest;
+}
+
+/** Where a game stands: a settled game is pending until every transfer is in. */
+export function gameStage({
+  status,
+  allReceived,
+}: Pick<Game, "status" | "allReceived">): GameStage {
   if (status !== "settled") return status;
-  return archive === "complete" ? "complete" : "pending";
+  return allReceived ? "complete" : "pending";
 }
 
 /**
@@ -210,25 +223,6 @@ export function chooseInsuranceOwner(game: Game, insuranceOwner: string | undefi
 
 export function chooseImbalanceHandling(game: Game, imbalanceHandling: ImbalanceHandling): Game {
   return { ...game, imbalanceHandling };
-}
-
-/**
- * Files a settled game away in history, as complete when every transfer has been made and as
- * pending otherwise.
- */
-export function archiveGame(game: Game, complete: boolean): Game {
-  return { ...game, archive: complete ? "complete" : "pending" };
-}
-
-/** Takes a game back out of the archive. It stays settled. */
-export function unarchiveGame(game: Game): Game {
-  const { archive: _, ...rest } = game;
-  return rest;
-}
-
-/** Moves an archived game to where its transfers now put it. A game not archived is left alone. */
-export function refileGame(game: Game, complete: boolean): Game {
-  return game.archive ? { ...game, archive: complete ? "complete" : "pending" } : game;
 }
 
 /**

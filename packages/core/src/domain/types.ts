@@ -34,12 +34,6 @@ export type GameStatus = "open" | "settling" | "settled";
  */
 export type GameStage = "open" | "settling" | "pending" | "complete";
 
-/**
- * Where a settled game is filed in history: `complete` once every transfer is marked as made,
- * `pending` while some are still owed.
- */
-export type GameArchive = "complete" | "pending";
-
 /** Whether cards that split the pot count as outs. */
 export type TieOuts = "exclude" | "include";
 
@@ -319,8 +313,11 @@ export interface Game {
   readonly imbalanceHandling?: ImbalanceHandling;
   /** When settlement was confirmed. Cleared when the results are revised. */
   readonly settledAt?: Timestamp;
-  /** Set once the organizer files the game away. Missing on a game not archived. Cleared when the results are revised. */
-  readonly archive?: GameArchive;
+  /**
+   * Set while every transfer of a settled game is marked as made, which makes the game complete.
+   * Saved so the games list need not settle each game again. Cleared when the results are revised.
+   */
+  readonly allReceived?: true;
   /** Missing until the organizer starts the clock. */
   readonly timer?: GameTimer;
   /** This game's insurance terms. Missing means insurance is off. */

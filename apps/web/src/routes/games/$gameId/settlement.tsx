@@ -13,6 +13,7 @@ import {
   INSURANCE_PLAYER_ID,
   isTransferDone,
   type LedgerEvent,
+  markReceived,
   ORGANIZER_COLLECTOR,
   type PlayerChargeStatus,
   type PlayerLedger,
@@ -264,8 +265,20 @@ function SettlementResult({
   const chargesText = formatGameMoney(charged.total, currency);
   const separateInsurance = ownerId === INSURANCE_PLAYER_ID;
 
+  /** The transfers of the plan a game has, which may be this game with another plan chosen. */
+  function transfersOf(of: Game) {
+    const id = transferCollector(of, nets);
+    return id ? collectorTransfers(nets, id) : settleTransfers(nets);
+  }
+  /** A settled game is complete while every transfer of its plan is in: none at all counts too. */
+  const filed = (of: Game) =>
+    markReceived(
+      of,
+      transfersOf(of).every((transfer) => isTransferDone(of, transfer)),
+    );
+
   const collectorId = transferCollector(game, nets);
-  const transfers = collectorId ? collectorTransfers(nets, collectorId) : settleTransfers(nets);
+  const transfers = transfersOf(game);
   const planName = collectorId ? `代收人 ${nameOf(collectorId)}` : "最优方案";
 
   const organizerNet = nets.find((p) => p.playerId === ORGANIZER_COLLECTOR)?.net;
@@ -476,7 +489,7 @@ function SettlementResult({
 
   function handleConfirm() {
     onNudge(undefined);
-    saveGame.mutate(settleGame(game, Date.now()));
+    saveGame.mutate(filed(settleGame(game, Date.now())));
   }
 
   return (
@@ -568,7 +581,7 @@ function SettlementResult({
             collectorId={collectorId}
             nameOf={nameOf}
             disabled={saveGame.isPending}
-            onChoosePlan={(next) => saveGame.mutate(chooseCollector(game, next))}
+            onChoosePlan={(next) => saveGame.mutate(filed(chooseCollector(game, next)))}
             onSave={(next) => saveGame.mutate(next)}
             onUnsettled={() => point("confirm")}
           />

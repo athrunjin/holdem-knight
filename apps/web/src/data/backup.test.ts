@@ -175,7 +175,7 @@ describe("backup file", () => {
     expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
   });
 
-  it("round-trips a game's plan, its archive and the transfers marked as made", () => {
+  it("round-trips a game's plan, the transfers marked as made and all of them being in", () => {
     const [game] = data.games;
     if (!game) throw new Error("Missing sample game");
     const full: BackupData = {
@@ -184,7 +184,7 @@ describe("backup file", () => {
         {
           ...game,
           collectorId: OPTIMAL_PLAN,
-          archive: "pending",
+          allReceived: true,
           doneTransfers: [{ from: "p", to: ORGANIZER_PLAYER_ID, amount: cents(1250) }],
         },
       ],

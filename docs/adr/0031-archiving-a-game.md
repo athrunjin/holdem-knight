@@ -1,6 +1,6 @@
 # 0031. Archiving a game into history
 
-- Status: Superseded in part by [0032](0032-game-stages.md): only a settled game can be archived, and history has two parts
+- Status: Superseded by [0033](0033-complete-when-all-received.md)
 - Date: 2026-11-14
 
 ## Context

@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { type GameSettings, OPTIMAL_PLAN } from "../domain";
 import { cents } from "../money";
 import {
-  archiveGame,
   chooseCollector,
   chooseImbalanceHandling,
   createGame,
@@ -12,14 +11,13 @@ import {
   type GameSettingsForm,
   gameStage,
   handChipsFor,
+  markReceived,
   parseGameSettings,
-  refileGame,
   resumeGame,
   reviseGame,
   settleGame,
   startSettling,
   toGameSettingsForm,
-  unarchiveGame,
   updateGameSettings,
   upgradeLegacyGame,
 } from "./game";
@@ -204,25 +202,6 @@ describe("chooseImbalanceHandling", () => {
   });
 });
 
-describe("archiveGame", () => {
-  const game = createGame(meta, DEFAULT_GAME_SETTINGS);
-  const settled = settleGame(game, 2);
-
-  it("files a settled game as complete or pending and takes it back out", () => {
-    expect(archiveGame(settled, true)).toEqual({ ...settled, archive: "complete" });
-    const pending = archiveGame(settled, false);
-    expect(pending).toEqual({ ...settled, archive: "pending" });
-    expect(unarchiveGame(pending)).toEqual(settled);
-  });
-
-  it("moves an archived game with its transfers and leaves others alone", () => {
-    const pending = archiveGame(settled, false);
-    expect(refileGame(pending, true).archive).toBe("complete");
-    expect(refileGame(refileGame(pending, true), false).archive).toBe("pending");
-    expect(refileGame(settled, true)).toEqual(settled);
-  });
-});
-
 describe("the stages of a game", () => {
   const game = createGame(meta, DEFAULT_GAME_SETTINGS);
   const settling = startSettling(game);
@@ -251,22 +230,30 @@ describe("the stages of a game", () => {
     expect(reviseGame(settled).timer).toEqual({ elapsedMs: 15 });
   });
 
-  it("drops the marks on transfers and the archive when the results are revised", () => {
+  it("drops the marks on transfers and the game being complete when the results are revised", () => {
     const marked = { ...settleGame(settling, 2), doneTransfers: [transfer] };
-    expect(reviseGame(archiveGame(marked, true))).toEqual(settling);
+    expect(reviseGame(markReceived(marked, true))).toEqual(settling);
   });
 
   it("starts settling without marks left from before", () => {
     expect(startSettling({ ...game, doneTransfers: [transfer] })).toEqual(settling);
   });
 
-  it("names the stage: pending once settled, complete once archived with everything in", () => {
+  it("is complete only while a settled game has every transfer in", () => {
+    const settled = settleGame(settling, 2);
+    const complete = markReceived(settled, true);
+    expect(complete).toEqual({ ...settled, allReceived: true });
+    expect(markReceived(complete, false)).toEqual(settled);
+    expect(markReceived(settled, false)).toEqual(settled);
+    expect(markReceived(settling, true)).toEqual(settling);
+  });
+
+  it("names the stage: pending once settled, complete once everything is in", () => {
     const settled = settleGame(settling, 2);
     expect(gameStage(game)).toBe("open");
     expect(gameStage(settling)).toBe("settling");
     expect(gameStage(settled)).toBe("pending");
-    expect(gameStage(archiveGame(settled, false))).toBe("pending");
-    expect(gameStage(archiveGame(settled, true))).toBe("complete");
+    expect(gameStage(markReceived(settled, true))).toBe("complete");
   });
 });
 

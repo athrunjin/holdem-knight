@@ -107,7 +107,7 @@ const gameFields = {
     )
     .optional(),
   /** Added in version 12. */
-  archive: z.enum(["complete", "pending"]).optional(),
+  allReceived: z.literal(true).optional(),
   /** Added in version 12. */
   doneTransfers: z.array(z.object({ from: id, to: id, amount: money })).optional(),
 };

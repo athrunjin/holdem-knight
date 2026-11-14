@@ -1,12 +1,11 @@
 import {
-  archiveGame,
   type Game,
   isTransferDone,
+  markReceived,
   markTransfers,
-  refileGame,
   type Transfer,
-  unarchiveGame,
 } from "@holdem-knight/core";
+import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Share2 } from "lucide-react";
 import { useState } from "react";
 import { type TransferPlan, TransferPlanPicker } from "@/components/game/TransferPlanPicker";
@@ -23,25 +22,25 @@ interface TransfersProps {
   /** While a save is under way. */
   disabled: boolean;
   onChoosePlan: (collectorId: string | undefined) => void;
-  /** Saves the game with transfers marked or the game archived. */
+  /** Saves the game with transfers marked. */
   onSave: (game: Game) => void;
-  /** Takes a tap on a tick or on the archive before the results are confirmed. */
+  /** Takes a tap on a tick before the results are confirmed. */
   onUnsettled: () => void;
 }
 
-type Notice = "share" | "locked" | "archive";
+type Notice = "share" | "locked";
 
 const NOTICE_TITLE: Record<Notice, string> = {
   share: "分享转账",
   locked: "不能切换方案",
-  archive: "归档牌局",
 };
 
 /**
  * The transfers of the chosen plan, set out like a bill. The line over them names the plan, and
  * each transfer can be shared and ticked off once made; the line's own tick marks them all, or
- * none when all are marked. The line under them counts what has come in and files the game away.
- * Until the results are confirmed nothing can be ticked or filed: the transfers may still change.
+ * none when all are marked. The line under them counts what has come in and leads back to the
+ * games list. Until the results are confirmed nothing can be ticked: the transfers may still
+ * change.
  */
 export function Transfers({
   game,
@@ -58,18 +57,15 @@ export function Transfers({
   const { currency } = game;
   const settled = game.status === "settled";
   const made = settled ? transfers.filter((t) => isTransferDone(game, t)) : [];
-  // With nothing to transfer there is nothing left to collect either
-  const complete = made.length === transfers.length;
-  const allDone = complete && transfers.length > 0;
-  const filed = `历史对局 - ${complete ? "完成" : "积分待处理"}`;
+  const allDone = transfers.length > 0 && made.length === transfers.length;
   const close = () => setNotice(undefined);
 
   function mark(marked: readonly Transfer[], done: boolean) {
     if (!settled) return onUnsettled();
     const next = markTransfers(game, marked, done);
-    // An archived game follows its transfers between the two groups of history
+    // The game is complete while every transfer is in, and pending again when one is cleared
     onSave(
-      refileGame(
+      markReceived(
         next,
         transfers.every((t) => isTransferDone(next, t)),
       ),
@@ -151,31 +147,10 @@ export function Transfers({
           {transfers.length > 0 &&
             `共 ${transfers.length} 笔（已收 ${made.length} / ${transfers.length}）`}
         </p>
-        {game.archive ? (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onSave(unarchiveGame(game))}
-            className="min-h-11 shrink-0 rounded-xl border border-line px-3 text-sm font-medium disabled:opacity-60"
-          >
-            取消归档
-          </button>
-        ) : (
-          // Gray while money is still owed, green once it is all in. Either way it can be tapped
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => (settled ? setNotice("archive") : onUnsettled())}
-            className={cn(
-              "min-h-11 shrink-0 rounded-xl px-3 text-sm font-semibold disabled:opacity-60",
-              complete ? "bg-accent text-accent-text" : "bg-line text-muted",
-            )}
-          >
-            归档牌局
-          </button>
-        )}
+        <Link to="/" className="flex min-h-11 shrink-0 items-center text-xs text-highlight">
+          返回主界面
+        </Link>
       </div>
-      {game.archive && <p className="pl-0.5 text-xs text-muted">已归档至 {filed}</p>}
 
       {notice && (
         <Modal title={NOTICE_TITLE[notice]} onClose={close}>
@@ -183,30 +158,12 @@ export function Transfers({
           {notice === "locked" && (
             <p className="text-sm text-muted">存在已完成的转账。取消勾选后才能切换方案。</p>
           )}
-          {notice === "archive" && (
-            <>
-              <p className="text-sm">归档至 {filed}</p>
-              <button
-                type="button"
-                onClick={() => {
-                  close();
-                  onSave(archiveGame(game, complete));
-                }}
-                className="mt-3 min-h-11 w-full rounded-xl bg-accent font-semibold text-accent-text"
-              >
-                归档
-              </button>
-            </>
-          )}
           <button
             type="button"
             onClick={close}
-            className={cn(
-              "min-h-11 w-full rounded-xl border border-line font-medium",
-              notice === "archive" ? "mt-2" : "mt-3",
-            )}
+            className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
           >
-            {notice === "archive" ? "取消" : "关闭"}
+            关闭
           </button>
         </Modal>
       )}

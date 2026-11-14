@@ -114,7 +114,7 @@ function HostGames() {
   const { data: games = [] } = useGames();
   // Games at the table and games being settled are both still under way
   const live = games.filter((game) => game.status !== "settled");
-  // History has the rest: pending from the moment it is settled, complete once archived as such
+  // History has the rest: pending from the moment it is settled, complete once every transfer is in
   const pending = games.filter((game) => gameStage(game) === "pending");
   const complete = games.filter((game) => gameStage(game) === "complete");
 

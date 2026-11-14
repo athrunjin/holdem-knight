@@ -1,6 +1,6 @@
 # 0032. The stages of a game, with settling between open and settled
 
-- Status: Accepted
+- Status: Superseded in part by [0033](0033-complete-when-all-received.md): a game is complete by its ticks, with no archiving
 - Date: 2026-11-14
 
 ## Context
