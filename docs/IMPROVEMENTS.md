@@ -932,7 +932,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - 已离桌 reads 已结算 and starts folded, one quiet line in the type of 牌局记录 under it. Its rows say 带出 for what was taken out.
   - The settle dialog starts with the chips: 「筹码配平」 with a tick in green, said even when nothing is wrong, or 「筹码未配平，多 1,000 筹码（¥100）」 with a cross in red, in the words of the balance box. The choices follow, with the organizer named by their ID, 「guest 承担 ¥100」, first and chosen to begin with. The line about who is still seated comes under them. Balanced with nobody seated and no insurance open, there is still no dialog.
   - The settlement page's 返回牌局 is replaced by the emblem, 48px tall, which keeps the header's height. The emblem is a picture only. The way back to the game is a small 返回牌桌 button in the row of 确认结算, to its right.
-  - Under the cards, after a rule: 确认结算, or 重新打开牌局 once settled, with 返回牌桌 beside it. Then 生成图片 and 积分管理 (#I-049) side by side.
+  - Under the cards, after a rule: 确认结算, or 修改对局结果 once settled (#I-050), with 返回牌桌 beside it. Then 生成图片 and 积分管理 (#I-049) side by side.
 - Decision: do.
 - Tracking: PR #84
 
@@ -949,16 +949,34 @@ Records discussions of feature and process improvements: what was proposed, how 
   - A game with insurance, a table fee or wages (rake too, once it exists) starts with the section open and the organizer collecting. Any other game starts with it closed, and opens on the optimal plan.
   - The plan can be changed after 确认结算 ([ADR 0029](adr/0029-default-transfer-plan.md)).
   - The organizer is named by their ID in the plan, the transfers and the image.
-  - The plan's line is in 14px type. The transfers under it are set out like a bill, chosen from six layouts: 14px in rows 44px tall, with no boxes, rules or leaders between them.
+  - The plan's line is in 14px type. The transfers under it are set out like a bill, chosen from six layouts: 14px in rows 44px tall, with no boxes, rules or leaders between them. One rule sets the plan's line apart from the transfers, and another the transfers from the line under them.
   - The plan's line and every transfer end in two buttons, a share icon and a box to tick, set close together, each with a 44px target. The boxes start empty.
-  - A tick on a transfer marks it as made, and dims and strikes through its row. The tick on the plan's line marks every transfer as received, or clears them all when all are ticked. Marks are saved on the game and can be set before and after 确认结算 ([ADR 0030](adr/0030-transfers-marked-as-made.md)).
+  - A tick on a transfer marks it as made, and dims and strikes through its row. The tick on the plan's line marks every transfer as received, or clears them all when all are ticked. Marks are saved on the game ([ADR 0030](adr/0030-transfers-marked-as-made.md)), and can be set once the results are confirmed (#I-050).
   - The share icons say 这个功能还在开发中 for now. 生成图片 works as before.
   - While any transfer is ticked the plan cannot be changed: a tap on it says 存在已完成的转账.
-  - Under the transfers: 「共 4 笔（已收 ¥72.50 / ¥842）」, the amount ticked off over the plan's total, and 归档牌局 at the right in place of a total. The button is gray while something is still owed and green once everything is ticked, and can be tapped either way. It asks first, naming where the game goes: 「归档至 历史对局 - 完成」 or 「归档至 历史对局 - 积分待处理」. An open game is settled in the same step, and the dialog says so.
-  - An archived game shows 取消归档 there and 「已归档至 历史对局 - …」 under it, and moves between the two groups as its transfers are ticked. 重新打开牌局 takes it out of the archive ([ADR 0031](adr/0031-archiving-a-game.md)).
-  - On the games list 历史对局 loses its count and shows three parts: 未归档 for settled games not yet archived, shown only when there are any, then 积分待处理, then 完成.
+  - Under the transfers: 「共 4 笔（已收 1 / 4）」, the transfers ticked off over all of them, and 归档牌局 at the right in place of a total. The button is gray while something is still owed and green once everything is ticked, and can be tapped either way. It asks first, naming where the game goes: 「归档至 历史对局 - 完成」 or 「归档至 历史对局 - 积分待处理」.
+  - An archived game shows 取消归档 there and 「已归档至 历史对局 - …」 under it, and moves between the two groups as its transfers are ticked. 修改对局结果 takes it out of the archive ([ADR 0031](adr/0031-archiving-a-game.md)).
+  - On the games list 历史对局 loses its count and shows two parts, 积分待处理 and 完成 (#I-050).
   - Backups move to version 12 for the marks and the archive.
-  - The insurance row on the settlement page is plain text and leads nowhere. On the game page it still opens 算保险.
+  - The insurance row on the organizer's card reads the same on both pages, a calculator icon and 保险, starting where the organizer's ID starts. On the game page it opens 算保险. On the settlement page it leads nowhere.
+- Decision: do.
+- Tracking: PR #84
+
+### #I-050 The four stages of a game: 进行中, 结算中, 积分待处理, 已完成
+
+- Type: feature
+- Date: proposed and decided 2026-11-14
+- Source: trying #I-049 on a phone
+- Problem: a game was either open or settled. Transfers could be ticked while the results could still change, the button that undid a settlement spoke of reopening the game when the organizer wanted to correct a result, and a tap on a locked result did nothing and said nothing.
+- Proposal: name the stages and let each one say what it allows.
+- Settled details:
+  - A game is 进行中 at the table. 结算 on the game page, once confirmed, makes it 结算中 and opens the settlement page. 确认结算 makes it 积分待处理. Archived with every transfer in, it is 已完成 ([ADR 0032](adr/0032-game-stages.md)).
+  - 结算中: the results can still change, and the transfers under 积分管理 follow at once. No transfer can be ticked and the game cannot be archived: a tap on a box or on 归档牌局 brings 确认结算 into view and rings it in gold for a moment.
+  - 积分待处理 and 已完成: the results are locked. A tap on a charge's box or on the handling of a difference scrolls the page until 积分管理 sits at the bottom, and rings 修改对局结果 over it.
+  - 重新打开牌局 reads 修改对局结果, in the same colors. It takes the game back to 结算中. With transfers already ticked it asks first, 「已有积分转移被记录，是否删除并修改对局结果？」, and on 确定 clears them.
+  - 返回牌桌 from a game in 结算中 puts it back to 进行中, where recording can continue. From a settled game the table is only shown.
+  - On the games list 进行中 holds games at the table and games being settled, the latter labeled 结算中 and opening on their settlement page. 历史对局 has 积分待处理, where a game goes as soon as it is settled, and 完成.
+  - A game archived while money is owed stays under 积分待处理, and moves to 完成 by itself when its last transfer is ticked.
 - Decision: do.
 - Tracking: PR #84
 

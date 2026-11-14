@@ -22,7 +22,17 @@ export interface ChipRatio {
 /** How to settle a chip difference: split it, have the organizer cover it, or leave it. */
 export type ImbalanceHandling = "split" | "organizer" | "ignore";
 
-export type GameStatus = "open" | "settled";
+/**
+ * `open` while the table plays, `settling` from the settle step on the game page until the results
+ * are confirmed, and `settled` after that (ADR 0032).
+ */
+export type GameStatus = "open" | "settling" | "settled";
+
+/**
+ * The four stages an organizer sees a game go through: at the table, results being checked,
+ * settled with transfers still to come in, and done.
+ */
+export type GameStage = "open" | "settling" | "pending" | "complete";
 
 /**
  * Where a settled game is filed in history: `complete` once every transfer is marked as made,
@@ -307,9 +317,9 @@ export interface Game {
   readonly collectorId?: string;
   /** How a chip difference is settled. Only used when the books do not balance. */
   readonly imbalanceHandling?: ImbalanceHandling;
-  /** When settlement was confirmed. Cleared on reopening. */
+  /** When settlement was confirmed. Cleared when the results are revised. */
   readonly settledAt?: Timestamp;
-  /** Set once the organizer files the game away. Missing on a game not archived. Cleared on reopening. */
+  /** Set once the organizer files the game away. Missing on a game not archived. Cleared when the results are revised. */
   readonly archive?: GameArchive;
   /** Missing until the organizer starts the clock. */
   readonly timer?: GameTimer;

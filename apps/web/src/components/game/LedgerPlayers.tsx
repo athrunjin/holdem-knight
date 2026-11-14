@@ -11,7 +11,7 @@ import {
   type PlayerLedger,
 } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
-import { Calculator, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { breakable, formatSignedChips, netColor } from "@/lib/chips";
@@ -24,6 +24,8 @@ import {
   ColumnTitles,
   columnsClass,
   figureClass,
+  InsuranceName,
+  insuranceNameClass,
   PersonCard,
   type ResultCard,
 } from "./ResultCards";
@@ -349,10 +351,9 @@ export function LedgerPlayers({
           to="/games/$gameId/insurance"
           params={{ gameId }}
           aria-label="算保险"
-          className="flex min-h-11 min-w-0 items-center gap-0.5 text-highlight"
+          className={cn(insuranceNameClass, "min-h-11")}
         >
-          <Calculator className="size-4 shrink-0" aria-hidden />
-          <span className="truncate">保险</span>
+          <InsuranceName />
         </Link>
         {!seat ? (
           <>

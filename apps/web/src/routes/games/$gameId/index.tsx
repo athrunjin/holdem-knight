@@ -13,13 +13,15 @@ import {
   ORGANIZER_PLAYER_ID,
   type Player,
   pauseTimer,
+  resumeGame,
   soleBuyIn,
+  startSettling,
   summarizeByPlayer,
   toggleTimer,
   waiveCharge,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AddPlayerToGame } from "@/components/game/AddPlayerToGame";
 import { ChipAmountDialog } from "@/components/game/ChipAmountDialog";
 import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
@@ -109,7 +111,15 @@ function GameLedger({ game }: { game: Game }) {
   // Off to begin with: folded cards already show what each player owes, behind 含费
   const [detailMode, setDetailMode] = useState(false);
 
-  const editable = status === "open";
+  const editable = status !== "settled";
+  // Set while the settle step saves and leaves, so the game is not taken straight back to the table
+  const leavingToSettle = useRef(false);
+  const resume = saveGame.mutate;
+  // A game being settled goes back to the table by coming back to this page, however it got here
+  useEffect(() => {
+    if (game.status === "settling" && !leavingToSettle.current) resume(resumeGame(game));
+  }, [game, resume]);
+
   const ledger = summarizeByPlayer(events);
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
@@ -218,6 +228,7 @@ function GameLedger({ game }: { game: Game }) {
   }
 
   async function confirmSettle(handling: ImbalanceHandling | undefined) {
+    leavingToSettle.current = true;
     try {
       if (anyoneSeated) await leaveAll.mutateAsync();
       // Going to settle stops the clock, so no more time is charged while the results are read
@@ -225,10 +236,11 @@ function GameLedger({ game }: { game: Game }) {
       const paused =
         running && game.timer ? { ...game, timer: pauseTimer(game.timer, Date.now()) } : game;
       const next = handling ? chooseImbalanceHandling(paused, handling) : paused;
-      if (next !== game) await saveGame.mutateAsync(next);
+      await saveGame.mutateAsync(startSettling(next));
       goToSettlement();
     } catch {
       // The dialog stays open and shows the failure from the mutation state
+      leavingToSettle.current = false;
     }
   }
 

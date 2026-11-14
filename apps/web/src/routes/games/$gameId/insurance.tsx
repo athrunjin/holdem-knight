@@ -57,7 +57,7 @@ function GameInsurance({ game }: { game: Game }) {
   const undoInsurance = useUndoInsurance(gameId);
 
   const navigate = Route.useNavigate();
-  const editable = status === "open";
+  const editable = status !== "settled";
   const nameOf = gameNameOf(players, game);
   const ledger = summarizeByPlayer(events);
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);

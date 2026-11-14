@@ -192,6 +192,13 @@ describe("backup file", () => {
     expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
   });
 
+  it("round-trips a game that is being settled", () => {
+    const [game] = data.games;
+    if (!game) throw new Error("Missing sample game");
+    const full: BackupData = { ...data, games: [{ ...game, status: "settling" }] };
+    expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
+  });
+
   it("round-trips a game's time zone and a wage's rounding", () => {
     const [game] = data.games;
     if (!game) throw new Error("Missing sample game");

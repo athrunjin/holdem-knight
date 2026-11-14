@@ -11,12 +11,13 @@ import {
   collectorTransfers,
   type Game,
   INSURANCE_PLAYER_ID,
+  isTransferDone,
   type LedgerEvent,
   ORGANIZER_COLLECTOR,
   type PlayerChargeStatus,
   type PlayerLedger,
   type PlayerNet,
-  reopenGame,
+  reviseGame,
   type SettlementOutcome,
   settleGame,
   settlementOutcome,
@@ -28,7 +29,7 @@ import {
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronDown, Share2, Undo2 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { BuyInRecord } from "@/components/game/BuyInRecord";
 import { chargeLines, organizerIncomeLines } from "@/components/game/chargeLines";
 import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
@@ -43,6 +44,7 @@ import { SettlementSummary } from "@/components/game/SettlementSummary";
 import type { TransferPlan } from "@/components/game/TransferPlanPicker";
 import { Transfers } from "@/components/game/Transfers";
 import { InfoButton } from "@/components/InfoButton";
+import { Modal } from "@/components/insurance/Modal";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
@@ -59,6 +61,28 @@ export const Route = createFileRoute("/games/$gameId/settlement")({
   component: SettlementPage,
 });
 
+/**
+ * The button the page points at when a tap cannot do what it asks: 确认结算 while the results are
+ * still open, 修改对局结果 once they are confirmed. A new one each time, so a second tap points again.
+ */
+interface Nudge {
+  readonly target: "confirm" | "revise";
+  readonly at: number;
+}
+
+/** How long the ring stays around the button. */
+const NUDGE_MS = 2400;
+
+function NudgeRing({ at }: { at: number }) {
+  return (
+    <span
+      key={at}
+      aria-hidden
+      className="pointer-events-none absolute -inset-1 animate-nudge rounded-2xl ring-2 ring-highlight"
+    />
+  );
+}
+
 function SettlementPage() {
   const { gameId } = Route.useParams();
   const { data: game } = useGame(gameId);
@@ -66,6 +90,7 @@ function SettlementPage() {
   const { data: players } = usePlayers();
 
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [nudge, setNudge] = useState<Nudge>();
 
   if (!game || !events || !players) return null;
 
@@ -135,7 +160,12 @@ function SettlementPage() {
         </Notice>
       ) : (
         <>
-          <SettlementSummary game={game} ledger={ledger} difference={difference} />
+          <SettlementSummary
+            game={game}
+            ledger={ledger}
+            difference={difference}
+            onLocked={() => setNudge({ target: "revise", at: Date.now() })}
+          />
           {difference === 0 || game.imbalanceHandling ? (
             <SettlementResult
               game={game}
@@ -145,6 +175,8 @@ function SettlementPage() {
               statuses={statuses}
               charges={charges}
               nameOf={nameOf}
+              nudge={nudge}
+              onNudge={setNudge}
             />
           ) : (
             <p className="mt-3 text-sm text-muted">在上方选择差额的处理方案后显示结果。</p>
@@ -178,6 +210,8 @@ interface SettlementResultProps {
   statuses: readonly PlayerChargeStatus[];
   charges: readonly Charge[];
   nameOf: (playerId: string) => string;
+  nudge: Nudge | undefined;
+  onNudge: (nudge: Nudge | undefined) => void;
 }
 
 function SettlementResult({
@@ -188,6 +222,8 @@ function SettlementResult({
   statuses,
   charges,
   nameOf,
+  nudge,
+  onNudge,
 }: SettlementResultProps) {
   const { difference, unresolved } = outcome;
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
@@ -204,6 +240,25 @@ function SettlementResult({
   const [shareFailed, setShareFailed] = useState(false);
   // A game with insurance or charges opens on its transfers, which then go through the organizer
   const [transfersOpen, setTransfersOpen] = useState(() => hasGameRules(game));
+  const [revising, setRevising] = useState(false);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const manageRef = useRef<HTMLButtonElement>(null);
+  // Anything not yet confirmed is still being settled, however the page was reached
+  const settled = status === "settled";
+
+  useEffect(() => {
+    if (!nudge) return;
+    // 确认结算 only has to come into view. 修改对局结果 sits over 积分管理, which goes to the bottom
+    if (nudge.target === "confirm") {
+      confirmRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    } else {
+      manageRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    }
+    const timer = window.setTimeout(() => onNudge(undefined), NUDGE_MS);
+    return () => window.clearTimeout(timer);
+  }, [nudge, onNudge]);
+
+  const point = (target: Nudge["target"]) => onNudge({ target, at: Date.now() });
 
   const insuranceText = formatGameMoney(insuranceNet, currency, "exceptZero");
   const chargesText = formatGameMoney(charged.total, currency);
@@ -218,7 +273,6 @@ function SettlementResult({
     list.find((p) => p.playerId === id)?.net ?? ZERO;
   // Each person's result from the chips alone, before a difference is split
   const chipNets = settlementOutcome(ledger, game.chipRatio, undefined).nets;
-  const chargesLocked = saveGame.isPending || status === "settled";
 
   function insuranceLine(id: string): ResultLine[] {
     if (insuranceNet === 0 || id !== ownerId) return [];
@@ -227,10 +281,12 @@ function SettlementResult({
     ];
   }
 
+  // Once settled a charge cannot change: the tap points at the button that opens the results again
   const waiving = {
-    disabled: chargesLocked,
+    disabled: saveGame.isPending,
+    locked: settled,
     onWaive: (key: ChargeWaiver, waived: boolean) =>
-      saveGame.mutate(waiveCharge(game, key, waived)),
+      settled ? point("revise") : saveGame.mutate(waiveCharge(game, key, waived)),
   };
   const record = (playerId: string) => (
     <BuyInRecord game={game} events={events} playerId={playerId} />
@@ -406,10 +462,21 @@ function SettlementResult({
     }
   }
 
-  function handleReopen() {
-    if (window.confirm("重新打开这局？可以继续记账，之后要再次结算。")) {
-      saveGame.mutate(reopenGame(game));
-    }
+  function revise() {
+    setRevising(false);
+    onNudge(undefined);
+    saveGame.mutate(reviseGame(game));
+  }
+
+  /** Transfers already marked as received would no longer match, so they go, once the organizer agrees. */
+  function handleRevise() {
+    if (transfers.some((transfer) => isTransferDone(game, transfer))) setRevising(true);
+    else revise();
+  }
+
+  function handleConfirm() {
+    onNudge(undefined);
+    saveGame.mutate(settleGame(game, Date.now()));
   }
 
   return (
@@ -419,23 +486,26 @@ function SettlementResult({
       {/* The step that closes the game comes first, set apart from the cards by a rule */}
       <div className="mt-5 border-t border-line pt-4">
         <div className="flex gap-2">
-          {status === "open" ? (
+          {settled ? (
             <button
               type="button"
               disabled={saveGame.isPending}
-              onClick={() => saveGame.mutate(settleGame(game, Date.now()))}
-              className="min-h-12 min-w-0 flex-1 rounded-xl bg-accent px-4 font-semibold text-accent-text disabled:opacity-60"
+              onClick={handleRevise}
+              className="relative min-h-12 min-w-0 flex-1 rounded-xl border border-line px-4 font-medium disabled:opacity-60"
             >
-              确认结算
+              修改对局结果
+              {nudge?.target === "revise" && <NudgeRing at={nudge.at} />}
             </button>
           ) : (
             <button
+              ref={confirmRef}
               type="button"
               disabled={saveGame.isPending}
-              onClick={handleReopen}
-              className="min-h-12 min-w-0 flex-1 rounded-xl border border-line px-4 font-medium disabled:opacity-60"
+              onClick={handleConfirm}
+              className="relative min-h-12 min-w-0 flex-1 scroll-mt-4 scroll-mb-24 rounded-xl bg-accent px-4 font-semibold text-accent-text disabled:opacity-60"
             >
-              重新打开牌局
+              确认结算
+              {nudge?.target === "confirm" && <NudgeRing at={nudge.at} />}
             </button>
           )}
           <Link
@@ -466,11 +536,13 @@ function SettlementResult({
             <Share2 className="size-5 shrink-0" strokeWidth={1.75} aria-hidden />
             生成图片
           </button>
+          {/* Clear of the bar at the bottom of a phone when the page scrolls it to the bottom */}
           <button
+            ref={manageRef}
             type="button"
             aria-expanded={transfersOpen}
             onClick={() => setTransfersOpen(!transfersOpen)}
-            className="flex min-h-12 items-center justify-center gap-1 rounded-xl border border-line bg-surface px-2 font-medium whitespace-nowrap"
+            className="flex min-h-12 scroll-mb-24 items-center justify-center gap-1 rounded-xl border border-line bg-surface px-2 font-medium whitespace-nowrap"
           >
             积分管理
             <ChevronDown
@@ -488,7 +560,7 @@ function SettlementResult({
           </p>
         )}
         {transfersOpen && (
-          // The plan and its ticks can still be changed once the game is settled: they move no results
+          // The plan can change at any stage, and the ticks once the results are confirmed
           <Transfers
             game={game}
             transfers={transfers}
@@ -498,9 +570,30 @@ function SettlementResult({
             disabled={saveGame.isPending}
             onChoosePlan={(next) => saveGame.mutate(chooseCollector(game, next))}
             onSave={(next) => saveGame.mutate(next)}
+            onUnsettled={() => point("confirm")}
           />
         )}
       </section>
+
+      {revising && (
+        <Modal title="修改对局结果" onClose={() => setRevising(false)}>
+          <p className="text-sm">已有积分转移被记录，是否删除并修改对局结果？</p>
+          <button
+            type="button"
+            onClick={revise}
+            className="mt-3 min-h-11 w-full rounded-xl bg-accent font-semibold text-accent-text"
+          >
+            确定
+          </button>
+          <button
+            type="button"
+            onClick={() => setRevising(false)}
+            className="mt-2 min-h-11 w-full rounded-xl border border-line font-medium"
+          >
+            取消
+          </button>
+        </Modal>
+      )}
     </>
   );
 }

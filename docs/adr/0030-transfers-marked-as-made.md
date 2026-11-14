@@ -1,6 +1,6 @@
 # 0030. Marking transfers as made
 
-- Status: Accepted
+- Status: Superseded in part by [0032](0032-game-stages.md): marks can only be set once the results are confirmed
 - Date: 2026-11-14
 
 ## Context

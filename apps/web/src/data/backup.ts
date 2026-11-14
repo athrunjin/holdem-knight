@@ -74,7 +74,8 @@ const gameFields = {
   imbalanceHandling: z.enum(IMBALANCE_HANDLINGS as ["split", "organizer", "ignore"]).optional(),
   insurance: insuranceRuleSchema.optional(),
   insuranceOwner: id.optional(),
-  status: z.enum(["open", "settled"]),
+  /** `settling` was added in version 12. */
+  status: z.enum(["open", "settling", "settled"]),
   createdAt: timestamp,
   settledAt: timestamp.optional(),
   /** Added in version 6. */

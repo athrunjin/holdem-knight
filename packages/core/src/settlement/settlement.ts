@@ -141,7 +141,7 @@ export interface InsuranceAttribution {
   readonly ownerId: string;
 }
 
-/** A player no longer in the game, for example after reopening it, falls back to the organizer. */
+/** A player no longer in the game, for example after it went back to the table, falls back to the organizer. */
 export function attributeInsurance(
   nets: readonly PlayerNet[],
   savedOwner: string | undefined,
@@ -212,7 +212,7 @@ export function isValidCollector(nets: readonly PlayerNet[], collectorId: string
 
 /**
  * Who collects at settlement, or `undefined` for the optimal plan. A saved choice comes first.
- * Without one, or with a collector no longer in the game (for example after reopening it), a game
+ * Without one, or with a collector no longer in the game (for example after it went back to the table), a game
  * with insurance, a table fee or wages goes through the organizer, and any other game takes the
  * optimal plan. Rake will count with them once it exists (M4).
  */

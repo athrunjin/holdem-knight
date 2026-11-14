@@ -10,11 +10,14 @@ import {
   createGame,
   DEFAULT_GAME_SETTINGS,
   type GameSettingsForm,
+  gameStage,
   handChipsFor,
   parseGameSettings,
   refileGame,
-  reopenGame,
+  resumeGame,
+  reviseGame,
   settleGame,
+  startSettling,
   toGameSettingsForm,
   unarchiveGame,
   updateGameSettings,
@@ -206,41 +209,64 @@ describe("archiveGame", () => {
   const settled = settleGame(game, 2);
 
   it("files a settled game as complete or pending and takes it back out", () => {
-    expect(archiveGame(settled, true, 9)).toEqual({ ...settled, archive: "complete" });
-    const pending = archiveGame(settled, false, 9);
+    expect(archiveGame(settled, true)).toEqual({ ...settled, archive: "complete" });
+    const pending = archiveGame(settled, false);
     expect(pending).toEqual({ ...settled, archive: "pending" });
     expect(unarchiveGame(pending)).toEqual(settled);
   });
 
-  it("settles an open game on the way", () => {
-    expect(archiveGame(game, false, 5)).toEqual({ ...settleGame(game, 5), archive: "pending" });
-  });
-
   it("moves an archived game with its transfers and leaves others alone", () => {
-    const pending = archiveGame(settled, false, 9);
+    const pending = archiveGame(settled, false);
     expect(refileGame(pending, true).archive).toBe("complete");
     expect(refileGame(refileGame(pending, true), false).archive).toBe("pending");
     expect(refileGame(settled, true)).toEqual(settled);
   });
-
-  it("is cleared by reopening the game", () => {
-    expect(reopenGame(archiveGame(settled, true, 9))).toEqual(game);
-  });
 });
 
-describe("settleGame / reopenGame", () => {
+describe("the stages of a game", () => {
   const game = createGame(meta, DEFAULT_GAME_SETTINGS);
+  const settling = startSettling(game);
+  const transfer = { from: "a", to: "b", amount: cents(100) };
 
-  it("records the time on settling and restores the game on reopening", () => {
-    const settled = settleGame(game, 2);
-    expect(settled).toEqual({ ...game, status: "settled", settledAt: 2 });
-    expect(reopenGame(settled)).toEqual(game);
+  it("goes from the table to settling, and back to the table", () => {
+    expect(settling).toEqual({ ...game, status: "settling" });
+    expect(resumeGame(settling)).toEqual(game);
   });
 
-  it("stops a running clock at settlement and leaves it paused on reopening", () => {
-    const settled = settleGame({ ...game, timer: { elapsedMs: 10, runningSince: 2 } }, 7);
+  it("leaves a game alone that is not settling when the table resumes", () => {
+    const settled = settleGame(settling, 2);
+    expect(resumeGame(game)).toBe(game);
+    expect(resumeGame(settled)).toBe(settled);
+  });
+
+  it("records the time on confirming and takes it away on revising", () => {
+    const settled = settleGame(settling, 2);
+    expect(settled).toEqual({ ...game, status: "settled", settledAt: 2 });
+    expect(reviseGame(settled)).toEqual(settling);
+  });
+
+  it("stops a running clock at settlement and leaves it paused on revising", () => {
+    const settled = settleGame({ ...settling, timer: { elapsedMs: 10, runningSince: 2 } }, 7);
     expect(settled.timer).toEqual({ elapsedMs: 15 });
-    expect(reopenGame(settled).timer).toEqual({ elapsedMs: 15 });
+    expect(reviseGame(settled).timer).toEqual({ elapsedMs: 15 });
+  });
+
+  it("drops the marks on transfers and the archive when the results are revised", () => {
+    const marked = { ...settleGame(settling, 2), doneTransfers: [transfer] };
+    expect(reviseGame(archiveGame(marked, true))).toEqual(settling);
+  });
+
+  it("starts settling without marks left from before", () => {
+    expect(startSettling({ ...game, doneTransfers: [transfer] })).toEqual(settling);
+  });
+
+  it("names the stage: pending once settled, complete once archived with everything in", () => {
+    const settled = settleGame(settling, 2);
+    expect(gameStage(game)).toBe("open");
+    expect(gameStage(settling)).toBe("settling");
+    expect(gameStage(settled)).toBe("pending");
+    expect(gameStage(archiveGame(settled, false))).toBe("pending");
+    expect(gameStage(archiveGame(settled, true))).toBe("complete");
   });
 });
 

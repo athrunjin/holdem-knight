@@ -7,6 +7,7 @@ import {
   type Currency,
   type Game,
   type GameSettings,
+  type GameStage,
   type ImbalanceHandling,
   OPTIMAL_PLAN,
   type OrganizerId,
@@ -156,12 +157,41 @@ export function createGame(meta: NewGameMeta, settings: GameSettings): Game {
 }
 
 /**
+ * Starts settling, from the settle step on the game page: the table is done and the results are
+ * being checked. Nothing can be marked as received yet, so marks from an earlier settlement go.
+ */
+export function startSettling(game: Game): Game {
+  const { doneTransfers: _, ...rest } = game;
+  return { ...rest, status: "settling" };
+}
+
+/** Back to the table from settling, so recording can continue. Any other game is left alone. */
+export function resumeGame(game: Game): Game {
+  return game.status === "settling" ? { ...game, status: "open" } : game;
+}
+
+/**
  * Confirms settlement and stops the clock at the final time.
  * Transfers are not saved because the ledger can always reproduce them.
  */
 export function settleGame(game: Game, settledAt: Timestamp): Game {
   const settled: Game = { ...game, status: "settled", settledAt };
   return game.timer ? { ...settled, timer: pauseTimer(game.timer, settledAt) } : settled;
+}
+
+/**
+ * Takes a settled game back to settling so its results can be changed. The marks on its transfers
+ * go, since the transfers follow the results, and so does its place in the archive.
+ */
+export function reviseGame(game: Game): Game {
+  const { settledAt: _, archive: __, doneTransfers: ___, ...rest } = game;
+  return { ...rest, status: "settling" };
+}
+
+/** Where a game stands: a settled game is pending until it is archived as complete. */
+export function gameStage({ status, archive }: Pick<Game, "status" | "archive">): GameStage {
+  if (status !== "settled") return status;
+  return archive === "complete" ? "complete" : "pending";
 }
 
 /**
@@ -182,19 +212,12 @@ export function chooseImbalanceHandling(game: Game, imbalanceHandling: Imbalance
   return { ...game, imbalanceHandling };
 }
 
-/** Reopens a settled game when a mistake turns up, so recording can continue. */
-export function reopenGame(game: Game): Game {
-  const { settledAt: _, archive: __, ...rest } = game;
-  return { ...rest, status: "open" };
-}
-
 /**
- * Files a game away in history, as complete when every transfer has been made and as pending
- * otherwise. A game still open is settled first: only a settled game is history.
+ * Files a settled game away in history, as complete when every transfer has been made and as
+ * pending otherwise.
  */
-export function archiveGame(game: Game, complete: boolean, at: Timestamp): Game {
-  const settled = game.status === "settled" ? game : settleGame(game, at);
-  return { ...settled, archive: complete ? "complete" : "pending" };
+export function archiveGame(game: Game, complete: boolean): Game {
+  return { ...game, archive: complete ? "complete" : "pending" };
 }
 
 /** Takes a game back out of the archive. It stays settled. */

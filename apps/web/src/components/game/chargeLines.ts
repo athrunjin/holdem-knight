@@ -11,8 +11,10 @@ import { formatGameMoney } from "@/lib/currency";
 import type { ResultLine } from "./ResultCards";
 
 interface Waiving {
-  /** While a save is under way, or once the game is settled. */
+  /** While a save is under way. */
   readonly disabled: boolean;
+  /** Once the game is settled: the boxes look locked, and `onWaive` gets the tap to say why. */
+  readonly locked?: boolean;
   readonly onWaive: (key: ChargeWaiver, waived: boolean) => void;
   /** The player is still at the table, so a table fee not yet due says how long is left. */
   readonly live?: boolean;
@@ -29,7 +31,7 @@ export function chargeLines(
   statuses: readonly PlayerChargeStatus[],
   charges: readonly Charge[],
   playerId: string,
-  { disabled, onWaive, live = false }: Waiving,
+  { disabled, locked = false, onWaive, live = false }: Waiving,
 ): ResultLine[] {
   const { currency, tableFee, wage } = game;
   const money = (value: number) => formatGameMoney(cents(value), currency);
@@ -54,6 +56,7 @@ export function chargeLines(
       waiver: {
         waived,
         disabled,
+        locked,
         onChange: (off) => onWaive(part ? { playerId, kind, part } : { playerId, kind }, off),
       },
     };

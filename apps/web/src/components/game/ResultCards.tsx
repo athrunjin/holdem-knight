@@ -1,5 +1,5 @@
 import { type Cents, type Currency, cents } from "@holdem-knight/core";
-import { ChevronRight } from "lucide-react";
+import { Calculator, ChevronRight } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { breakable, formatSignedChips, netColor } from "@/lib/chips";
@@ -40,6 +40,8 @@ export interface ResultLine {
   readonly waiver?: {
     readonly waived: boolean;
     readonly disabled: boolean;
+    /** Shown as locked, though a tap still reaches `onChange`, which can say why. */
+    readonly locked?: boolean;
     readonly onChange: (waived: boolean) => void;
   };
 }
@@ -126,6 +128,22 @@ export function ColumnTitles({ first }: { first: string }) {
 }
 
 /**
+ * The insurance seat's name on the organizer's card, on the game page and the settlement page
+ * alike. It starts where the organizer's ID does, past the arrow that folds the card: that card
+ * always has lines, so it always has the arrow.
+ */
+export const insuranceNameClass = "flex min-w-0 items-center gap-0.5 pl-3 text-highlight";
+
+export function InsuranceName() {
+  return (
+    <>
+      <Calculator className="size-4 shrink-0" aria-hidden />
+      <span className="truncate">保险</span>
+    </>
+  );
+}
+
+/**
  * The insurance seat on the organizer's card, as the game page shows it: its own row in the card's
  * columns, in the highlight color. Here it is only read, so its name leads nowhere.
  */
@@ -144,7 +162,9 @@ export function InsuranceRow({
 }) {
   return (
     <div className={cn(columnsClass, "min-h-11 text-xs")}>
-      <span className="truncate text-highlight">保险</span>
+      <span className={insuranceNameClass}>
+        <InsuranceName />
+      </span>
       <span className="text-center">{hands}</span>
       <span className={cn(figureClass, "text-center")}>{breakable(chips)}</span>
       <span className={cn(figureClass, "text-right", netColor(netChips))}>
@@ -197,7 +217,7 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
           checked={!off}
           disabled={waiver.disabled}
           onChange={(event) => waiver.onChange(!event.target.checked)}
-          className="size-4 shrink-0 accent-[var(--accent)]"
+          className={cn("size-4 shrink-0 accent-[var(--accent)]", waiver.locked && "opacity-50")}
         />
         <span className={cn("truncate", text)}>{label}</span>
       </span>

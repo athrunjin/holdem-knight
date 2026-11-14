@@ -11,6 +11,8 @@ interface PickerRowProps<Value extends string> {
   value: Value | undefined;
   /** Locked, it shows the choice with no way to change it */
   disabled: boolean;
+  /** Takes the tap while locked, to say why the choice cannot change */
+  onLocked?: (() => void) | undefined;
   onChange: (value: Value) => void;
 }
 
@@ -24,6 +26,7 @@ export function PickerRow<Value extends string>({
   options,
   value,
   disabled,
+  onLocked,
   onChange,
 }: PickerRowProps<Value>) {
   const [open, setOpen] = useState(false);
@@ -34,8 +37,8 @@ export function PickerRow<Value extends string>({
       <button
         type="button"
         aria-haspopup="dialog"
-        disabled={disabled}
-        onClick={() => setOpen(true)}
+        disabled={disabled && !onLocked}
+        onClick={() => (disabled ? onLocked?.() : setOpen(true))}
         className="-mt-8 flex min-h-11 max-w-[45%] min-w-0 shrink-0 items-end text-xs leading-none text-highlight"
       >
         <span className="truncate pb-px">{children}</span>

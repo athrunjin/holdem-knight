@@ -62,6 +62,15 @@
     }
   }
 
+  /* A ring that fades in and out a few times around the button the page is pointing at */
+  --animate-nudge: nudge 0.8s ease-in-out 3;
+
+  @keyframes nudge {
+    50% {
+      opacity: 0.15;
+    }
+  }
+
   /* A fill that runs out from the right, for a button that stays lit a few seconds */
   --animate-drain: drain 5s linear forwards;
 

@@ -1,6 +1,5 @@
 import {
   archiveGame,
-  cents,
   type Game,
   isTransferDone,
   markTransfers,
@@ -26,6 +25,8 @@ interface TransfersProps {
   onChoosePlan: (collectorId: string | undefined) => void;
   /** Saves the game with transfers marked or the game archived. */
   onSave: (game: Game) => void;
+  /** Takes a tap on a tick or on the archive before the results are confirmed. */
+  onUnsettled: () => void;
 }
 
 type Notice = "share" | "locked" | "archive";
@@ -40,6 +41,7 @@ const NOTICE_TITLE: Record<Notice, string> = {
  * The transfers of the chosen plan, set out like a bill. The line over them names the plan, and
  * each transfer can be shared and ticked off once made; the line's own tick marks them all, or
  * none when all are marked. The line under them counts what has come in and files the game away.
+ * Until the results are confirmed nothing can be ticked or filed: the transfers may still change.
  */
 export function Transfers({
   game,
@@ -50,19 +52,20 @@ export function Transfers({
   disabled,
   onChoosePlan,
   onSave,
+  onUnsettled,
 }: TransfersProps) {
   const [notice, setNotice] = useState<Notice>();
   const { currency } = game;
-  const made = transfers.filter((t) => isTransferDone(game, t));
+  const settled = game.status === "settled";
+  const made = settled ? transfers.filter((t) => isTransferDone(game, t)) : [];
   // With nothing to transfer there is nothing left to collect either
   const complete = made.length === transfers.length;
   const allDone = complete && transfers.length > 0;
-  const amountOf = (list: readonly Transfer[]) =>
-    formatGameMoney(cents(list.reduce((sum, t) => sum + t.amount, 0)), currency);
   const filed = `历史对局 - ${complete ? "完成" : "积分待处理"}`;
   const close = () => setNotice(undefined);
 
   function mark(marked: readonly Transfer[], done: boolean) {
+    if (!settled) return onUnsettled();
     const next = markTransfers(game, marked, done);
     // An archived game follows its transfers between the two groups of history
     onSave(
@@ -102,12 +105,14 @@ export function Transfers({
       </div>
 
       {transfers.length === 0 ? (
-        <p className="pl-0.5 text-sm text-muted">没有输赢，不需要转账。</p>
+        <p className="border-t border-line py-2 pl-0.5 text-sm text-muted">
+          没有输赢，不需要转账。
+        </p>
       ) : (
-        <ul>
+        <ul className="border-t border-line">
           {transfers.map((transfer) => {
             const { from, to, amount } = transfer;
-            const done = isTransferDone(game, transfer);
+            const done = made.includes(transfer);
             const pair = `${nameOf(from)} 转给 ${nameOf(to)}`;
             const struck = done && "text-muted line-through";
             return (
@@ -141,10 +146,10 @@ export function Transfers({
         </ul>
       )}
 
-      <div className="flex min-h-11 items-center justify-between gap-3 pl-0.5">
+      <div className="flex min-h-11 items-center justify-between gap-3 border-t border-line pt-1.5 pl-0.5">
         <p className="min-w-0 text-xs text-muted">
           {transfers.length > 0 &&
-            `共 ${transfers.length} 笔（已收 ${amountOf(made)} / ${amountOf(transfers)}）`}
+            `共 ${transfers.length} 笔（已收 ${made.length} / ${transfers.length}）`}
         </p>
         {game.archive ? (
           <button
@@ -160,7 +165,7 @@ export function Transfers({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => setNotice("archive")}
+            onClick={() => (settled ? setNotice("archive") : onUnsettled())}
             className={cn(
               "min-h-11 shrink-0 rounded-xl px-3 text-sm font-semibold disabled:opacity-60",
               complete ? "bg-accent text-accent-text" : "bg-line text-muted",
@@ -181,14 +186,11 @@ export function Transfers({
           {notice === "archive" && (
             <>
               <p className="text-sm">归档至 {filed}</p>
-              {game.status === "open" && (
-                <p className="mt-1 text-sm text-muted">这局还没有确认结算，归档时会一并确认。</p>
-              )}
               <button
                 type="button"
                 onClick={() => {
                   close();
-                  onSave(archiveGame(game, complete, Date.now()));
+                  onSave(archiveGame(game, complete));
                 }}
                 className="mt-3 min-h-11 w-full rounded-xl bg-accent font-semibold text-accent-text"
               >

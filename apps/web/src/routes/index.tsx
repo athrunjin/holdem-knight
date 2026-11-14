@@ -1,4 +1,4 @@
-import type { Game } from "@holdem-knight/core";
+import { type Game, gameStage } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { type ReactNode, useState } from "react";
@@ -28,10 +28,12 @@ const ROLES: readonly { readonly role: Role; readonly label: string }[] = [
 ];
 
 function GameRow({ game }: { game: Game }) {
+  // A game being settled opens where it was left, on its results
+  const settling = game.status === "settling";
   return (
     <li>
       <Link
-        to="/games/$gameId"
+        to={settling ? "/games/$gameId/settlement" : "/games/$gameId"}
         params={{ gameId: game.id }}
         className="flex min-h-16 items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-2"
       >
@@ -42,7 +44,14 @@ function GameRow({ game }: { game: Game }) {
           </span>
           <GameOptions game={game} />
         </span>
-        <span className="shrink-0 text-sm text-muted">{STARTED_AT.format(game.createdAt)}</span>
+        <span className="flex shrink-0 items-center gap-2 text-sm text-muted">
+          {settling && (
+            <span className="rounded-md border border-highlight px-1.5 py-0.5 text-xs text-highlight">
+              结算中
+            </span>
+          )}
+          {STARTED_AT.format(game.createdAt)}
+        </span>
       </Link>
     </li>
   );
@@ -103,12 +112,11 @@ function HistoryGroup({ title, games }: { title: string; games: readonly Game[] 
 
 function HostGames() {
   const { data: games = [] } = useGames();
-  const openGames = games.filter((game) => game.status === "open");
-  const settled = games.filter((game) => game.status === "settled");
-  // Settled games wait at the top of history until they are archived into one of its two groups
-  const unfiled = settled.filter((game) => game.archive === undefined);
-  const pending = settled.filter((game) => game.archive === "pending");
-  const complete = settled.filter((game) => game.archive === "complete");
+  // Games at the table and games being settled are both still under way
+  const live = games.filter((game) => game.status !== "settled");
+  // History has the rest: pending from the moment it is settled, complete once archived as such
+  const pending = games.filter((game) => gameStage(game) === "pending");
+  const complete = games.filter((game) => gameStage(game) === "complete");
 
   return (
     <>
@@ -136,11 +144,10 @@ function HostGames() {
 
       {games.length > 0 && (
         <div className="flex flex-col gap-2 pb-6">
-          <GameSection title={`进行中（${openGames.length}）`} defaultOpen>
-            <GameList games={openGames} />
+          <GameSection title={`进行中（${live.length}）`} defaultOpen>
+            <GameList games={live} />
           </GameSection>
           <GameSection title="历史对局" defaultOpen={false}>
-            {unfiled.length > 0 && <HistoryGroup title="未归档" games={unfiled} />}
             <HistoryGroup title="积分待处理" games={pending} />
             <HistoryGroup title="完成" games={complete} />
           </GameSection>
