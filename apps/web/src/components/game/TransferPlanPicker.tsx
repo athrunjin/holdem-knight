@@ -13,6 +13,9 @@ interface TransferPlanPickerProps {
   plans: readonly TransferPlan[];
   collectorId: string | undefined;
   disabled?: boolean;
+  /** The plan cannot change for now: a tap calls `onLocked` and the list stays shut. */
+  locked?: boolean;
+  onLocked?: () => void;
   onChange: (collectorId: string | undefined) => void;
 }
 
@@ -21,6 +24,8 @@ export function TransferPlanPicker({
   plans,
   collectorId,
   disabled,
+  locked,
+  onLocked,
   onChange,
 }: TransferPlanPickerProps) {
   const [open, setOpen] = useState(false);
@@ -38,7 +43,7 @@ export function TransferPlanPicker({
         aria-expanded={open}
         aria-label={`转账方案：${current?.label ?? ""}`}
         disabled={disabled}
-        onClick={() => setOpen(!open)}
+        onClick={() => (locked ? onLocked?.() : setOpen(!open))}
         className="flex min-h-11 max-w-full items-center gap-0.5 text-sm text-muted disabled:opacity-60"
       >
         <span className="truncate">{current?.label}</span>

@@ -184,8 +184,28 @@ export function chooseImbalanceHandling(game: Game, imbalanceHandling: Imbalance
 
 /** Reopens a settled game when a mistake turns up, so recording can continue. */
 export function reopenGame(game: Game): Game {
-  const { settledAt: _, ...rest } = game;
+  const { settledAt: _, archive: __, ...rest } = game;
   return { ...rest, status: "open" };
+}
+
+/**
+ * Files a game away in history, as complete when every transfer has been made and as pending
+ * otherwise. A game still open is settled first: only a settled game is history.
+ */
+export function archiveGame(game: Game, complete: boolean, at: Timestamp): Game {
+  const settled = game.status === "settled" ? game : settleGame(game, at);
+  return { ...settled, archive: complete ? "complete" : "pending" };
+}
+
+/** Takes a game back out of the archive. It stays settled. */
+export function unarchiveGame(game: Game): Game {
+  const { archive: _, ...rest } = game;
+  return rest;
+}
+
+/** Moves an archived game to where its transfers now put it. A game not archived is left alone. */
+export function refileGame(game: Game, complete: boolean): Game {
+  return game.archive ? { ...game, archive: complete ? "complete" : "pending" } : game;
 }
 
 /**

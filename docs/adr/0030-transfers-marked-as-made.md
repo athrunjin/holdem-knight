@@ -19,7 +19,8 @@ Transfers are not saved: they are worked out from the ledger and the chosen plan
 ## Decision
 
 - `Game` gains an optional `doneTransfers`, a list of `Transfer`. `markTransfers` adds or removes marks and `isTransferDone` reads them, both in `core`. `Transfer` moves to the domain types.
-- A mark applies to a transfer with the same payer, payee and amount. It holds when the plan changes and comes back to the same payment, and no longer applies once the amount changes, for example after reopening the game. Marks that match nothing stay saved and unseen.
+- A mark applies to a transfer with the same payer, payee and amount. It no longer applies once the amount changes, for example after reopening the game. Marks that match nothing stay saved and unseen.
+- The plan cannot be changed while one of its transfers is marked ([ADR 0031](0031-archiving-a-game.md)), so marks are made in one plan at a time.
 - Marks can be set before and after settlement is confirmed, like the plan.
 - Marks are a note for the organizer. They do not move results, and nothing else reads them yet.
 - Backups move to version 12 with the new field, so an older app refuses a newer file instead of dropping the marks.
@@ -27,5 +28,5 @@ Transfers are not saved: they are worked out from the ledger and the chosen plan
 ## Consequences
 
 - Two payments in one plan are never between the same two people in the same direction, so a mark cannot stand for more than one transfer at a time.
-- A mark that stopped matching is not cleaned up. The list is bounded by the handful of plans a game is viewed in.
+- A mark that stopped matching is not cleaned up. That takes a reopened game whose results changed, so the list stays short.
 - What a collector holds is still not tracked: the marks say which payments were made, not where the money is.

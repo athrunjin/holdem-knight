@@ -1,7 +1,7 @@
 import type { Game } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { GameOptions } from "@/components/game/GameOptions";
 import { InDevelopment } from "@/components/InDevelopment";
@@ -48,13 +48,26 @@ function GameRow({ game }: { game: Game }) {
   );
 }
 
-interface GameSectionProps {
-  title: string;
-  games: readonly Game[];
-  defaultOpen: boolean;
+function GameList({ games }: { games: readonly Game[] }) {
+  return games.length > 0 ? (
+    <ul className="mt-1 flex flex-col gap-2">
+      {games.map((game) => (
+        <GameRow key={game.id} game={game} />
+      ))}
+    </ul>
+  ) : (
+    <p className="px-1 py-2 text-sm text-muted">暂无牌局</p>
+  );
 }
 
-function GameSection({ title, games, defaultOpen }: GameSectionProps) {
+interface GameSectionProps {
+  /** The heading, with a count where one helps. */
+  title: string;
+  defaultOpen: boolean;
+  children: ReactNode;
+}
+
+function GameSection({ title, defaultOpen, children }: GameSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
@@ -66,25 +79,24 @@ function GameSection({ title, games, defaultOpen }: GameSectionProps) {
           onClick={() => setOpen(!open)}
           className="flex min-h-11 w-full items-center justify-between px-1 font-medium"
         >
-          <span>
-            {title}（{games.length}）
-          </span>
+          <span>{title}</span>
           <ChevronDown
             className={cn("size-5 text-muted transition-transform", open && "rotate-180")}
             aria-hidden
           />
         </button>
       </h2>
-      {open &&
-        (games.length > 0 ? (
-          <ul className="mt-1 flex flex-col gap-2">
-            {games.map((game) => (
-              <GameRow key={game.id} game={game} />
-            ))}
-          </ul>
-        ) : (
-          <p className="px-1 py-2 text-sm text-muted">暂无牌局</p>
-        ))}
+      {open && children}
+    </section>
+  );
+}
+
+/** One part of history under a small heading of its own. */
+function HistoryGroup({ title, games }: { title: string; games: readonly Game[] }) {
+  return (
+    <section className="mt-2">
+      <h3 className="px-1 text-sm text-muted">{title}</h3>
+      <GameList games={games} />
     </section>
   );
 }
@@ -92,7 +104,11 @@ function GameSection({ title, games, defaultOpen }: GameSectionProps) {
 function HostGames() {
   const { data: games = [] } = useGames();
   const openGames = games.filter((game) => game.status === "open");
-  const pastGames = games.filter((game) => game.status === "settled");
+  const settled = games.filter((game) => game.status === "settled");
+  // Settled games wait at the top of history until they are archived into one of its two groups
+  const unfiled = settled.filter((game) => game.archive === undefined);
+  const pending = settled.filter((game) => game.archive === "pending");
+  const complete = settled.filter((game) => game.archive === "complete");
 
   return (
     <>
@@ -120,8 +136,14 @@ function HostGames() {
 
       {games.length > 0 && (
         <div className="flex flex-col gap-2 pb-6">
-          <GameSection title="进行中" games={openGames} defaultOpen />
-          <GameSection title="历史对局" games={pastGames} defaultOpen={false} />
+          <GameSection title={`进行中（${openGames.length}）`} defaultOpen>
+            <GameList games={openGames} />
+          </GameSection>
+          <GameSection title="历史对局" defaultOpen={false}>
+            {unfiled.length > 0 && <HistoryGroup title="未归档" games={unfiled} />}
+            <HistoryGroup title="积分待处理" games={pending} />
+            <HistoryGroup title="完成" games={complete} />
+          </GameSection>
         </div>
       )}
     </>

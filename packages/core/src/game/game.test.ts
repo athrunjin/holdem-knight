@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { type GameSettings, OPTIMAL_PLAN } from "../domain";
 import { cents } from "../money";
 import {
+  archiveGame,
   chooseCollector,
   chooseImbalanceHandling,
   createGame,
@@ -11,9 +12,11 @@ import {
   type GameSettingsForm,
   handChipsFor,
   parseGameSettings,
+  refileGame,
   reopenGame,
   settleGame,
   toGameSettingsForm,
+  unarchiveGame,
   updateGameSettings,
   upgradeLegacyGame,
 } from "./game";
@@ -195,6 +198,33 @@ describe("chooseImbalanceHandling", () => {
   it("saves the choice on the game", () => {
     const game = createGame(meta, DEFAULT_GAME_SETTINGS);
     expect(chooseImbalanceHandling(game, "split").imbalanceHandling).toBe("split");
+  });
+});
+
+describe("archiveGame", () => {
+  const game = createGame(meta, DEFAULT_GAME_SETTINGS);
+  const settled = settleGame(game, 2);
+
+  it("files a settled game as complete or pending and takes it back out", () => {
+    expect(archiveGame(settled, true, 9)).toEqual({ ...settled, archive: "complete" });
+    const pending = archiveGame(settled, false, 9);
+    expect(pending).toEqual({ ...settled, archive: "pending" });
+    expect(unarchiveGame(pending)).toEqual(settled);
+  });
+
+  it("settles an open game on the way", () => {
+    expect(archiveGame(game, false, 5)).toEqual({ ...settleGame(game, 5), archive: "pending" });
+  });
+
+  it("moves an archived game with its transfers and leaves others alone", () => {
+    const pending = archiveGame(settled, false, 9);
+    expect(refileGame(pending, true).archive).toBe("complete");
+    expect(refileGame(refileGame(pending, true), false).archive).toBe("pending");
+    expect(refileGame(settled, true)).toEqual(settled);
+  });
+
+  it("is cleared by reopening the game", () => {
+    expect(reopenGame(archiveGame(settled, true, 9))).toEqual(game);
   });
 });
 

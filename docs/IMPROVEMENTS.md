@@ -936,12 +936,12 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do.
 - Tracking: PR #84
 
-### #I-049 积分管理: one list for the transfer plan, ticks for transfers made, and the organizer collecting where they are owed
+### #I-049 积分管理: one list for the transfer plan, ticks for transfers made, archiving, and the organizer collecting where they are owed
 
 - Type: feature
 - Date: proposed and decided 2026-11-14
 - Source: trying #I-048 on a phone
-- Problem: the transfer plan took two buttons and a selection box to change, started on the optimal plan even in games where everyone pays the organizer, and could not be changed after 确认结算. There was nowhere to tick off who had paid. The insurance row on the settlement page opened the insurance tool, which has nothing to do there.
+- Problem: the transfer plan took two buttons and a selection box to change, started on the optimal plan even in games where everyone pays the organizer, and could not be changed after 确认结算. There was nowhere to tick off who had paid, and history was one list whether or not a game's money was in. The insurance row on the settlement page opened the insurance tool, which has nothing to do there.
 - Proposal: one small list for the plan, a default that follows the game, and a plan that stays open to change.
 - Settled details:
   - 转账方案 on the button reads 积分管理, with no count of transfers.
@@ -949,11 +949,15 @@ Records discussions of feature and process improvements: what was proposed, how 
   - A game with insurance, a table fee or wages (rake too, once it exists) starts with the section open and the organizer collecting. Any other game starts with it closed, and opens on the optimal plan.
   - The plan can be changed after 确认结算 ([ADR 0029](adr/0029-default-transfer-plan.md)).
   - The organizer is named by their ID in the plan, the transfers and the image.
-  - The plan's line is in 14px type. The transfers under it are smaller and closer: 14px in rows 44px tall, 6px apart.
+  - The plan's line is in 14px type. The transfers under it are set out like a bill, chosen from six layouts: 14px in rows 44px tall, with no boxes, rules or leaders between them.
   - The plan's line and every transfer end in two buttons, a share icon and a box to tick, set close together, each with a 44px target. The boxes start empty.
-  - A tick on a transfer marks it as made and dims its row. The tick on the plan's line marks every transfer as received, or clears them all when all are ticked. Marks are saved on the game and can be set before and after 确认结算 ([ADR 0030](adr/0030-transfers-marked-as-made.md)).
+  - A tick on a transfer marks it as made, and dims and strikes through its row. The tick on the plan's line marks every transfer as received, or clears them all when all are ticked. Marks are saved on the game and can be set before and after 确认结算 ([ADR 0030](adr/0030-transfers-marked-as-made.md)).
   - The share icons say 这个功能还在开发中 for now. 生成图片 works as before.
-  - Backups move to version 12 for the marks.
+  - While any transfer is ticked the plan cannot be changed: a tap on it says 存在已完成的转账.
+  - Under the transfers: 「共 4 笔（已收 ¥72.50 / ¥842）」, the amount ticked off over the plan's total, and 归档牌局 at the right in place of a total. The button is gray while something is still owed and green once everything is ticked, and can be tapped either way. It asks first, naming where the game goes: 「归档至 历史对局 - 完成」 or 「归档至 历史对局 - 积分待处理」. An open game is settled in the same step, and the dialog says so.
+  - An archived game shows 取消归档 there and 「已归档至 历史对局 - …」 under it, and moves between the two groups as its transfers are ticked. 重新打开牌局 takes it out of the archive ([ADR 0031](adr/0031-archiving-a-game.md)).
+  - On the games list 历史对局 loses its count and shows three parts: 未归档 for settled games not yet archived, shown only when there are any, then 积分待处理, then 完成.
+  - Backups move to version 12 for the marks and the archive.
   - The insurance row on the settlement page is plain text and leads nowhere. On the game page it still opens 算保险.
 - Decision: do.
 - Tracking: PR #84
