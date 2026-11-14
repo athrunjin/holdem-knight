@@ -106,10 +106,8 @@ function GameLedger({ game }: { game: Game }) {
   const navigate = Route.useNavigate();
   const [settling, setSettling] = useState(false);
   const [pending, setPending] = useState<PendingEntry>();
-  // On by default in games that charge for time, where the figures matter during play
-  const [detailMode, setDetailMode] = useState(
-    game.tableFee !== undefined || game.wage !== undefined,
-  );
+  // Off to begin with: folded cards already show what each player owes, behind 含费
+  const [detailMode, setDetailMode] = useState(false);
 
   const editable = status === "open";
   const ledger = summarizeByPlayer(events);
@@ -326,6 +324,7 @@ function GameLedger({ game }: { game: Game }) {
           pendingInsurance={pendingInsurance}
           balanceChips={balanceChips}
           cash={formatGameMoney(chipsToCents(Math.abs(balanceChips), chipRatio), currency)}
+          organizerName={nameOf(ORGANIZER_PLAYER_ID)}
           initialHandling={game.imbalanceHandling}
           saving={leaveAll.isPending || saveGame.isPending}
           saveFailed={leaveAll.isError || saveGame.isError}

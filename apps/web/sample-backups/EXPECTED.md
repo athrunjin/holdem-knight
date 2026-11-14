@@ -187,7 +187,7 @@ Game dated **2026-01-07** · blinds 2 / 5 · 人民币 · 1 chip = ¥1 · open �
 Before comparing:
 
 1. Open the game dated 2026-01-07 and tap 结算.
-2. The dialog says 水上下平衡 and 还有 2 人在桌. Tap 一键离桌并结算.
+2. The dialog says 筹码配平 and, under it, 还有 2 人在桌. Tap 一键离桌并结算.
 
 Results:
 

@@ -555,7 +555,7 @@ function open(): SampleScenario {
     ],
     steps: [
       "Open the game dated 2026-01-07 and tap 结算.",
-      "The dialog says 水上下平衡 and 还有 2 人在桌. Tap 一键离桌并结算.",
+      "The dialog says 筹码配平 and, under it, 还有 2 人在桌. Tap 一键离桌并结算.",
     ],
     data: g.data(),
     expected: {

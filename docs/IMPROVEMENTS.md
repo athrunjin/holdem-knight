@@ -918,6 +918,24 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do.
 - Tracking: PR #83
 
+### #I-048 含费 on the game page, a quieter 已结算, and the order of the settle steps
+
+- Type: feature
+- Date: proposed and decided 2026-11-14
+- Source: trying #I-047 on a phone
+- Problem: a folded card on the game page showed only what the chips came to, so the organizer had to open cards to see who owed what. The players who had left took as much room as those playing. The settle dialog led with who was seated before the chips, and the settlement page ended with its main button under two others.
+- Proposal: show charges on folded cards behind a switch, fold the players who left into a line, and put the settle steps in the order they are taken.
+- Settled details:
+  - Games with a table fee or wages have a 含费 switch beside 详细模式, on to begin with. On, a folded player card shows the settlement page's line under its first row: 工资 and 台费 so far, then 合计. Off, a folded card is its first row alone. Insurance takes its premiums in chips, so a game with insurance alone has no switch.
+  - 详细模式 is off to begin with in every game. The two switches do not move each other.
+  - The game page's player cards are now the settlement page's card, as the organizer's already was.
+  - 已离桌 reads 已结算 and starts folded, one quiet line in the type of 牌局记录 under it. Its rows say 带出 for what was taken out.
+  - The settle dialog starts with the chips: 「筹码配平」 with a tick in green, said even when nothing is wrong, or 「筹码未配平，多 1,000 筹码（¥100）」 with a cross in red, in the words of the balance box. The choices follow, with the organizer named by their ID, 「guest 承担 ¥100」, first and chosen to begin with. The line about who is still seated comes under them. Balanced with nobody seated and no insurance open, there is still no dialog.
+  - The settlement page's 返回牌局 is replaced by the emblem, 48px tall, which keeps the header's height. The emblem still leads back to the game: an open game has no other way back on the page. This was added in building it, not asked for.
+  - Under the cards, after a rule: 确认结算, or 重新打开牌局 once settled. Then 生成图片 and 转账方案 side by side, with the transfers opening under the row.
+- Decision: do.
+- Tracking: PR to follow on `feat/live-table-cards`
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

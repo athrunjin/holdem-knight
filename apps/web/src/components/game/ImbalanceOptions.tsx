@@ -6,6 +6,8 @@ interface ImbalanceOptionsProps {
   differenceChips: number;
   /** The difference in cash, without a sign */
   cash: string;
+  /** The organizer by name, which is their ID until organizers have names */
+  organizerName: string;
   value: ImbalanceHandling | undefined;
   disabled: boolean;
   onChange: (handling: ImbalanceHandling) => void;
@@ -15,10 +17,11 @@ interface ImbalanceOptionsProps {
 function imbalanceChoices(
   differenceChips: number,
   cash: string,
+  organizerName: string,
 ): readonly (readonly [ImbalanceHandling, string])[] {
   return [
+    ["organizer", `${organizerName} ${differenceChips > 0 ? "承担" : "收取"} ${cash}`],
     ["split", `按水${differenceChips > 0 ? "上" : "下"}比例分摊`],
-    ["organizer", `组织者${differenceChips > 0 ? "补齐" : "收取"} ${cash}`],
     ["ignore", "不做处理"],
   ];
 }
@@ -27,11 +30,12 @@ function imbalanceChoices(
 export function ImbalanceOptions({
   differenceChips,
   cash,
+  organizerName,
   value,
   disabled,
   onChange,
 }: ImbalanceOptionsProps) {
-  const options = imbalanceChoices(differenceChips, cash);
+  const options = imbalanceChoices(differenceChips, cash, organizerName);
 
   return (
     <fieldset className="flex flex-col gap-2">

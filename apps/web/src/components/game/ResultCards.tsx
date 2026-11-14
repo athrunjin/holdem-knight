@@ -276,12 +276,15 @@ export function PersonCard({
   currency,
   open = false,
   onToggle,
+  summary = true,
 }: {
   card: ResultCard;
   currency: Currency;
   /** Only a card that folds takes these. */
   open?: boolean;
   onToggle?: () => void;
+  /** False folds the card to its first row alone, without the line of charges and the total. */
+  summary?: boolean;
 }) {
   const { name, hands, chips, netChips, base, record, pinned, lines, total } = card;
   const { handsCell, chipsCell } = card;
@@ -358,7 +361,7 @@ export function PersonCard({
             {pinned}
           </div>
         )}
-        {folds && !open && (
+        {folds && !open && summary && (
           <Summary card={card} currency={currency} divided={pinned !== undefined} />
         )}
         {expanded && (

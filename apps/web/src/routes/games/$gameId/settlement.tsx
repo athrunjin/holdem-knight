@@ -27,7 +27,7 @@ import {
   ZERO,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, ChevronDown, Share2 } from "lucide-react";
+import { ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { BuyInRecord } from "@/components/game/BuyInRecord";
 import { chargeLines, organizerIncomeLines } from "@/components/game/chargeLines";
@@ -90,13 +90,12 @@ function SettlementPage() {
         />
       }
       actions={
-        <Link
-          to="/games/$gameId"
-          params={{ gameId }}
-          className="inline-flex min-h-11 shrink-0 items-center gap-1 text-highlight"
-        >
-          <ArrowLeft className="size-5" strokeWidth={1.75} aria-hidden />
-          返回牌局
+        // The emblem, no taller than the title and the line under it. It leads back to the game
+        <Link to="/games/$gameId" params={{ gameId }} aria-label="返回牌局" className="shrink-0">
+          <picture>
+            <source srcSet="/emblem-on-dark.svg" media="(prefers-color-scheme: dark)" />
+            <img src="/emblem-on-light.svg" alt="" className="h-12 w-auto" />
+          </picture>
         </Link>
       }
     >
@@ -442,17 +441,53 @@ function SettlementResult({
     <>
       <ResultCards organizer={organizerCard[0]} cards={playerCards} currency={currency} />
 
-      <section className="mt-4">
-        <h2>
+      {/* The step that closes the game comes first, set apart from the cards by a rule */}
+      <div className="mt-5 border-t border-line pt-4">
+        {status === "open" ? (
+          <button
+            type="button"
+            disabled={saveGame.isPending}
+            onClick={() => saveGame.mutate(settleGame(game, Date.now()))}
+            className="min-h-12 w-full rounded-xl bg-accent px-6 font-semibold text-accent-text disabled:opacity-60"
+          >
+            确认结算
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={saveGame.isPending}
+            onClick={handleReopen}
+            className="min-h-12 w-full rounded-xl border border-line px-6 font-medium disabled:opacity-60"
+          >
+            重新打开牌局
+          </button>
+        )}
+        {saveGame.isError && (
+          <p role="alert" className="mt-2 text-sm text-highlight">
+            保存失败，请重试。
+          </p>
+        )}
+      </div>
+
+      {/* Then what is shared with the players: the image, and the transfers, which open under the row */}
+      <section className="mt-2 pb-8">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={sharing}
+            onClick={handleShare}
+            className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line px-2 font-medium disabled:opacity-60"
+          >
+            <Share2 className="size-5 shrink-0" strokeWidth={1.75} aria-hidden />
+            生成图片
+          </button>
           <button
             type="button"
             aria-expanded={transfersOpen}
             onClick={() => setTransfersOpen(!transfersOpen)}
-            className="flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 text-left font-medium"
+            className="flex min-h-12 items-center justify-center gap-1 rounded-xl border border-line bg-surface px-2 font-medium whitespace-nowrap"
           >
-            <span className="min-w-0 truncate">
-              转账方案（{transfers.length} 笔）· {planName}
-            </span>
+            转账方案（{transfers.length} 笔）
             <ChevronDown
               className={cn(
                 "size-5 shrink-0 text-muted transition-transform",
@@ -461,7 +496,12 @@ function SettlementResult({
               aria-hidden
             />
           </button>
-        </h2>
+        </div>
+        {shareFailed && (
+          <p role="alert" className="mt-2 text-sm text-highlight">
+            图片生成失败，请重试。
+          </p>
+        )}
         {transfersOpen && (
           <div className="mt-2">
             <div className="grid grid-cols-2 gap-2">
@@ -514,49 +554,6 @@ function SettlementResult({
           </div>
         )}
       </section>
-
-      {saveGame.isError && (
-        <p role="alert" className="mt-2 text-sm text-highlight">
-          保存失败，请重试。
-        </p>
-      )}
-
-      {shareFailed && (
-        <p role="alert" className="mt-2 text-sm text-highlight">
-          图片生成失败，请重试。
-        </p>
-      )}
-
-      <div className="flex flex-col gap-2 pt-6 pb-8">
-        <button
-          type="button"
-          disabled={sharing}
-          onClick={handleShare}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-line px-6 font-medium disabled:opacity-60"
-        >
-          <Share2 className="size-5" strokeWidth={1.75} aria-hidden />
-          生成图片
-        </button>
-        {status === "open" ? (
-          <button
-            type="button"
-            disabled={saveGame.isPending}
-            onClick={() => saveGame.mutate(settleGame(game, Date.now()))}
-            className="min-h-12 w-full rounded-xl bg-accent px-6 font-semibold text-accent-text disabled:opacity-60"
-          >
-            确认结算
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled={saveGame.isPending}
-            onClick={handleReopen}
-            className="min-h-12 w-full rounded-xl border border-line px-6 font-medium disabled:opacity-60"
-          >
-            重新打开牌局
-          </button>
-        )}
-      </div>
     </>
   );
 }
