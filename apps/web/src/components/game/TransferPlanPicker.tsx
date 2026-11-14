@@ -62,7 +62,7 @@ export function TransferPlanPicker({
             aria-label="转账方案"
             // Near the foot of the page, so it is brought clear of the tab bar as it opens
             ref={(menu) => menu?.scrollIntoView({ block: "nearest", behavior: "smooth" })}
-            className="absolute top-full right-0 z-20 max-h-72 w-max scroll-mb-24 max-w-[min(18rem,calc(100vw-2rem))] min-w-44 overflow-y-auto rounded-xl border border-line bg-surface py-1 shadow-lg"
+            className="absolute top-full left-0 z-20 max-h-72 w-max scroll-mb-24 max-w-[min(18rem,calc(100vw-2rem))] min-w-44 overflow-y-auto rounded-xl border border-line bg-surface py-1 shadow-lg"
           >
             {plans.map((plan) => {
               const checked = plan.collectorId === collectorId;

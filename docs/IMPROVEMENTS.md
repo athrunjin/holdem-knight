@@ -945,12 +945,12 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Proposal: one small list for the plan, a default that follows the game, and a plan that stays open to change.
 - Settled details:
   - 转账方案 on the button reads 积分管理, with no count of transfers.
-  - Opened, the section has the plan in small text at its top right with a chevron. A tap lists the plans and one more picks: 最优方案, then 代收人：the organizer's ID, then 代收人：each player in the order of the cards. The two buttons and the selection box are gone.
+  - Opened, the section starts with the plan in small text and a chevron, at the left with no title before it. A tap lists the plans and one more picks: 最优方案, then 代收人：the organizer's ID, then 代收人：each player in the order of the cards. The two buttons and the selection box are gone.
   - A game with insurance, a table fee or wages (rake too, once it exists) starts with the section open and the organizer collecting. Any other game starts with it closed, and opens on the optimal plan.
   - The plan can be changed after 确认结算 ([ADR 0029](adr/0029-default-transfer-plan.md)).
   - The organizer is named by their ID in the plan, the transfers and the image.
-  - The line with 转账方案 and the plan is in 14px type. The transfers under it are smaller and closer: 14px in rows 44px tall, 6px apart.
-  - The plan's line and every transfer end in two buttons, a share icon and a box to tick, each a 44px target. The boxes start empty.
+  - The plan's line is in 14px type. The transfers under it are smaller and closer: 14px in rows 44px tall, 6px apart.
+  - The plan's line and every transfer end in two buttons, a share icon and a box to tick, set close together, each with a 44px target. The boxes start empty.
   - A tick on a transfer marks it as made and dims its row. The tick on the plan's line marks every transfer as received, or clears them all when all are ticked. Marks are saved on the game and can be set before and after 确认结算 ([ADR 0030](adr/0030-transfers-marked-as-made.md)).
   - The share icons say 这个功能还在开发中 for now. 生成图片 works as before.
   - Backups move to version 12 for the marks.

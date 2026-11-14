@@ -40,10 +40,9 @@ export function Transfers({
 
   return (
     <div>
-      {/* The two buttons line up with those of the rows under them, inside the rows' border */}
+      {/* The plan leads the line. Its two buttons line up with those of the rows, inside their border */}
       <div className="flex items-center pr-px pl-0.5">
-        <h3 className="shrink-0 text-sm text-muted">转账方案</h3>
-        <div className="ml-auto flex min-w-0 justify-end pl-3">
+        <div className="flex min-w-0 flex-1">
           <TransferPlanPicker
             plans={plans}
             collectorId={collectorId}
@@ -128,14 +127,17 @@ function ShareButton({ label, onClick }: { label: string; onClick: () => void })
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="grid size-11 shrink-0 place-items-center text-muted"
+      className="flex size-11 shrink-0 items-center justify-end pr-1.5 text-muted"
     >
       <Share2 className="size-4" strokeWidth={1.75} aria-hidden />
     </button>
   );
 }
 
-/** A box that is empty until ticked, in a 44px target. */
+/**
+ * A box that is empty until ticked. It sits close to the share icon before it: each keeps a 44px
+ * target, the icon at the near edge of its own and this one reaching past the row's edge.
+ */
 function DoneButton({
   label,
   done,
@@ -154,7 +156,7 @@ function DoneButton({
       aria-pressed={done}
       disabled={disabled}
       onClick={onClick}
-      className="grid size-11 shrink-0 place-items-center"
+      className="-mr-2 flex size-11 shrink-0 items-center pl-1.5"
     >
       <span
         className={cn(

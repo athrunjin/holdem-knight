@@ -201,7 +201,7 @@ Priorities and severities are defined in the [testing README](README.md).
 | --- | --- | --- | --- | --- |
 | G-01 | P0 | Games without fees | Restore samples 01–05 and settle each. | Results and transfers match `EXPECTED.md`. |
 | G-02 | P1 | Insurance | A game with insurance. Work through one hit and one miss with 算保险. | The flow and the table's chips behave as before. |
-| G-03 | P1 | Collector | Open 积分管理, tap the plan at the top right of the section and pick a 代收人, then another. | The list reads 最优方案, 代收人：the organizer's ID, then one line for each player. One tap picks and closes the list. Transfers go through the collector with the right amounts. |
+| G-03 | P1 | Collector | Open 积分管理, tap the plan at the top left of the section and pick a 代收人, then another. | The list reads 最优方案, 代收人：the organizer's ID, then one line for each player. One tap picks and closes the list. Transfers go through the collector with the right amounts. |
 | G-04 | P1 | Settling from the table | Restore sample 07 and tap 结算 → 一键离桌并结算. | Everyone leaves and the settlement is right. |
 | G-05 | P0 | The plan a game starts with | Open the settlement of a game with insurance, a table fee or wages, then of a game with none of them. | The first opens with 积分管理 expanded and the organizer collecting, named by their ID. The second starts with it closed, and a tap opens the optimal plan. |
 | G-06 | P1 | The plan after settlement | On a settled game, change the plan, leave the page and come back. | The plan changes without reopening the game and is still the chosen one on return. Charges and the difference handling stay locked. |
