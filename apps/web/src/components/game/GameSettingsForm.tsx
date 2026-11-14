@@ -15,14 +15,13 @@ import {
   type WageIssues,
   type WageRule,
 } from "@holdem-knight/core";
-import { ChevronDown } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
-import { ChoiceModal } from "@/components/insurance/ChoiceModal";
 import {
   InsuranceSettings,
   initialInsuranceChoice,
 } from "@/components/insurance/InsuranceSettings";
+import { TextMenu } from "@/components/TextMenu";
 import { Toggle } from "@/components/Toggle";
 import { CURRENCY_INFO } from "@/lib/currency";
 import {
@@ -39,7 +38,20 @@ import {
   previewHand,
 } from "./GameSettingDialogs";
 
-type SettingDialog = "currency" | "ratio" | "blinds" | "buyIn";
+type SettingDialog = "ratio" | "blinds" | "buyIn";
+
+/** A currency is listed as its mark and name, and shown as its mark alone once chosen. */
+const CURRENCY_OPTIONS = CURRENCIES.map((currency) => ({
+  value: currency,
+  label: (
+    <>
+      <CurrencyIcon currency={currency} className="size-5" />
+      {CURRENCY_INFO[currency].label}
+    </>
+  ),
+  chosen: <CurrencyIcon currency={currency} className="size-5" />,
+  name: CURRENCY_INFO[currency].label,
+}));
 
 /** Options with no settings yet. Rake comes last, after insurance. */
 const PLANNED_OPTIONS = ["抽水"];
@@ -58,14 +70,11 @@ function PlannedOption({ label }: { label: string }) {
 function SettingRow({
   label,
   detail,
-  picker = false,
   disabled = false,
   onClick,
   children,
 }: {
   label: string;
-  /** Shows a down arrow, for a row that opens a list to pick from */
-  picker?: boolean;
   /** Small text under the value */
   detail?: string | null | undefined;
   disabled?: boolean;
@@ -80,12 +89,9 @@ function SettingRow({
       className="flex min-h-14 w-full items-center justify-between gap-3 px-4 py-2 text-left disabled:opacity-60"
     >
       <span className="font-medium">{label}</span>
-      <span className="flex min-w-0 items-center gap-1">
-        <span className="min-w-0 text-right">
-          <span className="block font-medium">{children}</span>
-          {detail && <span className="block text-sm text-muted">{detail}</span>}
-        </span>
-        {picker && <ChevronDown className="size-5 shrink-0 text-muted" aria-hidden />}
+      <span className="min-w-0 text-right">
+        <span className="block font-medium">{children}</span>
+        {detail && <span className="block text-sm text-muted">{detail}</span>}
       </span>
     </button>
   );
@@ -202,14 +208,18 @@ export function GameSettingsForm({
       <form onSubmit={handleSubmit} noValidate className="flex max-w-md flex-col gap-6 pb-8">
         <div>
           <div className="divide-y divide-line rounded-xl border border-line bg-surface">
-            <SettingRow
+            {/* The whole row opens the list, which hangs under the mark at its right */}
+            <TextMenu
               label="积分"
-              picker
+              caption="积分"
+              options={CURRENCY_OPTIONS}
+              value={values.currency}
+              onChange={(currency) => setValues({ ...values, currency })}
+              align="right"
               disabled={ratioLocked}
-              onClick={() => setDialog("currency")}
-            >
-              {currencyIcon}
-            </SettingRow>
+              className="min-h-14 w-full px-4 py-2 font-medium"
+              captionClassName="mr-auto font-medium text-text"
+            />
             <SettingRow label="筹码" disabled={ratioLocked} onClick={() => setDialog("ratio")}>
               {values.ratioChips} <small className="font-normal text-muted">筹码</small> :{" "}
               {ratioAmount === null ? values.ratioAmount : toDecimalString(ratioAmount)}{" "}
@@ -302,23 +312,6 @@ export function GameSettingsForm({
       </form>
 
       {/* Outside the form: a dialog's own form must not nest in it or submit it */}
-      {dialog === "currency" && (
-        <ChoiceModal
-          title="积分"
-          choices={CURRENCIES.map((currency) => ({
-            id: currency,
-            name: CURRENCY_INFO[currency].label,
-            icon: <CurrencyIcon currency={currency} className="size-6" />,
-          }))}
-          selectedId={values.currency}
-          onPick={(id) => {
-            const currency = CURRENCIES.find((c) => c === id);
-            if (currency) setValues({ ...values, currency });
-            setDialog(null);
-          }}
-          onClose={() => setDialog(null)}
-        />
-      )}
       {dialog === "ratio" && <ChipRatioDialog {...dialogProps} />}
       {dialog === "blinds" && <BlindsDialog {...dialogProps} />}
       {dialog === "buyIn" && <BuyInDialog {...dialogProps} />}

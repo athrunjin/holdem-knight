@@ -4,15 +4,18 @@ import { Settings } from "lucide-react";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
+import { GAME_OPTIONS, type GameOption, hasOption } from "@/lib/game-history";
 
-/** What a game can charge or offer, in the order shown. Rake has no setting until M4. */
+/** What a game can charge or offer: each one's name, and its color while it is on. */
+export const OPTION_MARKS: Record<GameOption, { label: string; className: string }> = {
+  insurance: { label: "保险", className: "text-highlight" },
+  wage: { label: "工资", className: "text-win" },
+  tableFee: { label: "台费", className: "text-win" },
+  rake: { label: "抽水", className: "text-win" },
+};
+
 function gameOptions(game: Game) {
-  return [
-    { label: "保险", on: game.insurance !== undefined, className: "text-highlight" },
-    { label: "工资", on: game.wage !== undefined, className: "text-win" },
-    { label: "台费", on: game.tableFee !== undefined, className: "text-win" },
-    { label: "抽水", on: false, className: "text-win" },
-  ];
+  return GAME_OPTIONS.map((option) => ({ ...OPTION_MARKS[option], on: hasOption(game, option) }));
 }
 
 /** One small colored label per option that is on. The caller lays them out. */

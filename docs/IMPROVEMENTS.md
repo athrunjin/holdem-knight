@@ -978,6 +978,32 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do.
 - Tracking: PR #84
 
+### #I-051 Start button in the navigation, a history that can be narrowed and ordered, and menus in the page
+
+- Type: feature
+- Date: proposed and decided 2026-11-14, completed 2026-11-15
+- Source: discussion
+- Problem: the chip-shaped 开一局 button took the top of the games list on every visit, games being settled sat among the games at the table, and history could only be read in two fixed groups.
+- Proposal:
+  - 开局 moves to the middle of the navigation: the K◇K mark on a round felt-green badge with 开局 under it, on the tabs' line. On a phone the badge rises 8px over the bar. It is on every page, and the side navigation on a tablet has it in the same place.
+  - The list reads 进行中, 结算中, 历史对局 from the top. The first two are left out while they have no game. Only a game at the table opens on its table; every other game opens on its settlement page.
+  - 历史对局 starts unfolded. Folded, it shows only its number of games, like the other two. Unfolded, its heading reads 「历史对局 · 全部 (3) ⌄」 with the number of games listed: the stage (全部, 未结清, 已结清) is text with the number and a chevron after it that opens a small menu, on one baseline with the title. The menu lists each stage with the number of games it would show under the filters in force. The filter and order icons are at the right, close together and next to the fold. The numbers of games are in ASCII parentheses, whatever the language.
+  - The filters are on show from the start, in two lines under the heading. The funnel icon folds them away: it is filled while they show, and gold while any filter is set.
+    - 对局时间 (全部, 过去一周, 过去一个月) and 积分类型 (全部, then each currency by its mark alone) share the first line. Each is its name, the choice in white and a chevron, and opens a menu in which the choice in force is the one in white.
+    - 对局配置: 保险, 工资, 台费, 抽水, all on at first, each in the color it has on a game's row. A tap switches one off, which shows it struck through in gray. All at the right, in white while every one is on, switches them all on or off.
+  - A game's row is 48px tall and shows when it started on two lines: the day as 26/11/14, and under it the day of the week and the time as 周六·21:05.
+  - On the list the last two stages of #I-050 are named 未结清 (积分待处理) and 已结清 (已完成). A settled game still owed transfers has a small gold 未结清 tag before its date. A game that is 已结清 has none.
+  - In the game settings the hint under Buy-in, also in its dialog, reads 「:100筹码/¥100.00」 without brackets.
+  - The page comes back the way it was left: the three folds, whether the filters show, the stage, the filters and the order are kept in this browser (`localStorage`).
+  - Short lists elsewhere open the same way, as a menu in the page under the choice instead of a dialog, with the choice in force in white: 积分 in the game settings, 计费方式 and 取整方式 under 工资, and 保费上限 for 翻牌 and 转牌 under 保险. 自定义 under 保费上限 still asks for its percentage in a dialog. Lists that can be long or deleted from, such as saved configurations, stay dialogs.
+  - The order icon switches between newest first, the default, and oldest first, by when each game started.
+- Settled details:
+  - The label stays outside the badge, which keeps the mark's clear space (`docs/brand/README.md`).
+  - Switching an option off leaves out the games that have it on, so with every option off only games without any are listed. 抽水 changes nothing until games can have rake (M4).
+  - A week is the last 7 days and a month the last 30, counted from when the game started.
+- Decision: do. Checked in the browser preview in dark mode at 360, 412 and 440px; not yet tried on a phone.
+- Tracking: PR #85
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
