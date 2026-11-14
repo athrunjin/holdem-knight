@@ -195,7 +195,7 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
         </p>
       )}
 
-      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-[5] -mx-4 border-t border-line bg-bg/95 px-4 py-1.5 backdrop-blur md:bottom-0">
+      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-[5] -mx-4 border-t border-line bg-bg/95 px-4 pt-1.5 pb-2.5 backdrop-blur md:bottom-0 md:pb-1.5">
         {selected.length > 0 && (
           // Wraps onto up to three rows, then scrolls
           <ul className="mb-1 flex max-h-[4.25rem] flex-wrap gap-1 overflow-y-auto">

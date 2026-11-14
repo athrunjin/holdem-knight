@@ -34,7 +34,29 @@ Records discussions of feature and process improvements: what was proposed, how 
 
 ## Decided, waiting for development
 
-(none)
+### #I-051 Start button in the navigation, and a history that can be narrowed and ordered
+
+- Type: feature
+- Date: proposed and decided 2026-11-14
+- Source: discussion
+- Problem: the chip-shaped 开一局 button took the top of the games list on every visit, games being settled sat among the games at the table, and history could only be read in two fixed groups.
+- Proposal:
+  - 开局 moves to the middle of the navigation: the K◇K mark on a round felt-green badge with 开局 under it, on the tabs' line. On a phone the badge rises 8px over the bar. It is on every page, and the side navigation on a tablet has it in the same place.
+  - The list reads 进行中, 结算中, 历史对局 from the top. The first two are left out while they have no game. Only a game at the table opens on its table; every other game opens on its settlement page.
+  - 历史对局 starts folded and shows only its number of games, like the other two. Unfolded, its heading reads 「历史对局 · 全部（3）」 with the number of games listed: the stage (全部, 积分待处理, 已完成) is plain text that opens a small menu, and the filter and order icons are at the right, next to the fold.
+  - The filter rows are on show from the start, as pills under the heading. The funnel icon folds them away: it is filled while they show, and gold while any filter is set.
+    - 对局时间: 全部, 过去一周, 过去一个月.
+    - 积分类型: 全部, then each currency by its mark alone.
+    - 开启配置: 保险, 工资, 台费, 抽水, all on at first, with All at the right to switch every one on or off.
+  - The order icon switches between newest first, the default, and oldest first, by the start time each row shows.
+- Settled details:
+  - The label stays outside the badge, which keeps the mark's clear space (`docs/brand/README.md`).
+  - Switching an option off leaves out the games that have it on, so with every option off only games without any are listed. 抽水 changes nothing until games can have rake (M4).
+  - With 全部 chosen, a game still owed transfers has 积分待处理 under its time.
+  - A week is the last 7 days and a month the last 30, counted from when the game started.
+  - The choices reset on leaving the page, as the folds do.
+- Decision: do. Checked in the browser preview in dark mode at 360, 393 and 440px; not yet tried on a phone.
+- Tracking: PR #85
 
 ## Done
 

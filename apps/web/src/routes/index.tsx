@@ -1,13 +1,24 @@
-import { type Game, gameStage } from "@holdem-knight/core";
+import { type Currency, type Game, gameStage } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronDown, Funnel } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { GameOptions } from "@/components/game/GameOptions";
 import { InDevelopment } from "@/components/InDevelopment";
 import { Page } from "@/components/Page";
+import { TextMenu } from "@/components/TextMenu";
 import { useGames } from "@/data/games";
 import { cn } from "@/lib/cn";
+import {
+  DEFAULT_HISTORY_VIEW,
+  GAME_OPTIONS,
+  type GameOption,
+  type HistoryPeriod,
+  type HistoryStage,
+  type HistoryView,
+  historyGames,
+  isFiltered,
+} from "@/lib/game-history";
 
 export const Route = createFileRoute("/")({
   component: SessionsPage,
@@ -27,13 +38,40 @@ const ROLES: readonly { readonly role: Role; readonly label: string }[] = [
   { role: "player", label: "Player" },
 ];
 
-function GameRow({ game }: { game: Game }) {
-  // A game being settled opens where it was left, on its results
-  const settling = game.status === "settling";
+const STAGES: readonly { readonly value: HistoryStage; readonly label: string }[] = [
+  { value: "all", label: "全部" },
+  { value: "pending", label: "积分待处理" },
+  { value: "complete", label: "已完成" },
+];
+
+const PERIODS: readonly { readonly value: HistoryPeriod; readonly label: string }[] = [
+  { value: "all", label: "全部" },
+  { value: "week", label: "过去一周" },
+  { value: "month", label: "过去一个月" },
+];
+
+/** Each currency is shown by its mark alone, and named after the animal for a reader. */
+const CURRENCIES: readonly { readonly value: Currency; readonly name: string }[] = [
+  { value: "CNY", name: "熊猫" },
+  { value: "AUD", name: "袋鼠" },
+];
+
+const OPTION_LABELS: Record<GameOption, string> = {
+  insurance: "保险",
+  wage: "工资",
+  tableFee: "台费",
+  rake: "抽水",
+};
+
+const chevronClass = (open: boolean) =>
+  cn("size-5 text-muted transition-transform", open && "rotate-180");
+
+function GameRow({ game, note }: { game: Game; note?: string | undefined }) {
   return (
     <li>
       <Link
-        to={settling ? "/games/$gameId/settlement" : "/games/$gameId"}
+        // Only a game at the table opens on its table. The rest open on their results
+        to={game.status === "open" ? "/games/$gameId" : "/games/$gameId/settlement"}
         params={{ gameId: game.id }}
         className="flex min-h-16 items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-2"
       >
@@ -44,116 +82,295 @@ function GameRow({ game }: { game: Game }) {
           </span>
           <GameOptions game={game} />
         </span>
-        <span className="flex shrink-0 items-center gap-2 text-sm text-muted">
-          {settling && (
-            <span className="rounded-md border border-highlight px-1.5 py-0.5 text-xs text-highlight">
-              结算中
-            </span>
-          )}
+        <span className="flex shrink-0 flex-col items-end text-sm text-muted">
           {STARTED_AT.format(game.createdAt)}
+          {note && <span className="text-xs text-highlight">{note}</span>}
         </span>
       </Link>
     </li>
   );
 }
 
-function GameList({ games }: { games: readonly Game[] }) {
-  return games.length > 0 ? (
-    <ul className="mt-1 flex flex-col gap-2">
-      {games.map((game) => (
-        <GameRow key={game.id} game={game} />
-      ))}
-    </ul>
-  ) : (
-    <p className="px-1 py-2 text-sm text-muted">暂无牌局</p>
+interface FoldHeadingProps {
+  title: string;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+}
+
+/** A section's heading, which folds and unfolds it: the title with its number of games. */
+function FoldHeading({ title, count, open, onToggle }: FoldHeadingProps) {
+  return (
+    <h2>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className="flex min-h-11 w-full items-center justify-between px-1 font-medium"
+      >
+        <span>
+          {title}（{count}）
+        </span>
+        <ChevronDown className={chevronClass(open)} aria-hidden />
+      </button>
+    </h2>
   );
 }
 
-interface GameSectionProps {
-  /** The heading, with a count where one helps. */
-  title: string;
-  defaultOpen: boolean;
-  children: ReactNode;
-}
-
-function GameSection({ title, defaultOpen, children }: GameSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
+/** Games still under way, open from the start. Left out of the page while it has none. */
+function GameSection({ title, games }: { title: string; games: readonly Game[] }) {
+  const [open, setOpen] = useState(true);
+  if (games.length === 0) return null;
 
   return (
     <section>
-      <h2>
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen(!open)}
-          className="flex min-h-11 w-full items-center justify-between px-1 font-medium"
-        >
-          <span>{title}</span>
-          <ChevronDown
-            className={cn("size-5 text-muted transition-transform", open && "rotate-180")}
-            aria-hidden
-          />
-        </button>
-      </h2>
-      {open && children}
+      <FoldHeading title={title} count={games.length} open={open} onToggle={() => setOpen(!open)} />
+      {open && (
+        <ul className="mt-1 flex flex-col gap-2">
+          {games.map((game) => (
+            <GameRow key={game.id} game={game} />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
 
-/** One part of history under a small heading of its own. */
-function HistoryGroup({ title, games }: { title: string; games: readonly Game[] }) {
+interface PillProps {
+  on: boolean;
+  onClick: () => void;
+  /** For a pill that shows no text */
+  label?: string;
+  className?: string;
+  children: ReactNode;
+}
+
+/** A small choice in a filter's row, gold while it is on. */
+function Pill({ on, onClick, label, className, children }: PillProps) {
   return (
-    <section className="mt-2">
-      <h3 className="px-1 text-sm text-muted">{title}</h3>
-      <GameList games={games} />
+    <button
+      type="button"
+      aria-pressed={on}
+      aria-label={label}
+      onClick={onClick}
+      className={cn(
+        // The pill is 32px tall and the tap target reaching past it is 44px
+        "relative flex h-8 shrink-0 items-center rounded-full border px-2 text-sm after:absolute after:-inset-x-0.5 after:-inset-y-2",
+        on ? "border-highlight text-highlight" : "border-line text-muted",
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** One filter: its name, then its choices as pills. */
+function FilterRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <fieldset className="flex min-h-11 items-center gap-1">
+      <legend className="float-left w-15 shrink-0 text-sm text-muted">{label}</legend>
+      {children}
+    </fieldset>
+  );
+}
+
+interface HistoryFiltersProps {
+  view: HistoryView;
+  onChange: (part: Partial<HistoryView>) => void;
+}
+
+function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
+  const allOptions = view.options.length === GAME_OPTIONS.length;
+  return (
+    <div className="mb-2 rounded-xl border border-line px-2.5 py-1">
+      <FilterRow label="对局时间">
+        {PERIODS.map(({ value, label }) => (
+          <Pill key={value} on={view.period === value} onClick={() => onChange({ period: value })}>
+            {label}
+          </Pill>
+        ))}
+      </FilterRow>
+      <FilterRow label="积分类型">
+        <Pill on={view.currency === "all"} onClick={() => onChange({ currency: "all" })}>
+          全部
+        </Pill>
+        {CURRENCIES.map(({ value, name }) => (
+          <Pill
+            key={value}
+            on={view.currency === value}
+            label={name}
+            onClick={() => onChange({ currency: value })}
+          >
+            <CurrencyIcon currency={value} className="size-4.5" />
+          </Pill>
+        ))}
+      </FilterRow>
+      {/* Every option starts on. Switching one off leaves out the games that have it */}
+      <FilterRow label="开启配置">
+        {GAME_OPTIONS.map((option) => {
+          const on = view.options.includes(option);
+          return (
+            <Pill
+              key={option}
+              on={on}
+              onClick={() =>
+                onChange({
+                  // Kept in the fixed order, whatever order they were tapped in
+                  options: GAME_OPTIONS.filter((each) =>
+                    each === option ? !on : view.options.includes(each),
+                  ),
+                })
+              }
+            >
+              {OPTION_LABELS[option]}
+            </Pill>
+          );
+        })}
+        <Pill
+          on={allOptions}
+          label={allOptions ? "关闭全部配置" : "开启全部配置"}
+          onClick={() => onChange({ options: allOptions ? [] : GAME_OPTIONS })}
+          className="ml-auto"
+        >
+          All
+        </Pill>
+      </FilterRow>
+    </div>
+  );
+}
+
+const iconButton = "grid size-11 shrink-0 place-items-center text-muted";
+
+/**
+ * Settled games, folded at the start under their number. Unfolded, the heading carries what
+ * narrows and orders the list: the stage after the title, with the number of games listed, then
+ * the filter and the order at the right, next to the fold.
+ */
+function HistorySection({ games }: { games: readonly Game[] }) {
+  const [open, setOpen] = useState(false);
+  const [filtering, setFiltering] = useState(true);
+  const [view, setView] = useState(DEFAULT_HISTORY_VIEW);
+  const change = (part: Partial<HistoryView>) => setView({ ...view, ...part });
+
+  if (!open) {
+    return (
+      <section>
+        <FoldHeading
+          title="历史对局"
+          count={games.length}
+          open={false}
+          onToggle={() => setOpen(true)}
+        />
+      </section>
+    );
+  }
+
+  const shown = historyGames(games, view, Date.now());
+  return (
+    <section>
+      <div className="flex min-h-11 items-center font-medium">
+        <h2 className="shrink-0">
+          <button
+            type="button"
+            aria-expanded
+            onClick={() => setOpen(false)}
+            className="min-h-11 pl-1"
+          >
+            历史对局
+          </button>
+        </h2>
+        <span aria-hidden className="px-1.5 text-muted">
+          ·
+        </span>
+        <TextMenu
+          label="对局状态"
+          options={STAGES}
+          value={view.stage}
+          onChange={(stage) => change({ stage })}
+          className="font-medium"
+        />
+        <span className="shrink-0">（{shown.length}）</span>
+        <div className="ml-auto flex shrink-0">
+          {/* Filled while the filters are on show, and gold while any of them is set */}
+          <button
+            type="button"
+            aria-label="筛选"
+            aria-expanded={filtering}
+            onClick={() => setFiltering(!filtering)}
+            className={cn(
+              iconButton,
+              filtering && "text-text",
+              isFiltered(view) && "text-highlight",
+            )}
+          >
+            <Funnel className={cn("size-5", filtering && "fill-current")} aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label={view.newestFirst ? "按时间排序：最新在前" : "按时间排序：最早在前"}
+            onClick={() => change({ newestFirst: !view.newestFirst })}
+            className={cn(iconButton, !view.newestFirst && "text-highlight")}
+          >
+            {view.newestFirst ? (
+              <ArrowDownWideNarrow className="size-5" aria-hidden />
+            ) : (
+              <ArrowUpNarrowWide className="size-5" aria-hidden />
+            )}
+          </button>
+          {/* Pulled out so its chevron lines up with the ones on the sections above */}
+          <button
+            type="button"
+            aria-label="收起历史对局"
+            onClick={() => setOpen(false)}
+            className={cn(iconButton, "-mr-2")}
+          >
+            <ChevronDown className={chevronClass(true)} aria-hidden />
+          </button>
+        </div>
+      </div>
+      {filtering && <HistoryFilters view={view} onChange={change} />}
+      {shown.length > 0 ? (
+        <ul className="mt-1 flex flex-col gap-2">
+          {shown.map((game) => (
+            <GameRow
+              key={game.id}
+              game={game}
+              // With every stage listed together, the games still owed transfers say so
+              note={
+                view.stage === "all" && gameStage(game) === "pending" ? "积分待处理" : undefined
+              }
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="px-1 py-2 text-sm text-muted">
+          {games.length > 0 ? "没有符合条件的牌局" : "暂无牌局"}
+        </p>
+      )}
     </section>
   );
 }
 
 function HostGames() {
-  const { data: games = [] } = useGames();
-  // Games at the table and games being settled are both still under way
-  const live = games.filter((game) => game.status !== "settled");
-  // History has the rest: pending from the moment it is settled, complete once every transfer is in
-  const pending = games.filter((game) => gameStage(game) === "pending");
-  const complete = games.filter((game) => gameStage(game) === "complete");
+  const { data: games, isPending } = useGames();
+  if (isPending || !games) return null;
+  const settled = games.filter((game) => game.status === "settled");
 
   return (
-    <>
-      <section className="flex flex-col items-center gap-6 py-10 text-center md:py-16">
-        {/* The start button is drawn as a chip: the only visual focus on the page */}
-        <Link
-          to="/games/new"
-          className="group relative grid size-44 place-items-center rounded-full bg-felt-700 text-bone shadow-[0_6px_0_0_rgb(0_0_0/0.25)] transition-transform active:translate-y-1 active:shadow-[0_2px_0_0_rgb(0_0_0/0.25)]"
-        >
-          <span
-            aria-hidden
-            className="absolute inset-3 rounded-full border-[3px] border-dashed border-chip-gold/80"
-          />
-          <span className="text-2xl font-bold [font-stretch:125%]">开一局</span>
-        </Link>
-        {games.length === 0 && (
-          <div className="max-w-sm space-y-3">
-            <p className="text-lg font-medium">还没有进行中的牌局</p>
-            <p className="text-muted">
-              开局后可以记录每位玩家的 Buy-in、补码和离桌，散局时自动算出谁该转给谁多少。
-            </p>
-          </div>
-        )}
-      </section>
-
-      {games.length > 0 && (
-        <div className="flex flex-col gap-2 pb-6">
-          <GameSection title={`进行中（${live.length}）`} defaultOpen>
-            <GameList games={live} />
-          </GameSection>
-          <GameSection title="历史对局" defaultOpen={false}>
-            <HistoryGroup title="积分待处理" games={pending} />
-            <HistoryGroup title="完成" games={complete} />
-          </GameSection>
+    <div className="flex flex-col gap-2 pt-4 pb-6">
+      {games.length === 0 && (
+        <div className="space-y-2 px-1 py-6 text-center">
+          <p className="text-lg font-medium">还没有牌局</p>
+          <p className="text-sm text-muted">
+            点下方的「开局」，记录每位玩家的 Buy-in、补码和离桌，散局时自动算出谁该转给谁多少。
+          </p>
         </div>
       )}
-    </>
+      <GameSection title="进行中" games={games.filter((game) => game.status === "open")} />
+      <GameSection title="结算中" games={games.filter((game) => game.status === "settling")} />
+      <HistorySection games={settled} />
+    </div>
   );
 }
 
