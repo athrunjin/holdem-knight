@@ -1032,7 +1032,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The length is set by 30s, 60s, 90s or 120s in one tap, and by −10s and +10s at either side of the dial, so 90s then +10s gives 100. A tap on the seconds in the dial selects them, and a length can be typed over them: a whole number from 1 to 999. Only digits can be typed. Nothing is said while typing: only a number out of range, a zero or one over 999, turns the 秒 under the field into 范围 1–999 秒, and the length stays what it was. A step is not offered where it would leave that range. The last length is kept for the next time.
   - 开始 starts the countdown: a gold ring empties around the seconds left. −10s and +10s keep working on a countdown under way, moving its end, and nothing is taken off that would end it. 结束 clears the countdown and leaves the page open.
   - Through the last 10 seconds the time shows two decimals, as 8.46 with the decimals smaller, and the ring and the time are red and blink once a second. When time runs out the dial fills red, reads 时间到 and blinks faster, the phone buzzes where it can, and the main button is 退出. After 3 seconds the countdown clears itself and the page is ready for the next one.
-  - A cross at the top right leaves the page. While a countdown is under way a round button with the shrink icon and no label sits over 结束, the size of +10s and under it, from the tools as from a game. It goes back to the page Call Time was opened from, with the countdown as a round clock floating at the lower right: the time left with the same ring, decimals and red blink. Leaving the page any other way, such as by a tab of the navigation, leaves the same clock floating. It stays over every page and can be dragged out of the way.
+  - A gold cross at the top right leaves the page. While a countdown is under way a round button with the shrink icon and no label sits over 结束, the size of +10s and under it, from the tools as from a game. It goes back to the page Call Time was opened from, with the countdown as a round clock floating at the lower right: the time left with the same ring, decimals and red blink. Leaving the page any other way, such as by a tab of the navigation, leaves the same clock floating. It stays over every page and can be dragged out of the way.
   - A tap on the floating clock opens the full page again. The cross, the shrink button and 退出 then go back to the page the clock was tapped on, wherever that is, not to where the countdown was first started. The cross and 退出 clear the countdown; shrinking keeps it.
   - Left alone, the floating clock blinks for 3 seconds after time runs out, then clears the countdown and goes, the same 3 seconds as on the full page.
 - Settled details:
@@ -1042,6 +1042,26 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The screen is kept on while a countdown is under way, where the browser allows it.
   - The rules are in `packages/core/src/call-time`. There is no sound.
 - Decision: do. Checked in the browser preview in dark mode at 360 and 412px; not yet tried on a phone, where the buzz, the screen staying on and typing a length with the phone's keyboard still need a look.
+- Tracking: PR #86
+
+### #I-054 Insurance tool: the two ways of working as its title, a settings dialog, and configurations in a menu
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-16
+- Source: discussion
+- Problem: the standalone calculator had a title that said nothing new, two wide buttons under it for the way of working, a native list named 赔率规则 that mixed odds tables with saved rules, and no way to reach the other settings of a rule.
+- Proposal:
+  - The title line reads 「选牌计算 ⇄ Outs数速算」. The way in use is in the title's font; the other is the same size, gray and not bold. A tap on a name picks it, and the arrows between them switch. Each name keeps the width it has in bold, so nothing moves on a switch. The two buttons under the title are gone from this page.
+  - At the right a gold cross replaces 返回工具, like the one on Call Time, with a gear to its left.
+  - The gear opens a dialog, 保险设置, with the insurance settings of 开局设置: the configuration, 命中退还保费, 平分牌算 outs, 保费上限 and the odds table. There is no switch for insurance itself, everything is on show and the odds table starts unfolded.
+  - The 赔率规则 line is a menu in the page, 「保险配置 默认配置 ⌄」, with the configuration in use and the same configurations as the dialog: the default and the saved ones. Picking one takes its settings and keeps the odds, as in a game. Settings changed by hand read 自定义. It shares its line with 平分牌算 outs.
+- Settled details:
+  - The calculator's settings are kept in this browser (`localStorage`), so they are there on the next visit.
+  - An odds table is picked in the dialog, under 赔率表, not on the page's line any more.
+  - Saved configurations are deleted from the list in the dialog; the menu in the page only picks.
+  - On phones 380px wide or less the title is 21px instead of 24px, so that both names fit beside the two icons.
+  - The insurance page of a game is unchanged: it keeps its two buttons and 返回牌局.
+- Decision: do. Checked in the browser preview in dark mode at 360, 393 and 412px; not yet tried on a phone.
 - Tracking: PR #86
 
 ## Not doing or deferred

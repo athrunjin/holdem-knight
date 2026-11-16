@@ -21,17 +21,26 @@ interface OddsTableEditorProps {
   /** The odds in use for this game */
   odds: readonly string[];
   onApply: (odds: readonly string[]) => void;
+  /** Starts unfolded */
+  defaultOpen?: boolean;
+  /** What confirming edited odds asks before it applies them */
+  applyQuestion?: string;
 }
 
 /**
- * The odds table, folded by default. A built-in or saved table applies at once. Edits stay a draft
+ * The odds table, folded unless told otherwise. A built-in or saved table applies at once. Edits stay a draft
  * until confirmed, and can then be saved as a table for later games.
  */
-export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
+export function OddsTableEditor({
+  odds,
+  onApply,
+  defaultOpen = false,
+  applyQuestion = "是否应用到本局？",
+}: OddsTableEditorProps) {
   const { data: saved = [] } = useOddsTables();
   const saveTable = useSaveOddsTable();
   const removeTable = useRemoveOddsTable();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [picking, setPicking] = useState(false);
   const [step, setStep] = useState<"apply" | "save" | "demo" | null>(null);
   const [applied, setApplied] = useState(odds);
@@ -202,7 +211,7 @@ export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
 
       {step === "apply" && (
         <Modal title="应用赔率表" onClose={() => setStep(null)}>
-          <p>是否应用到本局？</p>
+          <p>{applyQuestion}</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"

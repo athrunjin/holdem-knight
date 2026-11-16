@@ -24,7 +24,8 @@ import { OddsTableEditor } from "./OddsTableEditor";
 
 const LAST_RULE = "last";
 const DEFAULT_RULE = "default";
-const CUSTOM_RULE = "custom";
+export const CUSTOM_RULE = "custom";
+export const CUSTOM_NAME = "自定义";
 
 /** Everything in a rule but its odds, which the odds table sets on its own. */
 function settingsOf(form: InsuranceRuleForm) {
@@ -54,16 +55,50 @@ export function initialInsuranceChoice(
   };
 }
 
-interface InsuranceSettingsProps {
+interface ConfigList {
   value: InsuranceChoice;
-  issues: InsuranceRuleIssues;
   /** The rule to offer as "last time", from this game or the latest one that had insurance */
   lastRule: InsuranceRule | undefined;
   /** What to call that rule in the list */
   lastRuleLabel: string;
+  onChange: (value: InsuranceChoice) => void;
+}
+
+/**
+ * The sets of settings on offer, which leave the odds out: last time's, the default and the saved
+ * ones. Picking one takes its settings and keeps the odds in use.
+ */
+export function useInsuranceConfigs({ value, lastRule, lastRuleLabel, onChange }: ConfigList) {
+  const { source, form } = value;
+  const { data: saved = [] } = useInsuranceRules();
+
+  // Last time's settings go by their saved name when they were a saved set
+  const lastSaved = lastRule && saved.find((rule) => sameSettings(rule.rule, lastRule));
+  const rules = [
+    ...(lastRule && !lastSaved ? [{ id: LAST_RULE, name: lastRuleLabel, rule: lastRule }] : []),
+    { id: DEFAULT_RULE, name: "默认配置", rule: RULE_30 },
+    ...saved.map((rule) => ({ ...rule, removable: true })),
+  ];
+  const selectedId = source === LAST_RULE && lastSaved ? lastSaved.id : source;
+  const selectedName = rules.find((rule) => rule.id === selectedId)?.name ?? CUSTOM_NAME;
+
+  function choose(id: string) {
+    const rule = rules.find((r) => r.id === id)?.rule;
+    if (rule)
+      onChange({ ...value, source: id, form: { ...toInsuranceRuleForm(rule), odds: form.odds } });
+  }
+
+  return { saved, rules, selectedId, selectedName, choose };
+}
+
+interface InsuranceSettingsProps extends ConfigList {
+  issues: InsuranceRuleIssues;
   /** Once insurance has been sold in this game, it cannot be turned off */
   locked: boolean;
-  onChange: (value: InsuranceChoice) => void;
+  /** For the calculator on its own, which has no insurance to switch on: the settings alone, all on show */
+  alwaysOn?: boolean;
+  /** Where confirming the odds applies them, as the dialog asks it */
+  oddsApplyQuestion?: string;
 }
 
 /**
@@ -76,10 +111,18 @@ export function InsuranceSettings({
   lastRule,
   lastRuleLabel,
   locked,
+  alwaysOn = false,
+  oddsApplyQuestion,
   onChange,
 }: InsuranceSettingsProps) {
-  const { enabled, source, form } = value;
-  const { data: saved = [] } = useInsuranceRules();
+  const { form } = value;
+  const enabled = alwaysOn || value.enabled;
+  const { saved, rules, selectedId, selectedName, choose } = useInsuranceConfigs({
+    value,
+    lastRule,
+    lastRuleLabel,
+    onChange,
+  });
   const removeRule = useRemoveInsuranceRule();
   const saveRule = useSaveInsuranceRule();
   const [picking, setPicking] = useState(false);
@@ -88,15 +131,6 @@ export function InsuranceSettings({
   const setForm = (next: Partial<InsuranceRuleForm>) =>
     onChange({ ...value, source: CUSTOM_RULE, form: { ...form, ...next } });
 
-  // Last time's settings go by their saved name when they were a saved set
-  const lastSaved = lastRule && saved.find((rule) => sameSettings(rule.rule, lastRule));
-  const rules = [
-    ...(lastRule && !lastSaved ? [{ id: LAST_RULE, name: lastRuleLabel, rule: lastRule }] : []),
-    { id: DEFAULT_RULE, name: "默认配置", rule: RULE_30 },
-    ...saved.map((rule) => ({ ...rule, removable: true })),
-  ];
-  const selectedId = source === LAST_RULE && lastSaved ? lastSaved.id : source;
-  const selectedName = rules.find((rule) => rule.id === selectedId)?.name ?? "自定义";
   // Worth saving only once the settings are valid and differ from every set already on offer
   const settingsText = JSON.stringify(settingsOf(form));
   const savable =
@@ -105,15 +139,18 @@ export function InsuranceSettings({
       (rule) => JSON.stringify(settingsOf(toInsuranceRuleForm(rule))) === settingsText,
     );
 
-  /** Takes a set's settings and keeps this game's odds. */
-  function choose(id: string) {
-    const rule = rules.find((r) => r.id === id)?.rule;
-    if (rule) {
-      const next = { ...toInsuranceRuleForm(rule), odds: form.odds };
-      onChange({ ...value, source: id, form: next });
-    }
-    setPicking(false);
-  }
+  const configButton = (
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      aria-label={`保险配置：${selectedName}`}
+      onClick={() => setPicking(true)}
+      className="flex min-h-11 min-w-0 items-center gap-0.5 text-sm"
+    >
+      <span className="truncate">{selectedName}</span>
+      <ChevronDown className="size-4 shrink-0 text-muted" aria-hidden />
+    </button>
+  );
 
   /** Saved with this game's odds too, but only the other settings are taken when it is picked. */
   function handleSave(name: string) {
@@ -143,28 +180,22 @@ export function InsuranceSettings({
 
   return (
     <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
-      <Toggle
-        label="保险"
-        {...(locked && { detail: "这局已有保险记录，不能关闭" })}
-        info="开启后「保险」作为一席加入牌局，默认 1 个 Buy-in"
-        checked={enabled}
-        disabled={locked}
-        accessory={
-          enabled && (
-            <button
-              type="button"
-              aria-haspopup="dialog"
-              aria-label={`保险配置：${selectedName}`}
-              onClick={() => setPicking(true)}
-              className="flex min-h-11 min-w-0 items-center gap-0.5 text-sm"
-            >
-              <span className="truncate">{selectedName}</span>
-              <ChevronDown className="size-4 shrink-0 text-muted" aria-hidden />
-            </button>
-          )
-        }
-        onChange={(checked) => onChange({ ...value, enabled: checked })}
-      />
+      {alwaysOn ? (
+        <div className="flex min-h-11 items-center justify-between gap-2">
+          <span className="font-medium">保险配置</span>
+          {configButton}
+        </div>
+      ) : (
+        <Toggle
+          label="保险"
+          {...(locked && { detail: "这局已有保险记录，不能关闭" })}
+          info="开启后「保险」作为一席加入牌局，默认 1 个 Buy-in"
+          checked={enabled}
+          disabled={locked}
+          accessory={enabled && configButton}
+          onChange={(checked) => onChange({ ...value, enabled: checked })}
+        />
+      )}
 
       {enabled && (
         <>
@@ -211,6 +242,8 @@ export function InsuranceSettings({
 
           <OddsTableEditor
             odds={form.odds}
+            defaultOpen={alwaysOn}
+            {...(oddsApplyQuestion !== undefined && { applyQuestion: oddsApplyQuestion })}
             // The odds are apart from the settings, so the settings keep their name
             onApply={(odds) => onChange({ ...value, form: { ...form, odds } })}
           />
@@ -222,7 +255,10 @@ export function InsuranceSettings({
           title="保险配置（不含赔率）"
           choices={rules}
           selectedId={selectedId}
-          onPick={choose}
+          onPick={(id) => {
+            choose(id);
+            setPicking(false);
+          }}
           onRemove={handleRemove}
           onClose={() => setPicking(false)}
         />

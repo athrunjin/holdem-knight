@@ -115,7 +115,7 @@ export function CallTimeScreen({ gameId }: { gameId?: string }) {
           type="button"
           aria-label="返回"
           onClick={exit}
-          className="-mr-2 grid size-11 shrink-0 place-items-center"
+          className="-mr-2 grid size-11 shrink-0 place-items-center text-highlight"
         >
           <X className="size-6" strokeWidth={1.75} aria-hidden />
         </button>

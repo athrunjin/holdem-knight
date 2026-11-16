@@ -23,7 +23,12 @@ export interface InsuranceRecorder {
   boughtIds: ReadonlySet<string>;
 }
 
+/** Working from the cards of a hand, or from a count of outs for a quick price. */
+export type InsuranceMode = "cards" | "outs";
+
 interface InsuranceCalculatorProps {
+  /** Set by a page that shows the two modes itself, such as in its title. The buttons here then go. */
+  mode?: InsuranceMode;
   rule: InsuranceRule;
   /** Switches whether tie cards are sold as outs. Whoever owns the rule decides what that changes. */
   onTieOutsChange: (tieOuts: TieOuts) => void;
@@ -92,12 +97,14 @@ export function InsuranceCalculator({
   seats,
   autoSeat = false,
   saving,
+  mode: pageMode,
 }: InsuranceCalculatorProps) {
-  const [mode, setMode] = useState<"cards" | "outs">("cards");
+  const [ownMode, setMode] = useState<InsuranceMode>("cards");
+  const mode = pageMode ?? ownMode;
   const decisions = useDecisions(recorder);
   return (
     <>
-      <div className="grid grid-cols-2 gap-2">
+      <div className={cn("grid grid-cols-2 gap-2", pageMode !== undefined && "hidden")}>
         <button
           type="button"
           aria-pressed={mode === "cards"}
