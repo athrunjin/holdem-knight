@@ -1067,7 +1067,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The dialog has no 查看demo button, which is still a placeholder in 开局设置.
   - 开局设置 and a game's settings pick their odds table from the same menu, at the right of the 赔率表 line, in place of the dialog that listed the tables: the same pencil, bin, eye and plus, and the same dialog. The cells under 赔率表 still edit the odds of that game and offer to save them as a table.
   - The settings are always on show, with no fold.
-  - The insurance page of a game is unchanged: it keeps its two buttons, its 平分牌算 outs switch and 返回牌局.
+  - The insurance page of a game kept its own look at first, with two buttons, a 平分牌算 outs switch and 返回牌局. It took this one in #I-055.
 - Decision: do. Checked in the browser preview in dark mode at 360 and 412px, the menu in 开局设置 at 412px; not yet tried on a phone.
 - Tracking: PR #86
 
@@ -1078,9 +1078,9 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Source: discussion
 - Problem: a hand was entered through a chain of dialogs, for the seat, the chips, the cards and whether there was another player, and the insurance showed only after 计算保险. Chips already counted at the table had to be typed again.
 - Proposal:
-  - The page has three sections, 底池信息, 池内玩家 and 保险信息. Each title is a little larger than the text and sits in the middle of the page, with a line at either side on the title's own middle that fades out toward the edge. A line under a title at the left was tried first. The first two have an arrow at the right edge that puts the section back as it started: no board and no dead money, or the first two players of the table with no cards.
+  - The page has three sections, 底池信息, 池内玩家 and 保险信息. Each title is a little larger than the text and sits in the middle of the page, with a line at either side on the title's own middle that fades out toward the edge. A line under a title at the left was tried first. The first two have an arrow right after the title that puts the section back as it started: no board and no dead money, or the first two players of the table with no cards. The arrow was at the right edge first.
   - 底池信息 is one line: the flop, the turn, a hairline, then dead money, framed like a street with the chip stack over its name. Dead money still opens its dialog, and its name gives the amount once there is some.
-  - 池内玩家 always has two rows, which cannot be removed, since a hand needs two players. From a game they are the first two players of the table, an organizer who plays first, with the chips each has there. From the tools they are 玩家 1 and 玩家 2 with 0.
+  - 池内玩家 always has two rows, which cannot be removed, since a hand needs two players. From a game they are the first two players of the table, an organizer who plays first, with the chips each has there. From the tools they are 玩家 1 and 玩家 2 with 1,000 each, as is every player added there; they started at 0 first.
   - The plus under the rows adds the next player of the table, in the table's order. With nobody left it says so under the plus. Rows after the second have a small cross before the name, which removes them.
   - A row is the name, the chips, a small C and the two cards. The name has a chevron and opens a menu in the page with the table in its order; one tap picks, and players already in another row are gray and cannot be picked. The chips are typed in place: a tap selects them, with no dialog and no frame of their own, and there is room for six digits. The C marks the player as covering the others: the chips read Cover in green, and a tap on the C takes it back. The cards open the card picker.
   - 保险信息 shows the insurance as soon as the flop, two players' cards and their chips are in, with nothing to confirm. Until then it names what is still missing, such as 「还差：翻牌、王五（手牌）」.
@@ -1091,6 +1091,8 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The first two rows are kept only once something is changed, so opening the page leaves no hand behind.
   - The rows, the plus and the two arrows work until something is bought in the hand, as the players did before.
   - Outs数速算 is unchanged and still asks for its two players in dialogs.
+  - The insurance page of a game looks the same as the tool: 「选牌计算 ⇄ Outs数速算」 as its title, a gold cross back to the game, the configuration and the odds table in menus, and the settings on show. Only the players and their chips differ, which come from the table and go back to it. The insurance seat's chips and result are a line under the title.
+  - On a game's page those settings are the game's own, so a change there changes the game's insurance at once, with no question asked. The switch for 平分牌算 outs used to ask first.
 - Decision: do. Checked in the browser preview in dark mode at 360 and 412px, from the tools and from a game of four players: default rows, typing chips and their arrival at the table, cover, the menu, adding and removing, both arrows, and a hand through the turn. An organizer who plays was not tried. Not yet tried on a phone.
 - Tracking: PR #86
 

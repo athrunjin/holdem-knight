@@ -1,7 +1,5 @@
-import type { InsuranceHand, InsuranceRule, TieOuts } from "@holdem-knight/core";
+import type { InsuranceHand, InsuranceRule } from "@holdem-knight/core";
 import { useState } from "react";
-import { MiniSwitch } from "@/components/MiniSwitch";
-import { cn } from "@/lib/cn";
 import { type HandStore, InsuranceHandFlow, type SeatChips } from "./InsuranceHandFlow";
 import type { BoughtInsurance, Decisions } from "./LeaderQuote";
 import { OutsQuickCalc } from "./OutsQuickCalc";
@@ -29,14 +27,9 @@ export interface InsuranceRecorder {
 export type InsuranceMode = "cards" | "outs";
 
 interface InsuranceCalculatorProps {
-  /** Set by a page that shows the two modes itself, such as in its title. The buttons here then go. */
-  mode?: InsuranceMode;
+  /** Which of the two is on show. The page picks it, in its title. */
+  mode: InsuranceMode;
   rule: InsuranceRule;
-  /**
-   * Switches whether tie cards are sold as outs. Whoever owns the rule decides what that changes.
-   * Left out by a page that sets it elsewhere, and the switch here then goes.
-   */
-  onTieOutsChange?: (tieOuts: TieOuts) => void;
   seats: readonly InsuranceSeat[];
   /** Gives the quick price its two seats in order instead of asking who is all-in: the standalone calculator has no table. */
   autoSeat?: boolean;
@@ -49,12 +42,6 @@ interface InsuranceCalculatorProps {
   openHand?: InsuranceHand | undefined;
   createHand: () => InsuranceHand;
 }
-
-const toggleClass = (active: boolean) =>
-  cn(
-    "min-h-11 rounded-xl border px-3 font-medium",
-    active ? "border-accent bg-accent text-accent-text" : "border-line bg-surface",
-  );
 
 function useDecisions(recorder: InsuranceRecorder | undefined): Decisions | undefined {
   const [decided, setDecided] = useState<ReadonlyMap<string, QuoteDecision>>(new Map());
@@ -98,43 +85,14 @@ export function InsuranceCalculator({
   openHand,
   createHand,
   rule,
-  onTieOutsChange,
   seats,
   autoSeat = false,
   saving,
-  mode: pageMode,
+  mode,
 }: InsuranceCalculatorProps) {
-  const [ownMode, setMode] = useState<InsuranceMode>("cards");
-  const mode = pageMode ?? ownMode;
   const decisions = useDecisions(recorder);
   return (
     <>
-      <div className={cn("grid grid-cols-2 gap-2", pageMode !== undefined && "hidden")}>
-        <button
-          type="button"
-          aria-pressed={mode === "cards"}
-          onClick={() => setMode("cards")}
-          className={toggleClass(mode === "cards")}
-        >
-          选牌计算
-        </button>
-        <button
-          type="button"
-          aria-pressed={mode === "outs"}
-          onClick={() => setMode("outs")}
-          className={toggleClass(mode === "outs")}
-        >
-          Outs数速算
-        </button>
-      </div>
-      {onTieOutsChange && (
-        <MiniSwitch
-          label="平分牌算 outs"
-          checked={rule.tieOuts === "include"}
-          onChange={(checked) => onTieOutsChange(checked ? "include" : "exclude")}
-          className="ml-auto"
-        />
-      )}
       {/* Stays mounted, so looking at the other mode keeps the hand */}
       <div hidden={mode !== "cards"}>
         <InsuranceHandFlow

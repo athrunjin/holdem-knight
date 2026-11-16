@@ -4,6 +4,7 @@ import {
   type InsuranceRuleIssues,
   parseInsuranceRule,
   RULE_30,
+  type SavedInsuranceRule,
   toInsuranceRuleForm,
 } from "@holdem-knight/core";
 import { ChevronDown } from "lucide-react";
@@ -37,6 +38,12 @@ function settingsOf(form: InsuranceRuleForm) {
 const sameSettings = (a: InsuranceRule, b: InsuranceRule) =>
   JSON.stringify(settingsOf(toInsuranceRuleForm(a))) ===
   JSON.stringify(settingsOf(toInsuranceRuleForm(b)));
+
+/** The set a rule's settings belong to: the default, a saved one, or none of them. */
+export function configSourceOf(rule: InsuranceRule, saved: readonly SavedInsuranceRule[]): string {
+  if (sameSettings(rule, RULE_30)) return DEFAULT_RULE;
+  return saved.find((other) => sameSettings(other.rule, rule))?.id ?? CUSTOM_RULE;
+}
 
 export interface InsuranceChoice {
   readonly enabled: boolean;

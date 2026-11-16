@@ -5,16 +5,21 @@ import {
   type InsuranceRecord,
   insuranceRecords,
   ORGANIZER_PLAYER_ID,
+  parseInsuranceRule,
   summarizeByPlayer,
-  type TieOuts,
+  toInsuranceRuleForm,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { X } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   type BoughtInsurance,
   InsuranceCalculator,
+  type InsuranceMode,
 } from "@/components/insurance/InsuranceCalculator";
+import { InsuranceSetup, ModeTitle } from "@/components/insurance/InsuranceHeader";
 import { InsuranceRecords } from "@/components/insurance/InsuranceRecords";
+import { configSourceOf, type InsuranceChoice } from "@/components/insurance/InsuranceSettings";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import {
@@ -24,6 +29,7 @@ import {
   useEnterStack,
   useFinishInsuranceHand,
   useInsuranceHands,
+  useInsuranceRules,
   useSaveInsuranceHand,
   useSettleInsurance,
   useUndoInsurance,
@@ -59,6 +65,31 @@ function GameInsurance({ game }: { game: Game }) {
 
   const navigate = Route.useNavigate();
   const editable = status !== "settled";
+  const [mode, setMode] = useState<InsuranceMode>("cards");
+  const { data: savedRules = [] } = useInsuranceRules();
+  // The settings as changed on this page, shown at once while the game is being saved
+  const [edited, setEdited] = useState<Pick<InsuranceChoice, "source" | "form">>();
+  const choice: InsuranceChoice | undefined = insurance && {
+    enabled: true,
+    source: edited?.source ?? configSourceOf(insurance, savedRules),
+    form: edited?.form ?? toInsuranceRuleForm(insurance),
+  };
+  // One rule for as long as the settings read the same, so the hand is not priced again for nothing
+  const formKey = JSON.stringify(choice?.form);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the form counts by what it reads, not by which object it is
+  const rule = useMemo(() => {
+    const parsed = choice && parseInsuranceRule(choice.form);
+    return parsed?.ok ? parsed.rule : insurance;
+  }, [formKey, insurance]);
+
+  /** The settings here are the game's own, so a change is a change to the game. */
+  function setChoice(next: InsuranceChoice) {
+    setEdited({ source: next.source, form: next.form });
+    const parsed = parseInsuranceRule(next.form);
+    if (parsed.ok && JSON.stringify(next.form) !== JSON.stringify(choice?.form)) {
+      saveGame.mutate({ ...game, insurance: parsed.rule });
+    }
+  }
   const nameOf = gameNameOf(players, game);
   const ledger = summarizeByPlayer(events);
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
@@ -108,16 +139,6 @@ function GameInsurance({ game }: { game: Game }) {
     return true;
   }
 
-  /** The switch here is the game's own setting, so flipping it changes the rest of the game. */
-  function handleTieOuts(tieOuts: TieOuts) {
-    if (!insurance) return;
-    const message =
-      tieOuts === "include"
-        ? "这局设置的是平分牌不算 outs。开启后会修改本局设置，之后的保险都把平分牌算作 outs。继续？"
-        : "这局设置的是平分牌算 outs。关闭后会修改本局设置，之后的保险不再把平分牌算作 outs。继续？";
-    if (window.confirm(message)) saveGame.mutate({ ...game, insurance: { ...insurance, tieOuts } });
-  }
-
   function handleSettle(record: InsuranceRecord, hit: boolean) {
     if (handChips !== undefined) settleInsurance.mutate({ record, hit, handChips });
   }
@@ -142,8 +163,9 @@ function GameInsurance({ game }: { game: Game }) {
 
   return (
     <Page
-      title="保险"
-      titleNote={
+      // A game being played has the calculator, and so its two ways of working as the title
+      title={choice && editable ? <ModeTitle mode={mode} onChange={setMode} /> : "保险"}
+      subtitle={
         seat && (
           <p className="text-sm text-muted">
             保险筹码 {chipText(seat.stackChips)} · 盈亏 {formatSignedChips(seat.netChips)}
@@ -154,10 +176,10 @@ function GameInsurance({ game }: { game: Game }) {
         <Link
           to="/games/$gameId"
           params={{ gameId }}
-          className="inline-flex min-h-11 shrink-0 items-center gap-1 text-highlight"
+          aria-label="返回牌局"
+          className="-mr-2 grid size-11 shrink-0 place-items-center text-highlight"
         >
-          <ArrowLeft className="size-5" strokeWidth={1.75} aria-hidden />
-          返回牌局
+          <X className="size-6" strokeWidth={1.75} aria-hidden />
         </Link>
       }
     >
@@ -165,10 +187,12 @@ function GameInsurance({ game }: { game: Game }) {
       <div className="pb-11">
         {!insurance && <p className="text-muted">这局没有开启保险，可以在设置里开启。</p>}
 
+        {choice && editable && <InsuranceSetup value={choice} onChange={setChoice} />}
+
         {insurance && editable && hands && (
           <InsuranceCalculator
-            rule={insurance}
-            onTieOutsChange={handleTieOuts}
+            mode={mode}
+            rule={rule ?? insurance}
             seats={seats}
             saving={buyInsurance.isPending}
             recorder={{

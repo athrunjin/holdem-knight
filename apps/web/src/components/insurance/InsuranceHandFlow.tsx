@@ -213,8 +213,8 @@ function DeadMoney({ chips, onEdit }: { chips: number; onEdit: (() => void) | un
 
 /**
  * A section's name, a little larger than the text, in the middle of the page with a line at
- * either side on its own middle, each fading out toward the edge. Its arrow, at the right edge,
- * puts the section back as it started.
+ * either side on its own middle, each fading out toward the edge. Its arrow, right after the
+ * name, puts the section back as it started.
  */
 function SectionTitle({
   id,
@@ -227,23 +227,26 @@ function SectionTitle({
   reset?: { readonly label: string; readonly onReset: () => void } | undefined;
 }) {
   return (
-    // The arrow sits over the line's faded end, so the two lines stay the same length
-    <div className="relative mb-2 flex min-h-11 items-center gap-3">
+    // A place the arrow's width at either side of the name, so the name stays in the middle
+    <div className="mb-2 flex min-h-11 items-center">
       <span aria-hidden className="h-px flex-1 bg-linear-to-r from-transparent to-line" />
+      <span aria-hidden className="w-9 shrink-0" />
       <h2 id={id} className="text-lg font-semibold">
         {title}
       </h2>
-      <span aria-hidden className="h-px flex-1 bg-linear-to-l from-transparent to-line" />
-      {reset && (
+      {reset ? (
         <button
           type="button"
           aria-label={reset.label}
           onClick={reset.onReset}
-          className="absolute top-0 -right-2 grid size-11 place-items-center text-muted"
+          className="grid h-11 w-9 shrink-0 place-items-center text-muted"
         >
-          <RotateCcw className="size-5" strokeWidth={1.75} aria-hidden />
+          <RotateCcw className="size-4.5" strokeWidth={1.75} aria-hidden />
         </button>
+      ) : (
+        <span aria-hidden className="w-9 shrink-0" />
       )}
+      <span aria-hidden className="h-px flex-1 bg-linear-to-l from-transparent to-line" />
     </div>
   );
 }
