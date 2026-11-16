@@ -1019,7 +1019,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The player library keeps its title at the left like the other tabs, not centered as on 选择玩家.
   - The picker and the library share the search field, the heading and the grouped list (`components/players/PlayerList.tsx`).
 - Decision: do. Checked in the browser preview in dark mode at 360, 412 and 440px; not yet tried on a phone.
-- Tracking: no PR yet
+- Tracking: PR #86
 
 ### #I-053 Call Time: a countdown from the tools and from a game, which floats over the other pages
 
@@ -1042,7 +1042,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The screen is kept on while a countdown is under way, where the browser allows it.
   - The rules are in `packages/core/src/call-time`. There is no sound.
 - Decision: do. Checked in the browser preview in dark mode at 360 and 412px; not yet tried on a phone, where the buzz, the screen staying on and typing a length with the phone's keyboard still need a look.
-- Tracking: no PR yet
+- Tracking: PR #86
 
 ## Not doing or deferred
 
