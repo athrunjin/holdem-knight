@@ -136,9 +136,18 @@ function Bar({ parts, total }: { parts: readonly PotShare[]; total: number }) {
   );
 }
 
+/** What a cover does to the pot share it insures, each as a part of that share from 0 to 1. */
+export interface CoverShares {
+  /** The premium paid for it */
+  readonly premium: number;
+  /** What a hit still leaves once the premium is paid */
+  readonly kept: number;
+}
+
 /**
- * The parts as a ring. With `cover` it gains an inner track, lit for that share of the way round,
- * and whatever is passed as children sits in the middle.
+ * The parts as a ring. With `cover` it gains an inner track: from the top, the premium in dark
+ * red, then what a hit still leaves in a clear light green, both cut square at their ends.
+ * Whatever is passed as children sits in the middle.
  */
 export function PotRing({
   parts,
@@ -148,15 +157,18 @@ export function PotRing({
 }: {
   parts: readonly PotShare[];
   total: number;
-  /** How much of the inner track is lit, from 0 to 1. Missing leaves the ring without one. */
-  cover?: number | undefined;
+  /** Missing leaves the ring without an inner track. All zero draws the track empty. */
+  cover?: CoverShares | undefined;
   children?: ReactNode;
 }) {
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
   const innerRadius = 30;
   const innerCircumference = 2 * Math.PI * innerRadius;
-  const lit = Math.min(1, Math.max(0, cover ?? 0)) * innerCircumference;
+  const part = (share: number) => Math.min(1, Math.max(0, share));
+  // The two never pass a full turn between them
+  const premium = part(cover?.premium ?? 0) * innerCircumference;
+  const kept = Math.min(part(cover?.kept ?? 0) * innerCircumference, innerCircumference - premium);
   let start = 0;
   return (
     <div className="relative size-28 shrink-0">
@@ -190,16 +202,31 @@ export function PotRing({
               strokeWidth="5"
               className="stroke-line"
             />
-            <circle
-              cx="50"
-              cy="50"
-              r={innerRadius}
-              fill="none"
-              strokeWidth="5"
-              strokeLinecap="round"
-              strokeDasharray={`${lit} ${innerCircumference}`}
-              className={cn("stroke-highlight transition-all", lit === 0 && "opacity-0")}
-            />
+            {/* No round caps: an arc ends where its share ends */}
+            {premium > 0 && (
+              <circle
+                cx="50"
+                cy="50"
+                r={innerRadius}
+                fill="none"
+                strokeWidth="5"
+                strokeDasharray={`${premium} ${innerCircumference - premium}`}
+                // The loss color taken darker, so the premium reads as dark red on the dark page
+                className="stroke-[color-mix(in_srgb,var(--loss)_60%,black)]"
+              />
+            )}
+            {kept > 0 && (
+              <circle
+                cx="50"
+                cy="50"
+                r={innerRadius}
+                fill="none"
+                strokeWidth="5"
+                strokeDasharray={`${kept} ${innerCircumference - kept}`}
+                strokeDashoffset={-premium}
+                className="stroke-win/60"
+              />
+            )}
           </>
         )}
       </svg>

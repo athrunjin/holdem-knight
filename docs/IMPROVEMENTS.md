@@ -1112,8 +1112,30 @@ Records discussions of feature and process improvements: what was proposed, how 
   - A column can now be taller than its pot's share of the scale, and taller than the largest pot's 180px with enough players: nine players in one pot draw at 238px.
   - The parts are a list for a screen reader, named after the pot.
   - A component test draws both reported hands and checks that a column has a least height and no fixed one, and that its parts account for every chip of the pot.
-  - How dead money is shared between the pots was looked at and left as it is: each line of the dead money dialog is taken as one folded player's chips, layered over the pots like a player's. Whether a single line should go to the main pot instead is an open question for the organizer.
+  - How dead money is shared between the pots was looked at and left as it is, by the rules of the game: each line of the dead money dialog is taken as one folded player's chips, layered over the pots like a player's.
 - Decision: do. Checked in the browser preview in dark mode at 360 and 412px with seven hands: the two reported, three pots, tied leaders, a cover, nine players, and five-digit chips at 360px. Each was checked by script for parts inside their column and sums equal to the pot.
+- Tracking: PR #86
+
+### #I-057 No payout above the pot, a cover picked on arrival, and a plainer cover table and ring
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-17
+- Source: discussion
+- Problem: 满池 was priced so that a hit left the whole pot share after the premium, which made its payout the share plus the premium, more than the pot. The insurance block opened with nothing picked, the custom premium sat in a dark box of its own, and the ring's inner track showed only how much a hit would leave, in gold with round ends.
+- Proposal:
+  - No cover pays more than the pot share it insures. 满池 is the largest whole premium whose payout, any refunded premium included, is no more than the share: on a pot of 1,000 at 3.5, a premium of 285 pays 997, where 286 would pay 1,001. With chips being whole the payout can fall a little short of the pot and is never above it.
+  - The same holds for every cover and for a custom premium. A cover that would need a larger premium, such as 保本 at low odds, is held at that premium and marked 已到上限 as it is by the rule's own limit.
+  - A pot share so small that one chip of premium would already pay more than it has no insurance: 「底池太小，1 个筹码的保费赔付就超过底池，不能投保」.
+  - 保本 is picked when the insurance shows, so the block opens on a price. Nothing was picked before.
+  - The custom row's premium has no box: the row's background, and a dash like the cells after it until something is typed. A tap on the row selects it for typing in place, with no dialog. Only whole chips from 1 to the most on sale can be typed; a larger number stops at the most, and a line under the row says the range.
+  - The ring's inner track starts at the top with the premium's part of the pot share in dark red, then what a hit still leaves in a clear light green. Both end cut square, not rounded. The word in the middle is the cover picked, 保本, 半池, 满池 or 自定义, over the share a hit leaves.
+  - The plus under 池内玩家 is a small ring in the middle of the page, not a line across it.
+- Settled details:
+  - The cap is the buyer's share of the pot, which is the whole pot for a lone leader and their part of it for tied leaders who may insure.
+  - 中了到手 for 满池 is now the pot share less the premium, where it was the pot share.
+  - How dead money is shared between the pots stays as it is, by the rules of the game: each line is one folded player's chips. Only what was drawn wrong was changed in #I-056.
+  - The dark red is the loss color taken darker, and the green is the win color at part strength, so no new color is added.
+- Decision: do. Checked in the browser preview in dark mode at 412px: the three covers and their payouts, the custom premium typed and stopped at the most, the ring for 保本, 满池 and 自定义, and the plus. Not yet tried on a phone.
 - Tracking: PR #86
 
 ## Not doing or deferred

@@ -13,6 +13,7 @@ import { useId, useState } from "react";
 import { formatCardText } from "@/lib/cards";
 import { formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
+import { selectOnFocus } from "@/lib/number-input";
 import type { Decisions } from "./LeaderQuote";
 import { PotLegend, PotRing, type PotShare } from "./PotShares";
 import { DecisionBar, QuotePanel } from "./QuotePanel";
@@ -163,7 +164,8 @@ function Block({
 }: PotCoverProps) {
   const quote = quoteInsurance(input);
   const customId = useId();
-  const [choice, setChoice] = useState<Choice>();
+  // The stake cover is picked on arrival, so the block opens on a price and not on a blank
+  const [choice, setChoice] = useState<Choice>("stake");
   const [customText, setCustomText] = useState("");
 
   const header = (
@@ -202,11 +204,14 @@ function Block({
   const picked: Choice | undefined = bought ? (boughtRow?.id ?? "custom") : choice;
   const shown = locked && !bought ? undefined : picked;
 
+  // Typed premiums are held within what is on sale, so a custom one is priced as soon as it is typed
   const customPremium = bought && !boughtRow ? bought.premiumChips : (parseChips(customText) ?? 0);
-  const tooHigh = customPremium > maxPremiumChips;
   const customOption =
-    customPremium > 0 && !tooHigh ? priceOption(input, oddsHundredths, customPremium) : undefined;
+    customPremium > 0 && customPremium <= maxPremiumChips
+      ? priceOption(input, oddsHundredths, customPremium)
+      : undefined;
   const chosen = shown === "custom" ? customOption : standard.find((r) => r.id === shown)?.option;
+  const chosenLabel = shown === "custom" ? "自定义" : standard.find((r) => r.id === shown)?.label;
 
   return (
     <section aria-label={`${label}保险`} className={sectionClass}>
@@ -215,11 +220,14 @@ function Block({
         <PotRing
           parts={parts}
           total={input.potChips}
-          cover={chosen ? chosen.ifHitChips / input.shareChips : 0}
+          cover={{
+            premium: chosen ? chosen.premiumChips / input.shareChips : 0,
+            kept: chosen ? chosen.ifHitChips / input.shareChips : 0,
+          }}
         >
           {chosen && (
             <>
-              <span className="text-[10px] leading-none text-muted">保住</span>
+              <span className="text-[10px] leading-none text-muted">{chosenLabel}</span>
               <span className="text-[13px] leading-tight font-semibold tabular-nums">
                 {Math.round((chosen.ifHitChips / input.shareChips) * 100)}%
               </span>
@@ -270,19 +278,29 @@ function Block({
           )}
         >
           <span className="text-left font-medium">自定义</span>
+          {/* No box of its own: a dash like the cells after it until a premium is typed */}
           <input
             id={customId}
             type="text"
             inputMode="numeric"
             autoComplete="off"
-            placeholder="保费"
-            aria-label="自定义保费"
+            enterKeyHint="done"
+            placeholder="—"
+            aria-label={`自定义保费，1 到 ${maxPremiumChips} 的整数`}
             value={bought && !boughtRow ? String(bought.premiumChips) : customText}
-            onFocus={() => setChoice("custom")}
-            onChange={(event) =>
-              setCustomText(event.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, ""))
-            }
-            className="h-9 w-full min-w-0 rounded-md border border-line bg-bg px-1 text-right text-base font-semibold text-highlight tabular-nums outline-none placeholder:text-sm placeholder:font-normal placeholder:text-muted focus:border-highlight"
+            onFocus={(event) => {
+              setChoice("custom");
+              selectOnFocus(event.currentTarget);
+            }}
+            onChange={(event) => {
+              const digits = event.target.value.replace(/\D/g, "").replace(/^0+/, "");
+              // Whole chips from 1 up to the most on sale: a larger number stops at that
+              setCustomText(digits === "" ? "" : String(Math.min(Number(digits), maxPremiumChips)));
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+            }}
+            className="h-9 w-full min-w-0 bg-transparent text-right font-semibold text-highlight tabular-nums outline-none placeholder:font-normal placeholder:text-text"
           />
           <span>{customOption ? chipText(customOption.payoutChips) : "—"}</span>
           <Result
@@ -302,9 +320,9 @@ function Block({
             }
           />
         </label>
-        {shown === "custom" && tooHigh && (
-          <p role="alert" className="px-2 text-sm text-highlight">
-            保费最多 {chipText(maxPremiumChips)}，也就是满池。
+        {shown === "custom" && !locked && (
+          <p className="px-2 text-xs text-muted">
+            保费填 1 到 {chipText(maxPremiumChips)} 的整数，{chipText(maxPremiumChips)} 即满池。
           </p>
         )}
       </fieldset>

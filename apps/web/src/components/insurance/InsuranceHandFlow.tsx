@@ -619,17 +619,20 @@ export function InsuranceHandFlow({
               })}
             </ul>
             {editable && (
+              // A small ring in the middle of the page, with a 44px place to tap around it
               <button
                 type="button"
                 aria-label="添加玩家"
                 onClick={addPlayer}
-                className="mt-2 grid min-h-11 w-full place-items-center rounded-xl border border-dashed border-line text-highlight"
+                className="mx-auto mt-1 grid size-11 place-items-center text-highlight"
               >
-                <Plus className="size-5" aria-hidden />
+                <span className="grid size-7 place-items-center rounded-full border border-line">
+                  <Plus className="size-4" aria-hidden />
+                </span>
               </button>
             )}
             {notice && (
-              <p role="status" className="mt-1 text-sm text-muted">
+              <p role="status" className="mt-1 text-center text-sm text-muted">
                 {notice}
               </p>
             )}

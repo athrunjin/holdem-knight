@@ -7,6 +7,7 @@ import {
   payoutFor,
   premiumFor,
   premiumForNet,
+  premiumWithin,
   priceOption,
   type QuoteInput,
   quoteInsurance,
@@ -33,19 +34,39 @@ const input = (overrides: Partial<QuoteInput> = {}): QuoteInput => ({
 });
 
 describe("quoteInsurance", () => {
-  it("prices both covers so a hit leaves the stake or the pot share", () => {
+  it("prices the stake cover to leave the stake, and the full pot to pay the pot share", () => {
     const quote = quoteInsurance(input());
     if (!quote.ok) throw new Error("Expected a quote");
     expect(quote.oddsHundredths).toBe(350);
     expect(quote.stake).toMatchObject({ premiumChips: 200, payoutChips: 700, ifHitChips: 500 });
+    // 285 pays 997. One chip more would pay 1,001, which is more than the pot of 1,000.
     expect(quote.fullPot).toEqual({
-      premiumChips: 400,
-      payoutChips: 1400,
-      ifHitChips: 1000,
-      ifMissChips: 600,
+      premiumChips: 285,
+      payoutChips: 997,
+      ifHitChips: 712,
+      ifMissChips: 715,
       capped: false,
     });
-    expect(quote.maxPremiumChips).toBe(400);
+    expect(quote.maxPremiumChips).toBe(285);
+  });
+
+  it("holds a cover that would pay more than the pot at the pot", () => {
+    // At 1.4 the stake cover asks for 1,250, which would pay 1,750 on a pot of 1,000
+    const quote = quoteInsurance(input({ outs: 15 }));
+    if (!quote.ok) throw new Error("Expected a quote");
+    expect(quote.oddsHundredths).toBe(140);
+    expect(quote.maxPremiumChips).toBe(714);
+    expect(quote.stake).toMatchObject({ premiumChips: 714, payoutChips: 999, capped: true });
+    expect(quote.fullPot).toMatchObject({ premiumChips: 714, payoutChips: 999, capped: false });
+  });
+
+  it("refuses a pot so small that one chip of premium pays more than it", () => {
+    // One out pays 30, so a single chip of premium already pays more than a share of 29
+    expect(
+      quoteInsurance(input({ outs: 1, potChips: 29, shareChips: 29, stakeChips: 14 })),
+    ).toEqual({ ok: false, block: "pot-too-small" });
+    const least = quoteInsurance(input({ outs: 1, potChips: 30, shareChips: 30, stakeChips: 15 }));
+    expect(least.ok && least.fullPot).toMatchObject({ premiumChips: 1, payoutChips: 30 });
   });
 
   it("adds a half-pot cover only when it differs from the stake", () => {
@@ -62,18 +83,19 @@ describe("quoteInsurance", () => {
     const rule = { ...RULE_30, refundPremium: true };
     const quote = quoteInsurance(input({ rule }));
     if (!quote.ok) throw new Error("Expected a quote");
-    expect(quote.fullPot.payoutChips).toBe(1287);
-    expect(quote.fullPot.ifHitChips).toBe(1001);
+    // The refunded premium is part of the payout: 222 pays 777 and comes back, 999 in all
+    expect(quote.fullPot).toMatchObject({ premiumChips: 222, payoutChips: 999, ifHitChips: 777 });
     expect(quote.stake).toMatchObject({ premiumChips: 143, ifHitChips: 500 });
-    expect(quote.maxPremiumChips).toBe(286);
+    expect(quote.maxPremiumChips).toBe(222);
   });
 
   it("holds covers at the street's limit as a share of the pot", () => {
-    const rule: InsuranceRule = { ...RULE_30, riverCoverLimit: 75 };
+    const rule: InsuranceRule = { ...RULE_30, riverCoverLimit: 60 };
     const quote = quoteInsurance(input({ rule }));
     if (!quote.ok) throw new Error("Expected a quote");
-    expect(quote.maxPremiumChips).toBe(300);
-    expect(quote.fullPot).toMatchObject({ premiumChips: 300, ifHitChips: 750, capped: true });
+    // A hit may leave 600 at most, which 240 does. The pot alone would allow 285.
+    expect(quote.maxPremiumChips).toBe(240);
+    expect(quote.fullPot).toMatchObject({ premiumChips: 240, ifHitChips: 600, capped: true });
     expect(quote.stake).toMatchObject({ premiumChips: 200, capped: false });
     const turn = quoteInsurance(input({ rule, street: "turn" }));
     if (!turn.ok) throw new Error("Expected a quote");
@@ -87,6 +109,68 @@ describe("quoteInsurance", () => {
     expect(quote.maxPremiumChips).toBe(200);
     expect(quote.fullPot).toMatchObject({ premiumChips: 200, ifHitChips: 500, capped: true });
     expect(quote.stake.capped).toBe(false);
+  });
+
+  it("never pays more than the pot share, whatever the cover, the odds or the rule", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 1_000_000 }),
+        fc.integer({ min: 1, max: 15 }),
+        fc.boolean(),
+        fc.constantFrom(undefined, "stake" as const, 25, 50, 99),
+        fc.double({ min: 0.01, max: 1, noNaN: true }),
+        (shareChips, outs, refundPremium, limit, stakePart) => {
+          const rule: InsuranceRule = {
+            ...RULE_30,
+            refundPremium,
+            ...(limit !== undefined && { riverCoverLimit: limit }),
+          };
+          const stakeChips = Math.max(1, Math.floor(shareChips * stakePart));
+          const quote = quoteInsurance(
+            input({ rule, outs, potChips: shareChips, shareChips, stakeChips }),
+          );
+          const odds = RULE_30.oddsHundredths[outs - 1] ?? 0;
+          if (!quote.ok) {
+            // Refused only when a single chip of premium would pay more than the share
+            expect(quote.block).toBe("pot-too-small");
+            expect(payoutFor(1, odds, refundPremium)).toBeGreaterThan(shareChips);
+            return;
+          }
+          const options = [quote.stake, quote.fullPot, ...(quote.halfPot ? [quote.halfPot] : [])];
+          for (const option of options) {
+            expect(option.premiumChips).toBeGreaterThanOrEqual(1);
+            expect(option.premiumChips).toBeLessThanOrEqual(quote.maxPremiumChips);
+            expect(option.payoutChips).toBeLessThanOrEqual(shareChips);
+          }
+          // The highest premium on sale pays no more than the share either, for a custom premium
+          expect(payoutFor(quote.maxPremiumChips, odds, refundPremium)).toBeLessThanOrEqual(
+            shareChips,
+          );
+          // With no limit from the rule, the full pot is as near the share as whole chips allow
+          if (limit === undefined) {
+            expect(payoutFor(quote.fullPot.premiumChips + 1, odds, refundPremium)).toBeGreaterThan(
+              shareChips,
+            );
+          }
+        },
+      ),
+    );
+  });
+
+  it("finds the largest premium whose payout stays within a cap", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 1_000_000 }),
+        fc.integer({ min: 1, max: 5000 }),
+        fc.boolean(),
+        (cap, odds, refundPremium) => {
+          const premium = premiumWithin(cap, odds, refundPremium);
+          expect(premium).toBeGreaterThanOrEqual(0);
+          if (premium > 0) expect(payoutFor(premium, odds, refundPremium)).toBeLessThanOrEqual(cap);
+          expect(payoutFor(premium + 1, odds, refundPremium)).toBeGreaterThan(cap);
+        },
+      ),
+    );
   });
 
   it.each([

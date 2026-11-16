@@ -16,6 +16,7 @@ const BLOCK_TEXT: Record<QuoteBlock, string> = {
   "tied-lead": "并列领先，不能投保",
   "no-outs": "没有反超牌，不需要保险",
   "too-many-outs": "outs 超出赔率表，不能投保",
+  "pot-too-small": "底池太小，1 个筹码的保费赔付就超过底池，不能投保",
 };
 
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
