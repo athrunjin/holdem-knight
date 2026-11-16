@@ -44,7 +44,7 @@ function parseSettings(stored: unknown): ToolSettings | undefined {
   if (typeof stored !== "object" || stored === null) return undefined;
   const { source, form } = stored as Partial<ToolSettings>;
   if (typeof source !== "string" || typeof form !== "object" || form === null) return undefined;
-  const { odds, tieOuts, refundPremium, turnLimit, riverLimit } = form;
+  const { odds, tieOuts, refundPremium, turnLimit, riverLimit, oddsTableId } = form;
   if (
     !Array.isArray(odds) ||
     !odds.every((value) => typeof value === "string") ||
@@ -55,7 +55,15 @@ function parseSettings(stored: unknown): ToolSettings | undefined {
   ) {
     return undefined;
   }
-  const kept = { odds, tieOuts, refundPremium, turnLimit, riverLimit };
+  const kept = {
+    odds,
+    tieOuts,
+    refundPremium,
+    turnLimit,
+    riverLimit,
+    // The table the odds are from, so one of two tables with the same odds keeps its name
+    ...(typeof oddsTableId === "string" && { oddsTableId }),
+  };
   return parseInsuranceRule(kept).ok ? { source, form: kept } : undefined;
 }
 

@@ -3,6 +3,7 @@ import {
   INSURANCE_PLAYER_ID,
   type InsuranceHand,
   type InsuranceRecord,
+  type InsuranceRuleForm,
   insuranceRecords,
   ORGANIZER_PLAYER_ID,
   parseInsuranceRule,
@@ -89,7 +90,10 @@ function GameInsurance({ game }: { game: Game }) {
   function setChoice(next: InsuranceChoice) {
     const parsed = parseInsuranceRule(next.form);
     const changed = JSON.stringify(next.form) !== JSON.stringify(choice?.form);
-    if (changed && !window.confirm("这个修改会应用到本局，之后的保险都按新设置计算。继续？")) {
+    // Which of two tables with the same odds is named changes no price, so it is kept unasked
+    const terms = ({ oddsTableId: _, ...rest }: InsuranceRuleForm) => JSON.stringify(rest);
+    const repriced = choice === undefined || terms(next.form) !== terms(choice.form);
+    if (repriced && !window.confirm("这个修改会应用到本局，之后的保险都按新设置计算。继续？")) {
       return;
     }
     setEdited({ source: next.source, form: next.form });

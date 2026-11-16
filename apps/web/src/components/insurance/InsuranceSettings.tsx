@@ -6,6 +6,7 @@ import {
   RULE_30,
   type SavedInsuranceRule,
   toInsuranceRuleForm,
+  withOdds,
 } from "@holdem-knight/core";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
@@ -29,9 +30,9 @@ const DEFAULT_RULE = "default";
 const CUSTOM_RULE = "custom";
 export const CUSTOM_NAME = "自定义";
 
-/** Everything in a rule but its odds, which the odds table sets on its own. */
+/** Everything in a rule but its odds and the table they are from, which the odds table sets on its own. */
 function settingsOf(form: InsuranceRuleForm) {
-  const { odds: _, ...settings } = form;
+  const { odds: _, oddsTableId: __, ...settings } = form;
   return settings;
 }
 
@@ -92,8 +93,11 @@ export function useInsuranceConfigs({ value, lastRule, lastRuleLabel, onChange }
 
   function choose(id: string) {
     const rule = rules.find((r) => r.id === id)?.rule;
-    if (rule)
-      onChange({ ...value, source: id, form: { ...toInsuranceRuleForm(rule), odds: form.odds } });
+    // The odds stay as they are, with the table they came from
+    if (rule) {
+      const next = withOdds(toInsuranceRuleForm(rule), form.odds, form.oddsTableId);
+      onChange({ ...value, source: id, form: next });
+    }
   }
 
   return { saved, rules, selectedId, selectedName, choose };
@@ -251,8 +255,11 @@ export function InsuranceSettings({
           {!bare && (
             <OddsTableEditor
               odds={form.odds}
+              tableId={form.oddsTableId}
               // The odds are apart from the settings, so the settings keep their name
-              onApply={(odds) => onChange({ ...value, form: { ...form, odds } })}
+              onApply={(odds, tableId) =>
+                onChange({ ...value, form: withOdds(form, odds, tableId) })
+              }
             />
           )}
         </>

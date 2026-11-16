@@ -54,6 +54,11 @@ export interface InsuranceRule {
   readonly turnCoverLimit?: CoverLimit;
   /** Cover limit for the river card. Missing means the full pot share. */
   readonly riverCoverLimit?: CoverLimit;
+  /**
+   * The odds table the odds were taken from, built in or saved. It names the table where another
+   * has the same odds, and counts only while that table still has these odds.
+   */
+  readonly oddsTableId?: string;
 }
 
 /** A table fee or wage setup kept under a name, to fill a new game's settings quickly. */
@@ -130,6 +135,8 @@ export interface InsuranceHand {
   readonly players: readonly InsuranceHandPlayer[];
   /** Dead money, one amount per pool. */
   readonly pools: readonly number[];
+  /** True while the dead money is the amount a hand starts with, which the organizer has not set. */
+  readonly presetPools?: boolean;
   readonly board: readonly number[];
   readonly purchases: readonly InsuranceHandPurchase[];
   /** Offers the organizer turned down. */

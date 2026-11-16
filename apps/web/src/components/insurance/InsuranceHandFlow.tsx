@@ -78,6 +78,16 @@ const seatedPlayer = ({ id, chips = 0 }: InsuranceSeat): InsuranceHandPlayer => 
 /** A hand needs two players, and starts with two. */
 const MIN_PLAYERS = 2;
 
+/** Dead money a hand starts with, wherever it is opened from, until the organizer sets it. */
+const PRESET_DEAD_CHIPS = 1000;
+
+/** The hand with the dead money it starts with, marked as not yet set. */
+const withPresetPools = (hand: InsuranceHand): InsuranceHand => ({
+  ...hand,
+  pools: [PRESET_DEAD_CHIPS],
+  presetPools: true,
+});
+
 /** The first players of the table who are not in the hand yet, in the table's order. */
 function nextPlayers(
   players: readonly InsuranceHandPlayer[],
@@ -182,24 +192,31 @@ function ChipStack({ lit }: { lit: boolean }) {
 }
 
 /**
- * Dead money, framed like a street of the board: the chip stack with its name underneath. It
- * lights up once there is some, and the name gives the amount.
+ * Dead money, framed like a street of the board: the chip stack with its name and amount
+ * underneath. The amount a hand starts with is framed in dashed light green until the organizer
+ * sets it, and from then on like the flop.
  */
-function DeadMoney({ chips, onEdit }: { chips: number; onEdit: (() => void) | undefined }) {
-  const lit = chips > 0;
+function DeadMoney({
+  chips,
+  preset,
+  onEdit,
+}: {
+  chips: number;
+  /** Still the amount a hand starts with */
+  preset: boolean;
+  onEdit: (() => void) | undefined;
+}) {
   const className = cn(
     "flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 px-2 pt-2 pb-1",
-    lit
-      ? "border-highlight bg-highlight/10 text-highlight"
-      : "border-dashed border-line text-muted",
+    preset ? "border-dashed border-win/50 text-win" : "border-line bg-surface",
   );
   const content = (
     <>
       <span className="grid h-11 place-items-center">
-        <ChipStack lit={lit} />
+        <ChipStack lit={chips > 0} />
       </span>
-      <span className="text-xs whitespace-nowrap tabular-nums">
-        {lit ? `死钱 ${chipText(chips)}` : "死钱"}
+      <span className={cn("text-xs whitespace-nowrap tabular-nums", !preset && "text-muted")}>
+        {chips > 0 ? `死钱 ${chipText(chips)}` : "死钱"}
       </span>
     </>
   );
@@ -330,7 +347,8 @@ export function InsuranceHandFlow({
   store,
   seat,
 }: InsuranceHandFlowProps) {
-  const [kept, setHand] = useState(() => open ?? createHand());
+  // A hand carried on from keeps its own dead money; a new one starts with the preset
+  const [kept, setHand] = useState(() => open ?? withPresetPools(createHand()));
   const [pickingCards, setPickingCards] = useState<{ playerId: string; replace?: number }>();
   const [editingDead, setEditingDead] = useState(false);
   const [pickingStreet, setPickingStreet] = useState<"flop" | "turn">();
@@ -364,7 +382,10 @@ export function InsuranceHandFlow({
   // While buying, a lone pot is drawn in its own insurance block, so the overview would repeat it
   const overview = complete && (breakdown.length > 1 || offers.length === 0);
   // Something has been entered, so there is a hand to give up
-  const started = kept.players.length > 0 || kept.board.length > 0 || kept.pools.length > 0;
+  const started =
+    kept.players.length > 0 ||
+    kept.board.length > 0 ||
+    (kept.pools.length > 0 && !kept.presetPools);
 
   function update(next: InsuranceHand) {
     setHand(next);
@@ -373,7 +394,7 @@ export function InsuranceHandFlow({
   }
 
   function reset() {
-    setHand(createHand());
+    setHand(withPresetPools(createHand()));
     setPickingCards(undefined);
     setNotice(undefined);
   }
@@ -491,14 +512,14 @@ export function InsuranceHandFlow({
         <>
           <section aria-labelledby="hand-pot-title" className="mt-1">
             <SectionTitle id="hand-pot-title" title="底池信息" />
-            {/* The arrow sits in the corner the centered line leaves free, so nothing else moves */}
+            {/* The arrow sits by the edge of the page, between the title's line and the flop, so nothing else moves */}
             <div className="relative flex flex-wrap items-stretch justify-center gap-1.5">
               {editable && (
                 <button
                   type="button"
                   aria-label="清空底池信息"
-                  onClick={() => update({ ...hand, board: [], pools: [], declined: [] })}
-                  className="absolute -top-1 -left-2 grid size-9 place-items-center text-muted"
+                  onClick={() => update(withPresetPools({ ...hand, board: [], declined: [] }))}
+                  className="absolute -top-9 -left-2 grid size-9 place-items-center text-muted"
                 >
                   <RotateCcw className="size-4" strokeWidth={1.75} aria-hidden />
                 </button>
@@ -523,6 +544,7 @@ export function InsuranceHandFlow({
               <span aria-hidden className="mx-1 w-px self-stretch bg-line" />
               <DeadMoney
                 chips={totals.deadChips}
+                preset={hand.presetPools === true}
                 onEdit={editable ? () => setEditingDead(true) : undefined}
               />
             </div>
@@ -703,7 +725,8 @@ export function InsuranceHandFlow({
         <DeadMoneyDialog
           pools={hand.pools.map(String)}
           onConfirm={(next) => {
-            update({ ...hand, pools: next.map(Number), declined: [] });
+            // Confirmed in the dialog, the amount is the organizer's own, even left as it was
+            update({ ...hand, pools: next.map(Number), presetPools: false, declined: [] });
             setEditingDead(false);
           }}
           onCancel={() => setEditingDead(false)}

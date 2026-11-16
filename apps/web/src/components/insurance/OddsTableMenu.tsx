@@ -1,9 +1,14 @@
-import { BUILT_IN_RULES, formatOdds, parseOdds } from "@holdem-knight/core";
+import {
+  BUILT_IN_RULES,
+  formatOdds,
+  type OddsTableRef,
+  oddsTableInUse,
+  parseOdds,
+} from "@holdem-knight/core";
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { TextMenu } from "@/components/TextMenu";
 import { useOddsTables, useRemoveOddsTable } from "@/data/insurance";
-import { sameOdds } from "./OddsGrid";
 import { OddsTableDialog, type OddsTableSubject } from "./OddsTableDialog";
 
 /** Stands for odds that are no table on offer. */
@@ -12,7 +17,10 @@ const CUSTOM_TABLE = "custom";
 interface OddsTableMenuProps {
   /** The odds in use */
   odds: readonly string[];
-  onApply: (odds: readonly string[]) => void;
+  /** The table those odds were taken from, which names it where another holds the same odds */
+  tableId: string | undefined;
+  /** Called with a table's odds and the table they are from */
+  onApply: (odds: readonly string[], tableId: string) => void;
   /** Which edge of the line the list hangs from */
   align?: "left" | "right";
   className?: string;
@@ -24,17 +32,17 @@ interface OddsTableMenuProps {
  * in has an eye where the bin would be, and a plus under the tables makes a new one. Odds that
  * are no table on offer read 自定义.
  */
-export function OddsTableMenu({ odds, onApply, align, className }: OddsTableMenuProps) {
+export function OddsTableMenu({ odds, tableId, onApply, align, className }: OddsTableMenuProps) {
   const { data: saved = [] } = useOddsTables();
   const removeTable = useRemoveOddsTable();
   // The odds table being made, edited or looked at
   const [subject, setSubject] = useState<OddsTableSubject>();
 
-  const current = odds.map(parseOdds);
-  const inUse = (oddsHundredths: readonly number[]) => sameOdds(oddsHundredths, current);
-  const apply = (oddsHundredths: readonly number[]) => onApply(oddsHundredths.map(formatOdds));
+  const apply = ({ id, oddsHundredths }: OddsTableRef) =>
+    onApply(oddsHundredths.map(formatOdds), id);
   const tables = [...BUILT_IN_RULES.map(({ id, name, rule }) => ({ id, name, ...rule })), ...saved];
-  const selected = tables.find(({ oddsHundredths }) => inUse(oddsHundredths));
+  // By the table the odds came from, not by the odds alone: two tables can hold the same odds
+  const selected = oddsTableInUse(tables, odds.map(parseOdds), tableId);
 
   const options = [
     // The two built in can be looked at, where a saved table has its bin, but not changed
@@ -79,7 +87,7 @@ export function OddsTableMenu({ odds, onApply, align, className }: OddsTableMenu
         value={selected?.id ?? CUSTOM_TABLE}
         onChange={(id) => {
           const table = tables.find((other) => other.id === id);
-          if (table) apply(table.oddsHundredths);
+          if (table) apply(table);
         }}
         footer={{
           label: "新建赔率表",
@@ -94,7 +102,7 @@ export function OddsTableMenu({ odds, onApply, align, className }: OddsTableMenu
           subject={subject}
           onSaved={(table) => {
             // A new table is put in use, and so are the new odds of the table already in use
-            if (subject.kind === "new" || selected?.id === table.id) apply(table.oddsHundredths);
+            if (subject.kind === "new" || selected?.id === table.id) apply(table);
             setSubject(undefined);
           }}
           onClose={() => setSubject(undefined)}

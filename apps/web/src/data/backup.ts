@@ -35,6 +35,7 @@ const insuranceRuleSchema = z.object({
   refundPremium: z.boolean(),
   turnCoverLimit: coverLimit.optional(),
   riverCoverLimit: coverLimit.optional(),
+  oddsTableId: id.optional(),
 });
 
 const tableFeeSchema = z.object({ amount: money, minMinutes: z.number().int().min(0) });
@@ -202,6 +203,7 @@ const insuranceHandSchema = z.object({
     z.object({ playerId: id, chips, cover: z.boolean(), cards: z.array(card).max(2) }),
   ),
   pools: z.array(chips),
+  presetPools: z.boolean().optional(),
   board: z.array(card).max(5),
   purchases: z.array(
     z.object({

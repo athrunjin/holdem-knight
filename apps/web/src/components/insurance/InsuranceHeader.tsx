@@ -1,4 +1,4 @@
-import { parseInsuranceRule } from "@holdem-knight/core";
+import { parseInsuranceRule, withOdds } from "@holdem-knight/core";
 import { ArrowLeftRight } from "lucide-react";
 import { TextMenu } from "@/components/TextMenu";
 import { cn } from "@/lib/cn";
@@ -101,8 +101,9 @@ export function InsuranceSetup({ value, onChange }: InsuranceSetupProps) {
         />
         <OddsTableMenu
           odds={form.odds}
+          tableId={form.oddsTableId}
           // The odds are apart from the settings, so the configuration keeps its name
-          onApply={(odds) => onChange({ ...value, form: { ...form, odds } })}
+          onApply={(odds, tableId) => onChange({ ...value, form: withOdds(form, odds, tableId) })}
           align="right"
           className="text-sm font-medium"
         />

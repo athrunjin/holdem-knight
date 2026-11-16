@@ -89,7 +89,9 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
       ...BUILT_IN_RULES.map(({ name: builtIn, rule }) => ({ name: builtIn, ...rule })),
       ...others,
     ].find(({ oddsHundredths }) => sameOdds(parsed, oddsHundredths));
-    if (same) return setTwin(same.name);
+    // A table renamed with its odds untouched was asked about when those odds were saved
+    const oddsChanged = !table || !sameOdds(parsed, base);
+    if (same && oddsChanged) return setTwin(same.name);
     save();
   }
 

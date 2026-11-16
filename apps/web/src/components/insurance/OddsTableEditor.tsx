@@ -1,4 +1,4 @@
-import { parseOdds } from "@holdem-knight/core";
+import { formatOdds, parseOdds } from "@holdem-knight/core";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { SaveNameDialog } from "@/components/SaveNameDialog";
@@ -13,7 +13,10 @@ import { OddsTableMenu } from "./OddsTableMenu";
 interface OddsTableEditorProps {
   /** The odds in use for this game */
   odds: readonly string[];
-  onApply: (odds: readonly string[]) => void;
+  /** The table those odds were taken from, which names it where another holds the same odds */
+  tableId: string | undefined;
+  /** Called with the odds to use, and the table they are from where they are a table's */
+  onApply: (odds: readonly string[], tableId: string | undefined) => void;
 }
 
 /**
@@ -21,7 +24,7 @@ interface OddsTableEditorProps {
  * applies at once. Edits stay a draft until confirmed, and can then be saved as a table for later
  * games.
  */
-export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
+export function OddsTableEditor({ odds, tableId, onApply }: OddsTableEditorProps) {
   const { data: saved = [] } = useOddsTables();
   const saveTable = useSaveOddsTable();
   const [open, setOpen] = useState(false);
@@ -38,8 +41,9 @@ export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
   const parsedDraft = draft.map(parseOdds);
   const canConfirm = validOdds(draft) && !sameOdds(parsedDraft, odds.map(parseOdds));
 
+  /** Odds typed here are no table's, until they are saved as one. */
   function handleApply() {
-    onApply(draft);
+    onApply(draft, undefined);
     setStep("save");
   }
 
@@ -47,7 +51,13 @@ export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
     const oddsHundredths = parsedDraft.flatMap((value) => (value === null ? [] : [value]));
     const existing = saved.find((t) => t.name === name);
     const table = existing ? { ...existing, oddsHundredths } : newOddsTable(name, oddsHundredths);
-    saveTable.mutate(table, { onSuccess: () => setStep(null) });
+    saveTable.mutate(table, {
+      onSuccess: () => {
+        // The odds in use are this table's from now on, whatever other table holds the same
+        onApply(table.oddsHundredths.map(formatOdds), table.id);
+        setStep(null);
+      },
+    });
     return undefined;
   }
 
@@ -66,7 +76,13 @@ export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
             aria-hidden
           />
         </button>
-        <OddsTableMenu odds={odds} onApply={onApply} align="right" className="text-sm" />
+        <OddsTableMenu
+          odds={odds}
+          tableId={tableId}
+          onApply={onApply}
+          align="right"
+          className="text-sm"
+        />
       </div>
 
       {open && (
