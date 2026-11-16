@@ -82,14 +82,20 @@ function GameInsurance({ game }: { game: Game }) {
     return parsed?.ok ? parsed.rule : insurance;
   }, [formKey, insurance]);
 
-  /** The settings here are the game's own, so a change is a change to the game. */
+  /**
+   * The settings here are the game's own, so a change is a change to the game, and is asked about
+   * first. A new name for the same settings changes nothing in the game and goes through.
+   */
   function setChoice(next: InsuranceChoice) {
-    setEdited({ source: next.source, form: next.form });
     const parsed = parseInsuranceRule(next.form);
-    if (parsed.ok && JSON.stringify(next.form) !== JSON.stringify(choice?.form)) {
-      saveGame.mutate({ ...game, insurance: parsed.rule });
+    const changed = JSON.stringify(next.form) !== JSON.stringify(choice?.form);
+    if (changed && !window.confirm("这个修改会应用到本局，之后的保险都按新设置计算。继续？")) {
+      return;
     }
+    setEdited({ source: next.source, form: next.form });
+    if (changed && parsed.ok) saveGame.mutate({ ...game, insurance: parsed.rule });
   }
+
   const nameOf = gameNameOf(players, game);
   const ledger = summarizeByPlayer(events);
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);

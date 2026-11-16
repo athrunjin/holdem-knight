@@ -526,7 +526,7 @@ export function InsuranceHandFlow({
                   : undefined
               }
             />
-            <div className="flex flex-wrap items-stretch gap-1.5">
+            <div className="flex flex-wrap items-stretch justify-center gap-1.5">
               <StreetCards
                 label="翻牌"
                 cards={hand.board.slice(0, 3)}
