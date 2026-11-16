@@ -15,13 +15,15 @@ interface OddsGridProps {
   /** The odds as typed, one for each number of outs from 1 up */
   draft: readonly string[];
   onChange: (draft: string[]) => void;
+  /** Shows the odds without letting them change */
+  readOnly?: boolean;
 }
 
 /**
  * The cells of an odds table being edited: the odds for each number of outs, with the last one
  * removable and one more to add. A cell that does not read as odds is outlined.
  */
-export function OddsGrid({ draft, onChange }: OddsGridProps) {
+export function OddsGrid({ draft, onChange, readOnly = false }: OddsGridProps) {
   const id = useId();
   const last = draft.length - 1;
   const setCell = (index: number, value: string) =>
@@ -36,7 +38,7 @@ export function OddsGrid({ draft, onChange }: OddsGridProps) {
           <div key={i} className="min-w-0">
             <div className="flex h-5 items-center justify-between text-xs text-muted">
               <label htmlFor={`${id}-${i + 1}`}>{i + 1} outs</label>
-              {i === last && last > 0 && (
+              {!readOnly && i === last && last > 0 && (
                 <button
                   type="button"
                   aria-label={`删除 ${i + 1} outs`}
@@ -53,9 +55,10 @@ export function OddsGrid({ draft, onChange }: OddsGridProps) {
               inputMode="decimal"
               autoComplete="off"
               value={value}
+              readOnly={readOnly}
               aria-invalid={invalid ? true : undefined}
               onChange={(event) => setCell(i, event.target.value)}
-              onFocus={(event) => selectOnFocus(event.currentTarget)}
+              onFocus={(event) => !readOnly && selectOnFocus(event.currentTarget)}
               onBlur={() => setCell(i, formatOddsText(value))}
               // Enter would submit a form around the table
               onKeyDown={(event) => event.key === "Enter" && event.preventDefault()}
@@ -67,16 +70,18 @@ export function OddsGrid({ draft, onChange }: OddsGridProps) {
           </div>
         );
       })}
-      <div className="flex items-end">
-        <button
-          type="button"
-          aria-label="增加一行"
-          onClick={() => onChange([...draft, draft.at(-1) ?? "1"])}
-          className="grid min-h-11 w-full place-items-center rounded-lg border border-dashed border-line text-muted"
-        >
-          <Plus className="size-4" aria-hidden />
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="flex items-end">
+          <button
+            type="button"
+            aria-label="增加一行"
+            onClick={() => onChange([...draft, draft.at(-1) ?? "1"])}
+            className="grid min-h-11 w-full place-items-center rounded-lg border border-dashed border-line text-muted"
+          >
+            <Plus className="size-4" aria-hidden />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
