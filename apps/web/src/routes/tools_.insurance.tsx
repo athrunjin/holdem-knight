@@ -14,7 +14,6 @@ import {
 } from "@/components/insurance/InsuranceCalculator";
 import {
   CUSTOM_NAME,
-  CUSTOM_RULE,
   type InsuranceChoice,
   InsuranceSettings,
   useInsuranceConfigs,
@@ -96,8 +95,7 @@ function ModeTitle({
     </button>
   ));
   return (
-    // A little smaller on the narrowest phones, where both names would not fit beside the icons
-    <span className="flex items-center whitespace-nowrap max-[380px]:text-[1.3125rem]">
+    <span className="flex items-center whitespace-nowrap">
       <span className="sr-only">保险计算：</span>
       {cards}
       <button
@@ -146,43 +144,36 @@ function InsuranceToolPage() {
     <Page
       title={<ModeTitle mode={mode} onChange={setMode} />}
       actions={
-        <div className="-mr-2 flex shrink-0 items-center">
-          <button
-            type="button"
-            aria-label="保险设置"
-            aria-haspopup="dialog"
-            onClick={() => setConfiguring(true)}
-            className="grid size-11 place-items-center text-muted"
-          >
-            <Settings className="size-6" strokeWidth={1.75} aria-hidden />
-          </button>
-          <Link
-            to="/tools"
-            aria-label="返回工具"
-            className="grid size-11 place-items-center text-highlight"
-          >
-            <X className="size-6" strokeWidth={1.75} aria-hidden />
-          </Link>
-        </div>
+        <Link
+          to="/tools"
+          aria-label="返回工具"
+          className="-mr-2 grid size-11 shrink-0 place-items-center text-highlight"
+        >
+          <X className="size-6" strokeWidth={1.75} aria-hidden />
+        </Link>
       }
     >
-      {/* On the line of the calculator's own switch, which sits at the right */}
-      <div className="-mb-11 w-fit max-w-[60%]">
+      <div className="flex items-center justify-between gap-2">
         <TextMenu
           label="保险配置"
-          caption="保险配置"
           options={options}
           value={configs.selectedId}
           onChange={configs.choose}
           className="text-sm font-medium"
         />
+        <button
+          type="button"
+          aria-label="保险设置"
+          aria-haspopup="dialog"
+          onClick={() => setConfiguring(true)}
+          className="-mr-2 grid size-11 shrink-0 place-items-center text-muted"
+        >
+          <Settings className="size-6" strokeWidth={1.75} aria-hidden />
+        </button>
       </div>
       <InsuranceCalculator
         mode={mode}
         rule={parsed.ok ? parsed.rule : RULE_30}
-        onTieOutsChange={(tieOuts) =>
-          setChoice({ ...choice, source: CUSTOM_RULE, form: { ...form, tieOuts } })
-        }
         seats={SEATS}
         autoSeat
         createHand={scratchHand}

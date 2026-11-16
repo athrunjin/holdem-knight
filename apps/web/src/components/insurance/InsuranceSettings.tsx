@@ -24,7 +24,7 @@ import { OddsTableEditor } from "./OddsTableEditor";
 
 const LAST_RULE = "last";
 const DEFAULT_RULE = "default";
-export const CUSTOM_RULE = "custom";
+const CUSTOM_RULE = "custom";
 export const CUSTOM_NAME = "自定义";
 
 /** Everything in a rule but its odds, which the odds table sets on its own. */

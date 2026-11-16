@@ -30,8 +30,11 @@ interface InsuranceCalculatorProps {
   /** Set by a page that shows the two modes itself, such as in its title. The buttons here then go. */
   mode?: InsuranceMode;
   rule: InsuranceRule;
-  /** Switches whether tie cards are sold as outs. Whoever owns the rule decides what that changes. */
-  onTieOutsChange: (tieOuts: TieOuts) => void;
+  /**
+   * Switches whether tie cards are sold as outs. Whoever owns the rule decides what that changes.
+   * Left out by a page that sets it elsewhere, and the switch here then goes.
+   */
+  onTieOutsChange?: (tieOuts: TieOuts) => void;
   seats: readonly InsuranceSeat[];
   /** Hands out the seats in order instead of asking who is all-in: the standalone calculator has no table. */
   autoSeat?: boolean;
@@ -122,12 +125,14 @@ export function InsuranceCalculator({
           Outs数速算
         </button>
       </div>
-      <MiniSwitch
-        label="平分牌算 outs"
-        checked={rule.tieOuts === "include"}
-        onChange={(checked) => onTieOutsChange(checked ? "include" : "exclude")}
-        className="ml-auto"
-      />
+      {onTieOutsChange && (
+        <MiniSwitch
+          label="平分牌算 outs"
+          checked={rule.tieOuts === "include"}
+          onChange={(checked) => onTieOutsChange(checked ? "include" : "exclude")}
+          className="ml-auto"
+        />
+      )}
       {/* Stays mounted, so looking at the other mode keeps the hand */}
       <div hidden={mode !== "cards"}>
         <InsuranceHandFlow
