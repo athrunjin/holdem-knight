@@ -1054,11 +1054,16 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The title line reads 「选牌计算 ⇄ Outs数速算」. The way in use is in the title's font; the other is the same size, gray and not bold. A tap on a name picks it, and the arrows between them switch. Each name keeps the width it has in bold, so nothing moves on a switch. The two buttons under the title are gone from this page.
   - At the right a gold cross replaces 返回工具, like the one on Call Time.
   - The line under the title has two menus in the page, each a name and a chevron with no caption. At the left the configuration, 「默认配置 ⌄」: the default and the saved ones, and 自定义 for settings changed by hand. Picking one takes its settings and keeps the odds, as in a game. At the right the odds table, 「1 赔 30 ⌄」: the two built in and the saved ones.
+  - In the odds table's menu each saved table has a pencil and a bin after its name, to edit and to delete it; the two built in have neither. A small plus on a last line under the tables makes a new one.
+  - Making and editing open a dialog of their own with the odds for each number of outs, as under 赔率表 in 开局设置: a cell that does not read as odds is outlined, the last cell can be removed and one more added. A new table starts from 1 赔 30. 确认 is lit only once the odds are valid and differ from the table they started from, so an untouched table cannot be saved again. It then asks for the name, with the table's own name when editing, and saves.
   - The configuration's settings are on show under that line, as in 开局设置: 命中退还保费, 平分牌算 outs, and 保费上限 for 翻牌 and 转牌, with 保存配置 once they differ from every configuration on offer.
 - Settled details:
   - The calculator's settings are kept in this browser (`localStorage`), so they are there on the next visit.
-  - A gear that opened these settings in a dialog was tried first, at the title and then on the line under it, and turned down for settings on the page. With it went editing the odds of a table and deleting a saved configuration from this page; both stay in 开局设置.
-  - The settings are always on show. Folding them away was not asked for.
+  - A gear that opened these settings in a dialog was tried first, at the title and then on the line under it, and turned down for settings on the page. With it went deleting a saved configuration from this page, which stays in 开局设置.
+  - A new table is put in use once saved. An edited table's new odds are put in use if it was the one in use. Deleting the table in use leaves its odds in use, shown as 自定义.
+  - A new table under a saved table's name replaces that table, as in 开局设置. An edited table cannot take another saved table's name, and no saved table can take the name of one built in.
+  - The dialog has no 查看demo button, which is still a placeholder in 开局设置.
+  - The settings are always on show, with no fold.
   - The insurance page of a game is unchanged: it keeps its two buttons, its 平分牌算 outs switch and 返回牌局.
 - Decision: do. Checked in the browser preview in dark mode at 360 and 412px; not yet tried on a phone.
 - Tracking: PR #86

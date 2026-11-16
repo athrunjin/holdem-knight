@@ -1,5 +1,5 @@
 import { BUILT_IN_RULES, formatOdds, parseOdds } from "@holdem-knight/core";
-import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { SaveNameDialog } from "@/components/SaveNameDialog";
 import {
@@ -10,12 +10,10 @@ import {
 } from "@/data/insurance";
 import { cn } from "@/lib/cn";
 import { datedName } from "@/lib/dated-name";
-import { formatOddsText, selectOnFocus } from "@/lib/number-input";
+import { formatOddsText } from "@/lib/number-input";
 import { ChoiceModal } from "./ChoiceModal";
 import { Modal } from "./Modal";
-
-const sameOdds = (a: readonly (number | null)[], b: readonly (number | null)[]) =>
-  a.length === b.length && a.every((odds, i) => odds === b[i]);
+import { OddsGrid, sameOdds, validOdds } from "./OddsGrid";
 
 interface OddsTableEditorProps {
   /** The odds in use for this game */
@@ -72,8 +70,7 @@ export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
   }
 
   const parsedDraft = draft.map(parseOdds);
-  const valid = draft.length > 0 && parsedDraft.every((value) => value !== null);
-  const canConfirm = valid && !sameOdds(parsedDraft, current);
+  const canConfirm = validOdds(draft) && !sameOdds(parsedDraft, current);
 
   function pickTable(id: string) {
     apply(id);
@@ -97,8 +94,6 @@ export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
     saveTable.mutate(table, { onSuccess: () => setStep(null) });
     return undefined;
   }
-
-  const last = draft.length - 1;
 
   return (
     <div>
@@ -128,55 +123,7 @@ export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
 
       {open && (
         <div className="flex flex-col gap-3 pb-2">
-          <div className="grid grid-cols-4 gap-2">
-            {draft.map((value, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: each cell is the place for that many outs
-              <div key={i} className="min-w-0">
-                <div className="flex h-5 items-center justify-between text-xs text-muted">
-                  <label htmlFor={`odds-${i + 1}`}>{i + 1} outs</label>
-                  {i === last && last > 0 && (
-                    <button
-                      type="button"
-                      aria-label={`删除 ${i + 1} outs`}
-                      onClick={() => setDraft(draft.slice(0, -1))}
-                      className="relative z-10 -my-3 -mr-1.5 grid h-11 w-8 place-items-center"
-                    >
-                      <X className="size-3.5" aria-hidden />
-                    </button>
-                  )}
-                </div>
-                <input
-                  id={`odds-${i + 1}`}
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={value}
-                  aria-invalid={parsedDraft[i] === null ? true : undefined}
-                  onChange={(event) =>
-                    setDraft(draft.map((v, j) => (j === i ? event.target.value : v)))
-                  }
-                  onFocus={(event) => selectOnFocus(event.currentTarget)}
-                  onBlur={() => setDraft(draft.map((v, j) => (j === i ? formatOddsText(v) : v)))}
-                  // Enter would submit the whole game form
-                  onKeyDown={(event) => event.key === "Enter" && event.preventDefault()}
-                  className={cn(
-                    "mt-1 min-h-11 w-full min-w-0 rounded-lg border bg-bg px-1 text-center tabular-nums outline-none focus:border-highlight",
-                    parsedDraft[i] === null ? "border-highlight" : "border-line",
-                  )}
-                />
-              </div>
-            ))}
-            <div className="flex items-end">
-              <button
-                type="button"
-                aria-label="增加一行"
-                onClick={() => setDraft([...draft, draft.at(-1) ?? "1"])}
-                className="grid min-h-11 w-full place-items-center rounded-lg border border-dashed border-line text-muted"
-              >
-                <Plus className="size-4" aria-hidden />
-              </button>
-            </div>
-          </div>
+          <OddsGrid draft={draft} onChange={setDraft} />
 
           <div className="flex items-center gap-2">
             <button

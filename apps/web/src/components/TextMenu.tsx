@@ -2,6 +2,13 @@ import { ChevronDown } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { cn } from "@/lib/cn";
 
+/** Something to do from the list other than picking an option: an icon with a name for a reader. */
+export interface TextMenuAction {
+  readonly label: string;
+  readonly icon: ReactNode;
+  readonly onSelect: () => void;
+}
+
 export interface TextMenuOption<T extends string> {
   readonly value: T;
   /** What the list shows for it */
@@ -10,6 +17,8 @@ export interface TextMenuOption<T extends string> {
   readonly chosen?: ReactNode;
   /** For a reader, where the label is not text */
   readonly name?: string;
+  /** Icons after the label, such as to edit or delete what the option stands for */
+  readonly actions?: readonly TextMenuAction[];
 }
 
 interface TextMenuProps<T extends string> {
@@ -23,6 +32,8 @@ interface TextMenuProps<T extends string> {
   onChange: (value: T) => void;
   /** Which edge of the line the list hangs from */
   align?: "left" | "right";
+  /** A last line under the options, such as one that adds an option */
+  footer?: TextMenuAction;
   disabled?: boolean;
   /** Styles the line, and so the text that shows the choice */
   className?: string;
@@ -43,6 +54,7 @@ export function TextMenu<T extends string>({
   value,
   onChange,
   align = "left",
+  footer,
   disabled = false,
   className,
   captionClassName,
@@ -92,33 +104,63 @@ export function TextMenu<T extends string>({
             role="menu"
             aria-label={label}
             className={cn(
-              "absolute top-full z-20 w-max min-w-28 rounded-xl border border-line bg-surface py-1 shadow-lg",
+              "absolute top-full z-20 w-max max-w-[calc(100vw-2rem)] min-w-28 rounded-xl border border-line bg-surface py-1 shadow-lg",
               align === "left" ? "left-0" : "right-0",
             )}
           >
             {options.map((option) => {
               const checked = option.value === value;
               return (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={checked}
-                  aria-label={option.name}
-                  onClick={() => {
-                    setOpen(false);
-                    onChange(option.value);
-                  }}
-                  className={cn(
-                    // The choice in force is the one in full white
-                    "flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-normal",
-                    checked ? "font-medium text-text" : "text-muted",
-                  )}
-                >
-                  {option.label}
-                </button>
+                <div key={option.value} className="flex items-center">
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={checked}
+                    aria-label={option.name}
+                    onClick={() => {
+                      setOpen(false);
+                      onChange(option.value);
+                    }}
+                    className={cn(
+                      // The choice in force is the one in full white
+                      "flex min-h-11 min-w-0 flex-1 items-center gap-2 px-3 text-left text-sm font-normal",
+                      checked ? "font-medium text-text" : "text-muted",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                  {option.actions?.map((action) => (
+                    <button
+                      key={action.label}
+                      type="button"
+                      role="menuitem"
+                      aria-label={`${action.label} ${readerText(option)}`}
+                      onClick={() => {
+                        setOpen(false);
+                        action.onSelect();
+                      }}
+                      className="grid h-11 w-10 shrink-0 place-items-center text-muted"
+                    >
+                      {action.icon}
+                    </button>
+                  ))}
+                </div>
               );
             })}
+            {footer && (
+              <button
+                type="button"
+                role="menuitem"
+                aria-label={footer.label}
+                onClick={() => {
+                  setOpen(false);
+                  footer.onSelect();
+                }}
+                className="mt-1 flex min-h-11 w-full items-center justify-center border-t border-line text-muted"
+              >
+                {footer.icon}
+              </button>
+            )}
           </div>
         </>
       )}

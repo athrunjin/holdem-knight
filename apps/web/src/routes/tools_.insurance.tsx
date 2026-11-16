@@ -1,12 +1,14 @@
 import {
   blankInsuranceHand,
+  formatOdds,
   type InsuranceRuleForm,
   parseInsuranceRule,
   RULE_30,
+  type SavedOddsTable,
   toInsuranceRuleForm,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeftRight, X } from "lucide-react";
+import { ArrowLeftRight, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   InsuranceCalculator,
@@ -18,9 +20,11 @@ import {
   InsuranceSettings,
   useInsuranceConfigs,
 } from "@/components/insurance/InsuranceSettings";
+import { OddsTableDialog } from "@/components/insurance/OddsTableDialog";
 import { useOddsTableChoices } from "@/components/insurance/OddsTableEditor";
 import { Page } from "@/components/Page";
 import { TextMenu } from "@/components/TextMenu";
+import { useRemoveOddsTable } from "@/data/insurance";
 import { cn } from "@/lib/cn";
 import { useStoredState } from "@/lib/stored-state";
 
@@ -126,6 +130,9 @@ function InsuranceToolPage() {
   const choice: InsuranceChoice = { enabled: true, ...settings };
   const setChoice = ({ source, form }: InsuranceChoice) => setSettings({ source, form });
   const { form } = settings;
+  const removeTable = useRemoveOddsTable();
+  // The odds table being made, with no table yet, or edited
+  const [editing, setEditing] = useState<{ table?: SavedOddsTable }>();
   const parsed = useMemo(() => parseInsuranceRule(form), [form]);
   const configs = useInsuranceConfigs({
     value: choice,
@@ -138,8 +145,32 @@ function InsuranceToolPage() {
   const tables = useOddsTableChoices(form.odds, (odds) =>
     setChoice({ ...choice, form: { ...form, odds } }),
   );
+  const putInUse = ({ oddsHundredths }: SavedOddsTable) =>
+    setChoice({ ...choice, form: { ...form, odds: oddsHundredths.map(formatOdds) } });
   const tableOptions = [
-    ...tables.tables.map(({ id, name }) => ({ value: id, label: name })),
+    // The two built in can only be picked
+    ...tables.tables
+      .filter(({ id }) => !tables.saved.some((table) => table.id === id))
+      .map(({ id, name }) => ({ value: id, label: name })),
+    ...tables.saved.map((table) => ({
+      value: table.id,
+      label: <span className="truncate">{table.name}</span>,
+      name: table.name,
+      actions: [
+        {
+          label: "编辑",
+          icon: <Pencil className="size-4" aria-hidden />,
+          onSelect: () => setEditing({ table }),
+        },
+        {
+          label: "删除",
+          icon: <Trash2 className="size-4" aria-hidden />,
+          onSelect: () => {
+            if (window.confirm(`删除赔率表「${table.name}」？`)) removeTable.mutate(table.id);
+          },
+        },
+      ],
+    })),
     ...(tables.selected ? [] : [{ value: CUSTOM_TABLE, label: CUSTOM_NAME }]),
   ];
 
@@ -178,6 +209,11 @@ function InsuranceToolPage() {
           options={tableOptions}
           value={tables.selected?.id ?? CUSTOM_TABLE}
           onChange={tables.apply}
+          footer={{
+            label: "新建赔率表",
+            icon: <Plus className="size-4" aria-hidden />,
+            onSelect: () => setEditing({}),
+          }}
           className="text-sm font-medium"
         />
       </div>
@@ -198,6 +234,17 @@ function InsuranceToolPage() {
         autoSeat
         createHand={scratchHand}
       />
+      {editing && (
+        <OddsTableDialog
+          table={editing.table}
+          onSaved={(table) => {
+            // A new table is put in use, and so are the new odds of the table already in use
+            if (!editing.table || tables.selected?.id === table.id) putInUse(table);
+            setEditing(undefined);
+          }}
+          onClose={() => setEditing(undefined)}
+        />
+      )}
     </Page>
   );
 }
