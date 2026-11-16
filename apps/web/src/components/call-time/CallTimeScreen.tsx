@@ -2,10 +2,12 @@ import {
   CALL_TIME_PRESETS,
   CALL_TIME_STEP,
   canAdjustCallTime,
+  MAX_CALL_TIME,
+  MIN_CALL_TIME,
   parseCallTime,
 } from "@holdem-knight/core";
 import { useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
-import { ArrowLeft, Minimize2 } from "lucide-react";
+import { Minimize2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Page } from "@/components/Page";
 import { callTimeActions, useCallTime } from "@/lib/call-time";
@@ -20,12 +22,14 @@ const figureClass = "text-6xl leading-none font-bold tabular-nums";
 
 /**
  * The length before a start, as a field: a tap selects it and a whole number of seconds can be
- * typed over it. Every valid length typed is set at once. Anything else is dropped on leaving.
+ * typed over it. Every valid length typed is set at once. A number out of range shows the range
+ * in place of 秒, and is dropped on leaving.
  */
 function LengthField({ seconds }: { seconds: number }) {
   // What is in the field while it differs from the length, such as nothing or a zero
   const [draft, setDraft] = useState<string>();
-  const invalid = draft !== undefined && parseCallTime(draft) === undefined;
+  // An empty field is still being typed in. Only a number out of range is wrong.
+  const invalid = draft !== undefined && draft !== "" && parseCallTime(draft) === undefined;
 
   // A length set any other way, by a preset or a step, replaces what was being typed
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs on a new length, which it does not read
@@ -37,7 +41,7 @@ function LengthField({ seconds }: { seconds: number }) {
         type="text"
         inputMode="numeric"
         pattern="[0-9]*"
-        maxLength={3}
+        maxLength={4}
         enterKeyHint="done"
         autoComplete="off"
         aria-label="时长（秒），点按后输入"
@@ -57,7 +61,7 @@ function LengthField({ seconds }: { seconds: number }) {
         className={cn(figureClass, "w-full rounded-lg bg-transparent text-center outline-none")}
       />
       <span className={cn("mt-1 text-sm", invalid ? "text-highlight" : "text-muted")}>
-        {invalid ? "请输入正整数" : "秒"}
+        {invalid ? `范围 ${MIN_CALL_TIME}–${MAX_CALL_TIME} 秒` : "秒"}
       </span>
     </>
   );
@@ -65,7 +69,7 @@ function LengthField({ seconds }: { seconds: number }) {
 
 /**
  * The Call Time countdown, the same wherever it is opened from: set a length, start, and leave
- * by one button that goes back to the page it was opened from. A countdown under way can be
+ * by the cross, which goes back to the page it was opened from. A countdown under way can be
  * shrunk to float over the other pages.
  */
 export function CallTimeScreen({ gameId }: { gameId?: string }) {
@@ -107,25 +111,14 @@ export function CallTimeScreen({ gameId }: { gameId?: string }) {
     <Page
       title="Call Time"
       actions={
-        <div className="flex shrink-0 items-center gap-3">
-          <button
-            type="button"
-            disabled={!counting}
-            onClick={leave}
-            className="inline-flex min-h-11 items-center gap-1 text-highlight disabled:text-muted disabled:opacity-50"
-          >
-            <Minimize2 className="size-5" strokeWidth={1.75} aria-hidden />
-            缩小
-          </button>
-          <button
-            type="button"
-            onClick={exit}
-            className="inline-flex min-h-11 items-center gap-1 text-highlight"
-          >
-            <ArrowLeft className="size-5" strokeWidth={1.75} aria-hidden />
-            返回
-          </button>
-        </div>
+        <button
+          type="button"
+          aria-label="返回"
+          onClick={exit}
+          className="-mr-2 grid size-11 shrink-0 place-items-center"
+        >
+          <X className="size-6" strokeWidth={1.75} aria-hidden />
+        </button>
       }
     >
       <div className="mx-auto flex max-w-sm flex-col gap-5 pt-2 pb-6">
@@ -158,25 +151,35 @@ export function CallTimeScreen({ gameId }: { gameId?: string }) {
           {step(CALL_TIME_STEP)}
         </div>
 
-        <ul className={cn("grid grid-cols-4 gap-2", phase !== "idle" && "invisible")}>
-          {CALL_TIME_PRESETS.map((preset) => (
-            <li key={preset}>
-              <button
-                type="button"
-                aria-pressed={preset === seconds}
-                onClick={() => callTimeActions.setLength(preset)}
-                className={cn(
-                  "min-h-12 w-full rounded-xl border font-semibold transition-colors",
-                  preset === seconds
-                    ? "border-text/60 bg-line/50 text-text"
-                    : "border-line bg-surface text-muted",
-                )}
-              >
-                {preset}s
-              </button>
-            </li>
-          ))}
-        </ul>
+        {/* The lengths before a start, then the button that shrinks a countdown under way */}
+        <div className="flex min-h-14 items-center justify-end">
+          {phase === "idle" && (
+            <ul className="grid w-full grid-cols-4 gap-2">
+              {CALL_TIME_PRESETS.map((preset) => (
+                <li key={preset}>
+                  <button
+                    type="button"
+                    aria-pressed={preset === seconds}
+                    onClick={() => callTimeActions.setLength(preset)}
+                    className={cn(
+                      "min-h-12 w-full rounded-xl border font-semibold transition-colors",
+                      preset === seconds
+                        ? "border-text/60 bg-line/50 text-text"
+                        : "border-line bg-surface text-muted",
+                    )}
+                  >
+                    {preset}s
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {counting && (
+            <button type="button" aria-label="缩小成悬浮窗" onClick={leave} className={stepClass}>
+              <Minimize2 className="size-6" strokeWidth={1.75} aria-hidden />
+            </button>
+          )}
+        </div>
 
         {phase === "idle" && (
           <button

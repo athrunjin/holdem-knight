@@ -37,7 +37,7 @@ function useScreenAwake(active: boolean) {
   }, [active]);
 }
 
-/** How long the floating clock blinks at zero before it clears itself. */
+/** How long 时间到 blinks, on the full page as on the floating clock, before the countdown clears itself. */
 const DONE_LINGER_MS = 3000;
 
 /** The game whose page this is, for any page under a game. */
@@ -46,8 +46,8 @@ const gameIdOf = (pathname: string) => /^\/games\/(?!new(?:\/|$))([^/]+)/.exec(p
 /**
  * The Call Time countdown outside its own page: a small clock with the time left that floats
  * over every other page while a countdown is under way. A tap goes back to the full countdown,
- * and it can be dragged out of the way. Left alone at zero, it blinks a few seconds and clears
- * the countdown. Always mounted, so it also buzzes when time runs out and keeps the screen on.
+ * and it can be dragged out of the way. Always mounted, so it also buzzes when time runs out,
+ * keeps the screen on, and clears a countdown a few seconds after it ran out, on any page.
  */
 export function CallTimeFloat() {
   const navigate = useNavigate();
@@ -73,13 +73,13 @@ export function CallTimeFloat() {
     wasCounting.current = counting;
   }, [done, counting]);
 
-  // Counted from the moment time ran out, so a clock that shows up later does not linger
+  // Counted from the moment time ran out, so a countdown found run out later does not linger
   useEffect(() => {
-    if (!shown || !done || endsAt === undefined) return;
+    if (!done || endsAt === undefined) return;
     const left = endsAt + DONE_LINGER_MS - Date.now();
     const timeout = window.setTimeout(callTimeActions.stop, Math.max(0, left));
     return () => window.clearTimeout(timeout);
-  }, [shown, done, endsAt]);
+  }, [done, endsAt]);
 
   if (!shown) return null;
 
