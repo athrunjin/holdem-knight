@@ -213,39 +213,15 @@ function DeadMoney({ chips, onEdit }: { chips: number; onEdit: (() => void) | un
 
 /**
  * A section's name, a little larger than the text, in the middle of the page with a line at
- * either side on its own middle, each fading out toward the edge. Its arrow, right after the
- * name, puts the section back as it started.
+ * either side on its own middle, each fading out toward the edge.
  */
-function SectionTitle({
-  id,
-  title,
-  reset,
-}: {
-  id?: string;
-  title: string;
-  /** Missing where the section can no longer change */
-  reset?: { readonly label: string; readonly onReset: () => void } | undefined;
-}) {
+function SectionTitle({ id, title }: { id: string; title: string }) {
   return (
-    // A place the arrow's width at either side of the name, so the name stays in the middle
-    <div className="mb-2 flex min-h-11 items-center">
+    <div className="mb-2 flex min-h-11 items-center gap-3">
       <span aria-hidden className="h-px flex-1 bg-linear-to-r from-transparent to-line" />
-      <span aria-hidden className="w-9 shrink-0" />
       <h2 id={id} className="text-lg font-semibold">
         {title}
       </h2>
-      {reset ? (
-        <button
-          type="button"
-          aria-label={reset.label}
-          onClick={reset.onReset}
-          className="grid h-11 w-9 shrink-0 place-items-center text-muted"
-        >
-          <RotateCcw className="size-4.5" strokeWidth={1.75} aria-hidden />
-        </button>
-      ) : (
-        <span aria-hidden className="w-9 shrink-0" />
-      )}
       <span aria-hidden className="h-px flex-1 bg-linear-to-l from-transparent to-line" />
     </div>
   );
@@ -514,19 +490,19 @@ export function InsuranceHandFlow({
       {hand.step !== "summary" && (
         <>
           <section aria-labelledby="hand-pot-title" className="mt-1">
-            <SectionTitle
-              id="hand-pot-title"
-              title="底池信息"
-              reset={
-                editable
-                  ? {
-                      label: "清空底池信息",
-                      onReset: () => update({ ...hand, board: [], pools: [], declined: [] }),
-                    }
-                  : undefined
-              }
-            />
-            <div className="flex flex-wrap items-stretch justify-center gap-1.5">
+            <SectionTitle id="hand-pot-title" title="底池信息" />
+            {/* The arrow sits in the corner the centered line leaves free, so nothing else moves */}
+            <div className="relative flex flex-wrap items-stretch justify-center gap-1.5">
+              {editable && (
+                <button
+                  type="button"
+                  aria-label="清空底池信息"
+                  onClick={() => update({ ...hand, board: [], pools: [], declined: [] })}
+                  className="absolute -top-1 -left-2 grid size-9 place-items-center text-muted"
+                >
+                  <RotateCcw className="size-4" strokeWidth={1.75} aria-hidden />
+                </button>
+              )}
               <StreetCards
                 label="翻牌"
                 cards={hand.board.slice(0, 3)}
@@ -553,23 +529,7 @@ export function InsuranceHandFlow({
           </section>
 
           <section aria-labelledby="hand-players-title" className="mt-3">
-            <SectionTitle
-              id="hand-players-title"
-              title="池内玩家"
-              reset={
-                editable
-                  ? {
-                      label: "重置池内玩家",
-                      onReset: () =>
-                        update({
-                          ...hand,
-                          players: nextPlayers([], seats, MIN_PLAYERS),
-                          declined: [],
-                        }),
-                    }
-                  : undefined
-              }
-            />
+            <SectionTitle id="hand-players-title" title="池内玩家" />
             {seats.length < MIN_PLAYERS && (
               <p className="mb-2 text-sm text-muted">桌上至少要有两位玩家，才能算保险。</p>
             )}
@@ -589,14 +549,17 @@ export function InsuranceHandFlow({
                               takenIds: hand.players
                                 .filter((p) => p !== player)
                                 .map((p) => p.playerId),
-                              // The cards entered stay with the row. At a table the chips are
-                              // the new player's own; away from one, the chips typed stay too.
+                              // At a table another player is another hand: their own chips, no
+                              // cover and no cards. Away from one the name is only a label, and
+                              // what was entered stays.
                               onSeat: (id) =>
                                 update(
                                   withPlayer(playerId, {
                                     playerId: id,
                                     ...(store && {
                                       chips: seats.find((s) => s.id === id)?.chips ?? 0,
+                                      cover: false,
+                                      cards: [],
                                     }),
                                   }),
                                 ),
@@ -608,15 +571,23 @@ export function InsuranceHandFlow({
                                 setPickingCards(
                                   replace === undefined ? { playerId } : { playerId, replace },
                                 ),
-                              onRemove:
-                                index >= MIN_PLAYERS
-                                  ? () =>
-                                      update({
-                                        ...hand,
-                                        players: hand.players.filter((p) => p !== player),
-                                        declined: [],
-                                      })
-                                  : undefined,
+                              // The two a hand cannot do without are cleared; the rest go
+                              lead:
+                                index < MIN_PLAYERS
+                                  ? {
+                                      kind: "reset",
+                                      onSelect: () =>
+                                        update(withPlayer(playerId, { cards: [], cover: false })),
+                                    }
+                                  : {
+                                      kind: "remove",
+                                      onSelect: () =>
+                                        update({
+                                          ...hand,
+                                          players: hand.players.filter((p) => p !== player),
+                                          declined: [],
+                                        }),
+                                    },
                             }
                           : undefined
                       }

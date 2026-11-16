@@ -1,5 +1,5 @@
 import type { Card, InsuranceHandPlayer } from "@holdem-knight/core";
-import { X } from "lucide-react";
+import { RotateCcw, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { TextMenu } from "@/components/TextMenu";
 import { formatCardText } from "@/lib/cards";
@@ -32,8 +32,11 @@ export interface HandPlayerEdits {
   onCover: (cover: boolean) => void;
   /** Opens the cards, at the card tapped where there is one */
   onCards: (place: number | undefined) => void;
-  /** Missing on the rows a hand cannot do without */
-  onRemove?: (() => void) | undefined;
+  /**
+   * The small icon before the name: an arrow that clears the row's cards and cover, on the rows
+   * a hand cannot do without, or a cross that takes the row away
+   */
+  lead: { readonly kind: "reset" | "remove"; readonly onSelect: () => void };
 }
 
 interface HandPlayerRowProps {
@@ -110,14 +113,18 @@ export function HandPlayerRow({ name, player, note, edits }: HandPlayerRowProps)
         note?.leading ? "border-accent bg-accent/10" : "border-line bg-surface",
       )}
     >
-      {edits?.onRemove && (
+      {edits && (
         <button
           type="button"
-          aria-label={`删除${name}`}
-          onClick={edits.onRemove}
+          aria-label={edits.lead.kind === "reset" ? `清空${name}的手牌` : `删除${name}`}
+          onClick={edits.lead.onSelect}
           className="-mx-1 grid h-11 w-6 shrink-0 place-items-center text-muted"
         >
-          <X className="size-4" aria-hidden />
+          {edits.lead.kind === "reset" ? (
+            <RotateCcw className="size-4" strokeWidth={1.75} aria-hidden />
+          ) : (
+            <X className="size-4" aria-hidden />
+          )}
         </button>
       )}
 
