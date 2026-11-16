@@ -1078,7 +1078,7 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Source: discussion
 - Problem: a hand was entered through a chain of dialogs, for the seat, the chips, the cards and whether there was another player, and the insurance showed only after 计算保险. Chips already counted at the table had to be typed again.
 - Proposal:
-  - The page has three sections, 底池信息, 池内玩家 and 保险信息, each under a title a little larger than the text with a line under it. The first two have an arrow at the right of the title that puts the section back as it started: no board and no dead money, or the first two players of the table with no cards.
+  - The page has three sections, 底池信息, 池内玩家 and 保险信息. Each title is a little larger than the text and sits in the middle of the page, with a line at either side on the title's own middle that fades out toward the edge. A line under a title at the left was tried first. The first two have an arrow at the right edge that puts the section back as it started: no board and no dead money, or the first two players of the table with no cards.
   - 底池信息 is one line: the flop, the turn, a hairline, then dead money, framed like a street with the chip stack over its name. Dead money still opens its dialog, and its name gives the amount once there is some.
   - 池内玩家 always has two rows, which cannot be removed, since a hand needs two players. From a game they are the first two players of the table, an organizer who plays first, with the chips each has there. From the tools they are 玩家 1 and 玩家 2 with 0.
   - The plus under the rows adds the next player of the table, in the table's order. With nobody left it says so under the plus. Rows after the second have a small cross before the name, which removes them.
