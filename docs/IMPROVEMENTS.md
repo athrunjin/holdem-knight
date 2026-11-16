@@ -1098,6 +1098,24 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 360 and 412px, from the tools and from a game of four players: default rows, typing chips and their arrival at the table, cover, the menu, adding and removing, both arrows, and a hand through the turn. An organizer who plays was not tried. Not yet tried on a phone.
 - Tracking: PR #86
 
+### #I-056 Pot columns that lost parts of a pot off the bottom
+
+- Type: fix
+- Date: reported and fixed 2026-11-17
+- Source: tried on a phone, two screenshots
+- Problem: with side pots, a column of 总底池 could show fewer parts than its pot holds, so the parts on show did not add up to the chips above it. A main pot of 1,250 beside a side pot of 3,000 showed its leader and one player, half of a third, and no dead money. A side pot of 100 beside a main pot of 21,000 showed its leader alone.
+- Cause: the pots themselves were right. Both hands were dealt again in the core: the amounts, who leads each pot, the chances and the outs all agreed with the page. The fault was in the drawing. A column was given a fixed height by its pot's size, a fifth of the tallest at least, while each part keeps a least height for its text, 40px for the leader and 20px for the others. Where the parts needed more than the column's height, the column cut the rest off: 106px of parts in 75px, and 62px in 36px. The least height of a column, 36px, was below what a leader alone needs, so the smallest column of any hand was always at risk.
+- Proposal:
+  - The pot's size sets the least a column is tall, never the most. A pot with many parts for its size grows past the scale, and every part stays on show, so the parts of a column always add up to the chips above it.
+  - Within a column the parts still share the height by their chips, each never under the height of its text.
+- Settled details:
+  - A column can now be taller than its pot's share of the scale, and taller than the largest pot's 180px with enough players: nine players in one pot draw at 238px.
+  - The parts are a list for a screen reader, named after the pot.
+  - A component test draws both reported hands and checks that a column has a least height and no fixed one, and that its parts account for every chip of the pot.
+  - How dead money is shared between the pots was looked at and left as it is: each line of the dead money dialog is taken as one folded player's chips, layered over the pots like a player's. Whether a single line should go to the main pot instead is an open question for the organizer.
+- Decision: do. Checked in the browser preview in dark mode at 360 and 412px with seven hands: the two reported, three pots, tied leaders, a cover, nine players, and five-digit chips at 360px. Each was checked by script for parts inside their column and sums equal to the pot.
+- Tracking: PR #86
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

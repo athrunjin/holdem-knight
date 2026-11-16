@@ -4,7 +4,10 @@ import { cn } from "@/lib/cn";
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
 const percentText = (share: number, digits: number) => `${(share * 100).toFixed(digits)}%`;
 
-/** The tallest column, in pixels. The others are drawn to the same scale. */
+/**
+ * The largest pot's column, in pixels. The others are drawn to the same scale, unless their parts
+ * need more room than that to be read.
+ */
 const FULL_HEIGHT = 180;
 
 /** The most a column may tower over the shortest one. */
@@ -50,7 +53,8 @@ const SLICE_CLASS = {
 
 /**
  * Every pot of a hand side by side, main pot first: a column as tall as the pot is large, cut into
- * who put it in, each part naming its player and chips. The pot's leader is always on top.
+ * who put it in, each part naming its player and chips. The pot's leader is always on top. Every
+ * part of every pot is on show, so the parts of a column always add up to the chips above it.
  */
 export function PotColumns({
   pots,
@@ -82,20 +86,27 @@ export function PotColumns({
             <p className="mb-1 px-0.5 text-lg leading-tight font-semibold tabular-nums">
               {chipText(pot.amountChips)}
             </p>
-            {/* Each part keeps room for its text, so a small one is drawn a little tall */}
-            <div
+            {/*
+              The scale sets the least a column is tall, never the most: every part keeps room for
+              its text, so a pot with many parts for its size grows past the scale instead of
+              losing them. A fixed height here cut parts off the bottom of small pots.
+            */}
+            <ul
+              aria-label={`${potName(index, pots.length)}的组成`}
               className="flex flex-col gap-0.5 overflow-hidden rounded-xl"
-              style={{ height: heightOf(pot.amountChips) }}
+              style={{ minHeight: heightOf(pot.amountChips) }}
             >
               {slices(pot, nameOf).map(({ key, label, chips, tone, chance }) => (
-                <div
+                <li
                   key={key}
                   className={cn(
-                    "flex min-h-5 flex-col justify-center gap-1 px-2 text-xs leading-none",
+                    "flex min-h-5 shrink-0 flex-col justify-center gap-1 px-2 text-xs leading-none",
                     tone === "leader" && "min-h-10",
                     SLICE_CLASS[tone],
                   )}
-                  style={{ flex: `${chips} 1 0%` }}
+                  // From nothing up by its chips, so the parts share the column by size; the
+                  // least height of each is kept, and it never shrinks under its text
+                  style={{ flex: `${chips} 0 0px` }}
                 >
                   <span className="flex min-w-0 items-center justify-between gap-1">
                     <span className="truncate">{label}</span>
@@ -107,9 +118,9 @@ export function PotColumns({
                       <span className="tabular-nums">{chance}</span>
                     </span>
                   )}
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
             <p className="mt-1.5 px-0.5 text-lg leading-tight font-semibold">
               {potName(index, pots.length)}
             </p>
