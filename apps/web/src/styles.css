@@ -71,6 +71,16 @@
     }
   }
 
+  /* A slow blink through the last seconds of a countdown, and a quick one once it has run out */
+  --animate-alarm: alarm 1s ease-in-out infinite;
+  --animate-alarm-fast: alarm 0.5s ease-in-out infinite;
+
+  @keyframes alarm {
+    50% {
+      opacity: 0.3;
+    }
+  }
+
   /* A fill that runs out from the right, for a button that stays lit a few seconds */
   --animate-drain: drain 5s linear forwards;
 

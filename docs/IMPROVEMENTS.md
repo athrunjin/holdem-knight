@@ -1004,6 +1004,46 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 360, 412 and 440px; not yet tried on a phone.
 - Tracking: PR #85
 
+### #I-052 Player library in the picker's style, tools as buttons, and no start button inside a game
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-15
+- Source: discussion
+- Problem: the player library and the tools page were plain lists from before the player picker's design, and 开局 stayed in the navigation while a game was already being set up, played or settled.
+- Proposal:
+  - The player library (玩家) is laid out like 选择玩家 without 最近玩家: the search field that also adds a player, the 全部玩家 heading with its group, filter and order placeholders, and everyone under their initial letter with the letters down the right edge. A row has a chevron where the picker has a tick box, and opens that player.
+  - The tools page (工具) is three buttons on one line, each an icon over its name: 保险计算, Call Time and 抽水计算. 保险计算 opens the calculator. The other two say they are in development. 荷官费 is no longer listed.
+  - 开局 is left out of the navigation on every page of a game: 开局设置, 选择玩家, the game at the table and its settlement, with the insurance and settings pages under a game.
+- Settled details:
+  - Without the button the four tabs share the navigation evenly. Keeping its place empty, so that the tabs stay where they are, was tried first and turned down.
+  - The player library keeps its title at the left like the other tabs, not centered as on 选择玩家.
+  - The picker and the library share the search field, the heading and the grouped list (`components/players/PlayerList.tsx`).
+- Decision: do. Checked in the browser preview in dark mode at 360, 412 and 440px; not yet tried on a phone.
+- Tracking: no PR yet
+
+### #I-053 Call Time: a countdown from the tools and from a game, which floats over the other pages
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-16
+- Source: discussion
+- Problem: Call Time was a button that said it was in development, on the game page and on the tools page.
+- Proposal:
+  - Call Time opens from the tools page and from the middle tile of a game at the table. Both open the same page: the title, a dial with the seconds, the lengths, and one main button.
+  - The length is set by 30s, 60s, 90s or 120s in one tap, and by −10s and +10s at either side of the dial, so 90s then +10s gives 100. A tap on the seconds in the dial selects them, and a length can be typed over them: a whole number from 1 to 999. Only digits can be typed, and while the field is empty or zero the line under it reads 请输入正整数 and the length stays what it was. A step is not offered where it would leave that range. The last length is kept for the next time.
+  - 开始 starts the countdown: a gold ring empties around the seconds left. −10s and +10s keep working on a countdown under way, moving its end, and nothing is taken off that would end it. 结束 clears the countdown and leaves the page open.
+  - Through the last 10 seconds the time shows two decimals, as 8.46 with the decimals smaller, and the ring and the time are red and blink once a second. When time runs out the dial fills red, reads 时间到 and blinks faster, the phone buzzes where it can, and the main button is 退出.
+  - 缩小, at the top right beside 返回, works while a countdown is under way, from the tools as from a game. It goes back to the page Call Time was opened from, with the countdown as a round clock floating at the lower right: the time left with the same ring, decimals and red blink. Leaving the page any other way, such as by a tab of the navigation, leaves the same clock floating. It stays over every page and can be dragged out of the way.
+  - A tap on the floating clock opens the full page again. 返回, 缩小 and 退出 then go back to the page the clock was tapped on, wherever that is, not to where the countdown was first started. 返回 and 退出 clear the countdown; 缩小 keeps it.
+  - Left alone, the floating clock blinks for 3 seconds after time runs out, then clears the countdown and goes. On the full page 时间到 stays until 退出 or 返回.
+- Settled details:
+  - There is one countdown in the browser. It keeps the moment it ends (ADR 0001) in `localStorage`, so it survives a reload or a suspended page.
+  - Going back is a step back in the browser's history, so the page comes back as it was left. Opened by its address with no page before it, Call Time goes back to the tools page or to its game.
+  - From a page of a game the floating clock opens Call Time as that game's page, which keeps the game's navigation. From any other page it opens the one under the tools.
+  - The screen is kept on while a countdown is under way, where the browser allows it.
+  - The rules are in `packages/core/src/call-time`. There is no sound.
+- Decision: do. Checked in the browser preview in dark mode at 360 and 412px; not yet tried on a phone, where the buzz, the screen staying on and typing a length with the phone's keyboard still need a look.
+- Tracking: no PR yet
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
