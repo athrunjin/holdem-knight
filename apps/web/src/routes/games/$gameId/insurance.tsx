@@ -4,6 +4,7 @@ import {
   type InsuranceHand,
   type InsuranceRecord,
   insuranceRecords,
+  ORGANIZER_PLAYER_ID,
   summarizeByPlayer,
   type TieOuts,
 } from "@holdem-knight/core";
@@ -61,9 +62,12 @@ function GameInsurance({ game }: { game: Game }) {
   const nameOf = gameNameOf(players, game);
   const ledger = summarizeByPlayer(events);
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
-  const seats = ledger
-    .filter((p) => p.seated && p.playerId !== INSURANCE_PLAYER_ID)
-    .map((p) => ({ id: p.playerId, name: nameOf(p.playerId) }));
+  // In the table's order: an organizer who plays first, then the players as they bought in
+  const seated = ledger.filter((p) => p.seated && p.playerId !== INSURANCE_PLAYER_ID);
+  const seats = [
+    ...seated.filter((p) => p.playerId === ORGANIZER_PLAYER_ID),
+    ...seated.filter((p) => p.playerId !== ORGANIZER_PLAYER_ID),
+  ].map((p) => ({ id: p.playerId, name: nameOf(p.playerId), chips: p.stackChips }));
   const records = insuranceRecords(events)
     .filter(({ purchase }) => purchase.handId === undefined)
     .toReversed();

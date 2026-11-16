@@ -9,7 +9,8 @@ import {
 } from "@holdem-knight/core";
 import { type ReactNode, useState } from "react";
 import { formatSignedChips } from "@/lib/chips";
-import { BoardCards, CardFace, type SeatChips } from "./InsuranceHandFlow";
+import { BoardCards, CardFace } from "./CardFace";
+import type { SeatChips } from "./InsuranceHandFlow";
 import { Modal } from "./Modal";
 
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");

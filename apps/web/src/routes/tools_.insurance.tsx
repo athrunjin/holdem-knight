@@ -28,7 +28,11 @@ export const Route = createFileRoute("/tools_/insurance")({
   component: InsuranceToolPage,
 });
 
-const SEATS = Array.from({ length: 9 }, (_, i) => ({ id: `seat-${i + 1}`, name: `玩家 ${i + 1}` }));
+const SEATS = Array.from({ length: 9 }, (_, i) => ({
+  id: `seat-${i + 1}`,
+  name: `玩家 ${i + 1}`,
+  chips: 0,
+}));
 
 const scratchHand = () =>
   blankInsuranceHand({ id: "scratch", organizerId: "guest", gameId: "tool", createdAt: 0 });

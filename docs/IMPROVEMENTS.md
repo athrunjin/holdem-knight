@@ -1071,6 +1071,29 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 360 and 412px, the menu in 开局设置 at 412px; not yet tried on a phone.
 - Tracking: PR #86
 
+### #I-055 选牌计算: the pot and the players entered on the page, and the insurance shown at once
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-16
+- Source: discussion
+- Problem: a hand was entered through a chain of dialogs, for the seat, the chips, the cards and whether there was another player, and the insurance showed only after 计算保险. Chips already counted at the table had to be typed again.
+- Proposal:
+  - The page has three sections, 底池信息, 池内玩家 and 保险信息, each under a title a little larger than the text with a line under it. The first two have an arrow at the right of the title that puts the section back as it started: no board and no dead money, or the first two players of the table with no cards.
+  - 底池信息 is one line: the flop, the turn, a hairline, then dead money, framed like a street with the chip stack over its name. Dead money still opens its dialog, and its name gives the amount once there is some.
+  - 池内玩家 always has two rows, which cannot be removed, since a hand needs two players. From a game they are the first two players of the table, an organizer who plays first, with the chips each has there. From the tools they are 玩家 1 and 玩家 2 with 0.
+  - The plus under the rows adds the next player of the table, in the table's order. With nobody left it says so under the plus. Rows after the second have a small cross before the name, which removes them.
+  - A row is the name, the chips, a small C and the two cards. The name has a chevron and opens a menu in the page with the table in its order; one tap picks, and players already in another row are gray and cannot be picked. The chips are typed in place: a tap selects them, with no dialog and no frame of their own, and there is room for six digits. The C marks the player as covering the others: the chips read Cover in green, and a tap on the C takes it back. The cards open the card picker.
+  - 保险信息 shows the insurance as soon as the flop, two players' cards and their chips are in, with nothing to confirm. Until then it names what is still missing, such as 「还差：翻牌、王五（手牌）」.
+- Settled details:
+  - Chips typed from a game go to the table once the field is left, as the player's counted stack. A cover leaves the table alone, and the number under it comes back when the cover is taken off. Only one player covers at a time, so a second C moves the cover.
+  - The chips are read from the table when a player enters a row, by the default, the plus, the menu or the arrow. They are not read again while the hand is open.
+  - Changing a row's player keeps the cards entered. From a game the chips become the new player's; from the tools the chips typed stay.
+  - The first two rows are kept only once something is changed, so opening the page leaves no hand behind.
+  - The rows, the plus and the two arrows work until something is bought in the hand, as the players did before.
+  - Outs数速算 is unchanged and still asks for its two players in dialogs.
+- Decision: do. Checked in the browser preview in dark mode at 360 and 412px, from the tools and from a game of four players: default rows, typing chips and their arrival at the table, cover, the menu, adding and removing, both arrows, and a hand through the turn. An organizer who plays was not tried. Not yet tried on a phone.
+- Tracking: PR #86
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

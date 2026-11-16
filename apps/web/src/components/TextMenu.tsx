@@ -17,6 +17,8 @@ export interface TextMenuOption<T extends string> {
   readonly chosen?: ReactNode;
   /** For a reader, where the label is not text */
   readonly name?: string;
+  /** Shown gray and not for picking, such as a choice already taken elsewhere */
+  readonly disabled?: boolean;
   /** Icons after the label, such as to edit or delete what the option stands for */
   readonly actions?: readonly TextMenuAction[];
 }
@@ -104,7 +106,7 @@ export function TextMenu<T extends string>({
             role="menu"
             aria-label={label}
             className={cn(
-              "absolute top-full z-20 w-max max-w-[calc(100vw-2rem)] min-w-28 rounded-xl border border-line bg-surface py-1 shadow-lg",
+              "absolute top-full z-20 max-h-[60dvh] w-max max-w-[calc(100vw-2rem)] min-w-28 overflow-y-auto rounded-xl border border-line bg-surface py-1 shadow-lg",
               align === "left" ? "left-0" : "right-0",
             )}
           >
@@ -117,13 +119,14 @@ export function TextMenu<T extends string>({
                     role="menuitemradio"
                     aria-checked={checked}
                     aria-label={option.name}
+                    disabled={option.disabled}
                     onClick={() => {
                       setOpen(false);
                       onChange(option.value);
                     }}
                     className={cn(
                       // The choice in force is the one in full white
-                      "flex min-h-11 min-w-0 flex-1 items-center gap-2 px-3 text-left text-sm font-normal",
+                      "flex min-h-11 min-w-0 flex-1 items-center gap-2 px-3 text-left text-sm font-normal disabled:opacity-40",
                       checked ? "font-medium text-text" : "text-muted",
                     )}
                   >

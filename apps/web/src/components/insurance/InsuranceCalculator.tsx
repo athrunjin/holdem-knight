@@ -12,6 +12,8 @@ export type { BoughtInsurance } from "./LeaderQuote";
 export interface InsuranceSeat {
   readonly id: string;
   readonly name: string;
+  /** The chips the player has at the table, which a hand starts their stake from. Zero away from a game. */
+  readonly chips?: number;
 }
 
 export interface InsuranceRecorder {
@@ -36,7 +38,7 @@ interface InsuranceCalculatorProps {
    */
   onTieOutsChange?: (tieOuts: TieOuts) => void;
   seats: readonly InsuranceSeat[];
-  /** Hands out the seats in order instead of asking who is all-in: the standalone calculator has no table. */
+  /** Gives the quick price its two seats in order instead of asking who is all-in: the standalone calculator has no table. */
   autoSeat?: boolean;
   saving?: boolean | undefined;
   /** Missing for the standalone calculator, which records nothing. */
@@ -138,7 +140,6 @@ export function InsuranceCalculator({
         <InsuranceHandFlow
           rule={rule}
           seats={seats}
-          autoSeat={autoSeat}
           open={openHand}
           createHand={createHand}
           store={handStore}

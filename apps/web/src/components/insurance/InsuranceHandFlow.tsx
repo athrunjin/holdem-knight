@@ -4,7 +4,6 @@ import {
   contestedStakes,
   dealCard,
   declineOffer,
-  formatCard,
   handOffers,
   handPotBreakdown,
   handPotEntries,
@@ -21,22 +20,20 @@ import {
   type Standings,
   undoDeal,
 } from "@holdem-knight/core";
-import { ChevronDown, Plus, X } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
-import { formatCardText } from "@/lib/cards";
+import { Plus, RotateCcw } from "lucide-react";
+import { useMemo, useState } from "react";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
+import { BOARD_PLACES, CardFace } from "./CardFace";
 import { CardPicker } from "./CardPicker";
 import { DeadMoneyDialog } from "./DeadMoneyDialog";
+import { HandPlayerRow, type StandingNote } from "./HandPlayerRow";
 import { HandSummary } from "./HandSummary";
 import type { InsuranceSeat } from "./InsuranceCalculator";
 import type { Decisions } from "./LeaderQuote";
-import { Modal } from "./Modal";
-import { PlayerChipsDialog } from "./PlayerChipsDialog";
 import { PotColumns, potName } from "./PotColumns";
 import { PotInsurance } from "./PotInsurance";
 import { type PotShare, PotShares } from "./PotShares";
-import { SeatPicker } from "./SeatPicker";
 
 /** Keeps the hand. Missing for the standalone calculator, which records nothing. */
 export interface HandStore {
@@ -55,9 +52,8 @@ export interface SeatChips {
 
 interface InsuranceHandFlowProps {
   rule: InsuranceRule;
+  /** Everyone at the table, in its order. The first two start a hand, and the rest can be added. */
   seats: readonly InsuranceSeat[];
-  /** Hands out the seats in order instead of asking who is all-in. */
-  autoSeat: boolean;
   /** The hand in progress, to carry on from. */
   open: InsuranceHand | undefined;
   createHand: () => InsuranceHand;
@@ -65,32 +61,46 @@ interface InsuranceHandFlowProps {
   seat: SeatChips | undefined;
 }
 
-/** The player being added through seat, chips and cards, or the one part of a player being changed. */
-type Adding =
-  | { readonly stage: "seat" }
-  | { readonly stage: "chips"; readonly entry: InsuranceHandPlayer }
-  | {
-      readonly stage: "cards";
-      readonly entry: InsuranceHandPlayer;
-      /** The card tapped, to change that one. */
-      readonly replace?: number;
-    }
-  | { readonly stage: "more" }
-  /** Another seat takes over this player's chips and cards. */
-  | { readonly stage: "swap"; readonly entry: InsuranceHandPlayer };
-
 const STREET_TEXT = { turn: "转牌", river: "河牌" } as const;
 
 /** The cards taken, less the ones being picked again. */
 const withoutCards = (used: ReadonlySet<Card>, free: readonly Card[]) =>
   new Set([...used].filter((card) => !free.includes(card)));
 
-const blankPlayer = (playerId: string): InsuranceHandPlayer => ({
-  playerId,
-  chips: 0,
+/** A player as they sit down in a hand: the chips they have at the table, and no cards yet. */
+const seatedPlayer = ({ id, chips = 0 }: InsuranceSeat): InsuranceHandPlayer => ({
+  playerId: id,
+  chips,
   cover: false,
   cards: [],
 });
+
+/** A hand needs two players, and starts with two. */
+const MIN_PLAYERS = 2;
+
+/** The first players of the table who are not in the hand yet, in the table's order. */
+function nextPlayers(
+  players: readonly InsuranceHandPlayer[],
+  seats: readonly InsuranceSeat[],
+  count: number,
+): InsuranceHandPlayer[] {
+  const taken = players.map((p) => p.playerId);
+  return seats
+    .filter(({ id }) => !taken.includes(id))
+    .slice(0, Math.max(0, count))
+    .map(seatedPlayer);
+}
+
+/**
+ * The hand with its first two players in place: the first two of the table, with the chips they
+ * have there. Nothing is kept until the organizer changes something, so a table that changes
+ * meanwhile still shows as it is.
+ */
+function withFirstPlayers(hand: InsuranceHand, seats: readonly InsuranceSeat[]): InsuranceHand {
+  if (hand.step !== "players" && hand.step !== "start") return hand;
+  const added = nextPlayers(hand.players, seats, MIN_PLAYERS - hand.players.length);
+  return added.length === 0 ? hand : { ...hand, players: [...hand.players, ...added] };
+}
 
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
 const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
@@ -98,37 +108,6 @@ const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
 const primaryClass =
   "min-h-12 w-full rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40";
 const secondaryClass = "min-h-11 w-full rounded-xl border border-line font-medium";
-
-/** A card, or a question mark in its place. `solid` draws the empty place as a card that must come. */
-export function CardFace({ card, solid = false }: { card: Card | null; solid?: boolean }) {
-  const red = card !== null && /[hd]/.test(formatCard(card)[1] ?? "");
-  return (
-    <span
-      className={cn(
-        "grid h-11 w-9 place-items-center rounded-md border text-sm font-semibold tabular-nums",
-        card !== null && "border-line bg-bg",
-        card === null &&
-          (solid ? "border-line bg-surface text-muted" : "border-dashed border-line text-muted"),
-        red && "text-loss",
-      )}
-    >
-      {card === null ? "?" : formatCardText(card)}
-    </span>
-  );
-}
-
-const BOARD_PLACES = [0, 1, 2, 3, 4] as const;
-
-/** Five places: dealt cards, then question marks. */
-export function BoardCards({ cards }: { cards: readonly Card[] }) {
-  return (
-    <span className="flex gap-1" role="img" aria-label={`公共牌已发 ${cards.length} 张`}>
-      {BOARD_PLACES.map((place) => (
-        <CardFace key={place} card={cards[place] ?? null} />
-      ))}
-    </span>
-  );
-}
 
 /**
  * One street's cards in a frame, named underneath. A street that must be entered is framed solid;
@@ -202,20 +181,26 @@ function ChipStack({ lit }: { lit: boolean }) {
   );
 }
 
-/** Dead money as a chip stack, tapped to enter it. It lights up once there is some. */
+/**
+ * Dead money, framed like a street of the board: the chip stack with its name underneath. It
+ * lights up once there is some, and the name gives the amount.
+ */
 function DeadMoney({ chips, onEdit }: { chips: number; onEdit: (() => void) | undefined }) {
   const lit = chips > 0;
   const className = cn(
-    "mt-2 flex min-h-11 w-fit items-center gap-2 rounded-xl border px-3",
+    "flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 px-2 pt-2 pb-1",
     lit
       ? "border-highlight bg-highlight/10 text-highlight"
       : "border-dashed border-line text-muted",
   );
   const content = (
     <>
-      <ChipStack lit={lit} />
-      <span className="text-sm">死钱</span>
-      {lit && <span className="text-lg font-semibold tabular-nums">{chipText(chips)}</span>}
+      <span className="grid h-11 place-items-center">
+        <ChipStack lit={lit} />
+      </span>
+      <span className="text-xs whitespace-nowrap tabular-nums">
+        {lit ? `死钱 ${chipText(chips)}` : "死钱"}
+      </span>
     </>
   );
   if (!onEdit) return <div className={className}>{content}</div>;
@@ -226,10 +211,34 @@ function DeadMoney({ chips, onEdit }: { chips: number; onEdit: (() => void) | un
   );
 }
 
-/** Where a player stands, under their name: a leader is lit and shows only the chance to win. */
-interface StandingNote {
-  readonly leading: boolean;
-  readonly text: string;
+/** A section's name, a little larger than the text, over a line. Its arrow puts the section back as it started. */
+function SectionTitle({
+  id,
+  title,
+  reset,
+}: {
+  id?: string;
+  title: string;
+  /** Missing where the section can no longer change */
+  reset?: { readonly label: string; readonly onReset: () => void } | undefined;
+}) {
+  return (
+    <div className="mb-2 flex min-h-11 items-center justify-between border-b border-line">
+      <h2 id={id} className="text-lg font-semibold">
+        {title}
+      </h2>
+      {reset && (
+        <button
+          type="button"
+          aria-label={reset.label}
+          onClick={reset.onReset}
+          className="-mr-2 grid size-11 shrink-0 place-items-center text-muted"
+        >
+          <RotateCcw className="size-5" strokeWidth={1.75} aria-hidden />
+        </button>
+      )}
+    </div>
+  );
 }
 
 /** A leader's chance to win stands alone. A player behind gets their outs for the next card before it. */
@@ -246,123 +255,6 @@ function standingNote(
   if (leading || !cardsToCome) return { leading, text: chance };
   const cards = tieCards.length > 0 ? `${outs.length}+${tieCards.length}` : outs.length;
   return { leading, text: `Outs ${cards} · ${chance}` };
-}
-
-/** One player: name, chips and cards. A part with a handler is tapped to change just that part. */
-function PlayerRow({
-  name,
-  player,
-  note,
-  onSeat,
-  onChips,
-  onCard,
-  children,
-}: {
-  name: string;
-  player: InsuranceHandPlayer;
-  /** Missing until the hands can be compared. */
-  note: StandingNote | undefined;
-  /** Missing where the seat is given rather than picked. */
-  onSeat?: (() => void) | undefined;
-  onChips?: (() => void) | undefined;
-  onCard?: ((place: number) => void) | undefined;
-  children?: ReactNode;
-}) {
-  const chips = player.cover ? "Cover" : chipText(player.chips);
-  const label = (
-    <>
-      <span className="flex min-w-0 items-center gap-0.5 font-medium">
-        <span className="truncate">{name}</span>
-        {onSeat && <ChevronDown className="size-4 shrink-0 text-muted" aria-hidden />}
-      </span>
-      {note && (
-        <span
-          className={cn(
-            "truncate text-xs tabular-nums",
-            note.leading ? "font-semibold text-accent" : "text-muted",
-          )}
-        >
-          {note.text}
-        </span>
-      )}
-    </>
-  );
-  return (
-    <div
-      className={cn(
-        "flex items-center gap-2 rounded-xl border p-2 transition-colors",
-        note?.leading ? "border-accent bg-accent/10" : "border-line bg-surface",
-      )}
-    >
-      <div className="min-w-0 flex-1">
-        {onSeat ? (
-          <button
-            type="button"
-            aria-label={`更换${name}`}
-            onClick={onSeat}
-            className="flex min-h-11 max-w-full flex-col justify-center text-left"
-          >
-            {label}
-          </button>
-        ) : (
-          <div className="flex min-h-11 flex-col justify-center">{label}</div>
-        )}
-      </div>
-      {onChips ? (
-        <button
-          type="button"
-          aria-label={`修改${name}的筹码`}
-          onClick={onChips}
-          className="min-h-11 shrink-0 rounded-lg border border-line bg-bg px-2 font-semibold tabular-nums"
-        >
-          {chips}
-        </button>
-      ) : (
-        <span className="shrink-0 font-semibold tabular-nums">{chips}</span>
-      )}
-      <span className={cn("flex shrink-0", !onCard && "gap-1")}>
-        {player.cards.map((card, place) =>
-          onCard ? (
-            <button
-              key={card}
-              type="button"
-              aria-label={`更换${name}的${formatCardText(card)}`}
-              onClick={() => onCard(place)}
-              className="grid min-h-11 min-w-11 place-items-center"
-            >
-              <CardFace card={card} />
-            </button>
-          ) : (
-            <CardFace key={card} card={card} />
-          ),
-        )}
-      </span>
-      {children}
-    </div>
-  );
-}
-
-function MoreDialog({
-  number,
-  onAdd,
-  onDone,
-}: {
-  number: number;
-  onAdd: () => void;
-  onDone: () => void;
-}) {
-  return (
-    <Modal title="还有玩家吗？" onClose={onDone}>
-      <div className="flex flex-col gap-2">
-        <button type="button" onClick={onAdd} className={secondaryClass}>
-          添加玩家 {number}
-        </button>
-        <button type="button" onClick={onDone} className={primaryClass}>
-          结束
-        </button>
-      </div>
-    </Modal>
-  );
 }
 
 function SettleStep({
@@ -424,50 +316,80 @@ function SettleStep({
   );
 }
 
-/** One all-in from the players to the last card. Every change is kept, so it survives leaving the page. */
+/** What a hand still needs before its insurance can be priced, in the order it is entered. */
+function missingParts(hand: InsuranceHand, nameOf: (id: string) => string): string[] {
+  return [
+    ...(hand.board.length < 3 ? ["翻牌"] : []),
+    ...(hand.players.length < MIN_PLAYERS ? ["两位玩家"] : []),
+    ...hand.players.flatMap((player) => {
+      const parts = [
+        ...(player.cover || player.chips > 0 ? [] : ["筹码"]),
+        ...(player.cards.length === 2 ? [] : ["手牌"]),
+      ];
+      return parts.length > 0 ? [`${nameOf(player.playerId)}（${parts.join("、")}）`] : [];
+    }),
+  ];
+}
+
+/**
+ * One all-in from the players to the last card. The pot and the players are entered on the page
+ * itself, and the insurance shows under them as soon as there is enough to price it. Every change
+ * is kept, so it survives leaving the page.
+ */
 export function InsuranceHandFlow({
   rule,
   seats,
-  autoSeat,
   open,
   createHand,
   store,
   seat,
 }: InsuranceHandFlowProps) {
-  const [hand, setHand] = useState(() => open ?? createHand());
-  const [adding, setAdding] = useState<Adding>();
+  const [kept, setHand] = useState(() => open ?? createHand());
+  const [pickingCards, setPickingCards] = useState<{ playerId: string; replace?: number }>();
   const [editingDead, setEditingDead] = useState(false);
   const [pickingStreet, setPickingStreet] = useState<"flop" | "turn">();
   const [finishing, setFinishing] = useState(false);
+  // Why a tap on the plus added nobody
+  const [notice, setNotice] = useState<string>();
 
+  const hand = withFirstPlayers(kept, seats);
   const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? "未知玩家";
   const totals = potTotals(handPotEntries(hand));
   const usedCards = new Set([...hand.players.flatMap((p) => p.cards), ...hand.board]);
   const street = nextStreet(hand.board);
 
-  const offers = useMemo(() => (hand.step === "buy" ? handOffers(hand, rule) : []), [hand, rule]);
-  // Dead money and decisions leave these two as they were, so they do not deal the runouts again
-  const { players, board } = hand;
-  const standings = useMemo(() => handStandings({ players, board }), [players, board]);
   // Hands saved before the board moved onto this screen can still be on the street step
   const entering = hand.step === "players" || hand.step === "start";
   // Whoever is in the pot prices everything sold, so the pot stays as it is once anything is
   const editable = hand.purchases.length === 0 && (entering || hand.step === "buy");
   const complete = playersReady(hand.players) && hand.board.length >= 3;
+  // Priced as soon as there is enough to price, with nothing to confirm first
+  const pricing = complete && (entering || hand.step === "buy");
+
+  const offers = useMemo(() => (pricing ? handOffers(hand, rule) : []), [pricing, hand, rule]);
+  // The chips, dead money and decisions change none of this, so they do not deal the runouts again
+  const { players, board } = hand;
+  const cardsKey = players.map((p) => `${p.playerId}:${p.cards.join(",")}`).join("|");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the players count only by who holds which cards
+  const standings = useMemo(() => handStandings({ players, board }), [cardsKey, board]);
   const potCount = new Set(offers.map((o) => o.potIndex)).size;
   // Side pots are drawn pot by pot; a single pot keeps the ring
   const breakdown = complete ? handPotBreakdown(hand) : [];
   // While buying, a lone pot is drawn in its own insurance block, so the overview would repeat it
   const overview = complete && (breakdown.length > 1 || offers.length === 0);
+  // Something has been entered, so there is a hand to give up
+  const started = kept.players.length > 0 || kept.board.length > 0 || kept.pools.length > 0;
 
   function update(next: InsuranceHand) {
     setHand(next);
+    setNotice(undefined);
     store?.save(next);
   }
 
   function reset() {
     setHand(createHand());
-    setAdding(undefined);
+    setPickingCards(undefined);
+    setNotice(undefined);
   }
 
   function discard() {
@@ -494,31 +416,38 @@ export function InsuranceHandFlow({
     }
   }
 
-  /** Starts on the next player: at the seat picker, or straight at the chips of the first free seat. */
-  function addPlayer(takenSeats: readonly string[]) {
-    const free = autoSeat ? seats.find(({ id }) => !takenSeats.includes(id)) : undefined;
-    setAdding(free ? { stage: "chips", entry: blankPlayer(free.id) } : { stage: "seat" });
+  /** One player's row with something changed. Offers turned down were for the pot as it was. */
+  const withPlayer = (playerId: string, change: Partial<InsuranceHandPlayer>): InsuranceHand => ({
+    ...hand,
+    players: hand.players.map((p) => (p.playerId === playerId ? { ...p, ...change } : p)),
+    declined: [],
+  });
+
+  /** Adds the next player of the table, or says that nobody is left to add. */
+  function addPlayer() {
+    const [next] = nextPlayers(hand.players, seats, 1);
+    if (next) update({ ...hand, players: [...hand.players, next], declined: [] });
+    else setNotice(store ? "桌上没有更多玩家了。" : "玩家已经加满了。");
   }
 
-  function savePlayer(entry: InsuranceHandPlayer) {
-    const known = hand.players.some((p) => p.playerId === entry.playerId);
-    const players = known
-      ? hand.players.map((p) => (p.playerId === entry.playerId ? entry : p))
-      : [...hand.players, entry];
-    // Offers turned down were for the pot as it was
-    update({ ...hand, players, declined: [] });
-    if (!entry.cover) store?.enterStack(entry.playerId, entry.chips);
-    if (known) setAdding(undefined);
-    else if (players.length === 1) addPlayer(players.map((p) => p.playerId));
-    else setAdding(players.length < seats.length ? { stage: "more" } : undefined);
+  /** Counted chips are the player's true stack, so they go to the table once typing is done. */
+  function commitChips(playerId: string) {
+    const player = hand.players.find((p) => p.playerId === playerId);
+    store?.save(hand);
+    if (player && !player.cover && player.chips > 0) {
+      store?.enterStack(playerId, player.chips);
+    }
   }
 
-  /** Seats another player in this one's place, with the chips and cards already entered. */
-  function swapPlayer(from: InsuranceHandPlayer, playerId: string) {
-    const players = hand.players.map((p) => (p === from ? { ...from, playerId } : p));
-    update({ ...hand, players, declined: [] });
-    if (!from.cover) store?.enterStack(playerId, from.chips);
-    setAdding(undefined);
+  /** At most one player covers the others. The chips typed stay as they are under the cover. */
+  function setCover(playerId: string, cover: boolean) {
+    update({
+      ...hand,
+      players: hand.players.map((p) =>
+        p.playerId === playerId ? { ...p, cover } : cover ? { ...p, cover: false } : p,
+      ),
+      declined: [],
+    });
   }
 
   /** Changes the cards entered for the board. Cards dealt through the hand are settled as they come. */
@@ -538,7 +467,6 @@ export function InsuranceHandFlow({
         label: nameOf(player.playerId),
         chips: stakes[player.playerId] ?? 0,
         note: note?.text,
-        onSelect: editable ? () => setAdding({ stage: "chips", entry: player }) : undefined,
       };
     });
     return [
@@ -552,26 +480,6 @@ export function InsuranceHandFlow({
         onSelect: editable ? () => setEditingDead(true) : undefined,
       },
     ];
-  }
-
-  /** A player's row. While the players can change, each part opens its own edit. */
-  function playerRow(player: InsuranceHandPlayer, children?: ReactNode) {
-    return (
-      <PlayerRow
-        name={nameOf(player.playerId)}
-        player={player}
-        note={standingNote(standings, player.playerId, hand.board.length < 5)}
-        onSeat={
-          editable && !autoSeat ? () => setAdding({ stage: "swap", entry: player }) : undefined
-        }
-        onChips={editable ? () => setAdding({ stage: "chips", entry: player }) : undefined}
-        onCard={
-          editable ? (replace) => setAdding({ stage: "cards", entry: player, replace }) : undefined
-        }
-      >
-        {children}
-      </PlayerRow>
-    );
   }
 
   const decisions: Decisions | undefined = store && {
@@ -588,29 +496,35 @@ export function InsuranceHandFlow({
     revise: (key) => update(reviseOffer(hand, key)),
   };
 
-  const taken = hand.players.map((p) => p.playerId);
-  const entry = adding && "entry" in adding ? adding.entry : undefined;
-  const entered = entry !== undefined && taken.includes(entry.playerId);
-  const nextNumber = hand.players.length + 1;
+  const picking = pickingCards && hand.players.find((p) => p.playerId === pickingCards.playerId);
+  const missing = missingParts(hand, nameOf);
 
   return (
     <>
       {hand.step !== "summary" && (
         <>
-          <section aria-labelledby="hand-pot-title" className="mt-3">
-            <h2 id="hand-pot-title" className="mb-2 font-semibold">
-              底池信息
-            </h2>
-            <div className="flex items-start gap-1.5">
+          <section aria-labelledby="hand-pot-title" className="mt-1">
+            <SectionTitle
+              id="hand-pot-title"
+              title="底池信息"
+              reset={
+                editable
+                  ? {
+                      label: "清空底池信息",
+                      onReset: () => update({ ...hand, board: [], pools: [], declined: [] }),
+                    }
+                  : undefined
+              }
+            />
+            <div className="flex flex-wrap items-stretch gap-1.5">
               <StreetCards
                 label="翻牌"
                 cards={hand.board.slice(0, 3)}
                 count={3}
                 onPick={editable ? () => setPickingStreet("flop") : undefined}
               />
-              <Plus className="mt-6 size-4 shrink-0 text-muted" aria-hidden />
               <StreetCards
-                label={hand.board.length > 3 ? "转牌" : "转牌 · 可不选"}
+                label={hand.board.length > 3 ? "转牌" : "转牌·可选"}
                 cards={hand.board.slice(3, 4)}
                 count={1}
                 optional
@@ -618,53 +532,105 @@ export function InsuranceHandFlow({
                 onPick={editable ? () => setPickingStreet("turn") : undefined}
               />
               {hand.board.length === 5 && (
-                <>
-                  <Plus className="mt-6 size-4 shrink-0 text-muted" aria-hidden />
-                  <StreetCards label="河牌" cards={hand.board.slice(4)} count={1} />
-                </>
+                <StreetCards label="河牌" cards={hand.board.slice(4)} count={1} />
               )}
+              <span aria-hidden className="mx-1 w-px self-stretch bg-line" />
+              <DeadMoney
+                chips={totals.deadChips}
+                onEdit={editable ? () => setEditingDead(true) : undefined}
+              />
             </div>
-            <DeadMoney
-              chips={totals.deadChips}
-              onEdit={editable ? () => setEditingDead(true) : undefined}
-            />
           </section>
 
-          <h2 className="mt-3 mb-1 text-sm text-muted">池内玩家</h2>
-          <ul className="flex flex-col gap-2">
-            {hand.players.map((player) => (
-              <li key={player.playerId}>
-                {playerRow(
-                  player,
-                  entering && (
-                    <button
-                      type="button"
-                      aria-label={`删除${nameOf(player.playerId)}`}
-                      onClick={() =>
+          <section aria-labelledby="hand-players-title" className="mt-3">
+            <SectionTitle
+              id="hand-players-title"
+              title="池内玩家"
+              reset={
+                editable
+                  ? {
+                      label: "重置池内玩家",
+                      onReset: () =>
                         update({
                           ...hand,
-                          players: hand.players.filter((p) => p !== player),
-                        })
+                          players: nextPlayers([], seats, MIN_PLAYERS),
+                          declined: [],
+                        }),
+                    }
+                  : undefined
+              }
+            />
+            {seats.length < MIN_PLAYERS && (
+              <p className="mb-2 text-sm text-muted">桌上至少要有两位玩家，才能算保险。</p>
+            )}
+            <ul className="flex flex-col gap-2">
+              {hand.players.map((player, index) => {
+                const { playerId } = player;
+                return (
+                  <li key={playerId}>
+                    <HandPlayerRow
+                      name={nameOf(playerId)}
+                      player={player}
+                      note={standingNote(standings, playerId, hand.board.length < 5)}
+                      edits={
+                        editable
+                          ? {
+                              seats,
+                              takenIds: hand.players
+                                .filter((p) => p !== player)
+                                .map((p) => p.playerId),
+                              // The cards entered stay with the row. At a table the chips are
+                              // the new player's own; away from one, the chips typed stay too.
+                              onSeat: (id) =>
+                                update(
+                                  withPlayer(playerId, {
+                                    playerId: id,
+                                    ...(store && {
+                                      chips: seats.find((s) => s.id === id)?.chips ?? 0,
+                                    }),
+                                  }),
+                                ),
+                              // Kept and sent to the table once the field is left, not on every digit
+                              onChips: (chips) => setHand(withPlayer(playerId, { chips })),
+                              onChipsDone: () => commitChips(playerId),
+                              onCover: (cover) => setCover(playerId, cover),
+                              onCards: (replace) =>
+                                setPickingCards(
+                                  replace === undefined ? { playerId } : { playerId, replace },
+                                ),
+                              onRemove:
+                                index >= MIN_PLAYERS
+                                  ? () =>
+                                      update({
+                                        ...hand,
+                                        players: hand.players.filter((p) => p !== player),
+                                        declined: [],
+                                      })
+                                  : undefined,
+                            }
+                          : undefined
                       }
-                      className="grid size-11 shrink-0 place-items-center rounded-lg border border-line"
-                    >
-                      <X className="size-5" aria-hidden />
-                    </button>
-                  ),
-                )}
-              </li>
-            ))}
-          </ul>
-          {entering && hand.players.length < seats.length && (
-            <button
-              type="button"
-              aria-label="添加玩家"
-              onClick={() => addPlayer(taken)}
-              className="mt-2 grid min-h-14 w-full place-items-center rounded-xl border border-dashed border-line text-highlight"
-            >
-              <Plus className="size-6" aria-hidden />
-            </button>
-          )}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+            {editable && (
+              <button
+                type="button"
+                aria-label="添加玩家"
+                onClick={addPlayer}
+                className="mt-2 grid min-h-11 w-full place-items-center rounded-xl border border-dashed border-line text-highlight"
+              >
+                <Plus className="size-5" aria-hidden />
+              </button>
+            )}
+            {notice && (
+              <p role="status" className="mt-1 text-sm text-muted">
+                {notice}
+              </p>
+            )}
+          </section>
 
           {overview && (
             <div className="mt-3">
@@ -683,53 +649,40 @@ export function InsuranceHandFlow({
         </>
       )}
 
-      {entering &&
-        (complete ? (
-          <button
-            type="button"
-            onClick={() => update({ ...hand, step: "buy" })}
-            className={cn(primaryClass, "mt-3")}
-          >
-            计算保险
-          </button>
-        ) : (
-          <p className="mt-3 text-sm text-muted">
-            {playersReady(hand.players)
-              ? "再选好翻牌，就可以计算保险。"
-              : "先录入至少两位玩家的筹码和手牌。"}
-          </p>
-        ))}
-
-      {hand.step === "buy" && street && (
-        <>
-          {offers.map((offer) => (
-            <PotInsurance
-              key={offer.key}
-              offer={offer}
-              label={potName(offer.potIndex, potCount)}
-              nameOf={nameOf}
-              rule={rule}
-              decisions={decisions}
-            />
-          ))}
-          <button
-            type="button"
-            disabled={store !== undefined && !offersDecided(hand, offers)}
-            onClick={() => update({ ...hand, step: "deal" })}
-            className={cn(primaryClass, "mt-3")}
-          >
-            选择{STREET_TEXT[street]}
-          </button>
-          {hand.purchases.length === 0 && (
-            <button
-              type="button"
-              onClick={() => update({ ...hand, declined: [], step: "players" })}
-              className={cn(secondaryClass, "mt-2")}
-            >
-              返回增减玩家
-            </button>
+      {(entering || hand.step === "buy") && (
+        <section aria-labelledby="hand-insurance-title" className="mt-3">
+          <SectionTitle id="hand-insurance-title" title="保险信息" />
+          {!pricing && (
+            <p className="text-sm text-muted">
+              {missing.length > 0
+                ? `还差：${missing.join("、")}。填好后这里直接显示保险。`
+                : "只能有一位玩家 Cover，至少两位玩家才能算保险。"}
+            </p>
           )}
-        </>
+          {pricing && !street && <p className="text-sm text-muted">公共牌已发完，没有保险可买。</p>}
+          {pricing && street && (
+            <>
+              {offers.map((offer) => (
+                <PotInsurance
+                  key={offer.key}
+                  offer={offer}
+                  label={potName(offer.potIndex, potCount)}
+                  nameOf={nameOf}
+                  rule={rule}
+                  decisions={decisions}
+                />
+              ))}
+              <button
+                type="button"
+                disabled={store !== undefined && !offersDecided(hand, offers)}
+                onClick={() => update({ ...hand, step: "deal" })}
+                className={cn(primaryClass, "mt-3")}
+              >
+                选择{STREET_TEXT[street]}
+              </button>
+            </>
+          )}
+        </section>
       )}
 
       {hand.step === "settle" && (
@@ -755,7 +708,7 @@ export function InsuranceHandFlow({
         />
       )}
 
-      {hand.players.length > 0 && hand.step !== "summary" && (
+      {started && hand.step !== "summary" && (
         <button
           type="button"
           onClick={discard}
@@ -776,57 +729,20 @@ export function InsuranceHandFlow({
         />
       )}
 
-      {adding?.stage === "seat" && (
-        <SeatPicker
-          seats={seats}
-          takenSeats={taken}
-          onPick={({ id }) => setAdding({ stage: "chips", entry: blankPlayer(id) })}
-          onClose={() => setAdding(undefined)}
-        />
-      )}
-
-      {adding?.stage === "swap" && (
-        <SeatPicker
-          seats={seats}
-          takenSeats={taken}
-          onPick={({ id }) => swapPlayer(adding.entry, id)}
-          onClose={() => setAdding(undefined)}
-        />
-      )}
-
-      {adding?.stage === "chips" && entry && (
-        <PlayerChipsDialog
-          name={nameOf(entry.playerId)}
-          chips={entry.chips}
-          cover={entry.cover}
-          coverTaken={hand.players.some((p) => p.cover && p.playerId !== entry.playerId)}
-          onConfirm={(chips) => {
-            const next = { ...entry, ...chips };
-            // A player already in the pot changes chips alone; a new one goes on to the cards
-            if (entered) savePlayer(next);
-            else setAdding({ stage: "cards", entry: next });
-          }}
-          onCancel={() => setAdding(undefined)}
-        />
-      )}
-
-      {adding?.stage === "cards" && entry && (
+      {pickingCards && picking && (
         <CardPicker
-          title={`${nameOf(entry.playerId)}：${entered ? "更换手牌" : "选择两张手牌"}`}
+          title={`${nameOf(picking.playerId)}：${
+            picking.cards.length === 2 ? "更换手牌" : "选择两张手牌"
+          }`}
           count={2}
-          usedCards={withoutCards(usedCards, entry.cards)}
-          initial={entry.cards}
-          replace={adding.replace}
-          onConfirm={(cards) => savePlayer({ ...entry, cards })}
-          onCancel={() => setAdding(undefined)}
-        />
-      )}
-
-      {adding?.stage === "more" && (
-        <MoreDialog
-          number={nextNumber}
-          onAdd={() => addPlayer(taken)}
-          onDone={() => setAdding(undefined)}
+          usedCards={withoutCards(usedCards, picking.cards)}
+          initial={picking.cards}
+          replace={pickingCards.replace}
+          onConfirm={(cards) => {
+            update(withPlayer(picking.playerId, { cards }));
+            setPickingCards(undefined);
+          }}
+          onCancel={() => setPickingCards(undefined)}
         />
       )}
 
