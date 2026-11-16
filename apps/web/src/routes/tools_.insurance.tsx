@@ -6,7 +6,7 @@ import {
   toInsuranceRuleForm,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeftRight, Settings, X } from "lucide-react";
+import { ArrowLeftRight, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   InsuranceCalculator,
@@ -18,7 +18,7 @@ import {
   InsuranceSettings,
   useInsuranceConfigs,
 } from "@/components/insurance/InsuranceSettings";
-import { Modal } from "@/components/insurance/Modal";
+import { useOddsTableChoices } from "@/components/insurance/OddsTableEditor";
 import { Page } from "@/components/Page";
 import { TextMenu } from "@/components/TextMenu";
 import { cn } from "@/lib/cn";
@@ -60,6 +60,9 @@ function parseSettings(stored: unknown): ToolSettings | undefined {
   const kept = { odds, tieOuts, refundPremium, turnLimit, riverLimit };
   return parseInsuranceRule(kept).ok ? { source, form: kept } : undefined;
 }
+
+/** Stands for odds that are no table on offer. */
+const CUSTOM_TABLE = "custom";
 
 const MODES = [
   { id: "cards", label: "选牌计算" },
@@ -119,7 +122,6 @@ function InsuranceToolPage() {
     DEFAULT_SETTINGS,
     parseSettings,
   );
-  const [configuring, setConfiguring] = useState(false);
 
   const choice: InsuranceChoice = { enabled: true, ...settings };
   const setChoice = ({ source, form }: InsuranceChoice) => setSettings({ source, form });
@@ -131,6 +133,15 @@ function InsuranceToolPage() {
     lastRuleLabel: "",
     onChange: setChoice,
   });
+
+  // The odds are apart from the settings, so the configuration keeps its name
+  const tables = useOddsTableChoices(form.odds, (odds) =>
+    setChoice({ ...choice, form: { ...form, odds } }),
+  );
+  const tableOptions = [
+    ...tables.tables.map(({ id, name }) => ({ value: id, label: name })),
+    ...(tables.selected ? [] : [{ value: CUSTOM_TABLE, label: CUSTOM_NAME }]),
+  ];
 
   const options = [
     ...configs.rules.map(({ id, name }) => ({ value: id, label: name })),
@@ -153,7 +164,7 @@ function InsuranceToolPage() {
         </Link>
       }
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-4">
         <TextMenu
           label="保险配置"
           options={options}
@@ -161,16 +172,25 @@ function InsuranceToolPage() {
           onChange={configs.choose}
           className="text-sm font-medium"
         />
-        <button
-          type="button"
-          aria-label="保险设置"
-          aria-haspopup="dialog"
-          onClick={() => setConfiguring(true)}
-          className="-mr-2 grid size-11 shrink-0 place-items-center text-muted"
-        >
-          <Settings className="size-6" strokeWidth={1.75} aria-hidden />
-        </button>
+        <TextMenu
+          label="赔率表"
+          align="right"
+          options={tableOptions}
+          value={tables.selected?.id ?? CUSTOM_TABLE}
+          onChange={tables.apply}
+          className="text-sm font-medium"
+        />
       </div>
+      {/* The settings of the configuration, on show under its name */}
+      <InsuranceSettings
+        bare
+        value={choice}
+        issues={parsed.ok ? {} : parsed.issues}
+        lastRule={undefined}
+        lastRuleLabel=""
+        locked={false}
+        onChange={setChoice}
+      />
       <InsuranceCalculator
         mode={mode}
         rule={parsed.ok ? parsed.rule : RULE_30}
@@ -178,27 +198,6 @@ function InsuranceToolPage() {
         autoSeat
         createHand={scratchHand}
       />
-      {configuring && (
-        <Modal title="保险设置" onClose={() => setConfiguring(false)}>
-          <InsuranceSettings
-            alwaysOn
-            value={choice}
-            issues={parsed.ok ? {} : parsed.issues}
-            lastRule={undefined}
-            lastRuleLabel=""
-            locked={false}
-            oddsApplyQuestion="是否应用到保险计算？"
-            onChange={setChoice}
-          />
-          <button
-            type="button"
-            onClick={() => setConfiguring(false)}
-            className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
-          >
-            完成
-          </button>
-        </Modal>
-      )}
     </Page>
   );
 }

@@ -17,6 +17,7 @@ import {
   useRemoveInsuranceRule,
   useSaveInsuranceRule,
 } from "@/data/insurance";
+import { cn } from "@/lib/cn";
 import { datedName } from "@/lib/dated-name";
 import { ChoiceModal } from "./ChoiceModal";
 import { CoverLimitPicker } from "./CoverLimitPicker";
@@ -95,10 +96,11 @@ interface InsuranceSettingsProps extends ConfigList {
   issues: InsuranceRuleIssues;
   /** Once insurance has been sold in this game, it cannot be turned off */
   locked: boolean;
-  /** For the calculator on its own, which has no insurance to switch on: the settings alone, all on show */
-  alwaysOn?: boolean;
-  /** Where confirming the odds applies them, as the dialog asks it */
-  oddsApplyQuestion?: string;
+  /**
+   * For the calculator on its own, which has no insurance to switch on and shows the configuration
+   * and the odds table itself: only the settings between them, on show, with no frame.
+   */
+  bare?: boolean;
 }
 
 /**
@@ -111,12 +113,11 @@ export function InsuranceSettings({
   lastRule,
   lastRuleLabel,
   locked,
-  alwaysOn = false,
-  oddsApplyQuestion,
+  bare = false,
   onChange,
 }: InsuranceSettingsProps) {
   const { form } = value;
-  const enabled = alwaysOn || value.enabled;
+  const enabled = bare || value.enabled;
   const { saved, rules, selectedId, selectedName, choose } = useInsuranceConfigs({
     value,
     lastRule,
@@ -179,13 +180,13 @@ export function InsuranceSettings({
   }
 
   return (
-    <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
-      {alwaysOn ? (
-        <div className="flex min-h-11 items-center justify-between gap-2">
-          <span className="font-medium">保险配置</span>
-          {configButton}
-        </div>
-      ) : (
+    <section
+      className={cn(
+        "flex flex-col",
+        !bare && "gap-1 rounded-xl border border-line bg-surface px-4 py-2",
+      )}
+    >
+      {!bare && (
         <Toggle
           label="保险"
           {...(locked && { detail: "这局已有保险记录，不能关闭" })}
@@ -240,13 +241,13 @@ export function InsuranceSettings({
             </p>
           )}
 
-          <OddsTableEditor
-            odds={form.odds}
-            defaultOpen={alwaysOn}
-            {...(oddsApplyQuestion !== undefined && { applyQuestion: oddsApplyQuestion })}
-            // The odds are apart from the settings, so the settings keep their name
-            onApply={(odds) => onChange({ ...value, form: { ...form, odds } })}
-          />
+          {!bare && (
+            <OddsTableEditor
+              odds={form.odds}
+              // The odds are apart from the settings, so the settings keep their name
+              onApply={(odds) => onChange({ ...value, form: { ...form, odds } })}
+            />
+          )}
         </>
       )}
 

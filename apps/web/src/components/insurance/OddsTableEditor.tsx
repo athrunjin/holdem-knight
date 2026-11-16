@@ -21,26 +21,45 @@ interface OddsTableEditorProps {
   /** The odds in use for this game */
   odds: readonly string[];
   onApply: (odds: readonly string[]) => void;
-  /** Starts unfolded */
-  defaultOpen?: boolean;
-  /** What confirming edited odds asks before it applies them */
-  applyQuestion?: string;
 }
 
 /**
- * The odds table, folded unless told otherwise. A built-in or saved table applies at once. Edits stay a draft
+ * The odds tables on offer, built in and saved, and the one the odds in use belong to, if any.
+ * `apply` puts a table's odds in use.
+ */
+export function useOddsTableChoices(
+  odds: readonly string[],
+  onApply: (odds: readonly string[]) => void,
+) {
+  const { data: saved = [] } = useOddsTables();
+  const tables = [
+    ...BUILT_IN_RULES.map(({ id, name, rule }) => ({
+      id,
+      name,
+      oddsHundredths: rule.oddsHundredths,
+    })),
+    ...saved.map((table) => ({ ...table, removable: true })),
+  ];
+  const current = odds.map(parseOdds);
+  const selected = tables.find((table) => sameOdds(table.oddsHundredths, current));
+
+  function apply(id: string) {
+    const table = tables.find((t) => t.id === id);
+    if (table) onApply(table.oddsHundredths.map(formatOdds));
+  }
+
+  return { saved, tables, current, selected, apply };
+}
+
+/**
+ * The odds table, folded by default. A built-in or saved table applies at once. Edits stay a draft
  * until confirmed, and can then be saved as a table for later games.
  */
-export function OddsTableEditor({
-  odds,
-  onApply,
-  defaultOpen = false,
-  applyQuestion = "是否应用到本局？",
-}: OddsTableEditorProps) {
-  const { data: saved = [] } = useOddsTables();
+export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
+  const { saved, tables, current, selected, apply } = useOddsTableChoices(odds, onApply);
   const saveTable = useSaveOddsTable();
   const removeTable = useRemoveOddsTable();
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(false);
   const [picking, setPicking] = useState(false);
   const [step, setStep] = useState<"apply" | "save" | "demo" | null>(null);
   const [applied, setApplied] = useState(odds);
@@ -52,23 +71,12 @@ export function OddsTableEditor({
     setDraft(odds.map(formatOddsText));
   }
 
-  const tables = [
-    ...BUILT_IN_RULES.map(({ id, name, rule }) => ({
-      id,
-      name,
-      oddsHundredths: rule.oddsHundredths,
-    })),
-    ...saved.map((table) => ({ ...table, removable: true })),
-  ];
-  const current = odds.map(parseOdds);
-  const selected = tables.find((table) => sameOdds(table.oddsHundredths, current));
   const parsedDraft = draft.map(parseOdds);
   const valid = draft.length > 0 && parsedDraft.every((value) => value !== null);
   const canConfirm = valid && !sameOdds(parsedDraft, current);
 
   function pickTable(id: string) {
-    const table = tables.find((t) => t.id === id);
-    if (table) onApply(table.oddsHundredths.map(formatOdds));
+    apply(id);
     setPicking(false);
   }
 
@@ -211,7 +219,7 @@ export function OddsTableEditor({
 
       {step === "apply" && (
         <Modal title="应用赔率表" onClose={() => setStep(null)}>
-          <p>{applyQuestion}</p>
+          <p>是否应用到本局？</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"

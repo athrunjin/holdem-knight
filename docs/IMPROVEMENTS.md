@@ -1044,7 +1044,7 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 360 and 412px; not yet tried on a phone, where the buzz, the screen staying on and typing a length with the phone's keyboard still need a look.
 - Tracking: PR #86
 
-### #I-054 Insurance tool: the two ways of working as its title, a settings dialog, and configurations in a menu
+### #I-054 Insurance tool: the two ways of working as its title, and its configuration and odds table on the page
 
 - Type: feature
 - Date: proposed, decided and completed 2026-11-16
@@ -1053,15 +1053,14 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Proposal:
   - The title line reads 「选牌计算 ⇄ Outs数速算」. The way in use is in the title's font; the other is the same size, gray and not bold. A tap on a name picks it, and the arrows between them switch. Each name keeps the width it has in bold, so nothing moves on a switch. The two buttons under the title are gone from this page.
   - At the right a gold cross replaces 返回工具, like the one on Call Time.
-  - A gear at the right of the line under the title, under the cross, opens a dialog, 保险设置, with the insurance settings of 开局设置: the configuration, 命中退还保费, 平分牌算 outs, 保费上限 and the odds table. There is no switch for insurance itself, everything is on show and the odds table starts unfolded.
-  - The 赔率规则 line is a menu in the page, 「默认配置 ⌄」 with no caption, showing the configuration in use and offering the same configurations as the dialog: the default and the saved ones. Picking one takes its settings and keeps the odds, as in a game. Settings changed by hand read 自定义.
-  - 平分牌算 outs is no longer a switch on this page. It is set in the dialog with the other settings.
+  - The line under the title has two menus in the page, each a name and a chevron with no caption. At the left the configuration, 「默认配置 ⌄」: the default and the saved ones, and 自定义 for settings changed by hand. Picking one takes its settings and keeps the odds, as in a game. At the right the odds table, 「1 赔 30 ⌄」: the two built in and the saved ones.
+  - The configuration's settings are on show under that line, as in 开局设置: 命中退还保费, 平分牌算 outs, and 保费上限 for 翻牌 and 转牌, with 保存配置 once they differ from every configuration on offer.
 - Settled details:
   - The calculator's settings are kept in this browser (`localStorage`), so they are there on the next visit.
-  - An odds table is picked in the dialog, under 赔率表, not on the page's line any more.
-  - Saved configurations are deleted from the list in the dialog; the menu in the page only picks.
+  - A gear that opened these settings in a dialog was tried first, at the title and then on the line under it, and turned down for settings on the page. With it went editing the odds of a table and deleting a saved configuration from this page; both stay in 开局设置.
+  - The settings are always on show. Folding them away was not asked for.
   - The insurance page of a game is unchanged: it keeps its two buttons, its 平分牌算 outs switch and 返回牌局.
-- Decision: do. Checked in the browser preview in dark mode at 360, 393 and 412px; not yet tried on a phone.
+- Decision: do. Checked in the browser preview in dark mode at 360 and 412px; not yet tried on a phone.
 - Tracking: PR #86
 
 ## Not doing or deferred
