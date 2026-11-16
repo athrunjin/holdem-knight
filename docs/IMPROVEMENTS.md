@@ -1063,9 +1063,10 @@ Records discussions of feature and process improvements: what was proposed, how 
   - A new table is put in use once saved. An edited table's new odds are put in use if it was the one in use. Deleting the table in use leaves its odds in use, shown as 自定义.
   - A new table under a saved table's name replaces that table, as in 开局设置. An edited table cannot take another saved table's name, and no saved table can take the name of one built in.
   - The dialog has no 查看demo button, which is still a placeholder in 开局设置.
+  - 开局设置 and a game's settings pick their odds table from the same menu, at the right of the 赔率表 line, in place of the dialog that listed the tables: the same pencil, bin and plus, and the same dialog to make or edit a table. The cells under 赔率表 still edit the odds of that game and offer to save them as a table.
   - The settings are always on show, with no fold.
   - The insurance page of a game is unchanged: it keeps its two buttons, its 平分牌算 outs switch and 返回牌局.
-- Decision: do. Checked in the browser preview in dark mode at 360 and 412px; not yet tried on a phone.
+- Decision: do. Checked in the browser preview in dark mode at 360 and 412px, the menu in 开局设置 at 412px; not yet tried on a phone.
 - Tracking: PR #86
 
 ## Not doing or deferred

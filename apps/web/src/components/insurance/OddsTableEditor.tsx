@@ -1,19 +1,14 @@
-import { BUILT_IN_RULES, formatOdds, parseOdds } from "@holdem-knight/core";
+import { parseOdds } from "@holdem-knight/core";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { SaveNameDialog } from "@/components/SaveNameDialog";
-import {
-  newOddsTable,
-  useOddsTables,
-  useRemoveOddsTable,
-  useSaveOddsTable,
-} from "@/data/insurance";
+import { newOddsTable, useOddsTables, useSaveOddsTable } from "@/data/insurance";
 import { cn } from "@/lib/cn";
 import { datedName } from "@/lib/dated-name";
 import { formatOddsText } from "@/lib/number-input";
-import { ChoiceModal } from "./ChoiceModal";
 import { Modal } from "./Modal";
 import { OddsGrid, sameOdds, validOdds } from "./OddsGrid";
+import { OddsTableMenu } from "./OddsTableMenu";
 
 interface OddsTableEditorProps {
   /** The odds in use for this game */
@@ -22,43 +17,14 @@ interface OddsTableEditorProps {
 }
 
 /**
- * The odds tables on offer, built in and saved, and the one the odds in use belong to, if any.
- * `apply` puts a table's odds in use.
- */
-export function useOddsTableChoices(
-  odds: readonly string[],
-  onApply: (odds: readonly string[]) => void,
-) {
-  const { data: saved = [] } = useOddsTables();
-  const tables = [
-    ...BUILT_IN_RULES.map(({ id, name, rule }) => ({
-      id,
-      name,
-      oddsHundredths: rule.oddsHundredths,
-    })),
-    ...saved.map((table) => ({ ...table, removable: true })),
-  ];
-  const current = odds.map(parseOdds);
-  const selected = tables.find((table) => sameOdds(table.oddsHundredths, current));
-
-  function apply(id: string) {
-    const table = tables.find((t) => t.id === id);
-    if (table) onApply(table.oddsHundredths.map(formatOdds));
-  }
-
-  return { saved, tables, current, selected, apply };
-}
-
-/**
- * The odds table, folded by default. A built-in or saved table applies at once. Edits stay a draft
- * until confirmed, and can then be saved as a table for later games.
+ * The odds table, folded by default. A built-in or saved table, picked from the menu at the right,
+ * applies at once. Edits stay a draft until confirmed, and can then be saved as a table for later
+ * games.
  */
 export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
-  const { saved, tables, current, selected, apply } = useOddsTableChoices(odds, onApply);
+  const { data: saved = [] } = useOddsTables();
   const saveTable = useSaveOddsTable();
-  const removeTable = useRemoveOddsTable();
   const [open, setOpen] = useState(false);
-  const [picking, setPicking] = useState(false);
   const [step, setStep] = useState<"apply" | "save" | "demo" | null>(null);
   const [applied, setApplied] = useState(odds);
   const [draft, setDraft] = useState(() => odds.map(formatOddsText));
@@ -70,17 +36,7 @@ export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
   }
 
   const parsedDraft = draft.map(parseOdds);
-  const canConfirm = validOdds(draft) && !sameOdds(parsedDraft, current);
-
-  function pickTable(id: string) {
-    apply(id);
-    setPicking(false);
-  }
-
-  function handleRemove(id: string) {
-    const table = saved.find((t) => t.id === id);
-    if (table && window.confirm(`删除赔率表「${table.name}」？`)) removeTable.mutate(id);
-  }
+  const canConfirm = validOdds(draft) && !sameOdds(parsedDraft, odds.map(parseOdds));
 
   function handleApply() {
     onApply(draft);
@@ -110,15 +66,7 @@ export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
             aria-hidden
           />
         </button>
-        <button
-          type="button"
-          aria-haspopup="dialog"
-          onClick={() => setPicking(true)}
-          className="flex min-h-11 min-w-0 items-center gap-0.5 text-sm"
-        >
-          <span className="truncate">{selected?.name ?? "自定义"}</span>
-          <ChevronDown className="size-4 shrink-0 text-muted" aria-hidden />
-        </button>
+        <OddsTableMenu odds={odds} onApply={onApply} align="right" className="text-sm" />
       </div>
 
       {open && (
@@ -151,17 +99,6 @@ export function OddsTableEditor({ odds, onApply }: OddsTableEditorProps) {
             </button>
           </div>
         </div>
-      )}
-
-      {picking && (
-        <ChoiceModal
-          title="赔率表"
-          choices={tables}
-          selectedId={selected?.id}
-          onPick={pickTable}
-          onRemove={handleRemove}
-          onClose={() => setPicking(false)}
-        />
       )}
 
       {step === "apply" && (
