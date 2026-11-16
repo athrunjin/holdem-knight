@@ -1127,14 +1127,17 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The same holds for every cover and for a custom premium. A cover that would need a larger premium, such as 保本 at low odds, is held at that premium and marked 已到上限 as it is by the rule's own limit.
   - A pot share so small that one chip of premium would already pay more than it has no insurance: 「底池太小，1 个筹码的保费赔付就超过底池，不能投保」.
   - 保本 is picked when the insurance shows, so the block opens on a price. Nothing was picked before.
-  - The custom row's premium has no box: the row's background, and a dash like the cells after it until something is typed. A tap on the row selects it for typing in place, with no dialog. Only whole chips from 1 to the most on sale can be typed; a larger number stops at the most, and a line under the row says the range.
+  - The custom row's premium has no box: the row's background, and a dash like the cells after it. A tap on the row puts a selected 0 in place of the dash, for typing over it in place with no dialog. Left without a premium, the cell goes back to its dash. Only whole chips from 1 to the most on sale can be typed, and a larger number stops at the most. A line under the row that said the range was tried and taken out.
   - The ring's inner track starts at the top with the premium's part of the pot share in dark red, then what a hit still leaves in a clear light green. Both end cut square, not rounded. The word in the middle is the cover picked, 保本, 半池, 满池 or 自定义, over the share a hit leaves.
   - The plus under 池内玩家 is a small ring in the middle of the page, not a line across it.
+  - The pot's ring reads clockwise from the top: the dead money, whoever leads, then the players behind. The legend beside it keeps its order, leader first and dead money last, and each part keeps its color.
+  - The line under the pot reads 「反超 2 张 · 赔 15.0」 at the left, with the cards that overtake under it, at the left too. It read 赔 15 倍 at the left and 反超牌 2 张 at the right. Tie cards are counted on their own line under it.
+  - At the right of that line is 分开购买 with a small switch, ending under the chips of the legend above. It is gray while off, which it starts as, and white while on. It changes nothing yet: what it does is for a later round.
 - Settled details:
   - The cap is the buyer's share of the pot, which is the whole pot for a lone leader and their part of it for tied leaders who may insure.
   - 中了到手 for 满池 is now the pot share less the premium, where it was the pot share.
   - How dead money is shared between the pots stays as it is, by the rules of the game: each line is one folded player's chips. Only what was drawn wrong was changed in #I-056.
-  - The dark red is the loss color taken darker, and the green is the win color at part strength, so no new color is added.
+  - The dark red is the loss color taken darker, and the green is the win color at part strength, so no new color is added. Five other colorings of the inner track were drawn side by side, and this one was kept.
 - Decision: do. Checked in the browser preview in dark mode at 412px: the three covers and their payouts, the custom premium typed and stopped at the most, the ring for 保本, 满池 and 自定义, and the plus. Not yet tried on a phone.
 - Tracking: PR #86
 

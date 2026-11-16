@@ -145,7 +145,8 @@ export interface CoverShares {
 }
 
 /**
- * The parts as a ring. With `cover` it gains an inner track: from the top, the premium in dark
+ * The parts as a ring, clockwise from the top: the dead money, the leaders, then the players
+ * behind. With `cover` it gains an inner track: from the top, the premium in dark
  * red, then what a hit still leaves in a clear light green, both cut square at their ends.
  * Whatever is passed as children sits in the middle.
  */
@@ -169,12 +170,18 @@ export function PotRing({
   // The two never pass a full turn between them
   const premium = part(cover?.premium ?? 0) * innerCircumference;
   const kept = Math.min(part(cover?.kept ?? 0) * innerCircumference, innerCircumference - premium);
+  // Round the ring from the top: the dead money, whoever leads, then the players behind. The
+  // legend beside it keeps its own order, and each part keeps the fill it has there.
+  const shown = filled(parts);
+  const drawn = (["dead", "leader", "trailer"] as const).flatMap((tone) =>
+    shown.filter((part) => part.tone === tone),
+  );
   let start = 0;
   return (
     <div className="relative size-28 shrink-0">
       <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden>
         <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="10" className="stroke-line" />
-        {filled(parts).map(({ key, tone, fill, chips }) => {
+        {drawn.map(({ key, tone, fill, chips }) => {
           const length = total > 0 ? (chips / total) * circumference : 0;
           const offset = -start;
           start += length;

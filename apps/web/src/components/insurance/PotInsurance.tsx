@@ -13,7 +13,7 @@ import { useId, useState } from "react";
 import { formatCardText } from "@/lib/cards";
 import { formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
-import { selectOnFocus } from "@/lib/number-input";
+import { formatOddsText, selectOnFocus } from "@/lib/number-input";
 import type { Decisions } from "./LeaderQuote";
 import { PotLegend, PotRing, type PotShare } from "./PotShares";
 import { DecisionBar, QuotePanel } from "./QuotePanel";
@@ -39,7 +39,7 @@ interface PotCoverProps {
   playerId: string;
   /** Tells this offer's decision from any other's. */
   decisionKey: string;
-  /** What is sold, in words, beside the odds. */
+  /** What is sold, in words, before the odds: 反超 2 张. */
   outsText: string;
   /** The cards sold, a line for each opponent, where the cards are known. */
   outsLines?: readonly string[];
@@ -167,6 +167,9 @@ function Block({
   // The stake cover is picked on arrival, so the block opens on a price and not on a blank
   const [choice, setChoice] = useState<Choice>("stake");
   const [customText, setCustomText] = useState("");
+  const [customFocused, setCustomFocused] = useState(false);
+  // Selling a cover to each leader on its own. Only the switch for now: it changes nothing yet.
+  const [split, setSplit] = useState(false);
 
   const header = (
     <h3 className="flex items-baseline justify-between gap-2">
@@ -237,11 +240,32 @@ function Block({
         <PotLegend parts={parts} total={input.potChips} plain />
       </div>
 
-      <div className="mt-2 flex items-baseline justify-between gap-2 border-t border-line pt-2">
-        <span className="font-semibold whitespace-nowrap">赔 {formatOdds(oddsHundredths)} 倍</span>
-        <span className="text-right text-sm text-muted">{outsText}</span>
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-line pt-2">
+        <span className="font-semibold whitespace-nowrap">
+          {outsText} · 赔 {formatOddsText(formatOdds(oddsHundredths))}
+        </span>
+        {/* Ends under the chips of the legend above, which sit a little in from the edge */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={split}
+          onClick={() => setSplit(!split)}
+          className={cn(
+            "-my-2.5 mr-1 flex min-h-11 shrink-0 items-center gap-1.5 text-sm transition-colors",
+            split ? "text-text" : "text-muted",
+          )}
+        >
+          分开购买
+          <span
+            aria-hidden
+            className={cn(
+              "relative h-4.5 w-8 rounded-full transition-colors after:absolute after:top-0.5 after:size-3.5 after:rounded-full after:transition-[left]",
+              split ? "bg-text after:left-4 after:bg-bg" : "bg-line after:left-0.5 after:bg-muted",
+            )}
+          />
+        </button>
       </div>
-      <ul className="text-right text-xs text-muted">
+      <ul className="text-xs text-muted">
         {outsLines.map((line) => (
           <li key={line}>{line}</li>
         ))}
@@ -285,12 +309,21 @@ function Block({
             inputMode="numeric"
             autoComplete="off"
             enterKeyHint="done"
-            placeholder="—"
+            // A dash while the row is not being typed in, like the cells after it
+            placeholder={customFocused ? "" : "—"}
             aria-label={`自定义保费，1 到 ${maxPremiumChips} 的整数`}
             value={bought && !boughtRow ? String(bought.premiumChips) : customText}
             onFocus={(event) => {
               setChoice("custom");
+              setCustomFocused(true);
+              // Opens on a selected 0 in place of the dash, so the first digit typed replaces it
+              if (customText === "") setCustomText("0");
               selectOnFocus(event.currentTarget);
+            }}
+            onBlur={() => {
+              setCustomFocused(false);
+              // Left with no premium, the cell goes back to its dash
+              if ((parseChips(customText) ?? 0) === 0) setCustomText("");
             }}
             onChange={(event) => {
               const digits = event.target.value.replace(/\D/g, "").replace(/^0+/, "");
@@ -320,11 +353,6 @@ function Block({
             }
           />
         </label>
-        {shown === "custom" && !locked && (
-          <p className="px-2 text-xs text-muted">
-            保费填 1 到 {chipText(maxPremiumChips)} 的整数，{chipText(maxPremiumChips)} 即满池。
-          </p>
-        )}
       </fieldset>
 
       {decisions && decision && (
@@ -390,13 +418,15 @@ export function PotInsurance({ offer, label, nameOf, rule, decisions }: PotInsur
       input={offer.input}
       playerId={leader.playerId}
       decisionKey={offer.key}
-      outsText={`反超牌 ${soldOuts(rule, leader)} 张${ties > 0 ? `，平分牌 ${ties} 张${counted}` : ""}`}
+      outsText={`反超 ${soldOuts(rule, leader)} 张`}
       outsLines={[
         ...leader.byOpponent.map(
           ({ playerId, cards }) =>
             `${leader.byOpponent.length > 1 ? `${nameOf(playerId)}：` : ""}${cards.map(formatCardText).join(" ")}`,
         ),
-        ...(ties > 0 ? [`平分：${leader.tieCards.map(formatCardText).join(" ")}`] : []),
+        ...(ties > 0
+          ? [`平分 ${ties} 张${counted}：${leader.tieCards.map(formatCardText).join(" ")}`]
+          : []),
       ]}
       decisions={decisions}
     />
