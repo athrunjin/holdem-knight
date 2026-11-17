@@ -21,12 +21,11 @@ import {
   undoDeal,
 } from "@holdem-knight/core";
 import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { BOARD_PLACES, CardFace } from "./CardFace";
 import { CardPicker } from "./CardPicker";
-import { DeadMoneyDialog } from "./DeadMoneyDialog";
 import { HandPlayerRow, HoleCards, type StandingNote } from "./HandPlayerRow";
 import {
   DeadMoney,
@@ -257,7 +256,8 @@ export function InsuranceHandFlow({
   // A hand carried on from keeps its own dead money; a new one starts with the preset
   const [kept, setHand] = useState(() => open ?? withPresetPools(createHand()));
   const [pickingCards, setPickingCards] = useState<{ playerId: string; replace?: number }>();
-  const [editingDead, setEditingDead] = useState(false);
+  // Dead money's field, where a tap on dead money in a pot's legend lands
+  const deadRef = useRef<HTMLInputElement>(null);
   const [pickingStreet, setPickingStreet] = useState<"flop" | "turn">();
   const [finishing, setFinishing] = useState(false);
   // Why a tap on the plus added nobody
@@ -403,7 +403,7 @@ export function InsuranceHandFlow({
         tone: "dead",
         label: "死钱",
         chips: totals.deadChips,
-        onSelect: editable ? () => setEditingDead(true) : undefined,
+        onSelect: editable ? () => deadRef.current?.focus() : undefined,
       },
     ];
   }
@@ -459,7 +459,23 @@ export function InsuranceHandFlow({
               <DeadMoney
                 chips={totals.deadChips}
                 preset={hand.presetPools === true}
-                onEdit={editable ? () => setEditingDead(true) : undefined}
+                inputRef={deadRef}
+                edits={
+                  editable
+                    ? {
+                        // One amount, kept as it is typed and saved once the field is left. Typed
+                        // or confirmed, it is the organizer's own from then on.
+                        onChips: (chips) =>
+                          setHand({
+                            ...hand,
+                            pools: chips > 0 ? [chips] : [],
+                            presetPools: false,
+                            declined: [],
+                          }),
+                        onDone: () => store?.save(hand),
+                      }
+                    : undefined
+                }
               />
             </div>
           </section>
@@ -639,18 +655,6 @@ export function InsuranceHandFlow({
         >
           放弃这手
         </button>
-      )}
-
-      {editingDead && (
-        <DeadMoneyDialog
-          pools={hand.pools.map(String)}
-          onConfirm={(next) => {
-            // Confirmed in the dialog, the amount is the organizer's own, even left as it was
-            update({ ...hand, pools: next.map(Number), presetPools: false, declined: [] });
-            setEditingDead(false);
-          }}
-          onCancel={() => setEditingDead(false)}
-        />
       )}
 
       {pickingCards && picking && (

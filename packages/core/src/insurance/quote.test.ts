@@ -241,6 +241,68 @@ describe("quoteInsurance", () => {
   });
 });
 
+describe("a cap under the pot share", () => {
+  it("holds every cover at what a tie can cost", () => {
+    // A pot of 300 between two: a tie costs the leader 150
+    const two = quoteInsurance(
+      input({ potChips: 300, shareChips: 300, stakeChips: 100, outs: 4, capChips: 150 }),
+    );
+    if (!two.ok) throw new Error("Expected a quote");
+    expect(two.stake.payoutChips).toBeGreaterThanOrEqual(100);
+    // Half the pot is the cap itself, so the largest cover is that one again
+    expect(two.halfPot?.payoutChips).toBeLessThanOrEqual(150);
+    expect(two.fullPot.premiumChips).toBe(two.halfPot?.premiumChips);
+    expect(two.fullPot.payoutChips).toBeLessThanOrEqual(150);
+    expect(two.maxPremiumChips).toBe(two.fullPot.premiumChips);
+
+    // Between three a tie can cost two thirds of it, which is more than half
+    const three = quoteInsurance(
+      input({ potChips: 300, shareChips: 300, stakeChips: 100, outs: 4, capChips: 200 }),
+    );
+    if (!three.ok) throw new Error("Expected a quote");
+    expect(three.halfPot?.payoutChips).toBeGreaterThanOrEqual(150);
+    expect(three.fullPot.premiumChips).toBeGreaterThan(three.halfPot?.premiumChips ?? 0);
+    expect(three.fullPot.payoutChips).toBeLessThanOrEqual(200);
+    expect(three.fullPot.payoutChips).toBeGreaterThan(150);
+  });
+
+  it("marks a cover the cap holds under its target", () => {
+    // The stake of 500 is more than the 300 a tie can cost
+    const quote = quoteInsurance(input({ capChips: 300, outs: 4 }));
+    if (!quote.ok) throw new Error("Expected a quote");
+    expect(quote.stake).toMatchObject({ capped: true });
+    expect(quote.stake.payoutChips).toBeLessThanOrEqual(300);
+  });
+
+  it("never pays more than the cap, whatever the pot, the odds and the refund", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 2, max: 2_000_000 }),
+        fc.integer({ min: 1, max: 15 }),
+        fc.boolean(),
+        fc.integer({ min: 2, max: 6 }),
+        (shareChips, outs, refundPremium, winners) => {
+          const capChips = shareChips - Math.floor(shareChips / winners);
+          const quote = quoteInsurance(
+            input({
+              rule: { ...RULE_30, refundPremium },
+              potChips: shareChips,
+              shareChips,
+              stakeChips: Math.ceil(shareChips / 3),
+              outs,
+              capChips,
+            }),
+          );
+          if (!quote.ok) return;
+          for (const option of [quote.stake, quote.halfPot, quote.fullPot]) {
+            if (option) expect(option.payoutChips).toBeLessThanOrEqual(capChips);
+          }
+        },
+      ),
+    );
+  });
+});
+
 describe("tie cards", () => {
   it("leaves the buyer their part of the split pot on top of the payout", () => {
     const overtake = quoteInsurance(input({ outs: 4 }));

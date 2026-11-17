@@ -44,8 +44,10 @@ function withFills(parts: readonly PotShare[]): Filled[] {
 }
 
 /**
- * Each part by name with its chips. `plain` leaves out the 领先 tag and the share of the pot, for
- * where the ring beside it already says both.
+ * Each part by name with its chips, and its chances on a line of their own under the name, so a
+ * name of six characters and chips of six digits still share the line beside the ring on a phone
+ * 393px wide. `plain` leaves out the 领先 tag and the share of the pot, for where the ring beside
+ * it already says both.
  */
 export function PotLegend({
   parts,
@@ -60,22 +62,24 @@ export function PotLegend({
     <ul className="flex min-w-0 flex-1 flex-col gap-0.5">
       {withFills(parts).map(({ key, tone, fill, label, chips, note, onSelect }) => {
         const rowClass = cn(
-          "flex w-full items-center gap-1 rounded-lg px-1 py-0.5 text-left text-sm",
+          "flex w-full items-start gap-1 rounded-lg px-1 py-0.5 text-left text-sm",
           tone === "leader" && "bg-accent/15 font-semibold",
         );
         const cells = (
           <>
-            <span className={cn("size-3 shrink-0 rounded-full", fill.bar)} aria-hidden />
-            {/* A long name gives way, so the chances stay whole on the same line */}
-            <span className="flex min-w-0 flex-1 items-baseline gap-1">
-              <span className="truncate">{label}</span>
-              {tone === "leader" && !plain && (
-                <span className="shrink-0 text-xs text-accent">领先</span>
-              )}
+            {/* On the middle of the name's line */}
+            <span className={cn("mt-1 size-3 shrink-0 rounded-full", fill.bar)} aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="flex items-baseline gap-1">
+                <span className="truncate">{label}</span>
+                {tone === "leader" && !plain && (
+                  <span className="shrink-0 text-xs text-accent">领先</span>
+                )}
+              </span>
               {note && (
                 <span
                   className={cn(
-                    "shrink-0 text-[11px] whitespace-nowrap tabular-nums",
+                    "block truncate text-[11px] leading-tight tabular-nums",
                     tone === "leader" ? "text-accent" : "font-normal text-muted",
                   )}
                 >
@@ -180,7 +184,7 @@ export function PotRing({
   );
   let start = 0;
   return (
-    <div className="relative size-28 shrink-0">
+    <div className="relative size-36 shrink-0">
       <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden>
         <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="10" className="stroke-line" />
         {drawn.map(({ key, tone, fill, chips }) => {

@@ -13,7 +13,6 @@ import {
 import { ArrowUpDown, Minus, Plus } from "lucide-react";
 import { type Ref, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
-import { DeadMoneyDialog } from "./DeadMoneyDialog";
 import { HandPlayerRow, type StandingNote } from "./HandPlayerRow";
 import {
   DeadMoney,
@@ -233,7 +232,8 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
   ]);
   const [dead, setDead] = useState(PRESET_DEAD);
   const [editingOuts, setEditingOuts] = useState(false);
-  const [editingDead, setEditingDead] = useState(false);
+  // Dead money's field, where a tap on dead money in the pot's legend lands
+  const deadRef = useRef<HTMLInputElement>(null);
 
   const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? "未知玩家";
   // The first two of the table, with the chips they have there
@@ -336,8 +336,13 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
     if (!tiesSold || entry.ties === 0) return [overtake];
     const tie: PotCoverOffer = {
       kind: "tie",
-      // A tie leaves each of the two half the pot
-      input: { ...input, outs: entry.ties, keptChips: Math.floor(totals.effectiveChips / 2) },
+      // A tie leaves each of the two half the pot, so the other half is the most it can cost
+      input: {
+        ...input,
+        outs: entry.ties,
+        keptChips: Math.floor(totals.effectiveChips / 2),
+        capChips: totals.effectiveChips - Math.floor(totals.effectiveChips / 2),
+      },
       playerId: leaderId,
       decisionKey: keyOf("tie"),
       outsText: `平分 ${entry.ties} 张`,
@@ -372,7 +377,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
               chances && chances.ties > 0
                 ? `平分 ${chances.ties} · ${percentText(chances.tie)}`
                 : undefined,
-            onSelect: () => setEditingDead(true),
+            onSelect: () => deadRef.current?.focus(),
           },
         ]
       : undefined;
@@ -430,7 +435,12 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
           <DeadMoney
             chips={totals.deadChips}
             preset={dead.preset}
-            onEdit={() => setEditingDead(true)}
+            inputRef={deadRef}
+            edits={{
+              // Typed or confirmed, the amount is the organizer's own from then on
+              onChips: (chips) => setDead({ pools: chips > 0 ? [chips] : [], preset: false }),
+              onDone: () => {},
+            }}
           />
         </div>
       </section>
@@ -537,18 +547,6 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
           </p>
         )}
       </section>
-
-      {editingDead && (
-        <DeadMoneyDialog
-          pools={dead.pools.map(String)}
-          onConfirm={(next) => {
-            // Confirmed in the dialog, the amount is the organizer's own, even left as it was
-            setDead({ pools: next.map(Number), preset: false });
-            setEditingDead(false);
-          }}
-          onCancel={() => setEditingDead(false)}
-        />
-      )}
 
       {editingOuts && (
         <OutsDialog

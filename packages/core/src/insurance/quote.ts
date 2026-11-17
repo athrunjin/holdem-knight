@@ -69,6 +69,11 @@ export interface QuoteInput {
    * which is the default; their part of the split for tie cards.
    */
   readonly keptChips?: number;
+  /**
+   * The most a cover may pay, where that is less than the pot share. For tie cards it is what a
+   * tie costs the buyer: their share now less what the split leaves them.
+   */
+  readonly capChips?: number;
   /** The buyer is tied in a way that leaves no lead to insure. */
   readonly blockedTie?: boolean;
 }
@@ -104,7 +109,10 @@ export type InsuranceQuote =
       readonly stake: QuoteOption;
       /** Pays at least half the buyer's share, rounded up. Null when that is already the stake. */
       readonly halfPot: QuoteOption | null;
-      /** Pays the buyer's whole share of the pot, as near it as whole chips allow and never above. */
+      /**
+       * The largest cover: pays the buyer's whole share of the pot, or the input's cap where that
+       * is less, as near it as whole chips allow and never above.
+       */
       readonly fullPot: QuoteOption;
     };
 
@@ -144,8 +152,10 @@ export function quoteInsurance(input: QuoteInput): InsuranceQuote {
   if (oddsHundredths === undefined) return { ok: false, block: "too-many-outs" };
 
   const { refundPremium } = rule;
-  // Nothing pays more than the pot share, and one chip of premium is the least there is to sell
-  const potPremiumChips = premiumWithin(shareChips, oddsHundredths, refundPremium);
+  // Nothing pays more than the pot share, or than the cap on these cards, and one chip of premium
+  // is the least there is to sell
+  const ceilingChips = Math.min(shareChips, input.capChips ?? shareChips);
+  const potPremiumChips = premiumWithin(ceilingChips, oddsHundredths, refundPremium);
   if (potPremiumChips < 1) return { ok: false, block: "pot-too-small" };
   // A cover below the full pot pays at least what it is named for, and its premium is the
   // smallest that does: the payout is set first, and the premium rounded to it

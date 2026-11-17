@@ -1179,10 +1179,10 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Problem: With 平分牌算 outs on, tie cards were added to the cards that overtake and sold as one cover at the odds for the sum. They could not be bought on their own, and a line under the heading only said they were counted in. On the custom row, a tap anywhere went into the premium, even to pick a premium already typed.
 - Proposal:
   - With 平分牌算 outs on and tie cards in the pot, the pot's block has two tables under the one ring: 「反超 6 张 · 赔 5.0」 first, then 「平分 2 张 · 赔 15.0」. Each is priced by its own count of cards. With no card that overtakes, only the tie table shows.
-  - The tie table has the same rows and columns as the other: 保本, 半池, 满池 and 自定义. It has no 分开购买 switch, which is kept for splitting the cards that overtake later.
+  - The tie table has the same columns as the other, and the rows 保本, 半池, 封顶 and 自定义. A tie cover pays no more than a tie can cost the buyer: of a pot of 300, 150 between two players, and 200 where three would split it. 封顶 is that most, and is a row only where it is more than 半池, so between two players there is none. It has no 分开购买 switch, which is kept for splitting the cards that overtake later.
   - Each table has its own 确认投保 and 不购买. The next card can be picked once both are decided, and each is settled on its own cards.
   - The ring's inner arc shows the row picked last, in either table. With two tables its middle says which: 反超保本, 平分满池. Before anything is picked it shows the first table's 保本.
-  - 中了到手 in the tie table counts the part of the split pot the buyer still wins: on a pot of 3,000 with a tie cover that pays 1,005 for 67, a tie leaves 1,500 + 1,005 − 67 = 2,438.
+  - 中了到手 in the tie table counts the part of the split pot the buyer still wins: on a pot of 3,000 with a tie cover that pays 1,005 for 67, a tie leaves 1,500 + 1,005 − 67 = 2,438. It never comes to more than the pot.
   - The custom row: with no premium typed, a tap anywhere on it goes into the premium with the 0 selected, as before. With a premium typed, a tap on the premium goes into it with all of it selected, and a tap anywhere else on the row only picks the row.
   - A purchase on tie cards reads 「平分 4 张」 in the settlement of a street and in 保险记录, where one on the other cards reads 「2 outs」.
 - Settled details:
@@ -1190,8 +1190,30 @@ Records discussions of feature and process improvements: what was proposed, how 
   - In Outs数速算 each count may now be as large as the odds table, since each is priced on its own. Together they were held to the table's length.
   - With 平分牌算 outs off, nothing changes: the tie cards are named under the heading as not counted.
   - A tied lead that cannot be insured, or a pot with no cards to sell, says so once and not once per table.
-  - 满池 on tie cards pays the pot share while half the pot is still the buyer's, so a tie can leave them more than the pot. The tie table was asked to be the same as the other, and is. Whether the tie cover should stop at what a tie costs is open ([ADR 0033](adr/0033-tie-cards-sold-as-their-own-cover.md)).
-- Decision: do. Checked in the browser preview in dark mode at 412px: both tables in Outs数速算 from the tools page, tie cards only, the switch off, the ring after a pick in each table, the custom row with and without a premium, and in a game a hand from the cards where one cover was bought and the other turned down, a tie card dealt and settled, and a tie purchase from Outs数速算 in 保险记录. Not yet tried on a phone.
+  - A first version gave the tie table the other's rows, 满池 included, which paid the whole pot while half of it was still the buyer's: 4,300 from a pot of 3,000. The organizer then set the limit at what a tie can cost ([ADR 0033](adr/0033-tie-cards-sold-as-their-own-cover.md)).
+  - What a tie can cost is worked out from the cards: the smallest share any tie card leaves the buyer. Three players in a pot do not make it two thirds if no card splits it three ways. In Outs数速算 there are two players, so it is half.
+  - How tie cards are insured elsewhere was looked up. The one platform whose rules could be read first hand does not count cards that split the pot as outs at all, and two write-ups say the same. No rule for a cover on tie cards was found, so this one is the game's own.
+- Decision: do. Checked in the browser preview in dark mode at 412px: both tables in Outs数速算 from the tools page, tie cards only, the switch off, the ring after a pick in each table, the custom row with and without a premium, and in a game a hand from the cards where one cover was bought and the other turned down, a tie card dealt and settled, and a tie purchase from Outs数速算 in 保险记录. The limit was checked at 393px with a tie between two and a tie among three. Not yet tried on a phone.
+- Tracking: PR #87
+
+### #I-060 Dead money typed in place, a larger pot ring, and smaller figures in the cover table
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-17
+- Source: discussion
+- Problem: A tap on dead money opened a dialog with a line for each pool to add up. The pot's ring was small beside its legend, and the figures in the cover table were as large as the text, so five digits were crowded and six ran into the next column.
+- Proposal:
+  - A tap on dead money goes into the amount in its frame, with all of it selected, to type over in place. No dialog. A tap on dead money in a pot's legend lands in the same field.
+  - The ring is 144px across, from 112px. In the legend beside it a name and its chips share a line, with the chances on a line of their own under the name.
+  - The figures of the cover table are 14px, a size under the text. The names of the rows keep the size of the text.
+- Settled details:
+  - The limit is an iPhone 16, 393px wide. There a name of six characters and chips of six digits share a line of the legend without wrapping, five digits sit easily in a column of the table, and six just fill it without touching the next.
+  - The chances moved under the name because a name, the chances and the chips do not fit on one line beside a larger ring. On a narrower phone a long name is cut short, as before.
+  - Dead money is one amount now. It is kept as one folded player's chips, as the amount a pot starts with always was: with side pots it fills the main pot up to the smallest stake and the rest goes on to the side pots. Dead money from several folded players can no longer be entered a player at a time. A hand kept with several pools shows their sum, and typing replaces them.
+  - Typing an amount, or Enter on the amount a pot starts with, makes it the organizer's own, and the frame turns from dashed green to that of the flop. Leaving the field untouched leaves it as it was.
+  - The amount is 16px, as is the custom premium, which is drawn at the size of the figures around it: under 16px a phone zooms the page when a field takes the focus.
+  - `DeadMoneyDialog` is removed.
+- Decision: do. Checked in the browser preview in dark mode at 393px with names of six characters, stakes of 250,000 and dead money of 100,000: nothing in the pot's block was wider than its place, and the page did not scroll sideways. Not yet tried on a phone, where the keyboard and the zoom on focus matter.
 - Tracking: PR #87
 
 ## Not doing or deferred

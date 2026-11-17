@@ -99,6 +99,8 @@ export interface HandOffer {
  * The offers for the card on sale, for each leader of each pot. Cards that take the pot from the
  * leader are one offer. Under a rule that sells tie cards, those are an offer of their own, priced
  * by their own count and listed after the first; a leader with tie cards only has just that one.
+ * A cover on tie cards pays no more than a tie can cost: half the pot when two would split it, two
+ * thirds when three would.
  */
 export function handOffers(hand: InsuranceHand, rule: InsuranceRule): HandOffer[] {
   const street = nextStreet(hand.board);
@@ -106,7 +108,7 @@ export function handOffers(hand: InsuranceHand, rule: InsuranceRule): HandOffer[
   return handPots(hand).flatMap((pot, potIndex) =>
     pot.leaders.flatMap((leader): HandOffer[] => {
       const blockedTie = tieBlocksInsurance(pot);
-      const offer = (kind: OfferKind, outs: readonly Card[], keptChips: number): HandOffer => {
+      const offer = (kind: OfferKind, outs: readonly Card[], tieShareChips?: number): HandOffer => {
         const input: QuoteInput = {
           rule,
           street,
@@ -114,7 +116,11 @@ export function handOffers(hand: InsuranceHand, rule: InsuranceRule): HandOffer[
           shareChips: leader.shareChips,
           stakeChips: leader.stakeChips,
           outs: outs.length,
-          keptChips,
+          // A tie leaves the buyer part of the pot, so a cover on tie cards pays no more than the rest
+          ...(tieShareChips !== undefined && {
+            keptChips: tieShareChips,
+            capChips: leader.shareChips - tieShareChips,
+          }),
           blockedTie,
         };
         const key = `${street}-${potIndex}-${leader.playerId}`;
@@ -130,7 +136,7 @@ export function handOffers(hand: InsuranceHand, rule: InsuranceRule): HandOffer[
           quote: quoteInsurance(input),
         };
       };
-      const overtake = offer("overtake", leader.outs, 0);
+      const overtake = offer("overtake", leader.outs);
       // A lead with nothing to insure says so once, not once for each kind of card
       if (rule.tieOuts !== "include" || blockedTie || leader.tieCards.length === 0) {
         return [overtake];

@@ -14,14 +14,17 @@ A rule either counts tie cards or does not (`tieOuts`). While it counted them, t
 
 For what the tie cover pays:
 
-- Cap it at what a tie costs the buyer, the pot share less their part of the split.
-- **The same covers as for the cards that overtake**: 保本, 半池 and 满池 with the same targets, and the same limit of the pot share. The organizer asked for the same table.
+- The same covers as for the cards that overtake, up to the whole pot share: built first, and it let a tie leave the buyer more than the pot, since half the pot is still theirs.
+- **No more than a tie can cost the buyer**: their share now less what the split leaves them.
+
+The platforms whose rules could be read do not sell tie cards at all: cards that split the pot are not counted as outs. Selling them is this app's own rule, so there was no usual limit to copy.
 
 ## Decision
 
 - Under a rule that counts tie cards, `handOffers` gives a leader with tie cards two offers on a pot: the cards that overtake (`kind: "overtake"`, the key as before) and the tie cards (`kind: "tie"`, the key with `-tie`). Each is priced by `quoteInsurance` on its own count of cards. A leader with tie cards and nothing that overtakes has the tie offer only.
 - Each offer is bought or turned down on its own, and the next card can be picked once both are decided.
 - `QuoteInput.keptChips` is what the buyer still wins of the pot when a card sold comes: nothing for cards that overtake, and for tie cards the smallest share any of them leaves (`PotLeader.tieShareChips`). `ifHitChips` adds it to the payout less the premium. The premium and the payout do not depend on it.
+- `QuoteInput.capChips` is the most a cover may pay where that is less than the pot share. For tie cards it is the share less `tieShareChips`: half a pot that two would split, two thirds of one that three would. It is worked out from the cards, so a pot of three where a tie card only ever splits it two ways is covered to half. 保本 and 半池 keep their targets under it, and the largest cover is the cap itself, 封顶, shown only where it is more than 半池.
 - A purchase on tie cards is marked `tie` on the hand and on its `insurance_buy` event. Backups keep the field, with no change of version.
 - A rule that does not count tie cards sells what it sold before, and a tied lead that cannot be insured is still refused once.
 - `soldOuts`, which added the two counts, is gone.
@@ -30,5 +33,6 @@ For what the tie cover pays:
 
 - Prices change under a rule that counts tie cards, whenever a pot has any: the cover on the cards that overtake is priced on fewer cards, so at higher odds. With 6 outs and 2 tie cards at 1 赔 30, it is sold at 5.0 where the cover on all 8 was sold at 3.5.
 - A buyer can hold both covers. Only one can pay, as a card is of one kind.
-- A tie cover can leave the buyer more than the pot: 满池 on tie cards pays the pot share while half the pot is still theirs. This follows from giving it the same covers as the other, and is the first thing to look at if the tie cover needs a limit of its own.
+- A tie never leaves the buyer more than the pot: what the split leaves and the most the cover pays add up to the pot share.
+- Between two players the cap is half the pot, so the tie cover has 保本 and 半池 and no row above them. With whole chips 半池 can be held a little under half, and says so.
 - Insurance already bought keeps what it was sold on. A purchase from before has no `tie` mark and reads as cards that overtake, tie cards included.

@@ -264,9 +264,14 @@ describe("offers", () => {
       expect(tie).toMatchObject({
         key: "river-0-a-tie",
         kind: "tie",
-        // Half the pot of 1,000 stays with the leader when a ten comes
-        input: { outs: 4, keptChips: 500, shareChips: 1000, stakeChips: 500 },
+        // Half the pot of 1,000 stays with the leader when a ten comes, so the other half is the
+        // most a cover on the tens may pay
+        input: { outs: 4, keptChips: 500, capChips: 500, shareChips: 1000, stakeChips: 500 },
       });
+      if (!tie?.quote.ok) throw new Error("Expected a quote");
+      expect(tie.quote.fullPot.payoutChips).toBeLessThanOrEqual(500);
+      // The cards that overtake are still covered up to the whole pot
+      expect(overtake?.input.capChips).toBeUndefined();
       expect(tie?.outs.toSorted()).toEqual(["Ts", "Th", "Td", "Tc"].map(c).toSorted());
       // Each is priced by its own count of cards
       expect(overtake?.quote).toMatchObject({
@@ -274,6 +279,25 @@ describe("offers", () => {
         oddsHundredths: RULE_30.oddsHundredths[1],
       });
       expect(tie?.quote).toMatchObject({ ok: true, oddsHundredths: RULE_30.oddsHundredths[3] });
+    });
+
+    it("covers two thirds of the pot where a tie splits it three ways", () => {
+      // An ace on the river is everyone's kicker to the four twos
+      const threeWay = hand({
+        players: [...quads.players, player("c", 500, ["Th", "9h"])],
+        board: quads.board,
+      });
+      const [tie] = handOffers(threeWay, RULE_30);
+      expect(tie).toMatchObject({
+        kind: "tie",
+        input: { outs: 3, shareChips: 1500, keptChips: 500, capChips: 1000 },
+      });
+      if (!tie?.quote.ok) throw new Error("Expected a quote");
+      const { halfPot, fullPot } = tie.quote;
+      // Half the pot, and above it the cap
+      expect(halfPot?.payoutChips).toBeGreaterThanOrEqual(750);
+      expect(fullPot.payoutChips).toBeGreaterThan(halfPot?.payoutChips ?? 0);
+      expect(fullPot.payoutChips).toBeLessThanOrEqual(1000);
     });
 
     it("leaves them unsold under a rule that does not count them", () => {

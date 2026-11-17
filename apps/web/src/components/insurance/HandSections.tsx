@@ -1,7 +1,8 @@
 import type { InsuranceHandPlayer } from "@holdem-knight/core";
 import { RotateCcw } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, type Ref, useId, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
+import { selectOnFocus } from "@/lib/number-input";
 import type { InsuranceSeat } from "./InsuranceCalculator";
 
 /**
@@ -118,39 +119,118 @@ function ChipStack({ lit }: { lit: boolean }) {
   );
 }
 
+/** The most digits dead money takes, as a player's chips do. */
+const MAX_DEAD_DIGITS = 7;
+
+/** How dead money is typed while the pot can still change. */
+export interface DeadMoneyEdits {
+  /** Called with every digit typed, and with the amount as it stands when Enter confirms it unchanged */
+  onChips: (chips: number) => void;
+  /** Called once the field is left after that */
+  onDone: () => void;
+}
+
 /**
  * Dead money, framed like a street of the board: the chip stack with its name and amount
  * underneath. The amount a pot starts with is framed in dashed light green until the organizer
- * sets it, and from then on like the flop.
+ * sets it, and from then on like the flop. With `edits` the amount is typed in place: a tap
+ * anywhere on the frame selects it, and digits typed replace it.
  */
 export function DeadMoney({
   chips,
   preset,
-  onEdit,
+  edits,
+  inputRef,
 }: {
   chips: number;
   /** Still the amount a pot starts with */
   preset: boolean;
-  onEdit: (() => void) | undefined;
+  /** Missing once the pot can no longer change, when the amount only shows */
+  edits: DeadMoneyEdits | undefined;
+  /** The field, for a tap on dead money elsewhere on the page to land in */
+  inputRef?: Ref<HTMLInputElement>;
 }) {
+  const id = useId();
+  // The digits as typed, while the field has the focus
+  const [draft, setDraft] = useState<string>();
+  const changed = useRef(false);
+  const text = draft ?? chipText(chips);
   const className = cn(
     "flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 px-2 pt-2 pb-1",
     preset ? "border-dashed border-win/50 text-win" : "border-line bg-surface",
   );
-  const content = (
-    <>
-      <span className="grid h-11 place-items-center">
-        <ChipStack lit={chips > 0} />
-      </span>
-      <span className={cn("text-xs whitespace-nowrap tabular-nums", !preset && "text-muted")}>
-        {chips > 0 ? `死钱 ${chipText(chips)}` : "死钱"}
-      </span>
-    </>
+  const stack = (
+    <span className="grid h-9 place-items-center">
+      <ChipStack lit={chips > 0} />
+    </span>
   );
-  if (!onEdit) return <div className={className}>{content}</div>;
+  const captionClass = cn(
+    "flex h-6 items-baseline gap-1 text-xs whitespace-nowrap",
+    !preset && "text-muted",
+  );
+  const amountClass = "text-base leading-6 font-semibold tabular-nums";
+  if (!edits) {
+    return (
+      <div className={className}>
+        {stack}
+        <span className={captionClass}>
+          死钱
+          <span className={cn(amountClass, !preset && "text-text")}>{chipText(chips)}</span>
+        </span>
+      </div>
+    );
+  }
   return (
-    <button type="button" aria-label="编辑死钱" onClick={onEdit} className={className}>
-      {content}
-    </button>
+    <label htmlFor={id} className={cn(className, "cursor-text focus-within:border-highlight")}>
+      {stack}
+      <span className={captionClass}>
+        死钱
+        <input
+          ref={inputRef}
+          id={id}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          enterKeyHint="done"
+          aria-label="死钱"
+          value={text}
+          // As wide as what it holds, so the frame fits the amount
+          style={{ width: `${Math.max(1, text.length)}ch` }}
+          onFocus={(event) => {
+            changed.current = false;
+            setDraft(String(chips));
+            selectOnFocus(event.currentTarget);
+          }}
+          onChange={(event) => {
+            const digits = event.target.value
+              .replace(/\D/g, "")
+              .replace(/^0+(?=\d)/, "")
+              .slice(0, MAX_DEAD_DIGITS);
+            setDraft(digits);
+            changed.current = true;
+            edits.onChips(Number(digits));
+          }}
+          onBlur={() => {
+            // Left as it was found, there is nothing to keep
+            if (changed.current) edits.onDone();
+            setDraft(undefined);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            // Enter on the amount a pot starts with makes it the organizer's own
+            if (!changed.current) {
+              changed.current = true;
+              edits.onChips(chips);
+            }
+            event.currentTarget.blur();
+          }}
+          className={cn(
+            amountClass,
+            "min-w-0 bg-transparent text-center outline-none",
+            !preset && "text-text",
+          )}
+        />
+      </span>
+    </label>
   );
 }

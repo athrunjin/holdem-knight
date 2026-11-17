@@ -61,8 +61,15 @@ type Choice = "stake" | "half" | "full" | "custom";
 
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
 
+/**
+ * A row of the cover table. Its figures are a size under the text, so five digits sit easily in a
+ * column and six still fit on a phone 393px wide.
+ */
 const rowClass =
-  "grid min-h-11 w-full grid-cols-[1fr_repeat(4,3.6rem)] items-center gap-1 rounded-lg border px-2 py-1 text-right tabular-nums";
+  "grid min-h-11 w-full grid-cols-[1fr_repeat(4,3.6rem)] items-center gap-1 rounded-lg border px-2 py-1 text-right text-sm whitespace-nowrap tabular-nums";
+
+/** The name of a row, at the size of the text. */
+const rowNameClass = "text-left text-base font-medium";
 
 /** A result either way. On the cover picked it also says what that leaves the buyer up or down. */
 function Result({ chips, net }: { chips: number | undefined; net: number | undefined }) {
@@ -107,7 +114,7 @@ function CoverRow({
         faded && "opacity-50 grayscale",
       )}
     >
-      <span className="text-left font-medium">
+      <span className={rowNameClass}>
         {label}
         {note && <span className="block text-xs whitespace-nowrap text-muted">{note}</span>}
         {option.capped && <span className="block text-xs text-highlight">已到上限</span>}
@@ -173,18 +180,32 @@ const KIND_TEXT: Record<OfferKind, string> = { overtake: "反超", tie: "平分"
 
 type PricedQuote = Extract<InsuranceQuote, { ok: true }>;
 
-/** An offer's covers and which of them shows as picked, from what was picked and what was decided. */
+/**
+ * An offer's covers and which of them shows as picked, from what was picked and what was decided.
+ * Cards that overtake are covered up to the whole pot, 满池. Tie cards are covered up to what a
+ * tie can cost, 封顶, which is a row of its own only where it is more than the rows before it:
+ * between two players it is half the pot, and 半池 already says that.
+ */
 function coverView(
+  kind: OfferKind,
   input: QuoteInput,
   quote: PricedQuote,
   { choice, customText }: Pick,
   decision: QuoteDecision | undefined,
 ) {
   const { oddsHundredths, maxPremiumChips, stake, halfPot, fullPot } = quote;
-  const standard: readonly { id: Choice; label: string; note?: string; option: QuoteOption }[] = [
+  const smaller: readonly { id: Choice; label: string; note?: string; option: QuoteOption }[] = [
     { id: "stake", label: "保本", ...(halfPot ? {} : { note: "即半池" }), option: stake },
     ...(halfPot ? [{ id: "half" as const, label: "半池", option: halfPot }] : []),
-    { id: "full", label: "满池", option: fullPot },
+  ];
+  const most = Math.max(...smaller.map(({ option }) => option.premiumChips));
+  const standard = [
+    ...smaller,
+    ...(kind === "overtake"
+      ? [{ id: "full" as const, label: "满池", option: fullPot }]
+      : fullPot.premiumChips > most
+        ? [{ id: "full" as const, label: "封顶", option: fullPot }]
+        : []),
   ];
   const locked = decision !== undefined;
   const bought = decision?.kind === "bought" ? decision : undefined;
@@ -239,6 +260,7 @@ function CoverTable({
   const decision = decisions?.get(decisionKey);
   const { oddsHundredths, maxPremiumChips } = quote;
   const { standard, locked, shown, customOption, chosen, customValue } = coverView(
+    kind,
     input,
     quote,
     pick,
@@ -324,7 +346,7 @@ function CoverTable({
             locked && shown !== "custom" && "opacity-50 grayscale",
           )}
         >
-          <span className="text-left font-medium">自定义</span>
+          <span className={rowNameClass}>自定义</span>
           {/* No box of its own: a dash like the cells after it until a premium is typed */}
           <input
             ref={customRef}
@@ -359,7 +381,9 @@ function CoverTable({
             onKeyDown={(event) => {
               if (event.key === "Enter") event.currentTarget.blur();
             }}
-            className="h-9 w-full min-w-0 bg-transparent text-right font-semibold text-highlight tabular-nums outline-none placeholder:font-normal placeholder:text-text"
+            // Kept at 16px, under which a phone zooms the page on focus, and drawn at the size of
+            // the figures around it: wider than its column by as much as it is then scaled down
+            className="-ml-[calc(100%/0.875-100%)] h-9 w-[calc(100%/0.875)] min-w-0 origin-right scale-[0.875] bg-transparent text-right text-base font-semibold text-highlight tabular-nums outline-none placeholder:font-normal placeholder:text-text"
           />
           <span>{customOption ? chipText(customOption.payoutChips) : "—"}</span>
           <Result
@@ -434,6 +458,7 @@ function Block({ label, parts, potChips, offers, saving, decisions }: PotCoverPr
     active?.quote.ok === true
       ? {
           ...coverView(
+            active.offer.kind,
             active.offer.input,
             active.quote,
             pickOf(active.offer.decisionKey),
@@ -469,11 +494,11 @@ function Block({ label, parts, potChips, offers, saving, decisions }: PotCoverPr
         >
           {ring && cover && (
             <>
-              <span className="text-[10px] leading-none whitespace-nowrap text-muted">
+              <span className="text-[11px] leading-none whitespace-nowrap text-muted">
                 {ring.kindText}
                 {ring.chosenLabel}
               </span>
-              <span className="text-[13px] leading-tight font-semibold tabular-nums">
+              <span className="text-[15px] leading-tight font-semibold tabular-nums">
                 {/* What the cover pays against the pot share: a full pot reads 100% */}
                 {Math.round((cover.payoutChips / ring.shareChips) * 100)}%
               </span>
