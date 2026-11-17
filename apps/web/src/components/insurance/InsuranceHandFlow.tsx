@@ -20,14 +20,23 @@ import {
   type Standings,
   undoDeal,
 } from "@holdem-knight/core";
-import { Plus, RotateCcw } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { BOARD_PLACES, CardFace } from "./CardFace";
 import { CardPicker } from "./CardPicker";
 import { DeadMoneyDialog } from "./DeadMoneyDialog";
-import { HandPlayerRow, type StandingNote } from "./HandPlayerRow";
+import { HandPlayerRow, HoleCards, type StandingNote } from "./HandPlayerRow";
+import {
+  DeadMoney,
+  MIN_PLAYERS,
+  nextPlayers,
+  PRESET_DEAD_CHIPS,
+  RoundAction,
+  SectionReset,
+  SectionTitle,
+} from "./HandSections";
 import { HandSummary } from "./HandSummary";
 import type { InsuranceSeat } from "./InsuranceCalculator";
 import type { Decisions } from "./LeaderQuote";
@@ -67,39 +76,12 @@ const STREET_TEXT = { turn: "转牌", river: "河牌" } as const;
 const withoutCards = (used: ReadonlySet<Card>, free: readonly Card[]) =>
   new Set([...used].filter((card) => !free.includes(card)));
 
-/** A player as they sit down in a hand: the chips they have at the table, and no cards yet. */
-const seatedPlayer = ({ id, chips = 0 }: InsuranceSeat): InsuranceHandPlayer => ({
-  playerId: id,
-  chips,
-  cover: false,
-  cards: [],
-});
-
-/** A hand needs two players, and starts with two. */
-const MIN_PLAYERS = 2;
-
-/** Dead money a hand starts with, wherever it is opened from, until the organizer sets it. */
-const PRESET_DEAD_CHIPS = 1000;
-
 /** The hand with the dead money it starts with, marked as not yet set. */
 const withPresetPools = (hand: InsuranceHand): InsuranceHand => ({
   ...hand,
   pools: [PRESET_DEAD_CHIPS],
   presetPools: true,
 });
-
-/** The first players of the table who are not in the hand yet, in the table's order. */
-function nextPlayers(
-  players: readonly InsuranceHandPlayer[],
-  seats: readonly InsuranceSeat[],
-  count: number,
-): InsuranceHandPlayer[] {
-  const taken = players.map((p) => p.playerId);
-  return seats
-    .filter(({ id }) => !taken.includes(id))
-    .slice(0, Math.max(0, count))
-    .map(seatedPlayer);
-}
 
 /**
  * The hand with its first two players in place: the first two of the table, with the chips they
@@ -165,82 +147,6 @@ function StreetCards({
     >
       {content}
     </button>
-  );
-}
-
-/** Three chips in a stack: outlines while empty, filled once there is dead money. */
-function ChipStack({ lit }: { lit: boolean }) {
-  // Opaque fills, so each chip hides the one under it
-  const side = lit ? "color-mix(in srgb, currentColor 35%, var(--bg))" : "var(--bg)";
-  const face = lit ? "color-mix(in srgb, currentColor 60%, var(--bg))" : "var(--bg)";
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-7 shrink-0"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      aria-hidden
-    >
-      {[15, 10.5, 6].map((top) => (
-        <g key={top}>
-          <path d={`M4 ${top}v3.5a8 3 0 0 0 16 0v-3.5`} fill={side} />
-          <ellipse cx="12" cy={top} rx="8" ry="3" fill={face} />
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-/**
- * Dead money, framed like a street of the board: the chip stack with its name and amount
- * underneath. The amount a hand starts with is framed in dashed light green until the organizer
- * sets it, and from then on like the flop.
- */
-function DeadMoney({
-  chips,
-  preset,
-  onEdit,
-}: {
-  chips: number;
-  /** Still the amount a hand starts with */
-  preset: boolean;
-  onEdit: (() => void) | undefined;
-}) {
-  const className = cn(
-    "flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 px-2 pt-2 pb-1",
-    preset ? "border-dashed border-win/50 text-win" : "border-line bg-surface",
-  );
-  const content = (
-    <>
-      <span className="grid h-11 place-items-center">
-        <ChipStack lit={chips > 0} />
-      </span>
-      <span className={cn("text-xs whitespace-nowrap tabular-nums", !preset && "text-muted")}>
-        {chips > 0 ? `死钱 ${chipText(chips)}` : "死钱"}
-      </span>
-    </>
-  );
-  if (!onEdit) return <div className={className}>{content}</div>;
-  return (
-    <button type="button" aria-label="编辑死钱" onClick={onEdit} className={className}>
-      {content}
-    </button>
-  );
-}
-
-/**
- * A section's name, a little larger than the text, in the middle of the page with a line at
- * either side on its own middle, each fading out toward the edge.
- */
-function SectionTitle({ id, title }: { id: string; title: string }) {
-  return (
-    <div className="mb-2 flex min-h-11 items-center gap-3">
-      <span aria-hidden className="h-px flex-1 bg-linear-to-r from-transparent to-line" />
-      <h2 id={id} className="text-lg font-semibold">
-        {title}
-      </h2>
-      <span aria-hidden className="h-px flex-1 bg-linear-to-l from-transparent to-line" />
-    </div>
   );
 }
 
@@ -512,17 +418,12 @@ export function InsuranceHandFlow({
         <>
           <section aria-labelledby="hand-pot-title" className="mt-1">
             <SectionTitle id="hand-pot-title" title="底池信息" />
-            {/* The arrow sits by the edge of the page, between the title's line and the flop, so nothing else moves */}
             <div className="relative flex flex-wrap items-stretch justify-center gap-1.5">
               {editable && (
-                <button
-                  type="button"
-                  aria-label="清空底池信息"
-                  onClick={() => update(withPresetPools({ ...hand, board: [], declined: [] }))}
-                  className="absolute -top-9 -left-2 grid size-9 place-items-center text-muted"
-                >
-                  <RotateCcw className="size-4" strokeWidth={1.75} aria-hidden />
-                </button>
+                <SectionReset
+                  label="清空底池信息"
+                  onReset={() => update(withPresetPools({ ...hand, board: [], declined: [] }))}
+                />
               )}
               <StreetCards
                 label="翻牌"
@@ -589,20 +490,18 @@ export function InsuranceHandFlow({
                               onChips: (chips) => setHand(withPlayer(playerId, { chips })),
                               onChipsDone: () => commitChips(playerId),
                               onCover: (cover) => setCover(playerId, cover),
-                              onCards: (replace) =>
-                                setPickingCards(
-                                  replace === undefined ? { playerId } : { playerId, replace },
-                                ),
                               // The two a hand cannot do without are cleared; the rest go
                               lead:
                                 index < MIN_PLAYERS
                                   ? {
                                       kind: "reset",
+                                      label: `清空${nameOf(playerId)}的手牌`,
                                       onSelect: () =>
                                         update(withPlayer(playerId, { cards: [], cover: false })),
                                     }
                                   : {
                                       kind: "remove",
+                                      label: `删除${nameOf(playerId)}`,
                                       onSelect: () =>
                                         update({
                                           ...hand,
@@ -613,23 +512,28 @@ export function InsuranceHandFlow({
                             }
                           : undefined
                       }
-                    />
+                    >
+                      <HoleCards
+                        name={nameOf(playerId)}
+                        cards={player.cards}
+                        onPick={
+                          editable
+                            ? (replace) =>
+                                setPickingCards(
+                                  replace === undefined ? { playerId } : { playerId, replace },
+                                )
+                            : undefined
+                        }
+                      />
+                    </HandPlayerRow>
                   </li>
                 );
               })}
             </ul>
             {editable && (
-              // A small ring in the middle of the page, with a 44px place to tap around it
-              <button
-                type="button"
-                aria-label="添加玩家"
-                onClick={addPlayer}
-                className="mx-auto mt-1 grid size-11 place-items-center text-highlight"
-              >
-                <span className="grid size-7 place-items-center rounded-full border border-line">
-                  <Plus className="size-4" aria-hidden />
-                </span>
-              </button>
+              <RoundAction label="添加玩家" onSelect={addPlayer}>
+                <Plus className="size-4" aria-hidden />
+              </RoundAction>
             )}
             {notice && (
               <p role="status" className="mt-1 text-center text-sm text-muted">

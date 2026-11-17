@@ -31,8 +31,6 @@ interface InsuranceCalculatorProps {
   mode: InsuranceMode;
   rule: InsuranceRule;
   seats: readonly InsuranceSeat[];
-  /** Gives the quick price its two seats in order instead of asking who is all-in: the standalone calculator has no table. */
-  autoSeat?: boolean;
   saving?: boolean | undefined;
   /** Missing for the standalone calculator, which records nothing. */
   recorder?: InsuranceRecorder;
@@ -86,14 +84,13 @@ export function InsuranceCalculator({
   createHand,
   rule,
   seats,
-  autoSeat = false,
   saving,
   mode,
 }: InsuranceCalculatorProps) {
   const decisions = useDecisions(recorder);
   return (
     <>
-      {/* Stays mounted, so looking at the other mode keeps the hand */}
+      {/* Both stay mounted, so looking at the other mode keeps the hand */}
       <div hidden={mode !== "cards"}>
         <InsuranceHandFlow
           rule={rule}
@@ -104,15 +101,16 @@ export function InsuranceCalculator({
           seat={seat}
         />
       </div>
-      {mode === "outs" && (
+      {/* The quick price too, so its pot is still there after a look at the cards */}
+      <div hidden={mode !== "outs"}>
         <OutsQuickCalc
           rule={rule}
           seats={seats}
-          autoSeat={autoSeat}
+          onStack={handStore?.enterStack}
           saving={saving}
           decisions={decisions}
         />
-      )}
+      </div>
     </>
   );
 }

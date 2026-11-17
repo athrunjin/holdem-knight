@@ -98,7 +98,6 @@ function InsuranceToolPage() {
         mode={mode}
         rule={parsed.ok ? parsed.rule : RULE_30}
         seats={SEATS}
-        autoSeat
         createHand={scratchHand}
       />
     </Page>

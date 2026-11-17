@@ -1,6 +1,6 @@
 import type { Card, InsuranceHandPlayer } from "@holdem-knight/core";
 import { RotateCcw, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { TextMenu } from "@/components/TextMenu";
 import { formatCardText } from "@/lib/cards";
 import { cn } from "@/lib/cn";
@@ -11,6 +11,7 @@ import type { InsuranceSeat } from "./InsuranceCalculator";
 /** Where a player stands, under their name: a leader is lit and shows only the chance to win. */
 export interface StandingNote {
   readonly leading: boolean;
+  /** Empty while there is nothing to say yet, and the row is only lit */
   readonly text: string;
 }
 
@@ -30,13 +31,16 @@ export interface HandPlayerEdits {
   onChips: (chips: number) => void;
   onChipsDone: () => void;
   onCover: (cover: boolean) => void;
-  /** Opens the cards, at the card tapped where there is one */
-  onCards: (place: number | undefined) => void;
   /**
-   * The small icon before the name: an arrow that clears the row's cards and cover, on the rows
-   * a hand cannot do without, or a cross that takes the row away
+   * The small icon before the name: an arrow that clears what the row holds besides its chips, on
+   * the rows a pot cannot do without, or a cross that takes the row away
    */
-  lead: { readonly kind: "reset" | "remove"; readonly onSelect: () => void };
+  lead: {
+    readonly kind: "reset" | "remove";
+    /** What it does, for a reader */
+    readonly label: string;
+    readonly onSelect: () => void;
+  };
 }
 
 interface HandPlayerRowProps {
@@ -46,6 +50,8 @@ interface HandPlayerRowProps {
   note: StandingNote | undefined;
   /** Missing once the players are fixed, when the row only shows */
   edits: HandPlayerEdits | undefined;
+  /** What ends the row: the player's two cards, or what stands for them where no cards are picked */
+  children: ReactNode;
 }
 
 /** The stake as a field with no frame: a tap selects it, and digits typed replace it. */
@@ -98,14 +104,50 @@ function ChipsField({
   );
 }
 
-/**
- * One player of a hand on a line: the name, the stake and the two cards. While the players are
- * open, the name is a menu of the table, the stake is typed in place, a small C marks the player
- * as covering the others, and the cards open the card picker.
- */
-export function HandPlayerRow({ name, player, note, edits }: HandPlayerRowProps) {
-  const [first, second] = player.cards;
+/** A player's two cards. With `onPick` each is a button that opens the cards at that place. */
+export function HoleCards({
+  name,
+  cards: [first, second],
+  onPick,
+}: {
+  name: string;
+  cards: readonly Card[];
+  /** Called with the place of the card tapped, where there is one. Missing when the cards only show. */
+  onPick: ((place: number | undefined) => void) | undefined;
+}) {
   const cards: readonly (Card | undefined)[] = [first, second];
+  return (
+    <span className={cn("flex shrink-0", !onPick && "gap-1")}>
+      {cards.map((card, place) =>
+        onPick ? (
+          <button
+            // biome-ignore lint/suspicious/noArrayIndexKey: the two places of a hand
+            key={place}
+            type="button"
+            aria-label={
+              card === undefined ? `选择${name}的手牌` : `更换${name}的${formatCardText(card)}`
+            }
+            onClick={() => onPick(card === undefined ? undefined : place)}
+            className="grid h-11 w-10 place-items-center"
+          >
+            <CardFace card={card ?? null} />
+          </button>
+        ) : (
+          // biome-ignore lint/suspicious/noArrayIndexKey: the two places of a hand
+          <CardFace key={place} card={card ?? null} />
+        ),
+      )}
+    </span>
+  );
+}
+
+/**
+ * One player of a pot on a line: the name, the stake and what ends the row, the two cards as a
+ * rule. While the players are open, the name is a menu of the table, the stake is typed in place
+ * and a small C marks the player as covering the others.
+ */
+export function HandPlayerRow({ name, player, note, edits, children }: HandPlayerRowProps) {
+  const noteText = note?.text || undefined;
   return (
     <div
       className={cn(
@@ -116,7 +158,7 @@ export function HandPlayerRow({ name, player, note, edits }: HandPlayerRowProps)
       {edits && (
         <button
           type="button"
-          aria-label={edits.lead.kind === "reset" ? `清空${name}的手牌` : `删除${name}`}
+          aria-label={edits.lead.label}
           onClick={edits.lead.onSelect}
           className="-mx-1 grid h-11 w-6 shrink-0 place-items-center text-muted"
         >
@@ -146,21 +188,21 @@ export function HandPlayerRow({ name, player, note, edits }: HandPlayerRowProps)
             ]}
             value={player.playerId}
             onChange={(id) => id !== player.playerId && edits.onSeat(id)}
-            className={cn("font-medium", note && "items-start pt-1 [&>svg]:mt-1")}
+            className={cn("font-medium", noteText && "items-start pt-1 [&>svg]:mt-1")}
           />
         ) : (
-          <span className={cn("flex min-h-11 font-medium", note ? "pt-1" : "items-center")}>
+          <span className={cn("flex min-h-11 font-medium", noteText ? "pt-1" : "items-center")}>
             <span className="truncate">{name}</span>
           </span>
         )}
-        {note && (
+        {note && noteText && (
           <span
             className={cn(
               "pointer-events-none absolute bottom-0.5 left-0 max-w-full truncate text-xs tabular-nums",
               note.leading ? "font-semibold text-accent" : "text-muted",
             )}
           >
-            {note.text}
+            {noteText}
           </span>
         )}
       </div>
@@ -198,27 +240,7 @@ export function HandPlayerRow({ name, player, note, edits }: HandPlayerRowProps)
         </button>
       )}
 
-      <span className={cn("flex shrink-0", !edits && "gap-1")}>
-        {cards.map((card, place) =>
-          edits ? (
-            <button
-              // biome-ignore lint/suspicious/noArrayIndexKey: the two places of a hand
-              key={place}
-              type="button"
-              aria-label={
-                card === undefined ? `选择${name}的手牌` : `更换${name}的${formatCardText(card)}`
-              }
-              onClick={() => edits.onCards(card === undefined ? undefined : place)}
-              className="grid h-11 w-10 place-items-center"
-            >
-              <CardFace card={card ?? null} />
-            </button>
-          ) : (
-            // biome-ignore lint/suspicious/noArrayIndexKey: the two places of a hand
-            <CardFace key={place} card={card ?? null} />
-          ),
-        )}
-      </span>
+      {children}
     </div>
   );
 }

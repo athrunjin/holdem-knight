@@ -9,48 +9,47 @@ import {
   stakeOf,
   unseenCards,
 } from "@holdem-knight/core";
-import { Minus, Plus } from "lucide-react";
+import { ArrowUpDown, Minus, Plus } from "lucide-react";
 import { type Ref, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { DeadMoneyDialog } from "./DeadMoneyDialog";
+import { HandPlayerRow, type StandingNote } from "./HandPlayerRow";
+import {
+  DeadMoney,
+  MIN_PLAYERS,
+  nextPlayers,
+  PRESET_DEAD_CHIPS,
+  RoundAction,
+  SectionReset,
+  SectionTitle,
+} from "./HandSections";
 import type { InsuranceSeat } from "./InsuranceCalculator";
 import type { Decisions } from "./LeaderQuote";
 import { Modal } from "./Modal";
-import { PlayerChipsDialog } from "./PlayerChipsDialog";
 import { PotCover } from "./PotInsurance";
-import { type PotShare, PotShares } from "./PotShares";
-import { SeatPicker } from "./SeatPicker";
+import type { PotShare } from "./PotShares";
 
 type Side = 0 | 1;
 
-/** A side being filled in: first the seat, then the chips. */
-type Adding =
-  | { readonly side: Side; readonly stage: "seat" }
-  | {
-      readonly side: Side;
-      readonly stage: "chips";
-      readonly entry: InsuranceHandPlayer;
-      /** Go on to the outs afterwards, as a quick edit of the trailing side does. */
-      readonly thenOuts?: boolean;
-    };
-
 interface OutsQuickCalcProps {
   rule: InsuranceRule;
+  /** Everyone at the table, in its order. The first two start the pot. */
   seats: readonly InsuranceSeat[];
-  /** Seats the two sides as the first two seats instead of asking who they are. */
-  autoSeat: boolean;
+  /**
+   * A player's counted chips, which update the table at once. Missing for the standalone
+   * calculator, which has no table.
+   */
+  onStack: ((playerId: string, chips: number) => void) | undefined;
   saving: boolean | undefined;
   decisions: Decisions | undefined;
 }
 
-const chipText = (chips: number) => chips.toLocaleString("zh-CN");
-const percentText = (share: number) => `${(share * 100).toFixed(2)}%`;
+const STREETS: readonly { readonly id: InsuranceStreet; readonly label: string }[] = [
+  { id: "turn", label: "转牌" },
+  { id: "river", label: "河牌" },
+];
 
-const toggleClass = (active: boolean) =>
-  cn(
-    "min-h-11 rounded-xl border px-3 font-medium",
-    active ? "border-accent bg-accent text-accent-text" : "border-line bg-surface",
-  );
+const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
 
 /** The trailing side's cards: those that win outright, and those that split the pot. */
 interface OutsEntry {
@@ -64,12 +63,8 @@ const soldText = ({ outs, ties }: OutsEntry, tiesSold: boolean) =>
 
 const cardCount = (value: string) => value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
 
-const blankPlayer = (playerId: string): InsuranceHandPlayer => ({
-  playerId,
-  chips: 0,
-  cover: false,
-  cards: [],
-});
+/** Dead money as a pot starts with it, not yet set by the organizer. */
+const PRESET_DEAD = { pools: [PRESET_DEAD_CHIPS] as readonly number[], preset: true };
 
 const stepClass =
   "grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-surface text-highlight disabled:opacity-30";
@@ -218,185 +213,69 @@ function OutsDialog({
   );
 }
 
-/** Dead money, lit until it has been confirmed, even as zero. */
-function DeadMoneyRow({
-  chips,
-  entered,
-  onEdit,
-}: {
-  chips: number;
-  entered: boolean;
-  onEdit: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label="编辑死钱"
-      onClick={onEdit}
-      className={cn(
-        "flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border px-3",
-        entered ? "border-line bg-surface" : "border-highlight bg-highlight/10 text-highlight",
-      )}
-    >
-      <span className="text-sm">{entered ? "死钱" : "死钱 · 请确认"}</span>
-      <span className="flex items-center gap-2">
-        <span className="text-lg font-semibold tabular-nums">{chipText(chips)}</span>
-        <Plus className="size-5 text-highlight" aria-hidden />
-      </span>
-    </button>
-  );
-}
-
-/** One side of the pot: who, what they put in, and either the lead or the outs against it. */
-function SideCard({
-  player,
-  name,
-  leading,
-  outs,
-  hitChance,
-  onSeat,
-  onChips,
-  onOuts,
-  onLead,
-}: {
-  player: InsuranceHandPlayer | undefined;
-  name: string;
-  leading: boolean;
-  /** The trailing side's cards as sold, once they are known. */
-  outs: string | undefined;
-  /** The trailing side's chance to come from behind, once its outs are known. */
-  hitChance: number | undefined;
-  /** Missing when the seat is given rather than picked. */
-  onSeat: (() => void) | undefined;
-  onChips: () => void;
-  onOuts: () => void;
-  onLead: () => void;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-col gap-2 rounded-xl border-2 p-2 transition-colors",
-        leading ? "border-accent bg-accent/10" : "border-line bg-bg",
-      )}
-    >
-      {!onSeat ? (
-        <span className="flex min-h-11 items-center justify-center rounded-lg px-2 font-semibold">
-          <span className="truncate">{name}</span>
-        </span>
-      ) : (
-        <button
-          type="button"
-          aria-label={player ? `更换${name}` : "选择玩家"}
-          onClick={onSeat}
-          className={cn(
-            "flex min-h-11 items-center justify-center gap-1 rounded-lg border px-2",
-            player
-              ? "border-line bg-surface font-semibold"
-              : "border-dashed border-line text-highlight",
-          )}
-        >
-          {player ? (
-            <span className="truncate">{name}</span>
-          ) : (
-            <Plus className="size-5" aria-hidden />
-          )}
-        </button>
-      )}
-      <button
-        type="button"
-        aria-label={name ? `修改${name}的筹码` : "填写筹码"}
-        onClick={onChips}
-        className={cn(
-          "flex min-h-11 items-center justify-between gap-1 rounded-lg border px-2",
-          player ? "border-line bg-surface" : "border-dashed border-line",
-        )}
-      >
-        <span className="text-xs text-muted">筹码</span>
-        <span className="font-semibold tabular-nums">
-          {player ? (player.cover ? "Cover" : chipText(player.chips)) : "—"}
-        </span>
-      </button>
-      {leading ? (
-        <span className="flex min-h-14 flex-col items-center justify-center rounded-lg bg-accent text-accent-text">
-          <span className="text-lg leading-tight font-bold">领先</span>
-          {hitChance !== undefined && (
-            <span className="text-xs tabular-nums">被反超 {percentText(hitChance)}</span>
-          )}
-        </span>
-      ) : (
-        <div className="grid min-h-14 grid-cols-[1fr_auto] gap-1">
-          <button
-            type="button"
-            aria-label="填写 Outs"
-            onClick={onOuts}
-            className={cn(
-              "flex flex-col items-center justify-center rounded-lg border",
-              outs === undefined
-                ? "border-dashed border-line text-muted"
-                : "border-line bg-surface",
-            )}
-          >
-            <span className="text-xs text-muted">Outs</span>
-            <span className="text-lg leading-tight font-semibold tabular-nums">{outs ?? "—"}</span>
-          </button>
-          <button
-            type="button"
-            onClick={onLead}
-            className="w-11 rounded-lg border border-line bg-surface px-1 text-xs leading-tight font-medium"
-          >
-            切换领先
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** A quick price from two players' chips and the trailing player's outs, without picking cards. */
-export function OutsQuickCalc({ rule, seats, autoSeat, saving, decisions }: OutsQuickCalcProps) {
+/**
+ * A quick price from two players' chips and the trailing player's outs, without picking cards. The
+ * page is laid out as it is for a hand worked out from the cards: the pot, the players and the
+ * insurance under them, which shows as soon as there is enough to price it.
+ */
+export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQuickCalcProps) {
   const [street, setStreet] = useState<InsuranceStreet>("turn");
-  const [sides, setSides] = useState<
-    readonly [InsuranceHandPlayer | undefined, InsuranceHandPlayer | undefined]
-  >([undefined, undefined]);
+  // Nothing is kept until the organizer changes something, so a table that changes meanwhile
+  // still shows as it is
+  const [edited, setEdited] = useState<readonly InsuranceHandPlayer[]>();
   const [leader, setLeader] = useState<Side>(0);
   // Kept per side, so switching the lead back and forth keeps what was typed
   const [outs, setOuts] = useState<readonly [OutsEntry | undefined, OutsEntry | undefined]>([
     undefined,
     undefined,
   ]);
-  // Undefined until the organizer confirms it, even as zero
-  const [pools, setPools] = useState<readonly number[]>();
-  const [adding, setAdding] = useState<Adding>();
+  const [dead, setDead] = useState(PRESET_DEAD);
   const [editingOuts, setEditingOuts] = useState(false);
   const [editingDead, setEditingDead] = useState(false);
 
   const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? "未知玩家";
-  const players = sides.filter((p): p is InsuranceHandPlayer => p !== undefined);
-  const totals = potTotals(handPotEntries({ players, pools: pools ?? [] }));
-  const deadRef = useRef<HTMLDivElement>(null);
+  // The first two of the table, with the chips they have there
+  const players = edited ?? nextPlayers([], seats, MIN_PLAYERS);
+  const totals = potTotals(handPotEntries({ players, pools: dead.pools }));
 
   const trailer: Side = leader === 0 ? 1 : 0;
-  const leaderPlayer = sides[leader];
-  const trailerPlayer = sides[trailer];
+  const leaderPlayer = players[leader];
+  const trailerPlayer = players[trailer];
   const trailerEntry = outs[trailer];
   // Tie cards are sold with the outs only when the rule says so
   const tiesSold = rule.tieOuts === "include";
   const trailerOuts = trailerEntry && trailerEntry.outs + (tiesSold ? trailerEntry.ties : 0);
 
-  function setSide(side: Side, entry: InsuranceHandPlayer | undefined) {
-    setSides(side === 0 ? [entry, sides[1]] : [sides[0], entry]);
-  }
+  const withSide = (side: Side, change: Partial<InsuranceHandPlayer>) =>
+    players.map((p, index) => (index === side ? { ...p, ...change } : p));
 
-  /** Starts on an empty side: at the seat picker, or straight at the chips of the seat it is given. */
-  function addSide(side: Side) {
-    const seat = autoSeat ? seats[side] : undefined;
-    setAdding(
-      seat ? { side, stage: "chips", entry: blankPlayer(seat.id) } : { side, stage: "seat" },
+  const setSideOuts = (side: Side, entry: OutsEntry | undefined) =>
+    setOuts(side === 0 ? [entry, outs[1]] : [outs[0], entry]);
+
+  /** At most one player covers the other. The chips typed stay as they are under the cover. */
+  function setCover(side: Side, cover: boolean) {
+    setEdited(
+      players.map((p, index) =>
+        index === side ? { ...p, cover } : cover ? { ...p, cover: false } : p,
+      ),
     );
   }
 
-  const ready = leaderPlayer && trailerPlayer && trailerEntry && trailerOuts !== undefined;
-  const quoted = Boolean(ready);
+  /** Counted chips are the player's true stack, so they go to the table once typing is done. */
+  function commitChips(side: Side) {
+    const player = players[side];
+    if (player && !player.cover && player.chips > 0) onStack?.(player.playerId, player.chips);
+  }
+
+  const staked = (player: InsuranceHandPlayer) => player.cover || player.chips > 0;
+  const ready =
+    leaderPlayer &&
+    trailerPlayer &&
+    trailerEntry &&
+    trailerOuts !== undefined &&
+    staked(leaderPlayer) &&
+    staked(trailerPlayer) &&
+    !(leaderPlayer.cover && trailerPlayer.cover);
   // What the next card does, once the trailing side's cards are known
   const chances = trailerEntry && {
     ...trailerEntry,
@@ -405,17 +284,22 @@ export function OutsQuickCalc({ rule, seats, autoSeat, saving, decisions }: Outs
     win: 1 - outsHitChance(street, trailerEntry.outs + trailerEntry.ties),
   };
 
-  // Once everything above is in and the quote opens, put dead money at the top
-  useEffect(() => {
-    if (quoted) deadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [quoted]);
-
   const leaderStake =
     leaderPlayer && trailerPlayer
       ? Math.min(stakeOf(leaderPlayer, players), stakeOf(trailerPlayer, players))
       : 0;
 
-  // Who put what into the pot, once both sides are in
+  /** Where a side stands, under its name: the leader's chance to win, or the outs against it. */
+  function noteOf(side: Side): StandingNote | undefined {
+    if (side === leader) return { leading: true, text: chances ? percentText(chances.win) : "" };
+    if (!chances || !trailerEntry) return undefined;
+    return {
+      leading: false,
+      text: `Outs ${soldText(trailerEntry, tiesSold)} · ${percentText(chances.hit)}`,
+    };
+  }
+
+  // Who put what into the pot: the leader first, dead money last
   const parts: PotShare[] | undefined =
     leaderPlayer && trailerPlayer
       ? [
@@ -425,7 +309,6 @@ export function OutsQuickCalc({ rule, seats, autoSeat, saving, decisions }: Outs
             label: nameOf(leaderPlayer.playerId),
             chips: leaderStake,
             note: chances && percentText(chances.win),
-            onSelect: () => setAdding({ side: leader, stage: "chips", entry: leaderPlayer }),
           },
           {
             key: "trailer",
@@ -433,13 +316,6 @@ export function OutsQuickCalc({ rule, seats, autoSeat, saving, decisions }: Outs
             label: nameOf(trailerPlayer.playerId),
             chips: leaderStake,
             note: chances && `Outs ${chances.outs} · ${percentText(chances.hit)}`,
-            onSelect: () =>
-              setAdding({
-                side: trailer,
-                stage: "chips",
-                entry: trailerPlayer,
-                thenOuts: true,
-              }),
           },
           {
             key: "dead",
@@ -455,108 +331,197 @@ export function OutsQuickCalc({ rule, seats, autoSeat, saving, decisions }: Outs
         ]
       : undefined;
 
-  const missing =
-    !leaderPlayer || !trailerPlayer ? "先选好两位玩家和筹码。" : "填好落后一方的 Outs 后开始计算。";
+  // What the pot still needs before it can be priced, in the order it is entered
+  const missing = [
+    ...(players.length < MIN_PLAYERS ? ["两位玩家"] : []),
+    ...players.flatMap((player, index) => {
+      const needs = [
+        ...(staked(player) ? [] : ["筹码"]),
+        ...(index === trailer && trailerEntry === undefined ? ["Outs"] : []),
+      ];
+      return needs.length > 0 ? [`${nameOf(player.playerId)}（${needs.join("、")}）`] : [];
+    }),
+  ];
 
   return (
-    <div className="mt-3 flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          aria-pressed={street === "turn"}
-          onClick={() => setStreet("turn")}
-          className={toggleClass(street === "turn")}
-        >
-          保转牌
-        </button>
-        <button
-          type="button"
-          aria-pressed={street === "river"}
-          onClick={() => setStreet("river")}
-          className={toggleClass(street === "river")}
-        >
-          保河牌
-        </button>
-      </div>
-
-      <section aria-labelledby="quick-pot-title">
-        <h2 id="quick-pot-title" className="mb-2 font-semibold">
-          底池信息
-        </h2>
-        <div ref={deadRef} className="scroll-mt-2">
-          <DeadMoneyRow
+    <>
+      <section aria-labelledby="quick-pot-title" className="mt-1">
+        <SectionTitle id="quick-pot-title" title="底池信息" />
+        <div className="relative flex flex-wrap items-stretch justify-center gap-1.5">
+          <SectionReset
+            label="清空底池信息"
+            onReset={() => {
+              setStreet("turn");
+              setDead(PRESET_DEAD);
+            }}
+          />
+          {/* Framed like a street of the board, with the card the insurance is on picked inside */}
+          <fieldset className="flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 border-line bg-surface px-2 pt-2 pb-1">
+            <legend className="sr-only">保哪张牌</legend>
+            <span className="flex gap-1">
+              {STREETS.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={street === id}
+                  onClick={() => setStreet(id)}
+                  className={cn(
+                    "h-11 rounded-lg border px-3 font-medium transition-colors",
+                    street === id
+                      ? "border-accent bg-accent text-accent-text"
+                      : "border-line text-muted",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+            <span aria-hidden className="text-xs whitespace-nowrap text-muted">
+              保哪张牌
+            </span>
+          </fieldset>
+          <span aria-hidden className="mx-1 w-px self-stretch bg-line" />
+          <DeadMoney
             chips={totals.deadChips}
-            entered={pools !== undefined}
+            preset={dead.preset}
             onEdit={() => setEditingDead(true)}
           />
         </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {([0, 1] as const).map((side) => {
-            const player = sides[side];
+      </section>
+
+      <section aria-labelledby="quick-players-title" className="mt-3">
+        <SectionTitle id="quick-players-title" title="池内玩家" />
+        {seats.length < MIN_PLAYERS && (
+          <p className="mb-2 text-sm text-muted">桌上至少要有两位玩家，才能算保险。</p>
+        )}
+        <ul className="flex flex-col gap-2">
+          {players.map((player, index) => {
+            const side = index as Side;
+            const name = nameOf(player.playerId);
             const sideOuts = outs[side];
-            const given = autoSeat ? seats[side] : undefined;
             return (
-              <SideCard
-                key={side}
-                player={player}
-                name={given?.name ?? (player ? nameOf(player.playerId) : "")}
-                leading={leader === side}
-                outs={sideOuts && soldText(sideOuts, tiesSold)}
-                hitChance={chances?.hit}
-                onSeat={given ? undefined : () => setAdding({ side, stage: "seat" })}
-                onChips={() =>
-                  player ? setAdding({ side, stage: "chips", entry: player }) : addSide(side)
-                }
-                onOuts={() => setEditingOuts(true)}
-                onLead={() => setLeader(side)}
-              />
+              <li key={player.playerId}>
+                <HandPlayerRow
+                  name={name}
+                  player={player}
+                  note={noteOf(side)}
+                  edits={{
+                    seats,
+                    takenIds: players.filter((p) => p !== player).map((p) => p.playerId),
+                    // At a table another player is another pot: their own chips, no cover and no
+                    // outs. Away from one the name is only a label, and what was entered stays.
+                    onSeat: (id) => {
+                      if (onStack) setSideOuts(side, undefined);
+                      setEdited(
+                        withSide(side, {
+                          playerId: id,
+                          ...(onStack && {
+                            chips: seats.find((s) => s.id === id)?.chips ?? 0,
+                            cover: false,
+                          }),
+                        }),
+                      );
+                    },
+                    onChips: (chips) => setEdited(withSide(side, { chips })),
+                    onChipsDone: () => commitChips(side),
+                    onCover: (cover) => setCover(side, cover),
+                    lead: {
+                      kind: "reset",
+                      label: `清空${name}的 Outs`,
+                      onSelect: () => {
+                        setSideOuts(side, undefined);
+                        setEdited(withSide(side, { cover: false }));
+                      },
+                    },
+                  }}
+                >
+                  {/* As wide as the two cards of a hand, so the rows line up either way */}
+                  {side === leader ? (
+                    <span className="grid h-11 w-20 shrink-0 place-items-center">
+                      <span className="rounded-lg bg-accent px-2.5 py-1 text-sm font-bold text-accent-text">
+                        领先
+                      </span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label={`填写${name}的 Outs`}
+                      onClick={() => setEditingOuts(true)}
+                      className={cn(
+                        "flex h-11 w-20 shrink-0 flex-col items-center justify-center rounded-lg border",
+                        sideOuts === undefined
+                          ? "border-dashed border-highlight/60 text-highlight"
+                          : "border-line bg-bg",
+                      )}
+                    >
+                      <span className="text-[11px] leading-none text-muted">Outs</span>
+                      <span className="leading-tight font-semibold tabular-nums">
+                        {sideOuts ? soldText(sideOuts, tiesSold) : "—"}
+                      </span>
+                    </button>
+                  )}
+                </HandPlayerRow>
+              </li>
             );
           })}
-        </div>
-        {parts && !ready && (
-          <div className="mt-2">
-            <PotShares parts={parts} />
-          </div>
+        </ul>
+        {players.length === MIN_PLAYERS && (
+          <RoundAction label="切换领先" onSelect={() => setLeader(trailer)}>
+            <ArrowUpDown className="size-4" aria-hidden />
+          </RoundAction>
         )}
       </section>
 
-      {ready && parts ? (
-        <PotCover
-          label="主池"
-          parts={parts}
-          input={{
-            rule,
-            street,
-            potChips: totals.effectiveChips,
-            shareChips: totals.effectiveChips,
-            stakeChips: leaderStake,
-            outs: trailerOuts,
-          }}
-          playerId={leaderPlayer.playerId}
-          decisionKey={[
-            "quick",
-            leaderPlayer.playerId,
-            trailerPlayer.playerId,
-            street,
-            totals.effectiveChips,
-            leaderStake,
-            trailerEntry.outs,
-            trailerEntry.ties,
-            rule.tieOuts,
-          ].join("|")}
-          outsText={`${soldText(trailerEntry, tiesSold)} outs`}
-          saving={saving}
-          decisions={decisions}
-        />
-      ) : (
-        <p className="text-sm text-muted">{missing}</p>
-      )}
+      <section aria-labelledby="quick-insurance-title" className="mt-3">
+        <SectionTitle id="quick-insurance-title" title="保险信息" />
+        {ready && parts ? (
+          <PotCover
+            label="主池"
+            parts={parts}
+            input={{
+              rule,
+              street,
+              potChips: totals.effectiveChips,
+              shareChips: totals.effectiveChips,
+              stakeChips: leaderStake,
+              outs: trailerOuts,
+            }}
+            playerId={leaderPlayer.playerId}
+            decisionKey={[
+              "quick",
+              leaderPlayer.playerId,
+              trailerPlayer.playerId,
+              street,
+              totals.effectiveChips,
+              leaderStake,
+              trailerEntry.outs,
+              trailerEntry.ties,
+              rule.tieOuts,
+            ].join("|")}
+            outsText={`反超 ${trailerOuts} 张`}
+            outsLines={
+              trailerEntry.ties > 0
+                ? [`平分 ${trailerEntry.ties} 张${tiesSold ? "（已计入）" : "（不计入）"}`]
+                : []
+            }
+            saving={saving}
+            decisions={decisions}
+          />
+        ) : (
+          <p className="text-sm text-muted">
+            {missing.length > 0
+              ? `还差：${missing.join("、")}。填好后这里直接显示保险。`
+              : "只能有一位玩家 Cover，至少两位玩家才能算保险。"}
+          </p>
+        )}
+      </section>
 
       {editingDead && (
         <DeadMoneyDialog
-          pools={(pools ?? []).map(String)}
+          pools={dead.pools.map(String)}
           onConfirm={(next) => {
-            setPools(next.map(Number));
+            // Confirmed in the dialog, the amount is the organizer's own, even left as it was
+            setDead({ pools: next.map(Number), preset: false });
             setEditingDead(false);
           }}
           onCancel={() => setEditingDead(false)}
@@ -571,48 +536,12 @@ export function OutsQuickCalc({ rule, seats, autoSeat, saving, decisions }: Outs
           maxOuts={rule.oddsHundredths.length}
           tiesSold={tiesSold}
           onConfirm={(entry) => {
-            setOuts(trailer === 0 ? [entry, outs[1]] : [outs[0], entry]);
+            setSideOuts(trailer, entry);
             setEditingOuts(false);
           }}
           onCancel={() => setEditingOuts(false)}
         />
       )}
-
-      {adding?.stage === "seat" && (
-        <SeatPicker
-          seats={seats}
-          takenSeats={players.map((p) => p.playerId)}
-          onPick={({ id }) => {
-            const current = sides[adding.side];
-            if (current) {
-              // A different player in the same place keeps the chips already entered
-              setSide(adding.side, { ...current, playerId: id });
-              setAdding(undefined);
-            } else {
-              setAdding({ side: adding.side, stage: "chips", entry: blankPlayer(id) });
-            }
-          }}
-          onClose={() => setAdding(undefined)}
-        />
-      )}
-
-      {adding?.stage === "chips" && (
-        <PlayerChipsDialog
-          name={nameOf(adding.entry.playerId)}
-          chips={adding.entry.chips}
-          cover={adding.entry.cover}
-          coverTaken={sides[adding.side === 0 ? 1 : 0]?.cover ?? false}
-          onConfirm={(chips) => {
-            setSide(adding.side, { ...adding.entry, ...chips });
-            setAdding(undefined);
-            // The trailing side's outs come straight after its chips
-            if (adding.thenOuts || (adding.side === trailer && outs[trailer] === undefined)) {
-              setEditingOuts(true);
-            }
-          }}
-          onCancel={() => setAdding(undefined)}
-        />
-      )}
-    </div>
+    </>
   );
 }

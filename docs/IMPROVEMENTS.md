@@ -1149,6 +1149,28 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 412px: the three covers and their payouts, the custom premium typed and stopped at the most, the ring for each cover, a pot with no insurance to sell, and the plus. Not yet tried on a phone.
 - Tracking: PR #86
 
+### #I-058 Outs数速算 on the same page as 选牌计算, at both entries
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-17
+- Source: discussion
+- Problem: The changes of #I-055 to #I-057 were to reach every way into insurance: the tools page and a game, and both ways of working, 选牌计算 and Outs数速算. A check of the code found the prices and the insurance block already shared: every cover is priced by `quoteInsurance`, and both ways draw the same block. What lagged was the part of Outs数速算 above the block. It still had two wide buttons 保转牌 and 保河牌, a left-aligned 底池信息, a gold line 「死钱 · 请确认」 with no amount to start from, and two cards side by side that asked for the player and the chips in dialogs, starting from nothing. In a game it read no chips from the table and wrote none back. Its block was headed 「6 outs」 where the other reads 「反超 6 张」.
+- Proposal:
+  - Outs数速算 is laid out as 选牌计算 is: 底池信息, 池内玩家 and 保险信息 under the same centered titles, with the same arrow by the edge that clears the pot.
+  - 底池信息 holds the card the insurance is on, 转牌 or 河牌, in a frame like a street of the board, then the same dead money: 1,000 to start with in dashed light green, framed like the flop once the organizer sets it.
+  - 池内玩家 is the same two rows: the name as a menu of the table, the chips typed in place, the small C for a cover. Where 选牌计算 has a player's two cards, the leader's row says 领先 and the other row has the Outs to tap, in a place as wide as the two cards. The small ring under the rows, a plus in 选牌计算, switches who leads here.
+  - The rows start as they do in 选牌计算: the first two players of the table with the chips they have there, the organizer first if they play, and 玩家 1 and 玩家 2 with 1,000 each from the tools page. In a game, chips typed go to the table once the field is left, and another player picked in a row brings their own chips, with no cover and no outs. From the tools page a name is only a label.
+  - Under each name is where the player stands, as in 选牌计算: the leader's chance to win, and 「Outs 6+1 · 13.3%」 for the player behind. Chances read to one decimal in both.
+  - 保险信息 shows as soon as there is enough to price, and until then says what is missing: 「还差：玩家 2（Outs）。填好后这里直接显示保险。」. The block is headed 「反超 7 张 · 赔 4.0」, with tie cards on their own line.
+- Settled details:
+  - No price changed. The numbers come from the same functions as before; only what is entered above them and how it is laid out did.
+  - The count of outs and tie cards is still entered in its dialog, as cards are picked in theirs.
+  - The pot's ring shows with the insurance and not before it, as in 选牌计算.
+  - Both ways of working stay on the page while the other is looked at, so a pot entered in Outs数速算 is still there after a look at 选牌计算. It was lost before.
+  - The shared parts are in one place (`HandSections`), and the row of a player takes what ends it, the cards or the outs. The dialogs that picked a seat and typed chips for the old layout are gone (`SeatPicker`, `PlayerChipsDialog`).
+- Decision: do. Checked in the browser preview in dark mode at 412px and 360px, from the tools page and in a game: the defaults, the outs and tie cards, the lead switched, a cover, dead money set, another player picked, chips typed and written to the table, and the prices against the rule. 选牌计算 was opened at both entries after the change. Not yet tried on a phone.
+- Tracking: PR #86
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
