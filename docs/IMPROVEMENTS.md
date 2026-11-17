@@ -1218,6 +1218,23 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 393px with names of six characters, stakes of 250,000 and dead money of 100,000: nothing in the pot's block was wider than its place, and the page did not scroll sideways. The board's line was checked with the river on it, and the three headings in a hand with a side pot and in one dealt to the river. Not yet tried on a phone, where the keyboard and the zoom on focus matter.
 - Tracking: PR #87
 
+### #I-061 A pot drawn as three rings
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-17
+- Source: discussion
+- Problem: The pot's ring had one arc inside it for a cover: as long as the payout, with the premium laid over its start. The two could not be read apart where they overlapped, and nothing tied the premium to the dead money it is usually paid out of.
+- Proposal:
+  - The outer ring reads clockwise from the top: the leaders, then the players behind, then the dead money, which so ends at the top. It read dead money, leaders, players.
+  - A middle ring is what the cover picked pays, clockwise from the top, as long as its part of the pot share: half a turn for half the pot, the whole turn for a full pot. It is a little wider than the ring inside it.
+  - The inner ring is the premium. Where the pot has dead money it runs back from the top first, under the dead money of the outer ring, until it is as long as that. Only what is more than the dead money goes on clockwise from the top. With no dead money it is all clockwise.
+- Settled details:
+  - The colors are the ones the single arc had: the win color at part strength for the payout, and the loss color taken darker for the premium.
+  - Four other colorings were drawn at the size of an iPhone 16 first, three at half strength and one at 85%. Half strength over the dark page came out darker than the leader's own green, whatever the hue, so a bright color at half strength was not to be had. The colors in use were kept.
+  - The legend beside the ring was already in the order the outer ring now has.
+- Decision: do. Checked in the browser preview at 393px by the arcs drawn: dead money larger than the premium, a premium larger than the dead money, and no dead money. Not yet looked at on a phone.
+- Tracking: PR #87
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

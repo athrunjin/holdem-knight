@@ -536,8 +536,8 @@ function Block({ label, parts, potChips, offers, saving, decisions }: PotCoverPr
 /**
  * A pot and the insurance on it as a single block: the pot as a ring, and under it the covers for
  * each kind of card on sale, the cards that overtake first and the tie cards after them. Each has
- * its own table and its own decision. The ring's inner arc is as long as what a cover pays against
- * the pot share, for the cover picked last in either table.
+ * its own table and its own decision. Inside the pot's ring, a middle ring shows what a cover pays
+ * and an inner one its premium, for the cover picked last in either table.
  */
 export function PotCover(props: PotCoverProps) {
   // Starts over when a price changes, so a typed premium never carries over to different odds
