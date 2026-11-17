@@ -1,17 +1,17 @@
-import type { InsuranceHand, InsuranceRule, TieOuts } from "@holdem-knight/core";
+import type { InsuranceHand, InsuranceRule } from "@holdem-knight/core";
 import { useState } from "react";
-import { MiniSwitch } from "@/components/MiniSwitch";
-import { cn } from "@/lib/cn";
 import { type HandStore, InsuranceHandFlow, type SeatChips } from "./InsuranceHandFlow";
 import type { BoughtInsurance, Decisions } from "./LeaderQuote";
 import { OutsQuickCalc } from "./OutsQuickCalc";
-import type { QuoteDecision } from "./QuotePanel";
+import type { QuoteDecision } from "./QuoteDecision";
 
 export type { BoughtInsurance } from "./LeaderQuote";
 
 export interface InsuranceSeat {
   readonly id: string;
   readonly name: string;
+  /** The chips the player has at the table, which a hand starts their stake from. Zero away from a game. */
+  readonly chips?: number;
 }
 
 export interface InsuranceRecorder {
@@ -23,13 +23,14 @@ export interface InsuranceRecorder {
   boughtIds: ReadonlySet<string>;
 }
 
+/** Working from the cards of a hand, or from a count of outs for a quick price. */
+export type InsuranceMode = "cards" | "outs";
+
 interface InsuranceCalculatorProps {
+  /** Which of the two is on show. The page picks it, in its title. */
+  mode: InsuranceMode;
   rule: InsuranceRule;
-  /** Switches whether tie cards are sold as outs. Whoever owns the rule decides what that changes. */
-  onTieOutsChange: (tieOuts: TieOuts) => void;
   seats: readonly InsuranceSeat[];
-  /** Hands out the seats in order instead of asking who is all-in: the standalone calculator has no table. */
-  autoSeat?: boolean;
   saving?: boolean | undefined;
   /** Missing for the standalone calculator, which records nothing. */
   recorder?: InsuranceRecorder;
@@ -39,12 +40,6 @@ interface InsuranceCalculatorProps {
   openHand?: InsuranceHand | undefined;
   createHand: () => InsuranceHand;
 }
-
-const toggleClass = (active: boolean) =>
-  cn(
-    "min-h-11 rounded-xl border px-3 font-medium",
-    active ? "border-accent bg-accent text-accent-text" : "border-line bg-surface",
-  );
 
 function useDecisions(recorder: InsuranceRecorder | undefined): Decisions | undefined {
   const [decided, setDecided] = useState<ReadonlyMap<string, QuoteDecision>>(new Map());
@@ -88,60 +83,34 @@ export function InsuranceCalculator({
   openHand,
   createHand,
   rule,
-  onTieOutsChange,
   seats,
-  autoSeat = false,
   saving,
+  mode,
 }: InsuranceCalculatorProps) {
-  const [mode, setMode] = useState<"cards" | "outs">("cards");
   const decisions = useDecisions(recorder);
   return (
     <>
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          aria-pressed={mode === "cards"}
-          onClick={() => setMode("cards")}
-          className={toggleClass(mode === "cards")}
-        >
-          选牌计算
-        </button>
-        <button
-          type="button"
-          aria-pressed={mode === "outs"}
-          onClick={() => setMode("outs")}
-          className={toggleClass(mode === "outs")}
-        >
-          Outs数速算
-        </button>
-      </div>
-      <MiniSwitch
-        label="平分牌算 outs"
-        checked={rule.tieOuts === "include"}
-        onChange={(checked) => onTieOutsChange(checked ? "include" : "exclude")}
-        className="ml-auto"
-      />
-      {/* Stays mounted, so looking at the other mode keeps the hand */}
+      {/* Both stay mounted, so looking at the other mode keeps the hand */}
       <div hidden={mode !== "cards"}>
         <InsuranceHandFlow
           rule={rule}
           seats={seats}
-          autoSeat={autoSeat}
           open={openHand}
           createHand={createHand}
           store={handStore}
           seat={seat}
         />
       </div>
-      {mode === "outs" && (
+      {/* The quick price too, so its pot is still there after a look at the cards */}
+      <div hidden={mode !== "outs"}>
         <OutsQuickCalc
           rule={rule}
           seats={seats}
-          autoSeat={autoSeat}
+          onStack={handStore?.enterStack}
           saving={saving}
           decisions={decisions}
         />
-      )}
+      </div>
     </>
   );
 }

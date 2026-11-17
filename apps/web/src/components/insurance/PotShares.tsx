@@ -136,9 +136,21 @@ function Bar({ parts, total }: { parts: readonly PotShare[]; total: number }) {
   );
 }
 
+/** A cover against the pot share it insures, each as a part of that share from 0 to 1. */
+export interface CoverShares {
+  /** The premium paid for it */
+  readonly premium: number;
+  /** What it pays on a hit: all of the share for a full pot, half of it for a half pot */
+  readonly payout: number;
+}
+
 /**
- * The parts as a ring. With `cover` it gains an inner track, lit for that share of the way round,
- * and whatever is passed as children sits in the middle.
+ * The parts as a ring, clockwise from the top: the dead money, the leaders, then the players
+ * behind. With `cover` it gains an inner arc as long as what the cover pays, in a clear light
+ * green, with the premium laid over its start in dark red: a cover that pays half the pot for a
+ * tenth of it is half a turn, its first tenth red. A payout is never less than its premium, so
+ * the red never passes the end. Both are cut square at their ends, and the rest of the turn is
+ * left empty. Whatever is passed as children sits in the middle.
  */
 export function PotRing({
   parts,
@@ -148,21 +160,30 @@ export function PotRing({
 }: {
   parts: readonly PotShare[];
   total: number;
-  /** How much of the inner track is lit, from 0 to 1. Missing leaves the ring without one. */
-  cover?: number | undefined;
+  /** Missing or all zero leaves the ring without an inner arc. */
+  cover?: CoverShares | undefined;
   children?: ReactNode;
 }) {
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
   const innerRadius = 30;
   const innerCircumference = 2 * Math.PI * innerRadius;
-  const lit = Math.min(1, Math.max(0, cover ?? 0)) * innerCircumference;
+  const part = (share: number) => Math.min(1, Math.max(0, share));
+  const payout = part(cover?.payout ?? 0) * innerCircumference;
+  // Laid over the start of the payout, never past its end: the arc is only as long as that
+  const premium = Math.min(part(cover?.premium ?? 0) * innerCircumference, payout);
+  // Round the ring from the top: the dead money, whoever leads, then the players behind. The
+  // legend beside it keeps its own order, and each part keeps the fill it has there.
+  const shown = filled(parts);
+  const drawn = (["dead", "leader", "trailer"] as const).flatMap((tone) =>
+    shown.filter((part) => part.tone === tone),
+  );
   let start = 0;
   return (
     <div className="relative size-28 shrink-0">
       <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden>
         <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="10" className="stroke-line" />
-        {filled(parts).map(({ key, tone, fill, chips }) => {
+        {drawn.map(({ key, tone, fill, chips }) => {
           const length = total > 0 ? (chips / total) * circumference : 0;
           const offset = -start;
           start += length;
@@ -180,27 +201,30 @@ export function PotRing({
             />
           );
         })}
-        {cover !== undefined && (
-          <>
-            <circle
-              cx="50"
-              cy="50"
-              r={innerRadius}
-              fill="none"
-              strokeWidth="5"
-              className="stroke-line"
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r={innerRadius}
-              fill="none"
-              strokeWidth="5"
-              strokeLinecap="round"
-              strokeDasharray={`${lit} ${innerCircumference}`}
-              className={cn("stroke-highlight transition-all", lit === 0 && "opacity-0")}
-            />
-          </>
+        {/* No track behind them: the part of the turn a cover does not reach is not drawn */}
+        {payout > 0 && (
+          <circle
+            cx="50"
+            cy="50"
+            r={innerRadius}
+            fill="none"
+            strokeWidth="5"
+            strokeDasharray={`${payout} ${innerCircumference - payout}`}
+            className="stroke-win/60"
+          />
+        )}
+        {/* Drawn after, so it sits on top. No round caps: an arc ends where its share ends. */}
+        {premium > 0 && (
+          <circle
+            cx="50"
+            cy="50"
+            r={innerRadius}
+            fill="none"
+            strokeWidth="5"
+            strokeDasharray={`${premium} ${innerCircumference - premium}`}
+            // The loss color taken darker, so the premium reads as dark red on the dark page
+            className="stroke-[color-mix(in_srgb,var(--loss)_60%,black)]"
+          />
         )}
       </svg>
       {children && (

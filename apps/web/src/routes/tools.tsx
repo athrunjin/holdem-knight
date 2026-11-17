@@ -1,41 +1,62 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
-import { InDevelopment } from "@/components/InDevelopment";
+import { Calculator, type LucideIcon, Percent, Timer } from "lucide-react";
+import { useState } from "react";
+import { Modal } from "@/components/insurance/Modal";
 import { Page } from "@/components/Page";
 
 export const Route = createFileRoute("/tools")({
   component: ToolsPage,
 });
 
-const TOOLS = [
-  { name: "抽水计算", detail: "按比例和封顶算出每个底池的抽水", milestone: "M4" },
-  { name: "荷官费", detail: "按每位玩家的在桌时长分摊荷官工资", milestone: "M2" },
-] as const;
+const toolClass =
+  "flex min-h-24 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-surface px-1 text-sm font-medium whitespace-nowrap transition-colors active:bg-line/40";
+
+function ToolIcon({ icon: Icon }: { icon: LucideIcon }) {
+  return <Icon className="size-7 text-highlight" strokeWidth={1.75} aria-hidden />;
+}
+
+/** Tools that are not built yet. A tap says so. */
+const COMING = [{ name: "抽水计算", icon: Percent }] as const;
 
 function ToolsPage() {
+  const [coming, setComing] = useState<string | null>(null);
+
   return (
     <Page title="工具">
-      <p className="mb-4 text-muted">不用开局也能单独使用的计算器。</p>
-      <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+      <ul className="grid grid-cols-3 gap-2">
         <li>
-          <Link to="/tools/insurance" className="flex min-h-18 items-center gap-4 px-4 py-3">
-            <div className="flex-1">
-              <p className="font-medium">保险计算</p>
-              <p className="text-sm text-muted">选牌或填 outs，算出多人底池的赔率和保费</p>
-            </div>
-            <ChevronRight className="size-5 text-muted" aria-hidden />
+          <Link to="/tools/insurance" className={toolClass}>
+            <ToolIcon icon={Calculator} />
+            保险计算
           </Link>
         </li>
-        {TOOLS.map((tool) => (
-          <li key={tool.name} className="flex min-h-18 items-center gap-4 px-4 py-3">
-            <div className="flex-1">
-              <p className="font-medium">{tool.name}</p>
-              <p className="text-sm text-muted">{tool.detail}</p>
-            </div>
-            <InDevelopment milestone={tool.milestone} />
+        <li>
+          <Link to="/tools/call-time" className={toolClass}>
+            <ToolIcon icon={Timer} />
+            Call Time
+          </Link>
+        </li>
+        {COMING.map(({ name, icon }) => (
+          <li key={name}>
+            <button type="button" onClick={() => setComing(name)} className={toolClass}>
+              <ToolIcon icon={icon} />
+              {name}
+            </button>
           </li>
         ))}
       </ul>
+      {coming && (
+        <Modal title={coming} onClose={() => setComing(null)}>
+          <p className="text-sm text-muted">这个功能还在开发中。</p>
+          <button
+            type="button"
+            onClick={() => setComing(null)}
+            className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
+          >
+            关闭
+          </button>
+        </Modal>
+      )}
     </Page>
   );
 }

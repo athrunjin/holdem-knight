@@ -1,10 +1,14 @@
-import { groupByInitial, type Player, parsePlayerName, searchPlayers } from "@holdem-knight/core";
-import { ArrowUpDown, Check, ChevronDown, ListFilter, Search, UserPlus } from "lucide-react";
-import { useEffect, useState } from "react";
-import { LetterIndex, letterSectionId, useActiveLetter } from "@/components/game/LetterIndex";
+import { type Player, searchPlayers } from "@holdem-knight/core";
+import { Check } from "lucide-react";
+import { useState } from "react";
+import {
+  matchPlayers,
+  PlayerGroups,
+  PlayerListHeading,
+  PlayerSearch,
+} from "@/components/players/PlayerList";
 import { newPlayer, usePlayers, useRecentPlayers, useSavePlayer } from "@/data/players";
 import { cn } from "@/lib/cn";
-import { PLAYER_NAME_ISSUE_TEXT } from "@/lib/player-name";
 
 /** Four tiles a row, at most three rows. */
 const MAX_RECENT = 12;
@@ -27,7 +31,6 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [query, setQuery] = useState("");
   const [startClock, setStartClock] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const all = players.data ?? [];
   const byId = new Map(all.map((player) => [player.id, player]));
@@ -35,23 +38,8 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
 
   const recentMatches = searchPlayers(recent, query);
   // Recent players appear in the full list too, so everyone can be found by letter
-  const groups = groupByInitial(searchPlayers(all, query));
-  const parsed = parsePlayerName(
-    query,
-    all.map(({ name }) => name),
-  );
-  const newName = parsed.ok && groups.length === 0 ? parsed.name : undefined;
-  const tooLong = !parsed.ok && parsed.issue === "too-long";
-  const letters = groups.map(({ letter }) => letter);
-  const activeLetter = useActiveLetter(letters);
+  const { groups, newName, tooLong } = matchPlayers(all, query);
   const isSelected = (id: string) => selected.includes(id);
-
-  // Group, filter and sort are placeholders for now
-  useEffect(() => {
-    if (notice === null) return;
-    const timer = setTimeout(() => setNotice(null), 1500);
-    return () => clearTimeout(timer);
-  }, [notice]);
 
   function toggle(id: string) {
     setSelected(isSelected(id) ? selected.filter((other) => other !== id) : [...selected, id]);
@@ -74,44 +62,18 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
     <>
       {/* Tall enough that the bar below stays at the bottom of the screen with few players */}
       <div className="min-h-[calc(100dvh-12rem)] pb-4">
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            handleCreate();
-          }}
-        >
-          <div className="flex min-h-12 items-center gap-2 rounded-xl border border-line bg-surface px-3 focus-within:border-highlight">
-            <Search className="size-5 shrink-0 text-muted" strokeWidth={1.75} aria-hidden />
-            <input
-              type="search"
-              aria-label="搜索或新建玩家"
-              placeholder="搜索或新建：名字或拼音首字母"
-              autoComplete="off"
-              enterKeyHint="done"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="min-h-11 w-full min-w-0 bg-transparent outline-none placeholder:text-muted"
-            />
-          </div>
-          {tooLong && (
-            <p className="mt-1 text-sm text-highlight">{PLAYER_NAME_ISSUE_TEXT["too-long"]}</p>
-          )}
-          {newName !== undefined && (
-            <button
-              type="submit"
-              disabled={savePlayer.isPending}
-              className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-accent font-semibold text-accent disabled:opacity-60"
-            >
-              <UserPlus className="size-5" aria-hidden />
-              新建「{newName}」并选中
-            </button>
-          )}
-          {savePlayer.isError && (
-            <p role="alert" className="mt-1 text-sm text-highlight">
-              保存失败，请重试。
-            </p>
-          )}
-        </form>
+        <PlayerSearch
+          label="搜索或新建玩家"
+          placeholder="搜索或新建：名字或拼音首字母"
+          query={query}
+          onQueryChange={setQuery}
+          newName={newName}
+          tooLong={tooLong}
+          createLabel={(name) => `新建「${name}」并选中`}
+          saving={savePlayer.isPending}
+          saveFailed={savePlayer.isError}
+          onCreate={handleCreate}
+        />
 
         {all.length === 0 && query === "" && (
           <p className="mt-4 rounded-2xl border border-dashed border-line px-6 py-8 text-center text-muted">
@@ -132,68 +94,17 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
           </>
         )}
 
-        {all.length > 0 && (
-          <div className="mt-3 flex items-center justify-between">
-            <h2 className="font-semibold">全部玩家</h2>
-            <div className="-mr-2 flex items-center">
-              <button
-                type="button"
-                onClick={() => setNotice("分组")}
-                className="flex min-h-11 items-center px-1"
-              >
-                <span className="flex items-center gap-0.5 rounded-full border border-line px-2.5 py-1 text-xs font-medium">
-                  全部
-                  <ChevronDown className="size-3.5 text-muted" aria-hidden />
-                </span>
-              </button>
-              <button
-                type="button"
-                aria-label="筛选"
-                onClick={() => setNotice("筛选")}
-                className="grid size-11 place-items-center text-muted"
-              >
-                <ListFilter className="size-5" aria-hidden />
-              </button>
-              <button
-                type="button"
-                aria-label="排列方式"
-                onClick={() => setNotice("排列方式")}
-                className="grid size-11 place-items-center text-muted"
-              >
-                <ArrowUpDown className="size-5" aria-hidden />
-              </button>
-            </div>
-          </div>
-        )}
-        <div className="relative pr-6">
-          {groups.map(({ letter, players: members }) => (
-            <section key={letter} id={letterSectionId(letter)} className="scroll-mt-4">
-              <h3 className="mt-3 mb-1 text-sm font-semibold text-highlight">{letter}</h3>
-              <ul className="flex flex-col gap-1.5">
-                {members.map((player) => (
-                  <li key={player.id}>
-                    <PlayerRow
-                      player={player}
-                      checked={isSelected(player.id)}
-                      onToggle={() => toggle(player.id)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-          {letters.length > 1 && <LetterIndex letters={letters} active={activeLetter} />}
-        </div>
+        {all.length > 0 && <PlayerListHeading className="mt-3" />}
+        <PlayerGroups groups={groups}>
+          {(player) => (
+            <PlayerRow
+              player={player}
+              checked={isSelected(player.id)}
+              onToggle={() => toggle(player.id)}
+            />
+          )}
+        </PlayerGroups>
       </div>
-
-      {notice && (
-        <p
-          role="status"
-          className="fixed inset-x-0 top-1/2 z-20 mx-auto w-fit rounded-full bg-text px-4 py-2 text-sm text-bg shadow-lg"
-        >
-          {notice} · 开发中
-        </p>
-      )}
 
       <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-[5] -mx-4 border-t border-line bg-bg/95 px-4 pt-1.5 pb-2.5 backdrop-blur md:bottom-0 md:pb-1.5">
         {selected.length > 0 && (

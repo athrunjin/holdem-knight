@@ -2,7 +2,6 @@ import { chipsToCents, type Game } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeftRight, Calculator, Check, Timer, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { Modal } from "@/components/insurance/Modal";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
 
@@ -159,7 +158,6 @@ export function TableActionsTile({
   gameId: string;
   insuranceOn: boolean;
 }) {
-  const [callTimeOpen, setCallTimeOpen] = useState(false);
   const actionClass =
     "flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap";
   return (
@@ -173,22 +171,10 @@ export function TableActionsTile({
         算保险
       </Link>
       <span className="my-2 w-px bg-line" aria-hidden />
-      <button type="button" onClick={() => setCallTimeOpen(true)} className={actionClass}>
+      <Link to="/games/$gameId/call-time" params={{ gameId }} className={actionClass}>
         <Timer className="size-4" aria-hidden />
-        Call time
-      </button>
-      {callTimeOpen && (
-        <Modal title="Call time" onClose={() => setCallTimeOpen(false)}>
-          <p className="text-sm text-muted">这个功能还在开发中。</p>
-          <button
-            type="button"
-            onClick={() => setCallTimeOpen(false)}
-            className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
-          >
-            关闭
-          </button>
-        </Modal>
-      )}
+        Call Time
+      </Link>
     </div>
   );
 }

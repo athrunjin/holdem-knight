@@ -1,7 +1,8 @@
 import { type ReactNode, useEffect, useRef } from "react";
 
 interface ModalProps {
-  title: string;
+  /** Text, or a line of its own making such as a name with buttons beside it */
+  title: ReactNode;
   onClose: () => void;
   children: ReactNode;
 }

@@ -1,5 +1,5 @@
 import type { InsuranceStreet } from "@holdem-knight/core";
-import type { QuoteDecision, QuotePurchase } from "./QuotePanel";
+import type { QuoteDecision, QuotePurchase } from "./QuoteDecision";
 
 export interface BoughtInsurance extends QuotePurchase {
   readonly playerId: string;

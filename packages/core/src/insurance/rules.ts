@@ -40,6 +40,8 @@ export interface InsuranceRuleForm {
   /** `stake`, or a percentage of the pot share from 1 to 100 */
   readonly turnLimit: string;
   readonly riverLimit: string;
+  /** The odds table the odds were taken from. See `InsuranceRule.oddsTableId`. */
+  readonly oddsTableId?: string;
 }
 
 /** The form value for a cover limit: 100 is the full pot share. */
@@ -56,7 +58,45 @@ export function toInsuranceRuleForm(rule: InsuranceRule): InsuranceRuleForm {
     refundPremium: rule.refundPremium,
     turnLimit: toLimitForm(rule.turnCoverLimit),
     riverLimit: toLimitForm(rule.riverCoverLimit),
+    ...(rule.oddsTableId !== undefined && { oddsTableId: rule.oddsTableId }),
   };
+}
+
+/**
+ * The form with other odds, and the table they were taken from. Odds typed by hand come from no
+ * table, so the table the old odds came from is dropped.
+ */
+export function withOdds(
+  form: InsuranceRuleForm,
+  odds: readonly string[],
+  oddsTableId: string | undefined,
+): InsuranceRuleForm {
+  const { oddsTableId: _, ...rest } = form;
+  return { ...rest, odds, ...(oddsTableId !== undefined && { oddsTableId }) };
+}
+
+/** What an odds table is known by when the odds in use are matched to one. */
+export interface OddsTableRef {
+  readonly id: string;
+  readonly oddsHundredths: readonly number[];
+}
+
+const sameOdds = (a: readonly (number | null)[], b: readonly (number | null)[]) =>
+  a.length === b.length && a.every((odds, i) => odds === b[i]);
+
+/**
+ * The table the odds in use belong to. Two tables can hold the same odds, so the one the odds
+ * were taken from comes first, for as long as it is still there with these odds. Odds from no
+ * table, or from one since changed or deleted, go to the first table that holds them. Undefined
+ * when none does.
+ */
+export function oddsTableInUse<T extends OddsTableRef>(
+  tables: readonly T[],
+  odds: readonly (number | null)[],
+  takenFromId: string | undefined,
+): T | undefined {
+  const holding = tables.filter((table) => sameOdds(table.oddsHundredths, odds));
+  return holding.find((table) => table.id === takenFromId) ?? holding[0];
 }
 
 export type InsuranceRuleIssues = {
@@ -103,6 +143,7 @@ export function parseInsuranceRule(form: InsuranceRuleForm): ParsedInsuranceRule
       refundPremium: form.refundPremium,
       ...(turnCoverLimit != null && { turnCoverLimit }),
       ...(riverCoverLimit != null && { riverCoverLimit }),
+      ...(form.oddsTableId !== undefined && { oddsTableId: form.oddsTableId }),
     },
   };
 }

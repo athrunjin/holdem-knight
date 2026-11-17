@@ -1004,6 +1004,173 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 360, 412 and 440px; not yet tried on a phone.
 - Tracking: PR #85
 
+### #I-052 Player library in the picker's style, tools as buttons, and no start button inside a game
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-15
+- Source: discussion
+- Problem: the player library and the tools page were plain lists from before the player picker's design, and 开局 stayed in the navigation while a game was already being set up, played or settled.
+- Proposal:
+  - The player library (玩家) is laid out like 选择玩家 without 最近玩家: the search field that also adds a player, the 全部玩家 heading with its group, filter and order placeholders, and everyone under their initial letter with the letters down the right edge. A row has a chevron where the picker has a tick box, and opens that player.
+  - The tools page (工具) is three buttons on one line, each an icon over its name: 保险计算, Call Time and 抽水计算. 保险计算 opens the calculator. The other two say they are in development. 荷官费 is no longer listed.
+  - 开局 is left out of the navigation on every page of a game: 开局设置, 选择玩家, the game at the table and its settlement, with the insurance and settings pages under a game.
+- Settled details:
+  - Without the button the four tabs share the navigation evenly. Keeping its place empty, so that the tabs stay where they are, was tried first and turned down.
+  - The player library keeps its title at the left like the other tabs, not centered as on 选择玩家.
+  - The picker and the library share the search field, the heading and the grouped list (`components/players/PlayerList.tsx`).
+- Decision: do. Checked in the browser preview in dark mode at 360, 412 and 440px; not yet tried on a phone.
+- Tracking: PR #86
+
+### #I-053 Call Time: a countdown from the tools and from a game, which floats over the other pages
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-16
+- Source: discussion
+- Problem: Call Time was a button that said it was in development, on the game page and on the tools page.
+- Proposal:
+  - Call Time opens from the tools page and from the middle tile of a game at the table. Both open the same page: the title, a dial with the seconds, the lengths, and one main button.
+  - The length is set by 30s, 60s, 90s or 120s in one tap, and by −10s and +10s at either side of the dial, so 90s then +10s gives 100. A tap on the seconds in the dial selects them, and a length can be typed over them: a whole number from 1 to 999. Only digits can be typed. Nothing is said while typing: only a number out of range, a zero or one over 999, turns the 秒 under the field into 范围 1–999 秒, and the length stays what it was. A step is not offered where it would leave that range. The last length is kept for the next time.
+  - 开始 starts the countdown: a gold ring empties around the seconds left. −10s and +10s keep working on a countdown under way, moving its end, and nothing is taken off that would end it. 结束 clears the countdown and leaves the page open.
+  - Through the last 10 seconds the time shows two decimals, as 8.46 with the decimals smaller, and the ring and the time are red and blink once a second. When time runs out the dial fills red, reads 时间到 and blinks faster, the phone buzzes where it can, and the main button is 退出. After 3 seconds the countdown clears itself and the page is ready for the next one.
+  - A gold cross at the top right leaves the page. While a countdown is under way a round button with the shrink icon and no label sits over 结束, the size of +10s and under it, from the tools as from a game. It goes back to the page Call Time was opened from, with the countdown as a round clock floating at the lower right: the time left with the same ring, decimals and red blink. Leaving the page any other way, such as by a tab of the navigation, leaves the same clock floating. It stays over every page and can be dragged out of the way.
+  - A tap on the floating clock opens the full page again. The cross, the shrink button and 退出 then go back to the page the clock was tapped on, wherever that is, not to where the countdown was first started. The cross and 退出 clear the countdown; shrinking keeps it.
+  - Left alone, the floating clock blinks for 3 seconds after time runs out, then clears the countdown and goes, the same 3 seconds as on the full page.
+- Settled details:
+  - There is one countdown in the browser. It keeps the moment it ends (ADR 0001) in `localStorage`, so it survives a reload or a suspended page.
+  - Going back is a step back in the browser's history, so the page comes back as it was left. Opened by its address with no page before it, Call Time goes back to the tools page or to its game.
+  - From a page of a game the floating clock opens Call Time as that game's page, which keeps the game's navigation. From any other page it opens the one under the tools.
+  - The screen is kept on while a countdown is under way, where the browser allows it.
+  - The rules are in `packages/core/src/call-time`. There is no sound.
+- Decision: do. Checked in the browser preview in dark mode at 360 and 412px; not yet tried on a phone, where the buzz, the screen staying on and typing a length with the phone's keyboard still need a look.
+- Tracking: PR #86
+
+### #I-054 Insurance tool: the two ways of working as its title, and its configuration and odds table on the page
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-16
+- Source: discussion
+- Problem: the standalone calculator had a title that said nothing new, two wide buttons under it for the way of working, a native list named 赔率规则 that mixed odds tables with saved rules, and no way to reach the other settings of a rule.
+- Proposal:
+  - The title line reads 「选牌计算 ⇄ Outs数速算」. The way in use is in the title's font; the other is the same size, gray and not bold. A tap on a name picks it, and the arrows between them switch. Each name keeps the width it has in bold, so nothing moves on a switch. The two buttons under the title are gone from this page.
+  - At the right a gold cross replaces 返回工具, like the one on Call Time.
+  - The line under the title has two menus in the page, each a name and a chevron with no caption. At the left the configuration, 「默认配置 ⌄」: the default and the saved ones, and 自定义 for settings changed by hand. Picking one takes its settings and keeps the odds, as in a game. At the right the odds table, 「1 赔 30 ⌄」: the two built in and the saved ones.
+  - In the odds table's menu each saved table has a pencil and a bin after its name, to edit and to delete it. Each of the two built in has an eye where the bin would be, to look at it. A small plus on a last line under the tables makes a new one.
+  - All three open the same dialog. Its top line is the table's name, a little larger than the text, with a pen at its right: a tap on the pen or on the name selects the name for typing a new one. A saved table also has a bin there, which deletes it after asking. Under the name are the odds for each number of outs, as under 赔率表 in 开局设置: a cell that does not read as odds is outlined, the last cell can be removed and one more added.
+  - A new table starts from 1 赔 30 under the dated name a saved table gets by default, such as 赔率表_11-16, and 确认 saves it as it is, with no second dialog for the name. A saved table's 确认 is lit only once its name or its odds have changed, so an untouched table cannot be saved again. Where the odds are the same as another table's, built in or saved, 确认 first asks 「当前赔率和「…」相同，是否保存？」.
+  - A table built in opens with its name and odds only: nothing can be changed, and the one button is 关闭.
+  - The configuration's settings are on show under that line, as in 开局设置: 命中退还保费, 平分牌算 outs, and 保费上限 for 翻牌 and 转牌, with 保存配置 once they differ from every configuration on offer.
+- Settled details:
+  - The calculator's settings are kept in this browser (`localStorage`), so they are there on the next visit.
+  - A gear that opened these settings in a dialog was tried first, at the title and then on the line under it, and turned down for settings on the page. With it went deleting a saved configuration from this page, which stays in 开局设置.
+  - A new table is put in use once saved. An edited table's new odds are put in use if it was the one in use. Deleting the table in use leaves its odds in use, shown as 自定义.
+  - A table cannot take the name of another saved table or of one built in; the dialog says so under the name. A name left empty goes back to what it was.
+  - The dialog has no 查看demo button, which is still a placeholder in 开局设置.
+  - 开局设置 and a game's settings pick their odds table from the same menu, at the right of the 赔率表 line, in place of the dialog that listed the tables: the same pencil, bin, eye and plus, and the same dialog. The cells under 赔率表 still edit the odds of that game and offer to save them as a table.
+  - The settings are always on show, with no fold.
+  - The insurance page of a game kept its own look at first, with two buttons, a 平分牌算 outs switch and 返回牌局. It took this one in #I-055.
+  - Fixed after a first try on a phone: a saved table with the same odds as 1 赔 30 was shown as 1 赔 30 once picked, because the menu named the first table holding the odds in use. A rule now keeps the table its odds were taken from (`oddsTableId`), which names the table for as long as it still holds those odds; odds from no table, or from one since edited or deleted, fall back to the first table holding them (`oddsTableInUse`, with unit tests). It is kept in the tool's settings, in a game's rule and in backups. On a game's page, switching between two tables with the same odds changes no price and does not ask.
+- Decision: do. Checked in the browser preview in dark mode at 360 and 412px, the menu in 开局设置 at 412px; not yet tried on a phone.
+- Tracking: PR #86
+
+### #I-055 选牌计算: the pot and the players entered on the page, and the insurance shown at once
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-16
+- Source: discussion
+- Problem: a hand was entered through a chain of dialogs, for the seat, the chips, the cards and whether there was another player, and the insurance showed only after 计算保险. Chips already counted at the table had to be typed again.
+- Proposal:
+  - The page has three sections, 底池信息, 池内玩家 and 保险信息. Each title is a little larger than the text and sits in the middle of the page, with a line at either side on the title's own middle that fades out toward the edge. A line under a title at the left was tried first.
+  - 底池信息 is one line in the middle of the page: the flop, the turn, a hairline, then dead money, framed like a street with the chip stack over its name. A small arrow by the left edge of the page, between the title's line and the flop, puts the board and the dead money back as they started; nothing else moves for it. It was in the title first, at the right edge and then right after the name, and then level with the flop. Dead money still opens its dialog, and its name gives the amount. A hand starts with 1,000 of it, from a game as from the tools, framed in dashed light green until the organizer confirms an amount in the dialog; from then on it is framed like the flop.
+  - 池内玩家 always has two rows, which cannot be removed, since a hand needs two players. From a game they are the first two players of the table, an organizer who plays first, with the chips each has there. From the tools they are 玩家 1 and 玩家 2 with 1,000 each, as is every player added there; they started at 0 first.
+  - The plus under the rows adds the next player of the table, in the table's order. With nobody left it says so under the plus. Rows after the second have a small cross before the name, which removes them. The first two have a small arrow there instead, which clears that player's cards and cover and keeps the player and the chips. An arrow in the title that put both rows back was there first.
+  - A row is the name, the chips, a small C and the two cards. The name has a chevron and opens a menu in the page with the table in its order; one tap picks, and players already in another row are gray and cannot be picked. The chips are typed in place: a tap selects them, with no dialog and no frame of their own, and there is room for six digits. The C marks the player as covering the others: the chips read Cover in green, and a tap on the C takes it back. The cards open the card picker.
+  - 保险信息 shows the insurance as soon as the flop, two players' cards and their chips are in, with nothing to confirm. Until then it names what is still missing, such as 「还差：翻牌、王五（手牌）」.
+- Settled details:
+  - Chips typed from a game go to the table once the field is left, as the player's counted stack. A cover leaves the table alone, and the number under it comes back when the cover is taken off. Only one player covers at a time, so a second C moves the cover.
+  - The chips are read from the table when a player enters a row, by the default, the plus or the menu. They are not read again while the hand is open.
+  - From a game, changing a row's player starts the row again: the new player's chips at the table, no cover and no cards. From the tools the name is only a label, and the chips, cover and cards entered stay.
+  - The first two rows are kept only once something is changed, so opening the page leaves no hand behind.
+  - The rows, the plus and the arrows work until something is bought in the hand, as the players did before.
+  - The dead money a hand starts with counts in the pots like any other, so a hand finished without setting it is settled with 1,000 of dead money. The dashed frame is the only warning. A hand already open when this came in keeps the dead money it had.
+  - Outs数速算 is unchanged and still asks for its two players in dialogs.
+  - The insurance page of a game looks the same as the tool: 「选牌计算 ⇄ Outs数速算」 as its title, a gold cross back to the game, the configuration and the odds table in menus, and the settings on show. Only the players and their chips differ, which come from the table and go back to it. The insurance seat's chips and result are a line under the title.
+  - On a game's page those settings are the game's own, so a change there asks first: 「这个修改会应用到本局，之后的保险都按新设置计算。继续？」. Answered no, nothing changes. Saving the settings under a name changes nothing in the game and does not ask.
+- Decision: do. Checked in the browser preview in dark mode at 360 and 412px, from the tools and from a game of four players: default rows, typing chips and their arrival at the table, cover, the menu, adding and removing, both arrows, and a hand through the turn. An organizer who plays was not tried. Not yet tried on a phone.
+- Tracking: PR #86
+
+### #I-056 Pot columns that lost parts of a pot off the bottom
+
+- Type: fix
+- Date: reported and fixed 2026-11-17
+- Source: tried on a phone, two screenshots
+- Problem: with side pots, a column of 总底池 could show fewer parts than its pot holds, so the parts on show did not add up to the chips above it. A main pot of 1,250 beside a side pot of 3,000 showed its leader and one player, half of a third, and no dead money. A side pot of 100 beside a main pot of 21,000 showed its leader alone.
+- Cause: the pots themselves were right. Both hands were dealt again in the core: the amounts, who leads each pot, the chances and the outs all agreed with the page. The fault was in the drawing. A column was given a fixed height by its pot's size, a fifth of the tallest at least, while each part keeps a least height for its text, 40px for the leader and 20px for the others. Where the parts needed more than the column's height, the column cut the rest off: 106px of parts in 75px, and 62px in 36px. The least height of a column, 36px, was below what a leader alone needs, so the smallest column of any hand was always at risk.
+- Proposal:
+  - The pot's size sets the least a column is tall, never the most. A pot with many parts for its size grows past the scale, and every part stays on show, so the parts of a column always add up to the chips above it.
+  - Within a column the parts still share the height by their chips, each never under the height of its text.
+- Settled details:
+  - A column can now be taller than its pot's share of the scale, and taller than the largest pot's 180px with enough players: nine players in one pot draw at 238px.
+  - The parts are a list for a screen reader, named after the pot.
+  - A component test draws both reported hands and checks that a column has a least height and no fixed one, and that its parts account for every chip of the pot.
+  - How dead money is shared between the pots was looked at and left as it is, by the rules of the game: each line of the dead money dialog is taken as one folded player's chips, layered over the pots like a player's.
+- Decision: do. Checked in the browser preview in dark mode at 360 and 412px with seven hands: the two reported, three pots, tied leaders, a cover, nine players, and five-digit chips at 360px. Each was checked by script for parts inside their column and sums equal to the pot.
+- Tracking: PR #86
+
+### #I-057 No payout above the pot, a cover picked on arrival, and a plainer cover table and ring
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-17
+- Source: discussion
+- Problem: 满池 was priced so that a hit left the whole pot share after the premium, which made its payout the share plus the premium, more than the pot. The insurance block opened with nothing picked, the custom premium sat in a dark box of its own, and the ring's inner track showed only how much a hit would leave, in gold with round ends.
+- Proposal:
+  - No cover pays more than the pot share it insures. 满池 is the largest whole premium whose payout, any refunded premium included, is no more than the share: on a pot of 1,000 at 3.5, a premium of 285 pays 997, where 286 would pay 1,001. With chips being whole the payout can fall a little short of the pot and is never above it.
+  - The same holds for every cover and for a custom premium. A cover that would need a larger premium, such as 保本 at low odds, is held at that premium and marked 已到上限 as it is by the rule's own limit.
+  - A pot share so small that one chip of premium would already pay more than it has no insurance: 「底池太小，1 个筹码的保费赔付就超过底池，不能投保」.
+  - 保本 is picked when the insurance shows, so the block opens on a price. Nothing was picked before.
+  - The custom row's premium has no box: the row's background, and a dash like the cells after it. A tap on the row puts a selected 0 in place of the dash, for typing over it in place with no dialog. Left without a premium, the cell goes back to its dash. Only whole chips from 1 to the most on sale can be typed, and a larger number stops at the most. A line under the row that said the range was tried and taken out.
+  - The ring's inner arc is as long as what the cover pays against the pot share, in a clear light green, with the premium laid over its start in dark red: a cover that pays half the pot for a tenth of it is half a turn, its first tenth red. A full pot is the whole turn. Both end cut square, not rounded, and the part of the turn a cover does not reach is not drawn at all. The word in the middle is the cover picked, 保本, 半池, 满池 or 自定义, over the payout's share of the pot, so 满池 reads 100%. Two earlier drawings were turned down: the premium and what a hit leaves after it one after the other, and an arc as long as what a hit leaves after the premium, which made a full pot read 71%.
+  - The plus under 池内玩家 is a small ring in the middle of the page, not a line across it.
+  - The pot's ring reads clockwise from the top: the dead money, whoever leads, then the players behind. The legend beside it keeps its order, leader first and dead money last, and each part keeps its color.
+  - The line under the pot reads 「反超 2 张 · 赔 15.0」 at the left, with the cards that overtake under it, at the left too. It read 赔 15 倍 at the left and 反超牌 2 张 at the right. Tie cards are counted on their own line under it.
+  - At the right of that line is 分开购买 with a small switch, ending under the chips of the legend above. It is gray while off, which it starts as, and white while on. It changes nothing yet: what it does is for a later round.
+- Settled details:
+  - The cap is the buyer's share of the pot, which is the whole pot for a lone leader and their part of it for tied leaders who may insure.
+  - 中了到手 for 满池 is now the pot share less the premium, where it was the pot share.
+  - How dead money is shared between the pots stays as it is, by the rules of the game: each line is one folded player's chips. Only what was drawn wrong was changed in #I-056.
+  - A payout is never less than its premium at odds of 1 or more, so the red never passes the end of the arc.
+  - All three covers are priced by what they pay, as most games do: 保本 pays the stake, 半池 half the pot share and 满池 all of it ([ADR 0032](adr/0032-insurance-covers-priced-by-payout.md)). 保本 and 半池 were priced by what a hit leaves after the premium, which made 半池 pay 70% of the pot at 3.5.
+  - The payout is settled first and the premium rounded to it. 保本 and 半池 pay at least the stake and half the pot, with the smallest whole premium that does; 满池 pays no more than the pot, with the largest that stays within it. On a pot of 3,000 at 3.5 with a stake of 1,000 the premiums are 286, 429 and 857, paying 1,001, 1,501 and 2,999, where the first two premiums were 400 and 600. A first version rounded all three down, which left 保本 paying 997.
+  - Under 保本 a hit therefore leaves the stake less the premium, 715 in that example, not the stake. The table says so in red under 中了到手 while that cover is picked.
+  - The rule's limit on a street is measured the same way: the most a cover may pay, the stake or a part of the pot share.
+  - A target under what one chip of premium pays, such as a small stake at long odds, still sells that one chip, the least there is.
+  - The common practice was looked up before the change. The write-ups found, among them one app's own notes on insurance as quoted in search results, agree that 保本 means the payout equals what the player put in and 满池 that the premium is the pot divided by the odds. 半池 was not found as a usual name; apps offer 保本 and 满池 with a slider between. The app's notes could not be opened to read them first hand.
+  - The dark red is the loss color taken darker, and the green is the win color at part strength, so no new color is added. Five other colorings of the inner track were drawn side by side, and this one was kept.
+  - The table that priced covers the old way, with its dialog for a custom premium, could no longer be reached and was removed (`QuotePanel`, `PremiumDialog`). What is left of it, the line that says why a pot has no insurance and the bar for a decision made, is `QuoteDecision`.
+- Decision: do. Checked in the browser preview in dark mode at 412px: the three covers and their payouts, the custom premium typed and stopped at the most, the ring for each cover, a pot with no insurance to sell, and the plus. Not yet tried on a phone.
+- Tracking: PR #86
+
+### #I-058 Outs数速算 on the same page as 选牌计算, at both entries
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-17
+- Source: discussion
+- Problem: The changes of #I-055 to #I-057 were to reach every way into insurance: the tools page and a game, and both ways of working, 选牌计算 and Outs数速算. A check of the code found the prices and the insurance block already shared: every cover is priced by `quoteInsurance`, and both ways draw the same block. What lagged was the part of Outs数速算 above the block. It still had two wide buttons 保转牌 and 保河牌, a left-aligned 底池信息, a gold line 「死钱 · 请确认」 with no amount to start from, and two cards side by side that asked for the player and the chips in dialogs, starting from nothing. In a game it read no chips from the table and wrote none back. Its block was headed 「6 outs」 where the other reads 「反超 6 张」.
+- Proposal:
+  - Outs数速算 is laid out as 选牌计算 is: 底池信息, 池内玩家 and 保险信息 under the same centered titles, with the same arrow by the edge that clears the pot.
+  - 底池信息 holds the card the insurance is on, 转牌 or 河牌, in a frame like a street of the board, then the same dead money: 1,000 to start with in dashed light green, framed like the flop once the organizer sets it.
+  - 池内玩家 is the same two rows: the name as a menu of the table, the chips typed in place, the small C for a cover. Where 选牌计算 has a player's two cards, the leader's row says 领先 and the other row has the Outs to tap, in a place as wide as the two cards. The small ring under the rows, a plus in 选牌计算, switches who leads here.
+  - The rows start as they do in 选牌计算: the first two players of the table with the chips they have there, the organizer first if they play, and 玩家 1 and 玩家 2 with 1,000 each from the tools page. In a game, chips typed go to the table once the field is left, and another player picked in a row brings their own chips, with no cover and no outs. From the tools page a name is only a label.
+  - Under each name is where the player stands, as in 选牌计算: the leader's chance to win, and 「Outs 6+1 · 13.3%」 for the player behind. Chances read to one decimal in both.
+  - 保险信息 shows as soon as there is enough to price, and until then says what is missing: 「还差：玩家 2（Outs）。填好后这里直接显示保险。」. The block is headed 「反超 7 张 · 赔 4.0」, with tie cards on their own line.
+- Settled details:
+  - No price changed. The numbers come from the same functions as before; only what is entered above them and how it is laid out did.
+  - The count of outs and tie cards is still entered in its dialog, as cards are picked in theirs.
+  - The pot's ring shows with the insurance and not before it, as in 选牌计算.
+  - Both ways of working stay on the page while the other is looked at, so a pot entered in Outs数速算 is still there after a look at 选牌计算. It was lost before.
+  - The shared parts are in one place (`HandSections`), and the row of a player takes what ends it, the cards or the outs. The dialogs that picked a seat and typed chips for the old layout are gone (`SeatPicker`, `PlayerChipsDialog`).
+- Decision: do. Checked in the browser preview in dark mode at 412px and 360px, from the tools page and in a game: the defaults, the outs and tie cards, the lead switched, a cover, dead money set, another player picked, chips typed and written to the table, and the prices against the rule. 选牌计算 was opened at both entries after the change. Not yet tried on a phone.
+- Tracking: PR #86
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
