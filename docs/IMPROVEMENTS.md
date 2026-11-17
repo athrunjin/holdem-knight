@@ -1229,7 +1229,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - A middle ring is what the cover picked pays, clockwise from the top, as long as its part of the pot share: half a turn for half the pot, the whole turn for a full pot. It is a little wider than the ring inside it.
   - The inner ring is the premium. Where the pot has dead money it runs back from the top first, under the dead money of the outer ring, until it is as long as that. Only what is more than the dead money goes on clockwise from the top. With no dead money it is all clockwise.
 - Settled details:
-  - The colors are the ones the single arc had: the win color at part strength for the payout, and the loss color taken darker for the premium.
+  - The payout's ring is a neon green at full strength (`#39ff14`), so it stands clear of the leader's green in the ring around it. It was first the win color at part strength, as the single arc had been, which read too dull. The premium keeps the loss color taken darker.
   - Four other colorings were drawn at the size of an iPhone 16 first, three at half strength and one at 85%. Half strength over the dark page came out darker than the leader's own green, whatever the hue, so a bright color at half strength was not to be had. The colors in use were kept.
   - The legend beside the ring was already in the order the outer ring now has.
 - Decision: do. Checked in the browser preview at 393px by the arcs drawn: dead money larger than the premium, a premium larger than the dead money, and no dead money. Not yet looked at on a phone.

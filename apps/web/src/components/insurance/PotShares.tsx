@@ -266,8 +266,9 @@ export function PotRing({
             />
           );
         })}
-        {/* A little wider than the premium's ring inside it */}
-        <Arc radius={35.25} width={4.5} start={0} length={payout} className="stroke-win/60" />
+        {/* A little wider than the premium's ring inside it, in a neon green at full strength, so
+            it stands clear of the leader's own green beside it */}
+        <Arc radius={35.25} width={4.5} start={0} length={payout} className="stroke-[#39ff14]" />
         <Arc radius={29.5} width={3.5} start={1 - back} length={back} className={premiumClass} />
         <Arc radius={29.5} width={3.5} start={0} length={premium - back} className={premiumClass} />
       </svg>
