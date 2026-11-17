@@ -136,20 +136,21 @@ function Bar({ parts, total }: { parts: readonly PotShare[]; total: number }) {
   );
 }
 
-/** What a cover does to the pot share it insures, each as a part of that share from 0 to 1. */
+/** A cover against the pot share it insures, each as a part of that share from 0 to 1. */
 export interface CoverShares {
   /** The premium paid for it */
   readonly premium: number;
-  /** What a hit still leaves once the premium is paid */
-  readonly kept: number;
+  /** What it pays on a hit: all of the share for a full pot, half of it for a half pot */
+  readonly payout: number;
 }
 
 /**
  * The parts as a ring, clockwise from the top: the dead money, the leaders, then the players
- * behind. With `cover` it gains an inner arc as long as what a hit still leaves, in a clear light
- * green, with the premium laid over its start in dark red: a cover that keeps half the pot for a
- * quarter of it is half a turn, the first quarter red. Both are cut square at their ends, and
- * the rest of the turn is left empty. Whatever is passed as children sits in the middle.
+ * behind. With `cover` it gains an inner arc as long as what the cover pays, in a clear light
+ * green, with the premium laid over its start in dark red: a cover that pays half the pot for a
+ * tenth of it is half a turn, its first tenth red. A payout is never less than its premium, so
+ * the red never passes the end. Both are cut square at their ends, and the rest of the turn is
+ * left empty. Whatever is passed as children sits in the middle.
  */
 export function PotRing({
   parts,
@@ -168,9 +169,9 @@ export function PotRing({
   const innerRadius = 30;
   const innerCircumference = 2 * Math.PI * innerRadius;
   const part = (share: number) => Math.min(1, Math.max(0, share));
-  const kept = part(cover?.kept ?? 0) * innerCircumference;
-  // Laid over the start of what is kept, never past its end: the arc is only as long as that
-  const premium = Math.min(part(cover?.premium ?? 0) * innerCircumference, kept);
+  const payout = part(cover?.payout ?? 0) * innerCircumference;
+  // Laid over the start of the payout, never past its end: the arc is only as long as that
+  const premium = Math.min(part(cover?.premium ?? 0) * innerCircumference, payout);
   // Round the ring from the top: the dead money, whoever leads, then the players behind. The
   // legend beside it keeps its own order, and each part keeps the fill it has there.
   const shown = filled(parts);
@@ -201,14 +202,14 @@ export function PotRing({
           );
         })}
         {/* No track behind them: the part of the turn a cover does not reach is not drawn */}
-        {kept > 0 && (
+        {payout > 0 && (
           <circle
             cx="50"
             cy="50"
             r={innerRadius}
             fill="none"
             strokeWidth="5"
-            strokeDasharray={`${kept} ${innerCircumference - kept}`}
+            strokeDasharray={`${payout} ${innerCircumference - payout}`}
             className="stroke-win/60"
           />
         )}

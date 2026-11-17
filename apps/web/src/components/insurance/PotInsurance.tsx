@@ -225,14 +225,15 @@ function Block({
           total={input.potChips}
           cover={{
             premium: chosen ? chosen.premiumChips / input.shareChips : 0,
-            kept: chosen ? chosen.ifHitChips / input.shareChips : 0,
+            payout: chosen ? chosen.payoutChips / input.shareChips : 0,
           }}
         >
           {chosen && (
             <>
               <span className="text-[10px] leading-none text-muted">{chosenLabel}</span>
               <span className="text-[13px] leading-tight font-semibold tabular-nums">
-                {Math.round((chosen.ifHitChips / input.shareChips) * 100)}%
+                {/* What the cover pays against the pot share: a full pot reads 100% */}
+                {Math.round((chosen.payoutChips / input.shareChips) * 100)}%
               </span>
             </>
           )}
@@ -397,7 +398,7 @@ function Block({
 
 /**
  * A pot and the insurance on it as a single block: the pot as a ring, and the leader's covers under
- * it. Picking a cover lights the ring's inner track for the share of the pot a hit would still leave.
+ * it. Picking a cover draws an inner arc as long as what the cover pays against the pot share.
  */
 export function PotCover(props: PotCoverProps) {
   const quote = quoteInsurance(props.input);
