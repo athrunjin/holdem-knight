@@ -146,9 +146,10 @@ export interface CoverShares {
 
 /**
  * The parts as a ring, clockwise from the top: the dead money, the leaders, then the players
- * behind. With `cover` it gains an inner track: from the top, the premium in dark
- * red, then what a hit still leaves in a clear light green, both cut square at their ends.
- * Whatever is passed as children sits in the middle.
+ * behind. With `cover` it gains an inner arc as long as what a hit still leaves, in a clear light
+ * green, with the premium laid over its start in dark red: a cover that keeps half the pot for a
+ * quarter of it is half a turn, the first quarter red. Both are cut square at their ends, and
+ * the rest of the turn is left empty. Whatever is passed as children sits in the middle.
  */
 export function PotRing({
   parts,
@@ -158,7 +159,7 @@ export function PotRing({
 }: {
   parts: readonly PotShare[];
   total: number;
-  /** Missing leaves the ring without an inner track. All zero draws the track empty. */
+  /** Missing or all zero leaves the ring without an inner arc. */
   cover?: CoverShares | undefined;
   children?: ReactNode;
 }) {
@@ -167,9 +168,9 @@ export function PotRing({
   const innerRadius = 30;
   const innerCircumference = 2 * Math.PI * innerRadius;
   const part = (share: number) => Math.min(1, Math.max(0, share));
-  // The two never pass a full turn between them
-  const premium = part(cover?.premium ?? 0) * innerCircumference;
-  const kept = Math.min(part(cover?.kept ?? 0) * innerCircumference, innerCircumference - premium);
+  const kept = part(cover?.kept ?? 0) * innerCircumference;
+  // Laid over the start of what is kept, never past its end: the arc is only as long as that
+  const premium = Math.min(part(cover?.premium ?? 0) * innerCircumference, kept);
   // Round the ring from the top: the dead money, whoever leads, then the players behind. The
   // legend beside it keeps its own order, and each part keeps the fill it has there.
   const shown = filled(parts);
@@ -199,42 +200,30 @@ export function PotRing({
             />
           );
         })}
-        {cover !== undefined && (
-          <>
-            <circle
-              cx="50"
-              cy="50"
-              r={innerRadius}
-              fill="none"
-              strokeWidth="5"
-              className="stroke-line"
-            />
-            {/* No round caps: an arc ends where its share ends */}
-            {premium > 0 && (
-              <circle
-                cx="50"
-                cy="50"
-                r={innerRadius}
-                fill="none"
-                strokeWidth="5"
-                strokeDasharray={`${premium} ${innerCircumference - premium}`}
-                // The loss color taken darker, so the premium reads as dark red on the dark page
-                className="stroke-[color-mix(in_srgb,var(--loss)_60%,black)]"
-              />
-            )}
-            {kept > 0 && (
-              <circle
-                cx="50"
-                cy="50"
-                r={innerRadius}
-                fill="none"
-                strokeWidth="5"
-                strokeDasharray={`${kept} ${innerCircumference - kept}`}
-                strokeDashoffset={-premium}
-                className="stroke-win/60"
-              />
-            )}
-          </>
+        {/* No track behind them: the part of the turn a cover does not reach is not drawn */}
+        {kept > 0 && (
+          <circle
+            cx="50"
+            cy="50"
+            r={innerRadius}
+            fill="none"
+            strokeWidth="5"
+            strokeDasharray={`${kept} ${innerCircumference - kept}`}
+            className="stroke-win/60"
+          />
+        )}
+        {/* Drawn after, so it sits on top. No round caps: an arc ends where its share ends. */}
+        {premium > 0 && (
+          <circle
+            cx="50"
+            cy="50"
+            r={innerRadius}
+            fill="none"
+            strokeWidth="5"
+            strokeDasharray={`${premium} ${innerCircumference - premium}`}
+            // The loss color taken darker, so the premium reads as dark red on the dark page
+            className="stroke-[color-mix(in_srgb,var(--loss)_60%,black)]"
+          />
         )}
       </svg>
       {children && (
