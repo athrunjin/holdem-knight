@@ -16,7 +16,7 @@ import { cn } from "@/lib/cn";
 import { formatOddsText, selectOnFocus } from "@/lib/number-input";
 import type { Decisions } from "./LeaderQuote";
 import { PotLegend, PotRing, type PotShare } from "./PotShares";
-import { DecisionBar, QuotePanel } from "./QuotePanel";
+import { DecisionBar, QuoteBlocked } from "./QuoteDecision";
 
 interface PotInsuranceProps {
   /** One leader's offer on one pot. */
@@ -187,7 +187,7 @@ function Block({
           <PotRing parts={parts} total={input.potChips} />
           <PotLegend parts={parts} total={input.potChips} plain />
         </div>
-        <QuotePanel id={decisionKey} input={input} />
+        <QuoteBlocked block={quote.block} />
       </section>
     );
   }

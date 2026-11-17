@@ -3,7 +3,7 @@ import { useState } from "react";
 import { type HandStore, InsuranceHandFlow, type SeatChips } from "./InsuranceHandFlow";
 import type { BoughtInsurance, Decisions } from "./LeaderQuote";
 import { OutsQuickCalc } from "./OutsQuickCalc";
-import type { QuoteDecision } from "./QuotePanel";
+import type { QuoteDecision } from "./QuoteDecision";
 
 export type { BoughtInsurance } from "./LeaderQuote";
 
