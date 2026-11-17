@@ -1138,13 +1138,15 @@ Records discussions of feature and process improvements: what was proposed, how 
   - 中了到手 for 满池 is now the pot share less the premium, where it was the pot share.
   - How dead money is shared between the pots stays as it is, by the rules of the game: each line is one folded player's chips. Only what was drawn wrong was changed in #I-056.
   - A payout is never less than its premium at odds of 1 or more, so the red never passes the end of the arc.
-  - All three covers are priced by what they pay, as most games do: 保本 pays the stake, 半池 half the pot share and 满池 all of it, each the largest whole premium whose payout stays within that. 保本 and 半池 were priced by what a hit leaves after the premium, which made 半池 pay 70% of the pot at 3.5. On a pot of 3,000 at 3.5 with a stake of 1,000 the premiums are 285, 428 and 857, where the first two were 400 and 600.
-  - Under 保本 a hit therefore leaves the stake less the premium, 712 in that example, not the stake. The table says so in red under 中了到手 while that cover is picked.
+  - All three covers are priced by what they pay, as most games do: 保本 pays the stake, 半池 half the pot share and 满池 all of it ([ADR 0032](adr/0032-insurance-covers-priced-by-payout.md)). 保本 and 半池 were priced by what a hit leaves after the premium, which made 半池 pay 70% of the pot at 3.5.
+  - The payout is settled first and the premium rounded to it. 保本 and 半池 pay at least the stake and half the pot, with the smallest whole premium that does; 满池 pays no more than the pot, with the largest that stays within it. On a pot of 3,000 at 3.5 with a stake of 1,000 the premiums are 286, 429 and 857, paying 1,001, 1,501 and 2,999, where the first two premiums were 400 and 600. A first version rounded all three down, which left 保本 paying 997.
+  - Under 保本 a hit therefore leaves the stake less the premium, 715 in that example, not the stake. The table says so in red under 中了到手 while that cover is picked.
   - The rule's limit on a street is measured the same way: the most a cover may pay, the stake or a part of the pot share.
   - A target under what one chip of premium pays, such as a small stake at long odds, still sells that one chip, the least there is.
   - The common practice was looked up before the change. The write-ups found, among them one app's own notes on insurance as quoted in search results, agree that 保本 means the payout equals what the player put in and 满池 that the premium is the pot divided by the odds. 半池 was not found as a usual name; apps offer 保本 and 满池 with a slider between. The app's notes could not be opened to read them first hand.
   - The dark red is the loss color taken darker, and the green is the win color at part strength, so no new color is added. Five other colorings of the inner track were drawn side by side, and this one was kept.
-- Decision: do. Checked in the browser preview in dark mode at 412px: the three covers and their payouts, the custom premium typed and stopped at the most, the ring for 保本, 满池 and 自定义, and the plus. Not yet tried on a phone.
+  - The table that priced covers the old way, with its dialog for a custom premium, could no longer be reached and was removed (`QuotePanel`, `PremiumDialog`). What is left of it, the line that says why a pot has no insurance and the bar for a decision made, is `QuoteDecision`.
+- Decision: do. Checked in the browser preview in dark mode at 412px: the three covers and their payouts, the custom premium typed and stopped at the most, the ring for each cover, a pot with no insurance to sell, and the plus. Not yet tried on a phone.
 - Tracking: PR #86
 
 ## Not doing or deferred

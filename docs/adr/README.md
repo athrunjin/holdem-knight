@@ -36,6 +36,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0029](0029-default-transfer-plan.md) | The transfer plan a game starts with, and changing it after settlement | Accepted |
 | [0030](0030-transfers-marked-as-made.md) | Marking transfers as made | Accepted |
 | [0031](0031-game-stages.md) | The stages of a game: open, settling, pending and complete | Accepted |
+| [0032](0032-insurance-covers-priced-by-payout.md) | Insurance covers priced by what they pay, and a rule that keeps its odds table | Accepted |
 
 ## Template
 

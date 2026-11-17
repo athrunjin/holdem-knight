@@ -28,6 +28,7 @@ Each milestone maps to a GitHub Milestone, and each feature in it maps to an iss
 - [x] Wage rules: hourly rate by the minute, with a time-of-day or after-some-hours rate
 - [x] Table fee: once per player after a minimum time
 - [x] Shown apart at settlement and given to the host
+- [x] Call Time: a countdown from the tools page and from a game, which floats over the other pages
 - Waive or change a single charge, and choose who receives them
 
 ## M3 Insurance calculator (done)
@@ -40,6 +41,9 @@ Each milestone maps to a GitHub Milestone, and each feature in it maps to an iss
 - [x] A standalone calculator on the tools page
 - [x] A guided hand from the players to the river, which resumes if the page is left
 - [x] A summary of each finished hand, which updates the table
+- [x] A hand entered on the page: the pot, the players with their chips from the table, and the insurance shown at once
+- [x] Covers priced by what they pay, with no payout above the pot ([ADR 0032](adr/0032-insurance-covers-priced-by-payout.md))
+- [x] Odds tables made, renamed, edited and deleted from the calculator and from a game's settings
 
 A preflop all-in is not covered yet, see #I-019 in the [improvement log](IMPROVEMENTS.md).
 
