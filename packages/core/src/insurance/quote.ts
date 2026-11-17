@@ -1,28 +1,10 @@
 /**
- * Insurance prices. Chips are whole, so premiums round up and payouts round down, in the insurer's
- * favor. No payout is ever more than the pot share it insures.
+ * Insurance prices. A cover is named for what it pays on a hit: the stake, half the pot share or
+ * all of it. Chips are whole and nothing pays more than its target, so a premium is the largest
+ * whose payout stays within it, and no payout is ever more than the pot share it insures.
  */
 import type { InsuranceRule } from "../domain";
 import type { InsuranceStreet } from "./analysis";
-
-/** Premium needed for a payout of at least `coverChips`. */
-export function premiumFor(coverChips: number, oddsHundredths: number): number {
-  return Math.ceil((coverChips * 100) / oddsHundredths);
-}
-
-/**
- * Premium that leaves the buyer `netChips` on a hit, once the premium is paid. Without a refund each
- * chip of premium earns its odds less itself. At odds of 1 or below that earns nothing, so this
- * falls back to covering `netChips` with the payout alone.
- */
-export function premiumForNet(
-  netChips: number,
-  oddsHundredths: number,
-  refundPremium: boolean,
-): number {
-  const gain = refundPremium ? oddsHundredths : oddsHundredths - 100;
-  return gain > 0 ? Math.ceil((netChips * 100) / gain) : premiumFor(netChips, oddsHundredths);
-}
 
 /** What `premiumChips` pays on a hit, including any refunded premium. */
 export function payoutFor(
@@ -72,7 +54,7 @@ export interface QuoteOption {
   readonly ifHitChips: number;
   /** Result if the out misses: the pot share − premium. */
   readonly ifMissChips: number;
-  /** Whether the premium limit held this option below its target. */
+  /** Whether the rule's cover limit held this option below its target. */
   readonly capped: boolean;
 }
 
@@ -85,18 +67,15 @@ export type InsuranceQuote =
       readonly ok: true;
       readonly oddsHundredths: number;
       /**
-       * Highest premium allowed. Its payout may not be more than the pot share, and a hit may not
-       * leave more than the rule's cover limit.
+       * Highest premium allowed. Its payout may be no more than the pot share, nor than the rule's
+       * cover limit for the street.
        */
       readonly maxPremiumChips: number;
-      /** A hit leaves the buyer what they put in. */
+      /** Pays what the buyer put in. */
       readonly stake: QuoteOption;
-      /** A hit leaves the buyer half their share, rounded up. Null when that is already the stake. */
+      /** Pays half the buyer's share, rounded up. Null when that is already the stake. */
       readonly halfPot: QuoteOption | null;
-      /**
-       * The payout is the buyer's whole share of the pot: as near it as whole chips allow, and
-       * never above it. A hit leaves that less the premium.
-       */
+      /** Pays the buyer's whole share of the pot. */
       readonly fullPot: QuoteOption;
     };
 
@@ -117,7 +96,7 @@ export function priceOption(
   };
 }
 
-/** The most a hit may leave the buyer on this street under the rule. */
+/** The most a cover may pay on this street under the rule. */
 function coverLimitChips({ rule, street, shareChips, stakeChips }: QuoteInput): number {
   const limit = street === "turn" ? rule.turnCoverLimit : rule.riverCoverLimit;
   if (limit === undefined) return shareChips;
@@ -132,16 +111,17 @@ export function quoteInsurance(input: QuoteInput): InsuranceQuote {
   const oddsHundredths = rule.oddsHundredths[outs - 1];
   if (oddsHundredths === undefined) return { ok: false, block: "too-many-outs" };
 
-  const premiumToLeave = (netChips: number) =>
-    premiumForNet(netChips, oddsHundredths, rule.refundPremium);
-  // The insurer never pays more than the pot share at stake, whatever cover is asked for
-  const potPremiumChips = premiumWithin(shareChips, oddsHundredths, rule.refundPremium);
+  // One chip of premium is the least there is to sell. It has to pay no more than the pot share.
+  const premiumToPay = (payoutChips: number) =>
+    premiumWithin(payoutChips, oddsHundredths, rule.refundPremium);
+  const potPremiumChips = premiumToPay(shareChips);
   if (potPremiumChips < 1) return { ok: false, block: "pot-too-small" };
-  const limitPremiumChips = premiumToLeave(coverLimitChips(input));
-  const maxPremiumChips = Math.min(limitPremiumChips, potPremiumChips);
+  // A target under one chip's payout, such as a small stake at long odds, still sells that chip
+  const sold = (payoutChips: number) => Math.max(1, premiumToPay(payoutChips));
+  const maxPremiumChips = Math.min(sold(coverLimitChips(input)), potPremiumChips);
   const halfChips = Math.ceil(shareChips / 2);
-  const option = (netChips: number) => {
-    const target = premiumToLeave(netChips);
+  const option = (payoutChips: number) => {
+    const target = sold(payoutChips);
     const premium = Math.min(target, maxPremiumChips);
     return priceOption(input, oddsHundredths, premium, premium < target);
   };
@@ -149,15 +129,9 @@ export function quoteInsurance(input: QuoteInput): InsuranceQuote {
     ok: true,
     oddsHundredths,
     maxPremiumChips,
-    stake: option(stakeChips),
+    stake: option(Math.min(stakeChips, shareChips)),
     halfPot: halfChips === stakeChips ? null : option(halfChips),
-    // Held below the pot only by the rule's own limit
-    fullPot: priceOption(
-      input,
-      oddsHundredths,
-      maxPremiumChips,
-      limitPremiumChips < potPremiumChips,
-    ),
+    fullPot: option(shareChips),
   };
 }
 

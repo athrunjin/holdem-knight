@@ -1138,7 +1138,11 @@ Records discussions of feature and process improvements: what was proposed, how 
   - 中了到手 for 满池 is now the pot share less the premium, where it was the pot share.
   - How dead money is shared between the pots stays as it is, by the rules of the game: each line is one folded player's chips. Only what was drawn wrong was changed in #I-056.
   - A payout is never less than its premium at odds of 1 or more, so the red never passes the end of the arc.
-  - 保本 and 半池 are still priced by what a hit leaves after the premium, the stake and half the pot, while 满池 is priced by its payout. So 半池 reads the share its payout comes to, 70% in the example at 3.5, not 50%. Whether to price all three by their payout, as most games do, is open.
+  - All three covers are priced by what they pay, as most games do: 保本 pays the stake, 半池 half the pot share and 满池 all of it, each the largest whole premium whose payout stays within that. 保本 and 半池 were priced by what a hit leaves after the premium, which made 半池 pay 70% of the pot at 3.5. On a pot of 3,000 at 3.5 with a stake of 1,000 the premiums are 285, 428 and 857, where the first two were 400 and 600.
+  - Under 保本 a hit therefore leaves the stake less the premium, 712 in that example, not the stake. The table says so in red under 中了到手 while that cover is picked.
+  - The rule's limit on a street is measured the same way: the most a cover may pay, the stake or a part of the pot share.
+  - A target under what one chip of premium pays, such as a small stake at long odds, still sells that one chip, the least there is.
+  - The common practice was looked up before the change. The write-ups found, among them one app's own notes on insurance as quoted in search results, agree that 保本 means the payout equals what the player put in and 满池 that the premium is the pot divided by the odds. 半池 was not found as a usual name; apps offer 保本 and 满池 with a slider between. The app's notes could not be opened to read them first hand.
   - The dark red is the loss color taken darker, and the green is the win color at part strength, so no new color is added. Five other colorings of the inner track were drawn side by side, and this one was kept.
 - Decision: do. Checked in the browser preview in dark mode at 412px: the three covers and their payouts, the custom premium typed and stopped at the most, the ring for 保本, 满池 and 自定义, and the plus. Not yet tried on a phone.
 - Tracking: PR #86
