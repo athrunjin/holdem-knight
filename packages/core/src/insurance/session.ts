@@ -19,13 +19,7 @@ import {
 } from "./analysis";
 import type { Card } from "./cards";
 import { buildPots, type PotEntry } from "./pots";
-import {
-  type InsuranceQuote,
-  type QuoteInput,
-  type QuoteOption,
-  quoteInsurance,
-  soldOuts,
-} from "./quote";
+import { type InsuranceQuote, type QuoteInput, type QuoteOption, quoteInsurance } from "./quote";
 
 export function blankInsuranceHand(
   base: Pick<InsuranceHand, "id" | "organizerId" | "gameId" | "createdAt">,
@@ -85,8 +79,12 @@ function handPots({
   return analyzeAllIn(hands, dead, board);
 }
 
+/** What the cards of an offer do to its buyer: take the pot from them, or make them split it. */
+export type OfferKind = "overtake" | "tie";
+
 export interface HandOffer {
   readonly key: string;
+  readonly kind: OfferKind;
   readonly street: InsuranceStreet;
   readonly potIndex: number;
   readonly pot: PotAnalysis;
@@ -97,32 +95,48 @@ export interface HandOffer {
   readonly quote: InsuranceQuote;
 }
 
-/** One offer for each leader of each pot, for the card on sale. */
+/**
+ * The offers for the card on sale, for each leader of each pot. Cards that take the pot from the
+ * leader are one offer. Under a rule that sells tie cards, those are an offer of their own, priced
+ * by their own count and listed after the first; a leader with tie cards only has just that one.
+ */
 export function handOffers(hand: InsuranceHand, rule: InsuranceRule): HandOffer[] {
   const street = nextStreet(hand.board);
   if (!street) return [];
   return handPots(hand).flatMap((pot, potIndex) =>
-    pot.leaders.map((leader): HandOffer => {
-      const input: QuoteInput = {
-        rule,
-        street,
-        potChips: pot.amountChips,
-        shareChips: leader.shareChips,
-        stakeChips: leader.stakeChips,
-        outs: soldOuts(rule, leader),
-        blockedTie: tieBlocksInsurance(pot),
+    pot.leaders.flatMap((leader): HandOffer[] => {
+      const blockedTie = tieBlocksInsurance(pot);
+      const offer = (kind: OfferKind, outs: readonly Card[], keptChips: number): HandOffer => {
+        const input: QuoteInput = {
+          rule,
+          street,
+          potChips: pot.amountChips,
+          shareChips: leader.shareChips,
+          stakeChips: leader.stakeChips,
+          outs: outs.length,
+          keptChips,
+          blockedTie,
+        };
+        const key = `${street}-${potIndex}-${leader.playerId}`;
+        return {
+          key: kind === "tie" ? `${key}-tie` : key,
+          kind,
+          street,
+          potIndex,
+          pot,
+          leader,
+          outs,
+          input,
+          quote: quoteInsurance(input),
+        };
       };
-      const tied = rule.tieOuts === "include" ? leader.tieCards : [];
-      return {
-        key: `${street}-${potIndex}-${leader.playerId}`,
-        street,
-        potIndex,
-        pot,
-        leader,
-        outs: [...leader.outs, ...tied],
-        input,
-        quote: quoteInsurance(input),
-      };
+      const overtake = offer("overtake", leader.outs, 0);
+      // A lead with nothing to insure says so once, not once for each kind of card
+      if (rule.tieOuts !== "include" || blockedTie || leader.tieCards.length === 0) {
+        return [overtake];
+      }
+      const tie = offer("tie", leader.tieCards, leader.tieShareChips);
+      return leader.outs.length > 0 ? [overtake, tie] : [tie];
     }),
   );
 }
@@ -203,6 +217,7 @@ export function buyOffer(
     playerId: offer.leader.playerId,
     street: offer.street,
     outs: offer.outs,
+    ...(offer.kind === "tie" && { tie: true }),
     oddsHundredths,
     premiumChips: option.premiumChips,
     payoutChips: option.payoutChips,

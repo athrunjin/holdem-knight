@@ -62,7 +62,13 @@ export interface QuoteInput {
   readonly shareChips: number;
   /** What the buyer put in. */
   readonly stakeChips: number;
+  /** How many cards are sold. */
   readonly outs: number;
+  /**
+   * What the buyer still wins of the pot when a card sold comes. Nothing for cards that overtake,
+   * which is the default; their part of the split for tie cards.
+   */
+  readonly keptChips?: number;
   /** The buyer is tied in a way that leaves no lead to insure. */
   readonly blockedTie?: boolean;
 }
@@ -70,7 +76,10 @@ export interface QuoteInput {
 export interface QuoteOption {
   readonly premiumChips: number;
   readonly payoutChips: number;
-  /** Result of the pot and the insurance together if the out comes: payout − premium. */
+  /**
+   * Result of the pot and the insurance together if a card sold comes: payout − premium, and for
+   * tie cards the buyer's part of the split pot as well.
+   */
   readonly ifHitChips: number;
   /** Result if the out misses: the pot share − premium. */
   readonly ifMissChips: number;
@@ -101,7 +110,7 @@ export type InsuranceQuote =
 
 /** Prices any premium for a quote, for the amount the organizer actually sells. */
 export function priceOption(
-  input: Pick<QuoteInput, "rule" | "shareChips">,
+  input: Pick<QuoteInput, "rule" | "shareChips" | "keptChips">,
   oddsHundredths: number,
   premiumChips: number,
   capped = false,
@@ -110,7 +119,7 @@ export function priceOption(
   return {
     premiumChips,
     payoutChips,
-    ifHitChips: payoutChips - premiumChips,
+    ifHitChips: (input.keptChips ?? 0) + payoutChips - premiumChips,
     ifMissChips: input.shareChips - premiumChips,
     capped,
   };
@@ -160,14 +169,6 @@ export function quoteInsurance(input: QuoteInput): InsuranceQuote {
     // Held under the pot share only by the rule's own limit
     fullPot: priceOption(input, oddsHundredths, maxPremiumChips, maxPremiumChips < potPremiumChips),
   };
-}
-
-/** Outs as sold under the rule: tie cards join them if the rule says so. */
-export function soldOuts(
-  rule: InsuranceRule,
-  leader: { readonly outs: readonly number[]; readonly tieCards: readonly number[] },
-): number {
-  return leader.outs.length + (rule.tieOuts === "include" ? leader.tieCards.length : 0);
 }
 
 /** Cards nobody has seen in a heads-up all-in: 52 less four hole cards and the board so far. */

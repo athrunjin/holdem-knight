@@ -4,6 +4,8 @@ import type { QuoteDecision, QuotePurchase } from "./QuoteDecision";
 export interface BoughtInsurance extends QuotePurchase {
   readonly playerId: string;
   readonly outs: number;
+  /** The cards sold split the pot */
+  readonly tie?: boolean;
   readonly street: InsuranceStreet;
 }
 

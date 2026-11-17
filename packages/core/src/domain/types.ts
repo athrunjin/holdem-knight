@@ -116,6 +116,8 @@ export interface InsuranceHandPurchase {
   readonly street: "turn" | "river";
   /** The cards sold, which decide the result. */
   readonly outs: readonly number[];
+  /** The cards sold split the pot. Missing for cards that take it from the buyer. */
+  readonly tie?: boolean;
   readonly oddsHundredths: number;
   readonly premiumChips: number;
   readonly payoutChips: number;
@@ -403,6 +405,8 @@ export interface InsuranceBuyEvent extends LedgerEventBase {
   /** Paid to the player on a hit, including any refunded premium. */
   readonly payoutChips: number;
   readonly outs: number;
+  /** The cards sold split the pot. Missing for cards that take it from the buyer. */
+  readonly tie?: boolean;
   readonly oddsHundredths: number;
   readonly street: "turn" | "river";
   /** The insurance hand this came from. Missing for one bought from an outs count. */

@@ -3,6 +3,7 @@ import {
   type InsuranceHandPlayer,
   type InsuranceRule,
   type InsuranceStreet,
+  type OfferKind,
   outsHitChance,
   parseChips,
   potTotals,
@@ -26,7 +27,7 @@ import {
 import type { InsuranceSeat } from "./InsuranceCalculator";
 import type { Decisions } from "./LeaderQuote";
 import { Modal } from "./Modal";
-import { PotCover } from "./PotInsurance";
+import { PotCover, type PotCoverOffer } from "./PotInsurance";
 import type { PotShare } from "./PotShares";
 
 type Side = 0 | 1;
@@ -156,9 +157,10 @@ function OutsDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const outs = parseChips(text) ?? 0;
   const ties = parseChips(tieText) ?? 0;
-  // Tie cards take room in the odds table only when they are sold
-  const outsMax = Math.min(unseen - ties, maxOuts - (tiesSold ? ties : 0));
-  const tiesMax = (tiesSold ? Math.min(unseen, maxOuts) : unseen) - outs;
+  // Each kind of card is priced by its own count, so each has the odds table to itself. Tie cards
+  // that are not sold need no odds.
+  const outsMax = Math.min(unseen - ties, maxOuts);
+  const tiesMax = Math.min(unseen - outs, tiesSold ? maxOuts : unseen);
   const valid = outs + ties >= 1 && outs <= outsMax && ties <= tiesMax;
 
   // Selected, so the first digit replaces the starting count
@@ -242,9 +244,8 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
   const leaderPlayer = players[leader];
   const trailerPlayer = players[trailer];
   const trailerEntry = outs[trailer];
-  // Tie cards are sold with the outs only when the rule says so
+  // Tie cards are sold, as a cover of their own, only when the rule says so
   const tiesSold = rule.tieOuts === "include";
-  const trailerOuts = trailerEntry && trailerEntry.outs + (tiesSold ? trailerEntry.ties : 0);
 
   const withSide = (side: Side, change: Partial<InsuranceHandPlayer>) =>
     players.map((p, index) => (index === side ? { ...p, ...change } : p));
@@ -272,7 +273,6 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
     leaderPlayer &&
     trailerPlayer &&
     trailerEntry &&
-    trailerOuts !== undefined &&
     staked(leaderPlayer) &&
     staked(trailerPlayer) &&
     !(leaderPlayer.cover && trailerPlayer.cover);
@@ -297,6 +297,52 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       leading: false,
       text: `Outs ${soldText(trailerEntry, tiesSold)} · ${percentText(chances.hit)}`,
     };
+  }
+
+  /**
+   * What is on sale: the cards that overtake, and after them the tie cards where the rule sells
+   * them. With tie cards only, there is just their cover.
+   */
+  function quickOffers(leaderId: string, trailerId: string, entry: OutsEntry): PotCoverOffer[] {
+    const input = {
+      rule,
+      street,
+      potChips: totals.effectiveChips,
+      shareChips: totals.effectiveChips,
+      stakeChips: leaderStake,
+    };
+    const keyOf = (kind: OfferKind) =>
+      [
+        "quick",
+        kind,
+        leaderId,
+        trailerId,
+        street,
+        totals.effectiveChips,
+        leaderStake,
+        entry.outs,
+        entry.ties,
+        rule.tieOuts,
+      ].join("|");
+    const overtake: PotCoverOffer = {
+      kind: "overtake",
+      input: { ...input, outs: entry.outs },
+      playerId: leaderId,
+      decisionKey: keyOf("overtake"),
+      outsText: `反超 ${entry.outs} 张`,
+      // Tie cards a rule does not sell are still named, so nobody takes them for outs
+      outsLines: !tiesSold && entry.ties > 0 ? [`平分 ${entry.ties} 张（不计入）`] : [],
+    };
+    if (!tiesSold || entry.ties === 0) return [overtake];
+    const tie: PotCoverOffer = {
+      kind: "tie",
+      // A tie leaves each of the two half the pot
+      input: { ...input, outs: entry.ties, keptChips: Math.floor(totals.effectiveChips / 2) },
+      playerId: leaderId,
+      decisionKey: keyOf("tie"),
+      outsText: `平分 ${entry.ties} 张`,
+    };
+    return entry.outs > 0 ? [overtake, tie] : [tie];
   }
 
   // Who put what into the pot: the leader first, dead money last
@@ -478,32 +524,8 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
           <PotCover
             label="主池"
             parts={parts}
-            input={{
-              rule,
-              street,
-              potChips: totals.effectiveChips,
-              shareChips: totals.effectiveChips,
-              stakeChips: leaderStake,
-              outs: trailerOuts,
-            }}
-            playerId={leaderPlayer.playerId}
-            decisionKey={[
-              "quick",
-              leaderPlayer.playerId,
-              trailerPlayer.playerId,
-              street,
-              totals.effectiveChips,
-              leaderStake,
-              trailerEntry.outs,
-              trailerEntry.ties,
-              rule.tieOuts,
-            ].join("|")}
-            outsText={`反超 ${trailerOuts} 张`}
-            outsLines={
-              trailerEntry.ties > 0
-                ? [`平分 ${trailerEntry.ties} 张${tiesSold ? "（已计入）" : "（不计入）"}`]
-                : []
-            }
+            potChips={totals.effectiveChips}
+            offers={quickOffers(leaderPlayer.playerId, trailerPlayer.playerId, trailerEntry)}
             saving={saving}
             decisions={decisions}
           />

@@ -121,13 +121,15 @@ function GameInsurance({ game }: { game: Game }) {
   const finished = hands?.filter((hand) => hand.status === "done") ?? [];
   const openHand = hands?.find((hand) => hand.status === "open");
 
-  async function handleBuy({ playerId, option, oddsHundredths, outs, street }: BoughtInsurance) {
+  async function handleBuy(bought: BoughtInsurance) {
+    const { playerId, option, oddsHundredths, outs, street } = bought;
     try {
       return await buyInsurance.mutateAsync({
         playerId,
         chips: option.premiumChips,
         payoutChips: option.payoutChips,
         outs,
+        ...(bought.tie && { tie: true }),
         oddsHundredths,
         street,
       });

@@ -1171,6 +1171,29 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 412px and 360px, from the tools page and in a game: the defaults, the outs and tie cards, the lead switched, a cover, dead money set, another player picked, chips typed and written to the table, and the prices against the rule. 选牌计算 was opened at both entries after the change. Not yet tried on a phone.
 - Tracking: PR #86
 
+### #I-059 Tie cards bought apart from the cards that overtake
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-17
+- Source: discussion
+- Problem: With 平分牌算 outs on, tie cards were added to the cards that overtake and sold as one cover at the odds for the sum. They could not be bought on their own, and a line under the heading only said they were counted in. On the custom row, a tap anywhere went into the premium, even to pick a premium already typed.
+- Proposal:
+  - With 平分牌算 outs on and tie cards in the pot, the pot's block has two tables under the one ring: 「反超 6 张 · 赔 5.0」 first, then 「平分 2 张 · 赔 15.0」. Each is priced by its own count of cards. With no card that overtakes, only the tie table shows.
+  - The tie table has the same rows and columns as the other: 保本, 半池, 满池 and 自定义. It has no 分开购买 switch, which is kept for splitting the cards that overtake later.
+  - Each table has its own 确认投保 and 不购买. The next card can be picked once both are decided, and each is settled on its own cards.
+  - The ring's inner arc shows the row picked last, in either table. With two tables its middle says which: 反超保本, 平分满池. Before anything is picked it shows the first table's 保本.
+  - 中了到手 in the tie table counts the part of the split pot the buyer still wins: on a pot of 3,000 with a tie cover that pays 1,005 for 67, a tie leaves 1,500 + 1,005 − 67 = 2,438.
+  - The custom row: with no premium typed, a tap anywhere on it goes into the premium with the 0 selected, as before. With a premium typed, a tap on the premium goes into it with all of it selected, and a tap anywhere else on the row only picks the row.
+  - A purchase on tie cards reads 「平分 4 张」 in the settlement of a street and in 保险记录, where one on the other cards reads 「2 outs」.
+- Settled details:
+  - Both ways of working and both entries use it, as they share the block. In Outs数速算 the outs and the tie cards typed are the two counts, and a tie leaves each of the two players half the pot.
+  - In Outs数速算 each count may now be as large as the odds table, since each is priced on its own. Together they were held to the table's length.
+  - With 平分牌算 outs off, nothing changes: the tie cards are named under the heading as not counted.
+  - A tied lead that cannot be insured, or a pot with no cards to sell, says so once and not once per table.
+  - 满池 on tie cards pays the pot share while half the pot is still the buyer's, so a tie can leave them more than the pot. The tie table was asked to be the same as the other, and is. Whether the tie cover should stop at what a tie costs is open ([ADR 0033](adr/0033-tie-cards-sold-as-their-own-cover.md)).
+- Decision: do. Checked in the browser preview in dark mode at 412px: both tables in Outs数速算 from the tools page, tie cards only, the switch off, the ring after a pick in each table, the custom row with and without a premium, and in a game a hand from the cards where one cover was bought and the other turned down, a tie card dealt and settled, and a tie purchase from Outs数速算 in 保险记录. Not yet tried on a phone.
+- Tracking: PR #87
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

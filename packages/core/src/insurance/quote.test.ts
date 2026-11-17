@@ -10,7 +10,6 @@ import {
   priceOption,
   type QuoteInput,
   quoteInsurance,
-  soldOuts,
   unseenCards,
 } from "./quote";
 import {
@@ -242,12 +241,18 @@ describe("quoteInsurance", () => {
   });
 });
 
-describe("soldOuts", () => {
-  const leader = { outs: [1, 2, 3], tieCards: [4, 5] };
-
-  it("sells tie cards by default and leaves them out when the rule says so", () => {
-    expect(soldOuts(RULE_30, leader)).toBe(5);
-    expect(soldOuts({ ...RULE_30, tieOuts: "exclude" }, leader)).toBe(3);
+describe("tie cards", () => {
+  it("leaves the buyer their part of the split pot on top of the payout", () => {
+    const overtake = quoteInsurance(input({ outs: 4 }));
+    const tie = quoteInsurance(input({ outs: 4, keptChips: 500 }));
+    if (!overtake.ok || !tie.ok) throw new Error("Expected quotes");
+    // The same cover at the same price: only what a hit leaves differs
+    for (const cover of ["stake", "fullPot"] as const) {
+      expect(tie[cover].premiumChips).toBe(overtake[cover].premiumChips);
+      expect(tie[cover].payoutChips).toBe(overtake[cover].payoutChips);
+      expect(tie[cover].ifMissChips).toBe(overtake[cover].ifMissChips);
+      expect(tie[cover].ifHitChips).toBe(overtake[cover].ifHitChips + 500);
+    }
   });
 });
 

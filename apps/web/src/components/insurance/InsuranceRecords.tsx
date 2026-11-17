@@ -21,6 +21,10 @@ const STREET_TEXT = { turn: "转牌", river: "河牌" } as const;
 
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
 
+/** The cards a purchase was on: how many overtake, or how many split the pot. */
+const outsText = (count: number, tie: boolean | undefined) =>
+  tie ? `平分 ${count} 张` : `${count} outs`;
+
 /** Changing the records. Missing once the game is closed. */
 export interface RecordActions {
   readonly busy: boolean;
@@ -70,8 +74,9 @@ function HandRecord({
                 {purchase.hit ? "命中" : "未中"}
               </span>
               <span className="block text-muted">
-                {purchase.outs.length} outs · 赔 {formatOdds(purchase.oddsHundredths)} · 保费{" "}
-                {chipText(purchase.premiumChips)} · 赔付 {chipText(purchase.payoutChips)}
+                {outsText(purchase.outs.length, purchase.tie)} · 赔{" "}
+                {formatOdds(purchase.oddsHundredths)} · 保费 {chipText(purchase.premiumChips)} ·
+                赔付 {chipText(purchase.payoutChips)}
               </span>
             </li>
           ))}
@@ -110,7 +115,7 @@ function PurchaseRecord({
         <span className="shrink-0 text-highlight">{STATUS_TEXT[status]}</span>
       </p>
       <p className="text-muted tabular-nums">
-        {purchase.outs} outs · 赔 {formatOdds(purchase.oddsHundredths)} · 保费{" "}
+        {outsText(purchase.outs, purchase.tie)} · 赔 {formatOdds(purchase.oddsHundredths)} · 保费{" "}
         {chipText(purchase.chips)} · 赔付 {chipText(purchase.payoutChips)}
       </p>
       {actions && (

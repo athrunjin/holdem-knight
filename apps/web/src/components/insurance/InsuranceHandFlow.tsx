@@ -197,7 +197,8 @@ function SettleStep({
               </span>
             </p>
             <p className="text-sm text-muted tabular-nums">
-              {purchase.outs.length} outs · 保费 {chipText(purchase.premiumChips)}
+              {purchase.tie ? `平分 ${purchase.outs.length} 张` : `${purchase.outs.length} outs`} ·
+              保费 {chipText(purchase.premiumChips)}
             </p>
           </li>
         ))}
@@ -283,6 +284,18 @@ export function InsuranceHandFlow({
   // biome-ignore lint/correctness/useExhaustiveDependencies: the players count only by who holds which cards
   const standings = useMemo(() => handStandings({ players, board }), [cardsKey, board]);
   const potCount = new Set(offers.map((o) => o.potIndex)).size;
+  // A leader's offers on a pot share one block: the cards that overtake, then the tie cards
+  const blocks = offers
+    .filter((o, index) => {
+      const before = offers[index - 1];
+      return before?.potIndex !== o.potIndex || before.leader.playerId !== o.leader.playerId;
+    })
+    .map((first) => ({
+      first,
+      group: offers.filter(
+        (o) => o.potIndex === first.potIndex && o.leader.playerId === first.leader.playerId,
+      ),
+    }));
   // Side pots are drawn pot by pot; a single pot keeps the ring
   const breakdown = complete ? handPotBreakdown(hand) : [];
   // While buying, a lone pot is drawn in its own insurance block, so the overview would repeat it
@@ -572,11 +585,11 @@ export function InsuranceHandFlow({
           {pricing && !street && <p className="text-sm text-muted">公共牌已发完，没有保险可买。</p>}
           {pricing && street && (
             <>
-              {offers.map((offer) => (
+              {blocks.map(({ first, group }) => (
                 <PotInsurance
-                  key={offer.key}
-                  offer={offer}
-                  label={potName(offer.potIndex, potCount)}
+                  key={first.key}
+                  offers={group}
+                  label={potName(first.potIndex, potCount)}
                   nameOf={nameOf}
                   rule={rule}
                   decisions={decisions}

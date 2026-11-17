@@ -265,6 +265,7 @@ export function useFinishInsuranceHand(gameId: string) {
               chips: purchase.premiumChips,
               payoutChips: purchase.payoutChips,
               outs: purchase.outs.length,
+              ...(purchase.tie && { tie: true }),
               oddsHundredths,
               street,
             };
@@ -323,7 +324,7 @@ export function useUndoInsuranceHand(gameId: string) {
 
 export type InsurancePurchase = Pick<
   InsuranceBuyEvent,
-  "playerId" | "chips" | "payoutChips" | "outs" | "oddsHundredths" | "street"
+  "playerId" | "chips" | "payoutChips" | "outs" | "tie" | "oddsHundredths" | "street"
 >;
 
 export function useBuyInsurance(gameId: string) {
