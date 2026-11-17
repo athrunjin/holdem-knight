@@ -244,8 +244,8 @@ export function PotRing({
       : 0;
   // The premium comes out of the dead money first, as far as that goes
   const back = Math.min(premium, dead);
-  // The loss color taken darker, so the premium reads as dark red on the dark page
-  const premiumClass = "stroke-[color-mix(in_srgb,var(--loss)_60%,black)]";
+  // A dark red at full strength, bright enough to read on the dark page
+  const premiumClass = "stroke-[#c8423a]";
   let start = 0;
   return (
     <div className="relative size-36 shrink-0">
@@ -266,9 +266,9 @@ export function PotRing({
             />
           );
         })}
-        {/* A little wider than the premium's ring inside it, in a neon green at full strength, so
+        {/* A little wider than the premium's ring inside it, in a bright green at full strength, so
             it stands clear of the leader's own green beside it */}
-        <Arc radius={35.25} width={4.5} start={0} length={payout} className="stroke-[#39ff14]" />
+        <Arc radius={35.25} width={4.5} start={0} length={payout} className="stroke-[#45e06a]" />
         <Arc radius={29.5} width={3.5} start={1 - back} length={back} className={premiumClass} />
         <Arc radius={29.5} width={3.5} start={0} length={premium - back} className={premiumClass} />
       </svg>
