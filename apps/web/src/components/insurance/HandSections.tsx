@@ -104,7 +104,7 @@ function ChipStack({ lit }: { lit: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="size-7 shrink-0"
+      className="size-6 shrink-0"
       stroke="currentColor"
       strokeWidth="1.5"
       aria-hidden
@@ -131,8 +131,8 @@ export interface DeadMoneyEdits {
 }
 
 /**
- * Dead money, framed like a street of the board: the chip stack with its name and amount
- * underneath. The amount a pot starts with is framed in dashed light green until the organizer
+ * Dead money, framed like a street of the board: the chip stack with its name and its amount
+ * underneath, one under the other. The amount a pot starts with is framed in dashed light green until the organizer
  * sets it, and from then on like the flop. With `edits` the amount is typed in place: a tap
  * anywhere on the frame selects it, and digits typed replace it.
  */
@@ -155,82 +155,73 @@ export function DeadMoney({
   const [draft, setDraft] = useState<string>();
   const changed = useRef(false);
   const text = draft ?? chipText(chips);
+  // The stack, the name and the amount one under the other: as tall as a street of the board, and
+  // narrow enough for six digits to stay on the board's line once the river is on it
   const className = cn(
-    "flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 px-2 pt-2 pb-1",
+    "flex shrink-0 flex-col items-center rounded-xl border-2 px-2 pt-2 pb-1",
     preset ? "border-dashed border-win/50 text-win" : "border-line bg-surface",
   );
-  const stack = (
-    <span className="grid h-9 place-items-center">
-      <ChipStack lit={chips > 0} />
-    </span>
-  );
-  const captionClass = cn(
-    "flex h-6 items-baseline gap-1 text-xs whitespace-nowrap",
-    !preset && "text-muted",
-  );
-  const amountClass = "text-base leading-6 font-semibold tabular-nums";
+  const stack = <ChipStack lit={chips > 0} />;
+  const name = <span className={cn("text-xs leading-4", !preset && "text-muted")}>死钱</span>;
+  const amountClass = "h-[22px] text-base leading-[22px] font-semibold tabular-nums";
   if (!edits) {
     return (
       <div className={className}>
         {stack}
-        <span className={captionClass}>
-          死钱
-          <span className={cn(amountClass, !preset && "text-text")}>{chipText(chips)}</span>
-        </span>
+        {name}
+        <span className={cn(amountClass, !preset && "text-text")}>{chipText(chips)}</span>
       </div>
     );
   }
   return (
     <label htmlFor={id} className={cn(className, "cursor-text focus-within:border-highlight")}>
       {stack}
-      <span className={captionClass}>
-        死钱
-        <input
-          ref={inputRef}
-          id={id}
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          enterKeyHint="done"
-          aria-label="死钱"
-          value={text}
-          // As wide as what it holds, so the frame fits the amount
-          style={{ width: `${Math.max(1, text.length)}ch` }}
-          onFocus={(event) => {
-            changed.current = false;
-            setDraft(String(chips));
-            selectOnFocus(event.currentTarget);
-          }}
-          onChange={(event) => {
-            const digits = event.target.value
-              .replace(/\D/g, "")
-              .replace(/^0+(?=\d)/, "")
-              .slice(0, MAX_DEAD_DIGITS);
-            setDraft(digits);
+      {name}
+      <input
+        ref={inputRef}
+        id={id}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        enterKeyHint="done"
+        aria-label="死钱"
+        value={text}
+        // As wide as what it holds, so the frame fits the amount
+        style={{ width: `${Math.max(1, text.length)}ch` }}
+        onFocus={(event) => {
+          changed.current = false;
+          setDraft(String(chips));
+          selectOnFocus(event.currentTarget);
+        }}
+        onChange={(event) => {
+          const digits = event.target.value
+            .replace(/\D/g, "")
+            .replace(/^0+(?=\d)/, "")
+            .slice(0, MAX_DEAD_DIGITS);
+          setDraft(digits);
+          changed.current = true;
+          edits.onChips(Number(digits));
+        }}
+        onBlur={() => {
+          // Left as it was found, there is nothing to keep
+          if (changed.current) edits.onDone();
+          setDraft(undefined);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") return;
+          // Enter on the amount a pot starts with makes it the organizer's own
+          if (!changed.current) {
             changed.current = true;
-            edits.onChips(Number(digits));
-          }}
-          onBlur={() => {
-            // Left as it was found, there is nothing to keep
-            if (changed.current) edits.onDone();
-            setDraft(undefined);
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter") return;
-            // Enter on the amount a pot starts with makes it the organizer's own
-            if (!changed.current) {
-              changed.current = true;
-              edits.onChips(chips);
-            }
-            event.currentTarget.blur();
-          }}
-          className={cn(
-            amountClass,
-            "min-w-0 bg-transparent text-center outline-none",
-            !preset && "text-text",
-          )}
-        />
-      </span>
+            edits.onChips(chips);
+          }
+          event.currentTarget.blur();
+        }}
+        className={cn(
+          amountClass,
+          "min-w-0 bg-transparent text-center outline-none",
+          !preset && "text-text",
+        )}
+      />
     </label>
   );
 }

@@ -16,7 +16,7 @@ import { formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatOddsText, selectOnFocus } from "@/lib/number-input";
 import type { Decisions } from "./LeaderQuote";
-import { PotLegend, PotRing, type PotShare } from "./PotShares";
+import { PotHeading, PotLegend, PotRing, type PotShare } from "./PotShares";
 import { DecisionBar, QuoteBlocked, type QuoteDecision } from "./QuoteDecision";
 
 interface PotInsuranceProps {
@@ -477,10 +477,7 @@ function Block({ label, parts, potChips, offers, saving, decisions }: PotCoverPr
       aria-label={`${label}保险`}
       className="mt-3 rounded-xl border border-line bg-surface p-3"
     >
-      <h3 className="flex items-baseline justify-between gap-2">
-        <span className="text-sm text-muted">{label}</span>
-        <span className="text-2xl font-semibold tabular-nums">{chipText(potChips)}</span>
-      </h3>
+      <PotHeading title={label} chips={potChips} />
       <div className="mt-2 flex items-center gap-1.5">
         <PotRing
           parts={parts}

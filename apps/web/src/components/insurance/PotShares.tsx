@@ -16,6 +16,30 @@ export interface PotShare {
 
 type Look = "ring" | "bar";
 
+/**
+ * What heads a box about a pot: its name at the left, a little under a section's title in size,
+ * and its chips at the right. Anything passed as children sits straight after the name.
+ */
+export function PotHeading({
+  title,
+  chips,
+  children,
+}: {
+  title: string;
+  chips: number;
+  children?: ReactNode;
+}) {
+  return (
+    <h3 className="flex items-center gap-1">
+      <span className="min-w-0 truncate text-[17px] font-semibold">{title}</span>
+      {children}
+      <span className="ml-auto shrink-0 pl-1 text-2xl font-semibold tabular-nums">
+        {chipText(chips)}
+      </span>
+    </h3>
+  );
+}
+
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
 const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
 
@@ -68,7 +92,7 @@ export function PotLegend({
         const cells = (
           <>
             {/* On the middle of the name's line */}
-            <span className={cn("mt-1 size-3 shrink-0 rounded-full", fill.bar)} aria-hidden />
+            <span className={cn("mt-[5px] size-2.5 shrink-0 rounded-full", fill.bar)} aria-hidden />
             <span className="min-w-0 flex-1">
               <span className="flex items-baseline gap-1">
                 <span className="truncate">{label}</span>
@@ -168,9 +192,10 @@ export function PotRing({
   cover?: CoverShares | undefined;
   children?: ReactNode;
 }) {
-  const radius = 42;
+  // Out by the edge, so the thinner strokes leave more of the middle free
+  const radius = 44;
   const circumference = 2 * Math.PI * radius;
-  const innerRadius = 30;
+  const innerRadius = 34;
   const innerCircumference = 2 * Math.PI * innerRadius;
   const part = (share: number) => Math.min(1, Math.max(0, share));
   const payout = part(cover?.payout ?? 0) * innerCircumference;
@@ -186,7 +211,7 @@ export function PotRing({
   return (
     <div className="relative size-36 shrink-0">
       <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden>
-        <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="10" className="stroke-line" />
+        <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="7" className="stroke-line" />
         {drawn.map(({ key, tone, fill, chips }) => {
           const length = total > 0 ? (chips / total) * circumference : 0;
           const offset = -start;
@@ -198,7 +223,7 @@ export function PotRing({
               cy="50"
               r={radius}
               fill="none"
-              strokeWidth={tone === "leader" ? 14 : 10}
+              strokeWidth={tone === "leader" ? 10 : 7}
               strokeDasharray={`${length} ${circumference - length}`}
               strokeDashoffset={offset}
               className={fill.stroke}
@@ -212,7 +237,7 @@ export function PotRing({
             cy="50"
             r={innerRadius}
             fill="none"
-            strokeWidth="5"
+            strokeWidth="3.5"
             strokeDasharray={`${payout} ${innerCircumference - payout}`}
             className="stroke-win/60"
           />
@@ -224,7 +249,7 @@ export function PotRing({
             cy="50"
             r={innerRadius}
             fill="none"
-            strokeWidth="5"
+            strokeWidth="3.5"
             strokeDasharray={`${premium} ${innerCircumference - premium}`}
             // The loss color taken darker, so the premium reads as dark red on the dark page
             className="stroke-[color-mix(in_srgb,var(--loss)_60%,black)]"
@@ -248,20 +273,17 @@ export function PotShares({ parts, look = "ring" }: { parts: readonly PotShare[]
   const total = parts.reduce((sum, { chips }) => sum + chips, 0);
   return (
     <section aria-label="有效总底池" className="rounded-xl border border-line bg-surface p-3">
-      <div className="flex items-start justify-between gap-2">
-        <p>
-          <span className="block text-sm text-muted">有效总底池</span>
-          <span className="block text-2xl font-semibold tabular-nums">{chipText(total)}</span>
-        </p>
+      <PotHeading title="有效总底池" chips={total}>
+        {/* A small icon after the name, with a 44px place to tap that takes no room from the line */}
         <button
           type="button"
           aria-label={shown === "ring" ? "换成横条" : "换成圆圈"}
           onClick={() => setPicked(shown === "ring" ? "bar" : "ring")}
-          className="grid size-11 shrink-0 place-items-center rounded-lg border border-line text-highlight"
+          className="-my-2.5 grid size-11 shrink-0 place-items-center text-highlight"
         >
-          <ArrowLeftRight className="size-5" aria-hidden />
+          <ArrowLeftRight className="size-4" aria-hidden />
         </button>
-      </div>
+      </PotHeading>
       {shown === "ring" ? (
         <div className="mt-2 flex items-center gap-1.5">
           <PotRing parts={parts} total={total} />

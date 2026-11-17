@@ -1,5 +1,6 @@
 import type { PotBreakdown } from "@holdem-knight/core";
 import { cn } from "@/lib/cn";
+import { PotHeading } from "./PotShares";
 
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
 const percentText = (share: number, digits: number) => `${(share * 100).toFixed(digits)}%`;
@@ -76,10 +77,7 @@ export function PotColumns({
     (Math.max(chips, largest / MAX_HEIGHT_RATIO) / largest) * FULL_HEIGHT;
   return (
     <section aria-label="总底池" className="rounded-xl border border-line bg-surface p-3">
-      <p>
-        <span className="block text-sm text-muted">总底池</span>
-        <span className="block text-2xl font-semibold tabular-nums">{chipText(total)}</span>
-      </p>
+      <PotHeading title="总底池" chips={total} />
       <div className="mt-3 flex items-end gap-2">
         {pots.map((pot, index) => (
           <div key={potName(index, pots.length)} className="min-w-0 flex-1">

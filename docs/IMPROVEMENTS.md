@@ -1204,7 +1204,8 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Problem: A tap on dead money opened a dialog with a line for each pool to add up. The pot's ring was small beside its legend, and the figures in the cover table were as large as the text, so five digits were crowded and six ran into the next column.
 - Proposal:
   - A tap on dead money goes into the amount in its frame, with all of it selected, to type over in place. No dialog. A tap on dead money in a pot's legend lands in the same field.
-  - The ring is 144px across, from 112px. In the legend beside it a name and its chips share a line, with the chances on a line of their own under the name.
+  - The ring is 144px across, from 112px, with thinner strokes: the outer ring and the inner arc are each about a third thinner than at first. In the legend beside it a name and its chips share a line, with the chances on a line of their own under the name, and the dot of color before each name is 10px, from 12px.
+  - A box about a pot is headed by its name at the left, at 17px, a little under a section's title, and its chips at the right. This holds for a pot's insurance block, 主池 or 边池, and for the two overviews, 有效总底池 and 总底池, which had the name small and gray over the chips. In 有效总底池 the switch between ring and bar is a small icon straight after the name.
   - The figures of the cover table are 14px, a size under the text. The names of the rows keep the size of the text.
 - Settled details:
   - The limit is an iPhone 16, 393px wide. There a name of six characters and chips of six digits share a line of the legend without wrapping, five digits sit easily in a column of the table, and six just fill it without touching the next.
@@ -1212,8 +1213,9 @@ Records discussions of feature and process improvements: what was proposed, how 
   - Dead money is one amount now. It is kept as one folded player's chips, as the amount a pot starts with always was: with side pots it fills the main pot up to the smallest stake and the rest goes on to the side pots. Dead money from several folded players can no longer be entered a player at a time. A hand kept with several pools shows their sum, and typing replaces them.
   - Typing an amount, or Enter on the amount a pot starts with, makes it the organizer's own, and the frame turns from dashed green to that of the flop. Leaving the field untouched leaves it as it was.
   - The amount is 16px, as is the custom premium, which is drawn at the size of the figures around it: under 16px a phone zooms the page when a field takes the focus.
+  - Dead money's frame has the stack, the name and the amount one under the other. Side by side, name and amount pushed the frame off the board's line once the river was on it.
   - `DeadMoneyDialog` is removed.
-- Decision: do. Checked in the browser preview in dark mode at 393px with names of six characters, stakes of 250,000 and dead money of 100,000: nothing in the pot's block was wider than its place, and the page did not scroll sideways. Not yet tried on a phone, where the keyboard and the zoom on focus matter.
+- Decision: do. Checked in the browser preview in dark mode at 393px with names of six characters, stakes of 250,000 and dead money of 100,000: nothing in the pot's block was wider than its place, and the page did not scroll sideways. The board's line was checked with the river on it, and the three headings in a hand with a side pot and in one dealt to the river. Not yet tried on a phone, where the keyboard and the zoom on focus matter.
 - Tracking: PR #87
 
 ## Not doing or deferred
