@@ -329,7 +329,8 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       input: { ...input, outs: entry.outs },
       playerId: leaderId,
       decisionKey: keyOf("overtake"),
-      outsText: `反超 ${entry.outs} 张`,
+      name: "反超",
+      count: entry.outs,
       // Tie cards a rule does not sell are still named, so nobody takes them for outs
       outsLines: !tiesSold && entry.ties > 0 ? [`平分 ${entry.ties} 张（不计入）`] : [],
     };
@@ -345,7 +346,8 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       },
       playerId: leaderId,
       decisionKey: keyOf("tie"),
-      outsText: `平分 ${entry.ties} 张`,
+      name: "平分",
+      count: entry.ties,
     };
     return entry.outs > 0 ? [overtake, tie] : [tie];
   }

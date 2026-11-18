@@ -43,9 +43,11 @@ export interface PotCoverOffer {
   readonly playerId: string;
   /** Tells this offer's decision from any other's. */
   readonly decisionKey: string;
-  /** What is sold, in words, before the odds: 反超 2 张, 平分 4 张. */
-  readonly outsText: string;
-  /** Every card of the kind, where this cover is not on all of them: it follows the count in gray, 反超 3 / 5. */
+  /** What the cards do, with the cover's number where there are two: 反超, 平分 II. */
+  readonly name: string;
+  /** How many cards the cover is on. */
+  readonly count: number;
+  /** Every card of the kind, where the cards are known: it follows the count in gray, 3 / 5 张. */
   readonly outsTotal?: number;
   /**
    * Opens the cards, to give some up or sell some apart. Null where there is nothing to choose, or
@@ -181,11 +183,11 @@ function potParts(
 }
 
 /**
- * What an offer sells, as the line over its covers: the count of cards, all of them in gray after
- * it where some are given up, the odds, and the pen that opens the cards.
+ * What an offer sells, as the line over its covers, all at one size: 反超 · 3 / 5 张 | 赔 15.0,
+ * with the total in gray, and at the right the pen that opens the cards.
  */
 function OfferHeading({
-  offer: { outsText, outsTotal, onManage },
+  offer: { name, count, outsTotal, onManage },
   oddsHundredths,
   locked = false,
 }: {
@@ -196,24 +198,28 @@ function OfferHeading({
   locked?: boolean;
 }) {
   return (
-    <span className="flex min-w-0 items-center font-semibold whitespace-nowrap tabular-nums">
-      {outsText}
-      {outsTotal !== undefined && (
-        <span className="font-normal text-muted">&nbsp;/ {outsTotal}</span>
-      )}
-      {oddsHundredths !== undefined && <> · 赔 {formatOddsText(formatOdds(oddsHundredths))}</>}
+    <div className="flex min-h-6 items-center justify-between gap-2">
+      <span className="min-w-0 truncate text-base leading-6 font-semibold tabular-nums">
+        {name} · {count}
+        {outsTotal !== undefined && <span className="text-muted"> / {outsTotal}</span>} 张
+        {oddsHundredths !== undefined && (
+          <>
+            <span className="text-muted"> | </span>赔 {formatOddsText(formatOdds(oddsHundredths))}
+          </>
+        )}
+      </span>
       {onManage !== undefined && (
         <button
           type="button"
           aria-label="管理 Outs"
           disabled={!onManage || locked}
           onClick={onManage ?? undefined}
-          className="-my-2.5 grid h-11 w-9 shrink-0 place-items-center text-highlight disabled:text-muted disabled:opacity-40"
+          className="-my-2.5 -mr-2 grid size-11 shrink-0 place-items-center text-highlight disabled:text-muted disabled:opacity-40"
         >
           <SquarePen className="size-4" aria-hidden />
         </button>
       )}
-    </span>
+    </div>
   );
 }
 
@@ -292,7 +298,13 @@ function CoverTable({
   onPick,
   saving,
   decisions,
+  show = "all",
 }: {
+  /**
+   * The heading with its cards, the covers under it, or both. The two are drawn apart for the last
+   * offer of a pot, whose heading ends the stretch the pot's ring stays pinned over.
+   */
+  show?: "all" | "head" | "body";
   offer: PotCoverOffer;
   quote: PricedQuote;
   pick: Pick;
@@ -317,7 +329,7 @@ function CoverTable({
   );
   const { customText } = pick;
 
-  return (
+  const head = (
     <div className="mt-2 border-t border-line pt-2">
       <OfferHeading offer={offer} oddsHundredths={oddsHundredths} locked={locked} />
       <ul className="text-xs text-muted">
@@ -325,6 +337,13 @@ function CoverTable({
           <li key={line}>{line}</li>
         ))}
       </ul>
+    </div>
+  );
+  if (show === "head") return head;
+
+  return (
+    <div>
+      {show === "all" && head}
 
       {/* Once decided, the covers not taken fade and the one bought stays as it was picked */}
       <fieldset disabled={locked} className="mt-2">
@@ -494,66 +513,81 @@ function Block({ label, parts, potChips, offers, saving, decisions }: PotCoverPr
       : undefined;
   const cover = ring?.chosen;
   const [only] = quoted;
+  const last = quoted.at(-1);
+  const tableProps = (offer: PotCoverOffer, quote: PricedQuote) => ({
+    offer,
+    quote,
+    pick: pickOf(offer.decisionKey),
+    onPick: (pick: Pick) => {
+      setPicks((current) => ({ ...current, [offer.decisionKey]: pick }));
+      setTouched(offer.decisionKey);
+    },
+    saving,
+    decisions,
+  });
 
   return (
     <section
       aria-label={`${label}保险`}
       className="mt-3 rounded-xl border border-line bg-surface p-3"
     >
-      <PotHeading title={label} chips={potChips} />
-      <div className="mt-2 flex items-center gap-1.5">
-        <PotRing
-          parts={parts}
-          total={potChips}
-          {...(ring && {
-            cover: {
-              premium: cover ? cover.premiumChips / ring.shareChips : 0,
-              payout: cover ? cover.payoutChips / ring.shareChips : 0,
-            },
-          })}
-        >
-          {ring && cover && (
-            <>
-              <span className="text-[11px] leading-none whitespace-nowrap text-muted">
-                {ring.kindText}
-                {ring.chosenLabel}
-              </span>
-              <span className="text-[15px] leading-tight font-semibold tabular-nums">
-                {/* What the cover pays against the pot share: a full pot reads 100% */}
-                {Math.round((cover.payoutChips / ring.shareChips) * 100)}%
-              </span>
-            </>
-          )}
-        </PotRing>
-        <PotLegend parts={parts} total={potChips} plain />
-      </div>
-
-      {quoted.map(({ offer, quote }) =>
-        quote.ok ? (
-          <CoverTable
-            key={offer.decisionKey}
-            offer={offer}
-            quote={quote}
-            pick={pickOf(offer.decisionKey)}
-            onPick={(pick) => {
-              setPicks((current) => ({ ...current, [offer.decisionKey]: pick }));
-              setTouched(offer.decisionKey);
-            }}
-            saving={saving}
-            decisions={decisions}
-          />
-        ) : quoted.length === 1 && only && !offer.onManage ? (
-          // A pot with nothing to sell says why under the ring, with no heading of its own
-          <QuoteBlocked key={offer.decisionKey} block={quote.block} />
-        ) : (
-          // With cards to give up, the heading stays: too many outs for the odds table can be
-          // brought within it that way
-          <div key={offer.decisionKey} className="mt-2 border-t border-line pt-2">
-            <OfferHeading offer={offer} />
-            <QuoteBlocked block={quote.block} />
+      {/*
+        The pot's name and ring stay at the top of the page while its tables scroll under them,
+        and let go once the heading of the last table reaches them: they are pinned within this
+        stretch, which ends with that heading.
+      */}
+      <div>
+        <div className="sticky top-0 z-10 -mx-3 -mt-3 rounded-t-xl bg-surface px-3 pt-3 pb-1">
+          <PotHeading title={label} chips={potChips} />
+          <div className="mt-2 flex items-center gap-1.5">
+            <PotRing
+              parts={parts}
+              total={potChips}
+              {...(ring && {
+                cover: {
+                  premium: cover ? cover.premiumChips / ring.shareChips : 0,
+                  payout: cover ? cover.payoutChips / ring.shareChips : 0,
+                },
+              })}
+            >
+              {ring && cover && (
+                <>
+                  <span className="text-[11px] leading-none whitespace-nowrap text-muted">
+                    {ring.kindText}
+                    {ring.chosenLabel}
+                  </span>
+                  <span className="text-[15px] leading-tight font-semibold tabular-nums">
+                    {/* What the cover pays against the pot share: a full pot reads 100% */}
+                    {Math.round((cover.payoutChips / ring.shareChips) * 100)}%
+                  </span>
+                </>
+              )}
+            </PotRing>
+            <PotLegend parts={parts} total={potChips} plain />
           </div>
-        ),
-      )}
+        </div>
+
+        {quoted.map(({ offer, quote }, index) =>
+          quote.ok ? (
+            <CoverTable
+              key={offer.decisionKey}
+              show={index === quoted.length - 1 ? "head" : "all"}
+              {...tableProps(offer, quote)}
+            />
+          ) : quoted.length === 1 && only && !offer.onManage ? (
+            // A pot with nothing to sell says why under the ring, with no heading of its own
+            <QuoteBlocked key={offer.decisionKey} block={quote.block} />
+          ) : (
+            // With cards to give up, the heading stays: too many outs for the odds table can be
+            // brought within it that way
+            <div key={offer.decisionKey} className="mt-2 border-t border-line pt-2">
+              <OfferHeading offer={offer} />
+              <QuoteBlocked block={quote.block} />
+            </div>
+          ),
+        )}
+      </div>
+      {last?.quote.ok && <CoverTable show="body" {...tableProps(last.offer, last.quote)} />}
     </section>
   );
 }
@@ -597,7 +631,6 @@ export function PotInsurance({
       offers={offers.map((offer): PotCoverOffer => {
         const { key, baseKey, kind, part, input, outs, allOuts, skippedOuts } = offer;
         const name = `${KIND_TEXT[kind]}${part ? ` ${PART_TEXT[part]}` : ""}`;
-        const some = outs.length < allOuts.length;
         // Named once for the kind, under its first cover
         const lead = part !== 2;
         // Tie cards a rule does not sell are still named, so nobody looks for them among the outs
@@ -610,15 +643,16 @@ export function PotInsurance({
           input,
           playerId: leader.playerId,
           decisionKey: key,
-          // Where the cover is not on every card, the count reads against all of them: 反超 3 / 5
-          outsText: some ? `${name} ${outs.length}` : `${name} ${outs.length} 张`,
-          ...(some && { outsTotal: allOuts.length }),
+          name,
+          count: outs.length,
+          outsTotal: allOuts.length,
           // One card leaves nothing to choose between
           onManage: allOuts.length > 1 && !decided ? () => onManage(offer) : null,
-          // The cards bought on one line, whoever they are good for, and those given up on the next
+          // The cards bought on one line, whoever they are good for, and those given up on the
+          // next, under each cover of the kind
           outsLines: [
             ...(outs.length > 0 ? [cardsText(outs)] : []),
-            ...(lead && skippedOuts.length > 0 ? [`弃买 : ${cardsText(skippedOuts)}`] : []),
+            ...(skippedOuts.length > 0 ? [`弃买 : ${cardsText(skippedOuts)}`] : []),
             ...(lead && unsold.length > 0
               ? [`平分 ${unsold.length} 张（不计入）：${cardsText(unsold)}`]
               : []),

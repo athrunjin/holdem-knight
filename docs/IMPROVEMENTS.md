@@ -1284,6 +1284,23 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 393px in 选牌计算 from the tools page: each button in each state, a split made, cards moved both ways, a card given up from the second cover, the second cover binned, emptied and made again, the order switched, and the two tables on the page after 确认. The look of a card picked out was checked by its styles, which have no transition. Not yet tried on a phone or in a game.
 - Tracking: PR #87
 
+### #I-064 Pot columns on one line, a pot's ring pinned over its tables, and one heading for every table
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-18
+- Source: discussion
+- Problem: In 总底池 a pot with a second line about its outs stood higher than the pot beside it, so neither the columns nor the names 主池 and 边池 lined up. Scrolling through a pot's tables took its ring off the page, and with it what the arcs in it stood for. The headings of the tables read differently with and without cards given up, in two sizes, with the pen straight after the text.
+- Proposal:
+  - The columns of 总底池 stand on one line, and the names under them sit on one line. A pot with tie outs has one more line under its name, and the others do not move for it. The columns have square corners.
+  - While a pot's tables scroll, its name, chips, ring and legend stay at the top of the page. They let go once the heading of the pot's last table has gone under them.
+  - Every table is headed the same way, at one size: 「反超 · 3 / 5 张 | 赔 15.0」. The first part is 反超 or 平分, with I or II where the cards are sold as two covers. The total stays gray. The pen is at the right end of the line.
+  - The cards given up are named under each of the two covers, not only the first.
+- Settled details:
+  - The total is always there in 选牌计算, also when nothing is given up: 「反超 · 4 / 4 张」. Outs数速算 has no cards, so it reads 「反超 · 7 张 | 赔 4.0」 and has no pen.
+  - The stretch the ring is pinned over ends with the last table's heading, so that table's own rows scroll past with nothing over them.
+- Decision: do. Checked in the browser preview in dark mode at 393px with a hand of three players and a side pot: the columns' bottoms and the names' tops at the same height, the corners square, the headings' text, and the pinned ring's place at six points of the scroll. Not yet tried on a phone.
+- Tracking: PR #87
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
