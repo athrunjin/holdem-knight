@@ -37,6 +37,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0030](0030-transfers-marked-as-made.md) | Marking transfers as made | Accepted |
 | [0031](0031-game-stages.md) | The stages of a game: open, settling, pending and complete | Accepted |
 | [0032](0032-insurance-covers-priced-by-payout.md) | Insurance covers priced by what they pay, and a rule that keeps its odds table | Accepted |
+| [0033](0033-tie-cards-sold-as-their-own-cover.md) | Tie cards sold as a cover of their own | Accepted |
 
 ## Template
 

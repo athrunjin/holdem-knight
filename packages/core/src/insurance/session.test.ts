@@ -5,6 +5,7 @@ import { type Card, DECK, makeCard } from "./cards";
 import { potTotals } from "./pots";
 import { RULE_30 } from "./rules";
 import {
+  arrangeOuts,
   blankInsuranceHand,
   buyOffer,
   dealCard,
@@ -242,6 +243,186 @@ describe("offers", () => {
       board: [c("2c"), c("7h"), c("9d"), c("3s")],
     });
     expect(handOffers(tied, RULE_30).map((o) => o.quote.ok)).toEqual([true, true]);
+  });
+
+  describe("tie cards", () => {
+    // Two queens take the pot from the kings, and any ten gives both the same straight
+    const broadway = hand({
+      players: [player("a", 500, ["Ac", "Kd"]), player("b", 500, ["Ad", "Qd"])],
+      board: ["Kc", "Qh", "Jd", "9s"].map(c),
+    });
+    // Four twos on the board: an ace on the river is the kicker for both, and nothing beats the ace
+    const quads = hand({
+      players: [player("a", 500, ["As", "Kd"]), player("b", 500, ["Qd", "Jd"])],
+      board: ["2c", "2d", "2h", "2s"].map(c),
+    });
+
+    it("sells them as an offer of their own after the cards that overtake", () => {
+      const [overtake, tie, ...rest] = handOffers(broadway, RULE_30);
+      expect(rest).toEqual([]);
+      expect(overtake).toMatchObject({ key: "river-0-a", kind: "overtake", input: { outs: 2 } });
+      expect(overtake?.outs.toSorted()).toEqual([c("Qs"), c("Qc")].toSorted());
+      expect(tie).toMatchObject({
+        key: "river-0-a-tie",
+        kind: "tie",
+        // Half the pot of 1,000 stays with the leader when a ten comes, so the other half is the
+        // most a cover on the tens may pay
+        input: { outs: 4, keptChips: 500, capChips: 500, shareChips: 1000, stakeChips: 500 },
+      });
+      if (!tie?.quote.ok) throw new Error("Expected a quote");
+      expect(tie.quote.fullPot.payoutChips).toBeLessThanOrEqual(500);
+      // The cards that overtake are still covered up to the whole pot
+      expect(overtake?.input.capChips).toBeUndefined();
+      expect(tie?.outs.toSorted()).toEqual(["Ts", "Th", "Td", "Tc"].map(c).toSorted());
+      // Each is priced by its own count of cards
+      expect(overtake?.quote).toMatchObject({
+        ok: true,
+        oddsHundredths: RULE_30.oddsHundredths[1],
+      });
+      expect(tie?.quote).toMatchObject({ ok: true, oddsHundredths: RULE_30.oddsHundredths[3] });
+    });
+
+    it("covers two thirds of the pot where a tie splits it three ways", () => {
+      // An ace on the river is everyone's kicker to the four twos
+      const threeWay = hand({
+        players: [...quads.players, player("c", 500, ["Th", "9h"])],
+        board: quads.board,
+      });
+      const [tie] = handOffers(threeWay, RULE_30);
+      expect(tie).toMatchObject({
+        kind: "tie",
+        input: { outs: 3, shareChips: 1500, keptChips: 500, capChips: 1000 },
+      });
+      if (!tie?.quote.ok) throw new Error("Expected a quote");
+      const { halfPot, fullPot } = tie.quote;
+      // Half the pot, and above it the cap
+      expect(halfPot?.payoutChips).toBeGreaterThanOrEqual(750);
+      expect(fullPot.payoutChips).toBeGreaterThan(halfPot?.payoutChips ?? 0);
+      expect(fullPot.payoutChips).toBeLessThanOrEqual(1000);
+    });
+
+    it("leaves them unsold under a rule that does not count them", () => {
+      const offers = handOffers(broadway, { ...RULE_30, tieOuts: "exclude" });
+      expect(offers.map((o) => [o.key, o.input.outs])).toEqual([["river-0-a", 2]]);
+    });
+
+    it("offers only them to a leader no card overtakes", () => {
+      const offers = handOffers(quads, RULE_30);
+      expect(offers.map((o) => [o.key, o.kind, o.input.outs])).toEqual([
+        ["river-0-a-tie", "tie", 3],
+      ]);
+      // With no tie cards sold, the same hand has nothing to insure
+      const [none] = handOffers(quads, { ...RULE_30, tieOuts: "exclude" });
+      expect(none?.quote).toEqual({ ok: false, block: "no-outs" });
+    });
+
+    it("decides and settles each offer on its own", () => {
+      const offers = handOffers(broadway, RULE_30);
+      const [overtake, tie] = offers;
+      if (!overtake?.quote.ok || !tie?.quote.ok) throw new Error("Expected quotes");
+      const first = buyOffer(broadway, overtake, "p1", overtake.quote.stake, 1);
+      expect(offersDecided(first, offers)).toBe(false);
+      const both = buyOffer(first, tie, "p2", tie.quote.stake, 1);
+      expect(offersDecided(both, offers)).toBe(true);
+      expect(both.purchases.map((p) => p.tie)).toEqual([undefined, true]);
+
+      // A ten splits the pot: only the cover on the tie cards pays
+      expect(dealCard(both, c("Ts")).purchases.map((p) => p.hit)).toEqual([false, true]);
+      expect(dealCard(both, c("Qs")).purchases.map((p) => p.hit)).toEqual([true, false]);
+      expect(dealCard(both, c("3h")).purchases.map((p) => p.hit)).toEqual([false, false]);
+      // Taking one back leaves the other
+      expect(reviseOffer(both, "river-0-a").purchases.map((p) => p.id)).toEqual(["p2"]);
+    });
+  });
+
+  describe("outs given up or sold apart", () => {
+    // Two queens overtake, four tens tie
+    const broadway = hand({
+      players: [player("a", 500, ["Ac", "Kd"]), player("b", 500, ["Ad", "Qd"])],
+      board: ["Kc", "Qh", "Jd", "9s"].map(c),
+    });
+    const tens = (suits: string) => [...suits].map((suit) => c(`T${suit}`));
+
+    it("prices an offer on the cards that are left, and pays only on those", () => {
+      const skipped = arrangeOuts(broadway, "river-0-a-tie", { skipped: tens("shd"), second: [] });
+      const [overtake, tie] = handOffers(skipped, RULE_30);
+      // The other offer is as it was
+      expect(overtake).toMatchObject({ input: { outs: 2 }, skippedOuts: [] });
+      expect(tie).toMatchObject({ input: { outs: 1 }, outs: tens("c"), baseKey: "river-0-a-tie" });
+      expect(tie?.part).toBeUndefined();
+      expect(tie?.allOuts).toHaveLength(4);
+      expect(tie?.skippedOuts.toSorted()).toEqual(tens("shd").toSorted());
+      // One card is priced as one card
+      expect(tie?.quote).toMatchObject({ ok: true, oddsHundredths: RULE_30.oddsHundredths[0] });
+
+      if (!tie?.quote.ok) throw new Error("Expected a quote");
+      const bought = buyOffer(skipped, tie, "p", tie.quote.stake, tie.quote.oddsHundredths);
+      expect(bought.purchases[0]?.outs).toEqual(tens("c"));
+      expect(dealCard(bought, c("Tc")).purchases[0]?.hit).toBe(true);
+      expect(dealCard(bought, c("Ts")).purchases[0]?.hit).toBe(false);
+    });
+
+    it("takes the cards back, and leaves other offers alone", () => {
+      const skipped = arrangeOuts(broadway, "river-0-a", { skipped: [c("Qs")], second: [] });
+      expect(handOffers(skipped, RULE_30)[0]).toMatchObject({ input: { outs: 1 } });
+      const other = arrangeOuts(skipped, "river-0-a-tie", { skipped: tens("s"), second: [] });
+      const back = arrangeOuts(other, "river-0-a", { skipped: [], second: [] });
+      expect(back.skippedOuts).toEqual({ "river-0-a-tie": tens("s") });
+      expect(handOffers(back, RULE_30).map((o) => o.input.outs)).toEqual([2, 3]);
+    });
+
+    it("always sells at least one card, and ignores cards that are not outs", () => {
+      const all = arrangeOuts(broadway, "river-0-a", { skipped: [c("Qs"), c("Qc")], second: [] });
+      expect(handOffers(all, RULE_30)[0]).toMatchObject({ input: { outs: 2 }, skippedOuts: [] });
+      const stray = arrangeOuts(broadway, "river-0-a", { skipped: [c("2h")], second: [c("3h")] });
+      expect(handOffers(stray, RULE_30).map((o) => [o.key, o.input.outs])).toEqual([
+        ["river-0-a", 2],
+        ["river-0-a-tie", 4],
+      ]);
+    });
+
+    it("sells some of the cards as a second cover, each priced on its own cards", () => {
+      const split = arrangeOuts(broadway, "river-0-a-tie", {
+        skipped: tens("s"),
+        second: tens("dc"),
+      });
+      const offers = handOffers(split, RULE_30);
+      expect(offers.map((o) => [o.key, o.kind, o.part, o.input.outs])).toEqual([
+        ["river-0-a", "overtake", undefined, 2],
+        ["river-0-a-tie", "tie", 1, 1],
+        ["river-0-a-tie-2", "tie", 2, 2],
+      ]);
+      const [, first, second] = offers;
+      expect(first?.outs).toEqual(tens("h"));
+      expect(second?.outs.toSorted()).toEqual(tens("dc").toSorted());
+      // Both know every card of the kind and the ones given up, and share the kind's key
+      for (const offer of [first, second]) {
+        expect(offer).toMatchObject({ baseKey: "river-0-a-tie", skippedOuts: tens("s") });
+        expect(offer?.allOuts).toHaveLength(4);
+      }
+      expect(first?.quote).toMatchObject({ oddsHundredths: RULE_30.oddsHundredths[0] });
+      expect(second?.quote).toMatchObject({ oddsHundredths: RULE_30.oddsHundredths[1] });
+      // The same cap on each: a tie costs half the pot whichever cover it lands on
+      expect(second?.input).toMatchObject({ capChips: 500, keptChips: 500 });
+
+      // Each is decided and settled on its own cards
+      if (!first?.quote.ok || !second?.quote.ok) throw new Error("Expected quotes");
+      const one = buyOffer(split, first, "p1", first.quote.stake, 1);
+      expect(offersDecided(declineOffer(one, "river-0-a"), offers)).toBe(false);
+      const both = buyOffer(one, second, "p2", second.quote.stake, 1);
+      expect(offersDecided(declineOffer(both, "river-0-a"), offers)).toBe(true);
+      expect(dealCard(both, c("Th")).purchases.map((p) => p.hit)).toEqual([true, false]);
+      expect(dealCard(both, c("Td")).purchases.map((p) => p.hit)).toEqual([false, true]);
+      expect(dealCard(both, c("Ts")).purchases.map((p) => p.hit)).toEqual([false, false]);
+    });
+
+    it("has one cover when the second would hold every card sold", () => {
+      const all = arrangeOuts(broadway, "river-0-a-tie", { skipped: [], second: tens("shdc") });
+      const [, tie, ...rest] = handOffers(all, RULE_30);
+      expect(rest).toEqual([]);
+      expect(tie).toMatchObject({ key: "river-0-a-tie", input: { outs: 4 } });
+      expect(tie?.part).toBeUndefined();
+    });
   });
 
   it("needs no decision when nothing can be sold", () => {

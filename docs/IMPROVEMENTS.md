@@ -1171,6 +1171,180 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 412px and 360px, from the tools page and in a game: the defaults, the outs and tie cards, the lead switched, a cover, dead money set, another player picked, chips typed and written to the table, and the prices against the rule. 选牌计算 was opened at both entries after the change. Not yet tried on a phone.
 - Tracking: PR #86
 
+### #I-059 Tie cards bought apart from the cards that overtake
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-17
+- Source: discussion
+- Problem: With 平分牌算 outs on, tie cards were added to the cards that overtake and sold as one cover at the odds for the sum. They could not be bought on their own, and a line under the heading only said they were counted in. On the custom row, a tap anywhere went into the premium, even to pick a premium already typed.
+- Proposal:
+  - With 平分牌算 outs on and tie cards in the pot, the pot's block has two tables under the one ring: 「反超 6 张 · 赔 5.0」 first, then 「平分 2 张 · 赔 15.0」. Each is priced by its own count of cards. With no card that overtakes, only the tie table shows.
+  - The tie table has the same columns as the other, and the rows 保本, 半池, 封顶 and 自定义. A tie cover pays no more than a tie can cost the buyer: of a pot of 300, 150 between two players, and 200 where three would split it. 封顶 is that most, and is a row only where it is more than 半池, so between two players there is none. It has no 分开购买 switch, which is kept for splitting the cards that overtake later.
+  - Each table has its own 确认投保 and 不购买. The next card can be picked once both are decided, and each is settled on its own cards.
+  - The ring's inner arc shows the row picked last, in either table. With two tables its middle says which: 反超保本, 平分满池. Before anything is picked it shows the first table's 保本.
+  - 中了到手 in the tie table counts the part of the split pot the buyer still wins: on a pot of 3,000 with a tie cover that pays 1,005 for 67, a tie leaves 1,500 + 1,005 − 67 = 2,438. It never comes to more than the pot.
+  - The custom row: with no premium typed, a tap anywhere on it goes into the premium with the 0 selected, as before. With a premium typed, a tap on the premium goes into it with all of it selected, and a tap anywhere else on the row only picks the row.
+  - A purchase on tie cards reads 「平分 4 张」 in the settlement of a street and in 保险记录, where one on the other cards reads 「2 outs」.
+- Settled details:
+  - Both ways of working and both entries use it, as they share the block. In Outs数速算 the outs and the tie cards typed are the two counts, and a tie leaves each of the two players half the pot.
+  - In Outs数速算 each count may now be as large as the odds table, since each is priced on its own. Together they were held to the table's length.
+  - With 平分牌算 outs off, nothing changes: the tie cards are named under the heading as not counted.
+  - A tied lead that cannot be insured, or a pot with no cards to sell, says so once and not once per table.
+  - A first version gave the tie table the other's rows, 满池 included, which paid the whole pot while half of it was still the buyer's: 4,300 from a pot of 3,000. The organizer then set the limit at what a tie can cost ([ADR 0033](adr/0033-tie-cards-sold-as-their-own-cover.md)).
+  - What a tie can cost is worked out from the cards: the smallest share any tie card leaves the buyer. Three players in a pot do not make it two thirds if no card splits it three ways. In Outs数速算 there are two players, so it is half.
+  - How tie cards are insured elsewhere was looked up. The one platform whose rules could be read first hand does not count cards that split the pot as outs at all, and two write-ups say the same. No rule for a cover on tie cards was found, so this one is the game's own.
+- Decision: do. Checked in the browser preview in dark mode at 412px: both tables in Outs数速算 from the tools page, tie cards only, the switch off, the ring after a pick in each table, the custom row with and without a premium, and in a game a hand from the cards where one cover was bought and the other turned down, a tie card dealt and settled, and a tie purchase from Outs数速算 in 保险记录. The limit was checked at 393px with a tie between two and a tie among three. Not yet tried on a phone.
+- Tracking: PR #87
+
+### #I-060 Dead money typed in place, a larger pot ring, and smaller figures in the cover table
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-17
+- Source: discussion
+- Problem: A tap on dead money opened a dialog with a line for each pool to add up. The pot's ring was small beside its legend, and the figures in the cover table were as large as the text, so five digits were crowded and six ran into the next column.
+- Proposal:
+  - A tap on dead money goes into the amount in its frame, with all of it selected, to type over in place. No dialog. A tap on dead money in a pot's legend lands in the same field.
+  - The ring is 144px across, from 112px, with thinner strokes: the outer ring and the inner arc are each about a third thinner than at first. In the legend beside it a name and its chips share a line, with the chances on a line of their own under the name, and the dot of color before each name is 10px, from 12px.
+  - A box about a pot is headed by its name at the left, at 17px, a little under a section's title, and its chips at the right. This holds for a pot's insurance block, 主池 or 边池, and for the two overviews, 有效总底池 and 总底池, which had the name small and gray over the chips. In 有效总底池 the switch between ring and bar is a small icon straight after the name.
+  - The figures of the cover table are 14px, a size under the text. The names of the rows keep the size of the text.
+- Settled details:
+  - The limit is an iPhone 16, 393px wide. There a name of six characters and chips of six digits share a line of the legend without wrapping, five digits sit easily in a column of the table, and six just fill it without touching the next.
+  - The chances moved under the name because a name, the chances and the chips do not fit on one line beside a larger ring. On a narrower phone a long name is cut short, as before.
+  - Dead money is one amount now. It is kept as one folded player's chips, as the amount a pot starts with always was: with side pots it fills the main pot up to the smallest stake and the rest goes on to the side pots. Dead money from several folded players can no longer be entered a player at a time. A hand kept with several pools shows their sum, and typing replaces them.
+  - Typing an amount, or Enter on the amount a pot starts with, makes it the organizer's own, and the frame turns from dashed green to that of the flop. Leaving the field untouched leaves it as it was.
+  - The amount is 16px, as is the custom premium, which is drawn at the size of the figures around it: under 16px a phone zooms the page when a field takes the focus.
+  - Dead money's frame has the stack, the name and the amount one under the other. Side by side, name and amount pushed the frame off the board's line once the river was on it.
+  - `DeadMoneyDialog` is removed.
+- Decision: do. Checked in the browser preview in dark mode at 393px with names of six characters, stakes of 250,000 and dead money of 100,000: nothing in the pot's block was wider than its place, and the page did not scroll sideways. The board's line was checked with the river on it, and the three headings in a hand with a side pot and in one dealt to the river. Not yet tried on a phone, where the keyboard and the zoom on focus matter.
+- Tracking: PR #87
+
+### #I-061 A pot drawn as three rings
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-17
+- Source: discussion
+- Problem: The pot's ring had one arc inside it for a cover: as long as the payout, with the premium laid over its start. The two could not be read apart where they overlapped, and nothing tied the premium to the dead money it is usually paid out of.
+- Proposal:
+  - The outer ring reads clockwise from the top: the leaders, then the players behind, then the dead money, which so ends at the top. It read dead money, leaders, players.
+  - A middle ring is what the cover picked pays, clockwise from the top, as long as its part of the pot share: half a turn for half the pot, the whole turn for a full pot. It is a little wider than the ring inside it.
+  - The inner ring is the premium. Where the pot has dead money it runs back from the top first, under the dead money of the outer ring, until it is as long as that. Only what is more than the dead money goes on clockwise from the top. With no dead money it is all clockwise.
+- Settled details:
+  - The payout's ring is a bright green at full strength (`#45e06a`), so it stands clear of the leader's green in the ring around it. It was first the win color at part strength, which read too dull, then a neon green (`#39ff14`), which was harsh. The premium is a dark red at full strength (`#c8423a`), a little brighter than the darkened loss color it had.
+  - Four other colorings were drawn at the size of an iPhone 16 first, three at half strength and one at 85%. Half strength over the dark page came out darker than the leader's own green, whatever the hue, so a bright color at half strength was not to be had. The colors in use were kept.
+  - The legend beside the ring was already in the order the outer ring now has.
+- Decision: do. Checked in the browser preview at 393px by the arcs drawn: dead money larger than the premium, a premium larger than the dead money, and no dead money. Not yet looked at on a phone.
+- Tracking: PR #87
+
+### #I-062 Outs given up, in a dialog that manages an offer's cards
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-18
+- Source: discussion
+- Problem: An offer was sold on all of its cards or not at all. A buyer who did not want to pay for some of them, or whose outs ran past the odds table, had no way to leave cards out. Under the heading, the cards that overtake were listed a line for each opponent, which repeated cards good for more than one.
+- Proposal:
+  - Under an offer's heading the cards it is bought on are one line, whoever they are good for.
+  - After the heading 「反超 2 张 · 赔 15.0」 is a pen that opens 「主池 反超 Outs 管理」, or 平分 for tie cards. It is there in 选牌计算 only, as Outs数速算 knows no cards. It is dimmed for an offer of one card, where there is nothing to choose, and for an offer already bought or turned down.
+  - The dialog has two parts. The first is headed 「反超 3 / 5 · 赔 6.0」, the cards bought of all the cards, with the total in gray and the odds for the cards bought, then those cards, then 弃买 at the right under them. The second is headed 「弃买 · 2 / 5」, then the cards given up, then 购买. Under both are 取消 and 确认.
+  - A tap picks a card out, any number of them, and another tap lets it go. 弃买 lights once a card bought is picked and moves the cards picked to the second part; 购买 does the same the other way.
+  - At least one card stays bought. Moving the last says 「最少保留一张 Outs，如不想购买可在保险主界面选择」.
+  - 确认 keeps the change and closes, with nothing asked. 取消 asks 「取消本次修改？」 only if something was changed.
+  - With cards given up, the offer's heading on the page reads 「反超 3 / 5 · 赔 6.0」, the cards bought on the first line under it and 「弃买 : 7♠ 7♥」 on the second. The covers are priced on the cards bought, and a purchase pays on those only.
+- Settled details:
+  - The cards given up are kept on the hand by offer (`skippedOuts`), and an offer leaves them out: `handOffers` gives each offer the cards it sells, all its cards, and those given up. A card no longer among the outs is ignored, and giving up every card gives up none.
+  - A change to the pot or the players, which already opened every decision again, also takes back the cards given up.
+  - An offer with more outs than the odds table keeps its heading and pen, so it can be brought within the table by giving cards up.
+  - Buying some of the cards apart from the rest followed in #I-063.
+  - Closing the dialog with the Escape key drops the change without asking.
+- Decision: do. Checked in the browser preview in dark mode at 393px in 选牌计算 from the tools page: cards given up and bought back, the last card refused, 确认 and both ways of 取消, and the heading, lines and prices on the page after. Not yet tried on a phone or in a game.
+- Tracking: PR #87
+
+### #I-063 Outs sold as two covers, and an outs dialog that sorts and picks by the part
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-18
+- Source: discussion
+- Problem: The outs dialog of #I-062 could only give cards up. A card picked out was shown by a ring that faded in, which did not show at all on a phone set to reduce motion. With many cards there was no way to pick them all or to see them by suit. The 分开购买 switch on the page still did nothing.
+- Proposal:
+  - A card picked out is framed in green with a tick on its top right corner. Neither fades in, so both show whatever the system does about motion.
+  - Each part's heading ends in a button that switches the order of its cards between 大小, the highest first, which it starts as, and 花色, suit by suit.
+  - Under each part's cards, at the left, are 全选, which picks every card of the part, or none if all are picked, and 反选, which turns the pick round and can be pressed while some but not all are picked.
+  - Left of 弃买 in the first part is 分开买. It can be pressed while some but not all of the part's cards are picked, and makes them a second cover: the first part is then 反超 I and the new one 反超 II, or 平分 I and 平分 II, each with its own count and odds.
+  - With two covers, the button in that place reads 池 II in the first and 池 I in the second, and moves the cards picked to the other. The second has a bin at the end of its first line of cards, which gives all its cards up. A second cover left without cards goes, and the first is 反超 again.
+  - 购买 looks like 弃买: it had a filled look of its own.
+  - On the page the 分开购买 switch is gone. With two covers, the second has its own heading, table and decision under the first: 「平分 I 3 / 4 · 赔 10.0」, then 「平分 II 1 / 4 · 赔 30.0」.
+- Settled details:
+  - Each cover is priced on its own cards, with the same targets and the same limit as one cover would have, and pays on its own cards only. Four tie cards at 8.0 become three at 10.0 and one at 30.0.
+  - With two covers, the part of cards given up has 池 I and 池 II in place of 购买, to say which cover a card goes back to.
+  - Moving every card of the first cover to the second leaves one cover, which is then the first.
+  - At least one card stays bought across the two covers. A cover may be emptied by giving its cards up as long as the other holds some.
+  - The cards of the second cover are kept on the hand by the kind's key (`splitOuts`), beside the cards given up. The second cover's own key ends in `-2`, and every offer of a kind carries the key they share (`baseKey`). Both are optional in backups.
+  - The pen is dimmed once either cover of a kind is bought or turned down.
+  - The ring's middle names the cover its arcs are for with its part: 平分I保本.
+  - The switch is gone from Outs数速算 too, which shares the block and has no cards to split.
+- Decision: do. Checked in the browser preview in dark mode at 393px in 选牌计算 from the tools page: each button in each state, a split made, cards moved both ways, a card given up from the second cover, the second cover binned, emptied and made again, the order switched, and the two tables on the page after 确认. The look of a card picked out was checked by its styles, which have no transition. Not yet tried on a phone or in a game.
+- Tracking: PR #87
+
+### #I-064 Pot columns on one line, a pot's ring pinned over its tables, and one heading for every table
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-18
+- Source: discussion
+- Problem: In 总底池 a pot with a second line about its outs stood higher than the pot beside it, so neither the columns nor the names 主池 and 边池 lined up. Scrolling through a pot's tables took its ring off the page, and with it what the arcs in it stood for. The headings of the tables read differently with and without cards given up, in two sizes, with the pen straight after the text.
+- Proposal:
+  - The columns of 总底池 stand on one line, and the names under them sit on one line. A pot with tie outs has one more line under its name, and the others do not move for it. The columns have square corners.
+  - While a pot's tables scroll, its name, chips, ring and legend stay at the top of the page. They let go once the heading of the pot's last table has gone under them.
+  - Every table is headed the same way, at one size: 「反超 · 3 / 5 张 | 赔 15.0」. The first part is 反超 or 平分, with I or II where the cards are sold as two covers. The total stays gray. The pen is at the right end of the line.
+  - The cards given up are named under each of the two covers, not only the first.
+- Settled details:
+  - The total is always there in 选牌计算, also when nothing is given up: 「反超 · 4 / 4 张」. Outs数速算 has no cards, so it reads 「反超 · 7 张 | 赔 4.0」 and has no pen.
+  - The stretch the ring is pinned over ends with the last table's heading, so that table's own rows scroll past with nothing over them.
+- Decision: do. Checked in the browser preview in dark mode at 393px with a hand of three players and a side pot: the columns' bottoms and the names' tops at the same height, the corners square, the headings' text, and the pinned ring's place at six points of the scroll. Not yet tried on a phone.
+- Tracking: PR #87
+
+### #I-065 One card picker for the whole hand, kept as it is tapped
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-18
+- Source: discussion
+- Problem: The flop, the turn and each player's cards each opened a picker of their own, which kept nothing until 确认 and had to be closed before the next could be opened. A card taken elsewhere was only grayed, with nothing to say by whom. The arrow that cleared the board also put dead money back to what a pot starts with.
+- Proposal:
+  - The arrow moves to the right of the flop's name, and clears the flop and the turn only. Dead money is left as it is.
+  - The picker's title is a menu: 翻牌, 转牌 and each player in the pot, each with the cards it has of the cards it takes at the end of its line, 「(2/3)」. A tap on a line picks for that one, without leaving. 转牌 is gray, and cannot be picked for while the flop is short.
+  - At the right of the title an arrow takes back every card picked here: the board and every player's cards.
+  - A card taken is framed and carries a very small mark of whose it is: 翻, 转, or the first character of a player's name, its first two letters for a name in letters. Players who would share a mark are numbered, 王1 王2 or Ki1 Ki2. Board cards are in the chip gold and players' in green. Cards of the one being picked for are bright; the others are dimmed, with their mark, and cannot be tapped.
+  - A tap is the pick and is kept at once, so going to another line or leaving loses nothing. A hand may be left short of cards, and reads as not yet filled in. 确认 only closes.
+  - A tap on one of a player's two cards on the page opens the picker with that card let go and the other still picked. The next tap picks its replacement; a tap on the other card lets that one go too.
+- Settled details:
+  - The flop works as before: a card is let go by a tap, and a fourth is not picked until one is. The turn is one card, which the next pick replaces.
+  - While a flop card is being changed the flop is short, and a turn already picked is set aside. It comes back with the third flop card, unless it was taken in between.
+  - 取消 is gone from the picker, as there is nothing to take back.
+  - The card dealt through a hand first kept the old picker, and moved to this one in #I-066.
+  - The arrow by the flop's name is 32px, under the 44px kept elsewhere, as it sits inside the board's line.
+- Decision: do. Checked in the browser preview in dark mode at 393px from the tools page: a flop of two kept when moving to a player, the lines of the menu and the turn refused, a third card for a player ignored, the turn replaced, the turn set aside and back again, and the picker opened from a player's card. Not yet tried on a phone or in a game.
+- Tracking: PR #87
+
+### #I-066 A sliver on the pot ring, cards dealt in the hand's picker, and Outs数速算 recorded to the card
+
+- Type: bug, feature
+- Date: reported, decided and completed 2026-11-18
+- Source: trial on a phone, discussion
+- Problem: On a phone, a pot of 7,560 with 600 of dead money drew a gold sliver at the top of the ring, running from the dead money into the leader's part. Other amounts of dead money, or a cover, did not. Apart from that, the card dealt through a hand still had the old picker, and Outs数速算 had no pen on its tables, kept the pot open to change after a cover was bought, and had no way to say whether the card came.
+- Proposal:
+  - Every arc of the ring is drawn as one dash that begins where the circle's outline begins, turned into its place, with a gap two turns long after it. This holds wherever the ring is used: the insurance block of both ways of working, at both entries, and the overview.
+  - 记录转牌 or 记录河牌, by what the board needs, stands under the insurance in both ways of working. It cannot be pressed until every offer is bought or turned down. It was 选择转牌 in 选牌计算, and missing in Outs数速算.
+  - In 选牌计算 it opens the hand's picker for that card alone: the title does not open, there is no arrow to clear, the cards already in show whose they are and cannot be changed, and 取消 stands beside 确认, which waits for a card. The river is picked nowhere else.
+  - In Outs数速算 it asks 「转牌击中保险？」 with 击中 and 未击中. With covers on both kinds of card it asks which came: 击中反超, 击中平分 or 未击中.
+  - Outs数速算 has the pen at the right of each table's heading, as 选牌计算 has. For now it says 功能开发中.
+  - Once a cover is bought in Outs数速算, the card insured, the dead money, the players, their chips and outs and who leads can no longer be changed.
+  - The line under a cover bought reads 「已投保 · 保费 25」, without the payout under it, which is on the row above.
+- Settled details:
+  - The cause of the sliver: an arc was a dash pushed along the outline by an offset, with a gap of just the rest of the turn. For the last arc, which ends at the top, the pattern then began exactly on the edge between its dash and its gap. Whether a renderer drew a hair of the dash there depended on the rounding of those exact lengths, which is why one amount of dead money showed it and others did not. It could not be made to show in the desktop browser, so the fix rests on the reasoning, and on no arc beginning on an edge any more.
+  - Answering in Outs数速算 settles the covers bought in the game, each as hit or missed, and clears the outs for the next pot. From the tools page, where nothing is recorded, it only clears them.
+  - A cover turned down does not close the pot to change; only one bought does.
+  - The old picker, with nothing left to use it, is removed (`CardPicker`).
+- Decision: do. Checked in the browser preview in dark mode at 393px. In a game, Outs数速算: the pen and its notice, the button waiting for both offers, the pot closed after a purchase, the question with both kinds, and a hit settled in the records with the seat's chips. From the tools page, 选牌计算 with the reported hand and chips: the arcs as drawn, and a turn dealt in the picker with the title shut and the other cards closed. Not yet tried on a phone, where the sliver showed.
+- Tracking: PR #87
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

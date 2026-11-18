@@ -21,6 +21,8 @@ export interface InsuranceRecorder {
   onRevise: (purchaseId: string) => boolean;
   /** Purchases still in effect. */
   boughtIds: ReadonlySet<string>;
+  /** Settles a purchase once the card is known. */
+  onSettle: (purchaseId: string, hit: boolean) => void;
 }
 
 /** Working from the cards of a hand, or from a count of outs for a quick price. */
@@ -70,6 +72,13 @@ function useDecisions(recorder: InsuranceRecorder | undefined): Decisions | unde
     revise(key) {
       const decision = decided.get(key);
       if (decision?.kind === "bought" && !recorder.onRevise(decision.purchaseId)) return;
+      write(key, undefined);
+    },
+    settle(key, hit) {
+      const decision = decided.get(key);
+      if (decision?.kind === "bought" && recorder.boughtIds.has(decision.purchaseId)) {
+        recorder.onSettle(decision.purchaseId, hit);
+      }
       write(key, undefined);
     },
   };

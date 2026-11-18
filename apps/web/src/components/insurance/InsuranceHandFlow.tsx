@@ -1,4 +1,5 @@
 import {
+  arrangeOuts,
   buyOffer,
   type Card,
   contestedStakes,
@@ -20,13 +21,12 @@ import {
   type Standings,
   undoDeal,
 } from "@holdem-knight/core";
-import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Plus, RotateCcw } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { BOARD_PLACES, CardFace } from "./CardFace";
-import { CardPicker } from "./CardPicker";
-import { DeadMoneyDialog } from "./DeadMoneyDialog";
+import { type CardTarget, HandCardPicker, playerMarks } from "./HandCardPicker";
 import { HandPlayerRow, HoleCards, type StandingNote } from "./HandPlayerRow";
 import {
   DeadMoney,
@@ -34,12 +34,12 @@ import {
   nextPlayers,
   PRESET_DEAD_CHIPS,
   RoundAction,
-  SectionReset,
   SectionTitle,
 } from "./HandSections";
 import { HandSummary } from "./HandSummary";
 import type { InsuranceSeat } from "./InsuranceCalculator";
 import type { Decisions } from "./LeaderQuote";
+import { OutsManager } from "./OutsManager";
 import { PotColumns, potName } from "./PotColumns";
 import { PotInsurance } from "./PotInsurance";
 import { type PotShare, PotShares } from "./PotShares";
@@ -71,10 +71,6 @@ interface InsuranceHandFlowProps {
 }
 
 const STREET_TEXT = { turn: "转牌", river: "河牌" } as const;
-
-/** The cards taken, less the ones being picked again. */
-const withoutCards = (used: ReadonlySet<Card>, free: readonly Card[]) =>
-  new Set([...used].filter((card) => !free.includes(card)));
 
 /** The hand with the dead money it starts with, marked as not yet set. */
 const withPresetPools = (hand: InsuranceHand): InsuranceHand => ({
@@ -197,7 +193,8 @@ function SettleStep({
               </span>
             </p>
             <p className="text-sm text-muted tabular-nums">
-              {purchase.outs.length} outs · 保费 {chipText(purchase.premiumChips)}
+              {purchase.tie ? `平分 ${purchase.outs.length} 张` : `${purchase.outs.length} outs`} ·
+              保费 {chipText(purchase.premiumChips)}
             </p>
           </li>
         ))}
@@ -255,17 +252,23 @@ export function InsuranceHandFlow({
 }: InsuranceHandFlowProps) {
   // A hand carried on from keeps its own dead money; a new one starts with the preset
   const [kept, setHand] = useState(() => open ?? withPresetPools(createHand()));
-  const [pickingCards, setPickingCards] = useState<{ playerId: string; replace?: number }>();
-  const [editingDead, setEditingDead] = useState(false);
-  const [pickingStreet, setPickingStreet] = useState<"flop" | "turn">();
+  // What cards are being picked for: 翻牌, 转牌 or a player, by its ID
+  const [picking, setPicking] = useState<string>();
+  // The card picked for the street being dealt, until it is confirmed
+  const [dealt, setDealt] = useState<Card>();
+  // A turn set aside while the flop is short of a card, to come back once it is whole again
+  const heldTurn = useRef<Card | undefined>(undefined);
+  // Dead money's field, where a tap on dead money in a pot's legend lands
+  const deadRef = useRef<HTMLInputElement>(null);
   const [finishing, setFinishing] = useState(false);
+  // The kind of card whose cards are open, by the key its covers share
+  const [managing, setManaging] = useState<string>();
   // Why a tap on the plus added nobody
   const [notice, setNotice] = useState<string>();
 
   const hand = withFirstPlayers(kept, seats);
   const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? "未知玩家";
   const totals = potTotals(handPotEntries(hand));
-  const usedCards = new Set([...hand.players.flatMap((p) => p.cards), ...hand.board]);
   const street = nextStreet(hand.board);
 
   // Hands saved before the board moved onto this screen can still be on the street step
@@ -283,6 +286,18 @@ export function InsuranceHandFlow({
   // biome-ignore lint/correctness/useExhaustiveDependencies: the players count only by who holds which cards
   const standings = useMemo(() => handStandings({ players, board }), [cardsKey, board]);
   const potCount = new Set(offers.map((o) => o.potIndex)).size;
+  // A leader's offers on a pot share one block: the cards that overtake, then the tie cards
+  const blocks = offers
+    .filter((o, index) => {
+      const before = offers[index - 1];
+      return before?.potIndex !== o.potIndex || before.leader.playerId !== o.leader.playerId;
+    })
+    .map((first) => ({
+      first,
+      group: offers.filter(
+        (o) => o.potIndex === first.potIndex && o.leader.playerId === first.leader.playerId,
+      ),
+    }));
   // Side pots are drawn pot by pot; a single pot keeps the ring
   const breakdown = complete ? handPotBreakdown(hand) : [];
   // While buying, a lone pot is drawn in its own insurance block, so the overview would repeat it
@@ -301,7 +316,7 @@ export function InsuranceHandFlow({
 
   function reset() {
     setHand(withPresetPools(createHand()));
-    setPickingCards(undefined);
+    setPicking(undefined);
     setNotice(undefined);
   }
 
@@ -334,12 +349,20 @@ export function InsuranceHandFlow({
     ...hand,
     players: hand.players.map((p) => (p.playerId === playerId ? { ...p, ...change } : p)),
     declined: [],
+    skippedOuts: {},
   });
 
   /** Adds the next player of the table, or says that nobody is left to add. */
   function addPlayer() {
     const [next] = nextPlayers(hand.players, seats, 1);
-    if (next) update({ ...hand, players: [...hand.players, next], declined: [] });
+    if (next)
+      update({
+        ...hand,
+        players: [...hand.players, next],
+        declined: [],
+        skippedOuts: {},
+        splitOuts: {},
+      });
     else setNotice(store ? "桌上没有更多玩家了。" : "玩家已经加满了。");
   }
 
@@ -360,13 +383,42 @@ export function InsuranceHandFlow({
         p.playerId === playerId ? { ...p, cover } : cover ? { ...p, cover: false } : p,
       ),
       declined: [],
+      skippedOuts: {},
     });
   }
 
   /** Changes the cards entered for the board. Cards dealt through the hand are settled as they come. */
   function saveBoard(next: readonly Card[]) {
-    update({ ...hand, board: next, declined: [] });
-    setPickingStreet(undefined);
+    update({ ...hand, board: next, declined: [], skippedOuts: {}, splitOuts: {} });
+  }
+
+  /**
+   * Keeps the cards picked for the flop, the turn or a player, as they are picked. The turn stands
+   * on a whole flop: while a flop card is being changed it is set aside, and comes back with the
+   * third card unless it has been taken meanwhile.
+   */
+  function saveCards(id: string, cards: readonly Card[]) {
+    if (id === "turn") {
+      heldTurn.current = undefined;
+      saveBoard([...hand.board.slice(0, 3), ...cards]);
+    } else if (id === "flop") {
+      const turn = hand.board[3] ?? heldTurn.current;
+      const whole = cards.length === 3;
+      heldTurn.current = whole ? undefined : turn;
+      const free = turn !== undefined && !cards.includes(turn);
+      saveBoard(whole && free && turn !== undefined ? [...cards, turn] : cards);
+    } else {
+      update(withPlayer(id, { cards }));
+    }
+  }
+
+  /** Opens the cards for a target. A tap on a player's card lets that card go, to be picked again. */
+  function pickFor(id: string, replace?: number) {
+    const player = hand.players.find((p) => p.playerId === id);
+    if (player && replace !== undefined) {
+      update(withPlayer(id, { cards: player.cards.filter((_, place) => place !== replace) }));
+    }
+    setPicking(id);
   }
 
   /** The contested pot by who put it in, each with where they stand: leaders first, dead money last. */
@@ -390,7 +442,7 @@ export function InsuranceHandFlow({
         tone: "dead",
         label: "死钱",
         chips: totals.deadChips,
-        onSelect: editable ? () => setEditingDead(true) : undefined,
+        onSelect: editable ? () => deadRef.current?.focus() : undefined,
       },
     ];
   }
@@ -409,7 +461,33 @@ export function InsuranceHandFlow({
     revise: (key) => update(reviseOffer(hand, key)),
   };
 
-  const picking = pickingCards && hand.players.find((p) => p.playerId === pickingCards.playerId);
+  const managed = offers.find((offer) => offer.baseKey === managing);
+  const marks = playerMarks(hand.players.map((p) => nameOf(p.playerId)));
+  const flopCards = hand.board.slice(0, 3);
+  const targets: CardTarget[] = [
+    { id: "flop", label: "翻牌", count: 3, cards: flopCards, mark: "翻", tone: "board" },
+    {
+      id: "turn",
+      label: "转牌",
+      count: 1,
+      cards: hand.board.slice(3, 4),
+      mark: "转",
+      tone: "board",
+      // The turn comes after a whole flop
+      disabled: flopCards.length < 3,
+      faint: true,
+    },
+    ...hand.players.map(
+      (p, index): CardTarget => ({
+        id: p.playerId,
+        label: nameOf(p.playerId),
+        count: 2,
+        cards: p.cards,
+        mark: marks[index] ?? "",
+        tone: "player",
+      }),
+    ),
+  ];
   const missing = missingParts(hand, nameOf);
 
   return (
@@ -419,25 +497,35 @@ export function InsuranceHandFlow({
           <section aria-labelledby="hand-pot-title" className="mt-1">
             <SectionTitle id="hand-pot-title" title="底池信息" />
             <div className="relative flex flex-wrap items-stretch justify-center gap-1.5">
-              {editable && (
-                <SectionReset
-                  label="清空底池信息"
-                  onReset={() => update(withPresetPools({ ...hand, board: [], declined: [] }))}
+              {/* The arrow sits at the end of the flop's own name, and clears the board only */}
+              <div className="relative flex">
+                <StreetCards
+                  label="翻牌"
+                  cards={flopCards}
+                  count={3}
+                  onPick={editable ? () => pickFor("flop") : undefined}
                 />
-              )}
-              <StreetCards
-                label="翻牌"
-                cards={hand.board.slice(0, 3)}
-                count={3}
-                onPick={editable ? () => setPickingStreet("flop") : undefined}
-              />
+                {editable && (
+                  <button
+                    type="button"
+                    aria-label="清空翻牌和转牌"
+                    onClick={() => {
+                      heldTurn.current = undefined;
+                      saveBoard([]);
+                    }}
+                    className="absolute right-0 bottom-0 grid size-8 place-items-center text-muted"
+                  >
+                    <RotateCcw className="size-3.5" strokeWidth={1.75} aria-hidden />
+                  </button>
+                )}
+              </div>
               <StreetCards
                 label={hand.board.length > 3 ? "转牌" : "转牌·可选"}
                 cards={hand.board.slice(3, 4)}
                 count={1}
                 optional
                 disabled={hand.board.length < 3}
-                onPick={editable ? () => setPickingStreet("turn") : undefined}
+                onPick={editable ? () => pickFor("turn") : undefined}
               />
               {hand.board.length === 5 && (
                 <StreetCards label="河牌" cards={hand.board.slice(4)} count={1} />
@@ -446,7 +534,24 @@ export function InsuranceHandFlow({
               <DeadMoney
                 chips={totals.deadChips}
                 preset={hand.presetPools === true}
-                onEdit={editable ? () => setEditingDead(true) : undefined}
+                inputRef={deadRef}
+                edits={
+                  editable
+                    ? {
+                        // One amount, kept as it is typed and saved once the field is left. Typed
+                        // or confirmed, it is the organizer's own from then on.
+                        onChips: (chips) =>
+                          setHand({
+                            ...hand,
+                            pools: chips > 0 ? [chips] : [],
+                            presetPools: false,
+                            declined: [],
+                            skippedOuts: {},
+                          }),
+                        onDone: () => store?.save(hand),
+                      }
+                    : undefined
+                }
               />
             </div>
           </section>
@@ -507,6 +612,7 @@ export function InsuranceHandFlow({
                                           ...hand,
                                           players: hand.players.filter((p) => p !== player),
                                           declined: [],
+                                          skippedOuts: {},
                                         }),
                                     },
                             }
@@ -516,14 +622,7 @@ export function InsuranceHandFlow({
                       <HoleCards
                         name={nameOf(playerId)}
                         cards={player.cards}
-                        onPick={
-                          editable
-                            ? (replace) =>
-                                setPickingCards(
-                                  replace === undefined ? { playerId } : { playerId, replace },
-                                )
-                            : undefined
-                        }
+                        onPick={editable ? (replace) => pickFor(playerId, replace) : undefined}
                       />
                     </HandPlayerRow>
                   </li>
@@ -572,14 +671,15 @@ export function InsuranceHandFlow({
           {pricing && !street && <p className="text-sm text-muted">公共牌已发完，没有保险可买。</p>}
           {pricing && street && (
             <>
-              {offers.map((offer) => (
+              {blocks.map(({ first, group }) => (
                 <PotInsurance
-                  key={offer.key}
-                  offer={offer}
-                  label={potName(offer.potIndex, potCount)}
+                  key={first.key}
+                  offers={group}
+                  label={potName(first.potIndex, potCount)}
                   nameOf={nameOf}
                   rule={rule}
                   decisions={decisions}
+                  onManage={(offer) => setManaging(offer.baseKey)}
                 />
               ))}
               <button
@@ -588,7 +688,7 @@ export function InsuranceHandFlow({
                 onClick={() => update({ ...hand, step: "deal" })}
                 className={cn(primaryClass, "mt-3")}
               >
-                选择{STREET_TEXT[street]}
+                记录{STREET_TEXT[street]}
               </button>
             </>
           )}
@@ -628,65 +728,75 @@ export function InsuranceHandFlow({
         </button>
       )}
 
-      {editingDead && (
-        <DeadMoneyDialog
-          pools={hand.pools.map(String)}
-          onConfirm={(next) => {
-            // Confirmed in the dialog, the amount is the organizer's own, even left as it was
-            update({ ...hand, pools: next.map(Number), presetPools: false, declined: [] });
-            setEditingDead(false);
+      {managed && (
+        <OutsManager
+          title={`${potName(managed.potIndex, potCount)} ${managed.kind === "tie" ? "平分" : "反超"} Outs 管理`}
+          kindText={managed.kind === "tie" ? "平分" : "反超"}
+          cards={managed.allOuts}
+          plan={{
+            skipped: managed.skippedOuts,
+            second: offers.find((o) => o.baseKey === managing && o.part === 2)?.outs ?? [],
           }}
-          onCancel={() => setEditingDead(false)}
-        />
-      )}
-
-      {pickingCards && picking && (
-        <CardPicker
-          title={`${nameOf(picking.playerId)}：${
-            picking.cards.length === 2 ? "更换手牌" : "选择两张手牌"
-          }`}
-          count={2}
-          usedCards={withoutCards(usedCards, picking.cards)}
-          initial={picking.cards}
-          replace={pickingCards.replace}
-          onConfirm={(cards) => {
-            update(withPlayer(picking.playerId, { cards }));
-            setPickingCards(undefined);
+          oddsOf={(count) => rule.oddsHundredths[count - 1]}
+          onConfirm={(plan) => {
+            update(arrangeOuts(hand, managed.baseKey, plan));
+            setManaging(undefined);
           }}
-          onCancel={() => setPickingCards(undefined)}
+          onCancel={() => setManaging(undefined)}
         />
       )}
 
-      {pickingStreet === "flop" && (
-        <CardPicker
-          title="选择三张翻牌"
-          count={3}
-          usedCards={withoutCards(usedCards, hand.board.slice(0, 3))}
-          initial={hand.board.slice(0, 3)}
-          onConfirm={(flop) => saveBoard([...flop, ...hand.board.slice(3)])}
-          onCancel={() => setPickingStreet(undefined)}
+      {picking !== undefined && editable && (
+        <HandCardPicker
+          targets={targets}
+          active={picking}
+          onActive={setPicking}
+          onCards={saveCards}
+          onReset={() => {
+            heldTurn.current = undefined;
+            update({
+              ...hand,
+              board: [],
+              players: hand.players.map((p) => ({ ...p, cards: [] })),
+              declined: [],
+              skippedOuts: {},
+              splitOuts: {},
+            });
+          }}
+          onClose={() => setPicking(undefined)}
         />
       )}
 
-      {pickingStreet === "turn" && (
-        <CardPicker
-          title="选择转牌"
-          count={1}
-          optional
-          usedCards={withoutCards(usedCards, hand.board.slice(3, 4))}
-          initial={hand.board.slice(3, 4)}
-          onConfirm={(turn) => saveBoard([...hand.board.slice(0, 3), ...turn])}
-          onCancel={() => setPickingStreet(undefined)}
-        />
-      )}
-
-      {hand.step === "deal" && (
-        <CardPicker
-          title={`选择${street ? STREET_TEXT[street] : "公共牌"}`}
-          count={1}
-          usedCards={usedCards}
-          onConfirm={([card]) => card !== undefined && update(dealCard(hand, card))}
-          onCancel={() => update({ ...hand, step: "buy" })}
+      {hand.step === "deal" && street && (
+        // The card dealt through the hand, in the same picker: the cards already in show whose
+        // they are and stay as they are, and the river is picked nowhere else
+        <HandCardPicker
+          targets={[
+            ...targets,
+            {
+              id: "deal",
+              label: STREET_TEXT[street],
+              count: 1,
+              cards: dealt === undefined ? [] : [dealt],
+              mark: street === "turn" ? "转" : "河",
+              tone: "board",
+            },
+          ]}
+          active="deal"
+          onActive={() => {}}
+          onCards={(_, cards) => setDealt(cards[0])}
+          onReset={() => {}}
+          onClose={() => {
+            if (dealt === undefined) return;
+            setDealt(undefined);
+            update(dealCard(hand, dealt));
+          }}
+          locked={{
+            onCancel: () => {
+              setDealt(undefined);
+              update({ ...hand, step: "buy" });
+            },
+          }}
         />
       )}
     </>

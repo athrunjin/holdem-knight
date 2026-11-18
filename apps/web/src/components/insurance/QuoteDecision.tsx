@@ -44,12 +44,8 @@ export function DecisionBar({
       className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-line bg-bg p-2"
     >
       {decision.kind === "bought" ? (
-        <p className="min-w-0">
-          <span className="block font-semibold">
-            已投保 · 保费 {chipText(decision.premiumChips)}
-          </span>
-          <span className="block text-sm text-muted">赔付 {chipText(decision.payoutChips)}</span>
-        </p>
+        // The payout is on the row bought, just above
+        <p className="min-w-0 font-semibold">已投保 · 保费 {chipText(decision.premiumChips)}</p>
       ) : (
         <p className="min-w-0 font-semibold">已选择不购买</p>
       )}

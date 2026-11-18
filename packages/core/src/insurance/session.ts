@@ -19,13 +19,7 @@ import {
 } from "./analysis";
 import type { Card } from "./cards";
 import { buildPots, type PotEntry } from "./pots";
-import {
-  type InsuranceQuote,
-  type QuoteInput,
-  type QuoteOption,
-  quoteInsurance,
-  soldOuts,
-} from "./quote";
+import { type InsuranceQuote, type QuoteInput, type QuoteOption, quoteInsurance } from "./quote";
 
 export function blankInsuranceHand(
   base: Pick<InsuranceHand, "id" | "organizerId" | "gameId" | "createdAt">,
@@ -85,46 +79,119 @@ function handPots({
   return analyzeAllIn(hands, dead, board);
 }
 
+/** What the cards of an offer do to its buyer: take the pot from them, or make them split it. */
+export type OfferKind = "overtake" | "tie";
+
 export interface HandOffer {
   readonly key: string;
+  /**
+   * The key of all the cards of this kind for this leader on this pot, which is this offer's own
+   * key unless the cards are sold as two covers.
+   */
+  readonly baseKey: string;
+  readonly kind: OfferKind;
+  /** Which of the two covers this is, where the cards of its kind are sold as two. */
+  readonly part?: 1 | 2;
   readonly street: InsuranceStreet;
   readonly potIndex: number;
   readonly pot: PotAnalysis;
   readonly leader: PotLeader;
-  /** The cards this offer sells. */
+  /** The cards this offer sells: of its kind, less those given up and those of the other cover. */
   readonly outs: readonly Card[];
+  /** Every card of its kind, however it is sold or given up, in the order they are found. */
+  readonly allOuts: readonly Card[];
+  /** The cards of its kind the buyer gives up, which no cover is priced on or pays on. */
+  readonly skippedOuts: readonly Card[];
   readonly input: QuoteInput;
   readonly quote: InsuranceQuote;
 }
 
-/** One offer for each leader of each pot, for the card on sale. */
+/**
+ * The offers for the card on sale, for each leader of each pot. Cards that take the pot from the
+ * leader are one offer. Under a rule that sells tie cards, those are an offer of their own, priced
+ * by their own count and listed after the first; a leader with tie cards only has just that one.
+ * A cover on tie cards pays no more than a tie can cost: half the pot when two would split it, two
+ * thirds when three would.
+ *
+ * The buyer may give up cards of a kind, and may have some of them sold as a second cover: each
+ * cover is then priced on its own cards, and the second is listed straight after the first. At
+ * least one card is always sold.
+ */
 export function handOffers(hand: InsuranceHand, rule: InsuranceRule): HandOffer[] {
   const street = nextStreet(hand.board);
   if (!street) return [];
   return handPots(hand).flatMap((pot, potIndex) =>
-    pot.leaders.map((leader): HandOffer => {
-      const input: QuoteInput = {
-        rule,
-        street,
-        potChips: pot.amountChips,
-        shareChips: leader.shareChips,
-        stakeChips: leader.stakeChips,
-        outs: soldOuts(rule, leader),
-        blockedTie: tieBlocksInsurance(pot),
+    pot.leaders.flatMap((leader): HandOffer[] => {
+      const blockedTie = tieBlocksInsurance(pot);
+      const offers = (
+        kind: OfferKind,
+        allOuts: readonly Card[],
+        tieShareChips?: number,
+      ): HandOffer[] => {
+        const base = `${street}-${potIndex}-${leader.playerId}`;
+        const baseKey = kind === "tie" ? `${base}-tie` : base;
+        const { first, second, skipped } = outsPlan(hand, baseKey, allOuts);
+        const offer = (outs: readonly Card[], part?: 1 | 2): HandOffer => {
+          const input: QuoteInput = {
+            rule,
+            street,
+            potChips: pot.amountChips,
+            shareChips: leader.shareChips,
+            stakeChips: leader.stakeChips,
+            outs: outs.length,
+            // A tie leaves the buyer part of the pot, so a cover on tie cards pays no more than the rest
+            ...(tieShareChips !== undefined && {
+              keptChips: tieShareChips,
+              capChips: leader.shareChips - tieShareChips,
+            }),
+            blockedTie,
+          };
+          return {
+            key: part === 2 ? `${baseKey}-2` : baseKey,
+            baseKey,
+            kind,
+            ...(part !== undefined && { part }),
+            street,
+            potIndex,
+            pot,
+            leader,
+            outs,
+            allOuts,
+            skippedOuts: skipped,
+            input,
+            quote: quoteInsurance(input),
+          };
+        };
+        return second.length > 0 ? [offer(first, 1), offer(second, 2)] : [offer(first)];
       };
-      const tied = rule.tieOuts === "include" ? leader.tieCards : [];
-      return {
-        key: `${street}-${potIndex}-${leader.playerId}`,
-        street,
-        potIndex,
-        pot,
-        leader,
-        outs: [...leader.outs, ...tied],
-        input,
-        quote: quoteInsurance(input),
-      };
+      const overtake = offers("overtake", leader.outs);
+      // A lead with nothing to insure says so once, not once for each kind of card
+      if (rule.tieOuts !== "include" || blockedTie || leader.tieCards.length === 0) {
+        return overtake;
+      }
+      const tie = offers("tie", leader.tieCards, leader.tieShareChips);
+      return leader.outs.length > 0 ? [...overtake, ...tie] : tie;
     }),
   );
+}
+
+/**
+ * How the cards of one kind are sold: the first cover, the second where there is one, and the
+ * cards given up. Only cards still among the outs count. Giving up every card gives up none, and
+ * a second cover that would hold every card sold is the first.
+ */
+function outsPlan(hand: InsuranceHand, baseKey: string, allOuts: readonly Card[]) {
+  const given = hand.skippedOuts?.[baseKey] ?? [];
+  const apart = hand.splitOuts?.[baseKey] ?? [];
+  const kept = allOuts.filter((card) => !given.includes(card));
+  const sold = kept.length > 0 ? kept : allOuts;
+  const second = sold.filter((card) => apart.includes(card));
+  const first = sold.filter((card) => !apart.includes(card));
+  return {
+    first: first.length > 0 ? first : second,
+    second: first.length > 0 ? second : [],
+    skipped: allOuts.filter((card) => !sold.includes(card)),
+  };
 }
 
 /** How the players who have their cards stand on the board so far. See `showdownStandings`. */
@@ -203,11 +270,36 @@ export function buyOffer(
     playerId: offer.leader.playerId,
     street: offer.street,
     outs: offer.outs,
+    ...(offer.kind === "tie" && { tie: true }),
     oddsHundredths,
     premiumChips: option.premiumChips,
     payoutChips: option.payoutChips,
   };
   return { ...hand, purchases: [...hand.purchases, purchase] };
+}
+
+/**
+ * Sets how the cards of one kind are sold, by the key they share (`HandOffer.baseKey`): which are
+ * given up, and which are sold as a second cover apart from the rest. With neither, they are all
+ * sold as one cover again.
+ */
+export function arrangeOuts(
+  hand: InsuranceHand,
+  baseKey: string,
+  plan: { readonly skipped: readonly Card[]; readonly second: readonly Card[] },
+): InsuranceHand {
+  const set = (
+    all: Readonly<Record<string, readonly number[]>> | undefined,
+    cards: readonly Card[],
+  ) => {
+    const { [baseKey]: _, ...others } = all ?? {};
+    return cards.length > 0 ? { ...others, [baseKey]: [...cards] } : others;
+  };
+  return {
+    ...hand,
+    skippedOuts: set(hand.skippedOuts, plan.skipped),
+    splitOuts: set(hand.splitOuts, plan.second),
+  };
 }
 
 export function declineOffer(hand: InsuranceHand, key: string): InsuranceHand {

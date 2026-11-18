@@ -33,6 +33,11 @@ export interface PotLeader {
   readonly outs: readonly Card[];
   /** Cards that make this leader split with more players than now. */
   readonly tieCards: readonly Card[];
+  /**
+   * What this leader still wins of the pot on a tie card: the smallest share any of them leaves,
+   * rounded down. Zero when there are no tie cards.
+   */
+  readonly tieShareChips: number;
   /** Who overtakes on which cards. A card can appear under several opponents. */
   readonly byOpponent: readonly OpponentOuts[];
 }
@@ -93,6 +98,7 @@ function leaderOf(
 ): PotLeader {
   const outs: Card[] = [];
   const tieCards: Card[] = [];
+  let tieShareChips: number | undefined;
   const opponents = new Map<string, Card[]>();
   for (const card of unseen) {
     const winners = winnersOf(pot.playerIds, cardsOf, [...board, card]);
@@ -103,6 +109,8 @@ function leaderOf(
       }
     } else if (winners.length > tiedLeaders) {
       tieCards.push(card);
+      const share = Math.floor(pot.amountChips / winners.length);
+      tieShareChips = Math.min(tieShareChips ?? share, share);
     }
   }
   return {
@@ -111,6 +119,7 @@ function leaderOf(
     shareChips: Math.floor(pot.amountChips / tiedLeaders),
     outs,
     tieCards,
+    tieShareChips: tieShareChips ?? 0,
     byOpponent: [...opponents].map(([opponent, cards]) => ({ playerId: opponent, cards })),
   };
 }

@@ -66,7 +66,7 @@ These are the product defaults. Rules are configurable by design, so organizers 
 | Time at table | From buy-in to leaving, starting again on 回桌, counted only while the game clock runs. A clock not started or paused means the game has not started or is paused (ADR 0023) |
 | Organizer playing | The organizer joins from their own row with a buy-in and stays on the organizer's card, counted among the seated. No table fee or wages apply to them, and their chips, insurance and charges add up on one row (ADR 0028) |
 | Fees at settlement | Table fees and wages go to the host by default. Each player's card lists the time sat and charged, wages per rate and the table fee, each of which can be waived until the game is settled. The organizer's card leads and folds. A 设置 button opens the game's insurance, table fee and wages in brief, with the charging rules behind an info icon. Going to settlement pauses the game clock (ADR 0022, ADR 0024, ADR 0027, #I-041) |
-| Insurance     | Chosen per game. Two built-in odds tables, default 1 pays 30. Tie cards count by default. Covers are named for what they pay: 保本 the stake, 半池 half the pot share, 满池 all of it and never more (ADR 0032). Cover limits per street: the stake, half, three quarters or the full pot share (default), or a percentage. Odds tables and the other settings are saved and picked apart (ADR 0026) |
+| Insurance     | Chosen per game. Two built-in odds tables, default 1 pays 30. Tie cards count by default, and are then sold as a cover of their own, apart from the cards that overtake (ADR 0033). Covers are named for what they pay: 保本 the stake, 半池 half the pot share, 满池 all of it and never more (ADR 0032). Cover limits per street: the stake, half, three quarters or the full pot share (default), or a percentage. Odds tables and the other settings are saved and picked apart (ADR 0026) |
 | Starting values | Game setup carries over the latest game. An option the latest game had off starts off, and when turned on uses the last game that had it; with none, the defaults |
 | Break-even    | Shows both "recover your own stake" and "recover the whole pot"                          |
 | Insurance seat| 保险 is a reserved seat with one hand, always last, and cannot leave. Short of chips, it buys whole hands to pay |
@@ -76,7 +76,7 @@ These are the product defaults. Rules are configurable by design, so organizers 
 | Insurance hand | One all-in from flop or turn to the river. Resumes if the page is left, and is recorded as one entry |
 | Short premium | A player who cannot pay a premium buys whole hands, after the organizer confirms a prompt |
 | Cover        | The deepest of the hand's players, at most one, who matches the next deepest |
-| Insured card  | The next card only. Each pot is priced apart, and tie cards are outs by default          |
+| Insured card  | The next card only. Each pot is priced apart. Tie cards are sold by default, apart from the outs. The buyer may give up some cards of a kind, or have some sold as a second cover priced on its own cards         |
 | Multi-device  | No need for several devices on one game. M1 is guest mode, Supabase arrives in M6        |
 | Workflow      | From M1 on: branch → PR → CI → merge                                                     |
 

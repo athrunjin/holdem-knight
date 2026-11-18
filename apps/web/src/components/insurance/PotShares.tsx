@@ -16,6 +16,30 @@ export interface PotShare {
 
 type Look = "ring" | "bar";
 
+/**
+ * What heads a box about a pot: its name at the left, a little under a section's title in size,
+ * and its chips at the right. Anything passed as children sits straight after the name.
+ */
+export function PotHeading({
+  title,
+  chips,
+  children,
+}: {
+  title: string;
+  chips: number;
+  children?: ReactNode;
+}) {
+  return (
+    <h3 className="flex items-center gap-1">
+      <span className="min-w-0 truncate text-[17px] font-semibold">{title}</span>
+      {children}
+      <span className="ml-auto shrink-0 pl-1 text-2xl font-semibold tabular-nums">
+        {chipText(chips)}
+      </span>
+    </h3>
+  );
+}
+
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
 const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
 
@@ -44,8 +68,10 @@ function withFills(parts: readonly PotShare[]): Filled[] {
 }
 
 /**
- * Each part by name with its chips. `plain` leaves out the 领先 tag and the share of the pot, for
- * where the ring beside it already says both.
+ * Each part by name with its chips, and its chances on a line of their own under the name, so a
+ * name of six characters and chips of six digits still share the line beside the ring on a phone
+ * 393px wide. `plain` leaves out the 领先 tag and the share of the pot, for where the ring beside
+ * it already says both.
  */
 export function PotLegend({
   parts,
@@ -60,22 +86,24 @@ export function PotLegend({
     <ul className="flex min-w-0 flex-1 flex-col gap-0.5">
       {withFills(parts).map(({ key, tone, fill, label, chips, note, onSelect }) => {
         const rowClass = cn(
-          "flex w-full items-center gap-1 rounded-lg px-1 py-0.5 text-left text-sm",
+          "flex w-full items-start gap-1 rounded-lg px-1 py-0.5 text-left text-sm",
           tone === "leader" && "bg-accent/15 font-semibold",
         );
         const cells = (
           <>
-            <span className={cn("size-3 shrink-0 rounded-full", fill.bar)} aria-hidden />
-            {/* A long name gives way, so the chances stay whole on the same line */}
-            <span className="flex min-w-0 flex-1 items-baseline gap-1">
-              <span className="truncate">{label}</span>
-              {tone === "leader" && !plain && (
-                <span className="shrink-0 text-xs text-accent">领先</span>
-              )}
+            {/* On the middle of the name's line */}
+            <span className={cn("mt-[5px] size-2.5 shrink-0 rounded-full", fill.bar)} aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="flex items-baseline gap-1">
+                <span className="truncate">{label}</span>
+                {tone === "leader" && !plain && (
+                  <span className="shrink-0 text-xs text-accent">领先</span>
+                )}
+              </span>
               {note && (
                 <span
                   className={cn(
-                    "shrink-0 text-[11px] whitespace-nowrap tabular-nums",
+                    "block truncate text-[11px] leading-tight tabular-nums",
                     tone === "leader" ? "text-accent" : "font-normal text-muted",
                   )}
                 >
@@ -144,13 +172,56 @@ export interface CoverShares {
   readonly payout: number;
 }
 
+/** One arc of a ring: `start` and `length` are parts of the turn, clockwise from the top. */
+function Arc({
+  radius,
+  width,
+  start,
+  length,
+  className,
+}: {
+  radius: number;
+  width: number;
+  start: number;
+  length: number;
+  className: string;
+}) {
+  if (length <= 0) return null;
+  const circumference = 2 * Math.PI * radius;
+  const drawn = Math.min(1, length) * circumference;
+  return (
+    <circle
+      cx="50"
+      cy="50"
+      r={radius}
+      fill="none"
+      strokeWidth={width}
+      // No round caps: an arc ends where its share ends.
+      //
+      // Every arc is one dash that starts where the circle's own outline starts, turned to its
+      // place, with a gap two turns long after it. It was a dash pushed along the outline by an
+      // offset, with a gap of just the rest of the turn: for an arc ending at the top, the
+      // pattern then began exactly on the edge between dash and gap, and a renderer working in
+      // single precision could land on the dash side and draw a sliver of it at the top, over
+      // the start of the ring. Nothing begins on an edge now, whatever the numbers.
+      strokeDasharray={`${drawn} ${circumference * 2}`}
+      transform={`rotate(${start * 360} 50 50)`}
+      className={className}
+    />
+  );
+}
+
 /**
- * The parts as a ring, clockwise from the top: the dead money, the leaders, then the players
- * behind. With `cover` it gains an inner arc as long as what the cover pays, in a clear light
- * green, with the premium laid over its start in dark red: a cover that pays half the pot for a
- * tenth of it is half a turn, its first tenth red. A payout is never less than its premium, so
- * the red never passes the end. Both are cut square at their ends, and the rest of the turn is
- * left empty. Whatever is passed as children sits in the middle.
+ * A pot as three rings, each read clockwise from the top.
+ *
+ * The outer ring is who put the pot in: the leaders, then the players behind, then the dead
+ * money, which so ends at the top.
+ *
+ * With `cover` come two more. The middle ring is what the cover pays, as long as its part of the
+ * pot share: half a turn for half the pot. The inner ring is the premium. Where the pot has dead
+ * money it runs back from the top first, under the dead money of the outer ring, and only what is
+ * more than the dead money goes on clockwise from the top; with no dead money it is all clockwise.
+ * The rest of each turn is left empty. Whatever is passed as children sits in the middle.
  */
 export function PotRing({
   parts,
@@ -160,72 +231,53 @@ export function PotRing({
 }: {
   parts: readonly PotShare[];
   total: number;
-  /** Missing or all zero leaves the ring without an inner arc. */
+  /** Missing or all zero leaves the pot's own ring alone. */
   cover?: CoverShares | undefined;
   children?: ReactNode;
 }) {
-  const radius = 42;
-  const circumference = 2 * Math.PI * radius;
-  const innerRadius = 30;
-  const innerCircumference = 2 * Math.PI * innerRadius;
+  const radius = 44;
   const part = (share: number) => Math.min(1, Math.max(0, share));
-  const payout = part(cover?.payout ?? 0) * innerCircumference;
-  // Laid over the start of the payout, never past its end: the arc is only as long as that
-  const premium = Math.min(part(cover?.premium ?? 0) * innerCircumference, payout);
-  // Round the ring from the top: the dead money, whoever leads, then the players behind. The
-  // legend beside it keeps its own order, and each part keeps the fill it has there.
+  const payout = part(cover?.payout ?? 0);
+  const premium = part(cover?.premium ?? 0);
+  // The legend beside the ring lists the parts in the same order, each with the fill it has here
   const shown = filled(parts);
-  const drawn = (["dead", "leader", "trailer"] as const).flatMap((tone) =>
+  const drawn = (["leader", "trailer", "dead"] as const).flatMap((tone) =>
     shown.filter((part) => part.tone === tone),
   );
+  const dead =
+    total > 0
+      ? shown.filter(({ tone }) => tone === "dead").reduce((sum, { chips }) => sum + chips, 0) /
+        total
+      : 0;
+  // The premium comes out of the dead money first, as far as that goes
+  const back = Math.min(premium, dead);
+  // A dark red at full strength, bright enough to read on the dark page
+  const premiumClass = "stroke-[#c8423a]";
   let start = 0;
   return (
-    <div className="relative size-28 shrink-0">
+    <div className="relative size-36 shrink-0">
       <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden>
-        <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="10" className="stroke-line" />
+        <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="7" className="stroke-line" />
         {drawn.map(({ key, tone, fill, chips }) => {
-          const length = total > 0 ? (chips / total) * circumference : 0;
-          const offset = -start;
+          const length = total > 0 ? chips / total : 0;
+          const from = start;
           start += length;
           return (
-            <circle
+            <Arc
               key={key}
-              cx="50"
-              cy="50"
-              r={radius}
-              fill="none"
-              strokeWidth={tone === "leader" ? 14 : 10}
-              strokeDasharray={`${length} ${circumference - length}`}
-              strokeDashoffset={offset}
+              radius={radius}
+              width={tone === "leader" ? 10 : 7}
+              start={from}
+              length={length}
               className={fill.stroke}
             />
           );
         })}
-        {/* No track behind them: the part of the turn a cover does not reach is not drawn */}
-        {payout > 0 && (
-          <circle
-            cx="50"
-            cy="50"
-            r={innerRadius}
-            fill="none"
-            strokeWidth="5"
-            strokeDasharray={`${payout} ${innerCircumference - payout}`}
-            className="stroke-win/60"
-          />
-        )}
-        {/* Drawn after, so it sits on top. No round caps: an arc ends where its share ends. */}
-        {premium > 0 && (
-          <circle
-            cx="50"
-            cy="50"
-            r={innerRadius}
-            fill="none"
-            strokeWidth="5"
-            strokeDasharray={`${premium} ${innerCircumference - premium}`}
-            // The loss color taken darker, so the premium reads as dark red on the dark page
-            className="stroke-[color-mix(in_srgb,var(--loss)_60%,black)]"
-          />
-        )}
+        {/* A little wider than the premium's ring inside it, in a bright green at full strength, so
+            it stands clear of the leader's own green beside it */}
+        <Arc radius={35.25} width={4.5} start={0} length={payout} className="stroke-[#45e06a]" />
+        <Arc radius={29.5} width={3.5} start={1 - back} length={back} className={premiumClass} />
+        <Arc radius={29.5} width={3.5} start={0} length={premium - back} className={premiumClass} />
       </svg>
       {children && (
         <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>
@@ -244,20 +296,17 @@ export function PotShares({ parts, look = "ring" }: { parts: readonly PotShare[]
   const total = parts.reduce((sum, { chips }) => sum + chips, 0);
   return (
     <section aria-label="有效总底池" className="rounded-xl border border-line bg-surface p-3">
-      <div className="flex items-start justify-between gap-2">
-        <p>
-          <span className="block text-sm text-muted">有效总底池</span>
-          <span className="block text-2xl font-semibold tabular-nums">{chipText(total)}</span>
-        </p>
+      <PotHeading title="有效总底池" chips={total}>
+        {/* A small icon after the name, with a 44px place to tap that takes no room from the line */}
         <button
           type="button"
           aria-label={shown === "ring" ? "换成横条" : "换成圆圈"}
           onClick={() => setPicked(shown === "ring" ? "bar" : "ring")}
-          className="grid size-11 shrink-0 place-items-center rounded-lg border border-line text-highlight"
+          className="-my-2.5 grid size-11 shrink-0 place-items-center text-highlight"
         >
-          <ArrowLeftRight className="size-5" aria-hidden />
+          <ArrowLeftRight className="size-4" aria-hidden />
         </button>
-      </div>
+      </PotHeading>
       {shown === "ring" ? (
         <div className="mt-2 flex items-center gap-1.5">
           <PotRing parts={parts} total={total} />
