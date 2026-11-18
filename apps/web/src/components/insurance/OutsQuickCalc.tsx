@@ -7,6 +7,7 @@ import {
   outsHitChance,
   parseChips,
   potTotals,
+  quoteInsurance,
   stakeOf,
   unseenCards,
 } from "@holdem-knight/core";
@@ -48,6 +49,9 @@ const STREETS: readonly { readonly id: InsuranceStreet; readonly label: string }
   { id: "turn", label: "转牌" },
   { id: "river", label: "河牌" },
 ];
+
+/** The pen is there as in the other way of working, but what it opens is still to come. */
+const comingSoon = () => window.alert("功能开发中");
 
 const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
 
@@ -232,10 +236,13 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
   ]);
   const [dead, setDead] = useState(PRESET_DEAD);
   const [editingOuts, setEditingOuts] = useState(false);
+  // Asking whether the card came, once every offer is decided
+  const [recording, setRecording] = useState(false);
   // Dead money's field, where a tap on dead money in the pot's legend lands
   const deadRef = useRef<HTMLInputElement>(null);
 
   const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? "未知玩家";
+  const streetText = STREETS.find(({ id }) => id === street)?.label ?? "";
   // The first two of the table, with the chips they have there
   const players = edited ?? nextPlayers([], seats, MIN_PLAYERS);
   const totals = potTotals(handPotEntries({ players, pools: dead.pools }));
@@ -329,6 +336,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       input: { ...input, outs: entry.outs },
       playerId: leaderId,
       decisionKey: keyOf("overtake"),
+      onManage: comingSoon,
       name: "反超",
       count: entry.outs,
       // Tie cards a rule does not sell are still named, so nobody takes them for outs
@@ -346,10 +354,30 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       },
       playerId: leaderId,
       decisionKey: keyOf("tie"),
+      onManage: comingSoon,
       name: "平分",
       count: entry.ties,
     };
     return entry.outs > 0 ? [overtake, tie] : [tie];
+  }
+
+  const offers =
+    ready && leaderPlayer && trailerPlayer && trailerEntry
+      ? quickOffers(leaderPlayer.playerId, trailerPlayer.playerId, trailerEntry)
+      : [];
+  // Once a cover is bought, the pot it was priced on stays as it is
+  const locked = offers.some((o) => decisions?.get(o.decisionKey)?.kind === "bought");
+  // Every offer that can be sold is bought or turned down. Away from a game nothing is recorded.
+  const decided = offers.every(
+    (o) => !decisions || decisions.get(o.decisionKey) !== undefined || !quoteInsurance(o.input).ok,
+  );
+
+  /** Whether the card came, for every offer: at most one kind of card can have. */
+  function record(hit: OfferKind | undefined) {
+    for (const offer of offers) decisions?.settle?.(offer.decisionKey, offer.kind === hit);
+    // The pot is played out, so the next one starts without outs
+    setOuts([undefined, undefined]);
+    setRecording(false);
   }
 
   // Who put what into the pot: the leader first, dead money last
@@ -379,7 +407,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
               chances && chances.ties > 0
                 ? `平分 ${chances.ties} · ${percentText(chances.tie)}`
                 : undefined,
-            onSelect: () => deadRef.current?.focus(),
+            onSelect: locked ? undefined : () => deadRef.current?.focus(),
           },
         ]
       : undefined;
@@ -401,13 +429,15 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       <section aria-labelledby="quick-pot-title" className="mt-1">
         <SectionTitle id="quick-pot-title" title="底池信息" />
         <div className="relative flex flex-wrap items-stretch justify-center gap-1.5">
-          <SectionReset
-            label="清空底池信息"
-            onReset={() => {
-              setStreet("turn");
-              setDead(PRESET_DEAD);
-            }}
-          />
+          {!locked && (
+            <SectionReset
+              label="清空底池信息"
+              onReset={() => {
+                setStreet("turn");
+                setDead(PRESET_DEAD);
+              }}
+            />
+          )}
           {/* Framed like a street of the board, with the card the insurance is on picked inside */}
           <fieldset className="flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 border-line bg-surface px-2 pt-2 pb-1">
             <legend className="sr-only">保哪张牌</legend>
@@ -417,6 +447,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
                   key={id}
                   type="button"
                   aria-pressed={street === id}
+                  disabled={locked}
                   onClick={() => setStreet(id)}
                   className={cn(
                     "h-11 rounded-lg border px-3 font-medium transition-colors",
@@ -438,11 +469,15 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
             chips={totals.deadChips}
             preset={dead.preset}
             inputRef={deadRef}
-            edits={{
-              // Typed or confirmed, the amount is the organizer's own from then on
-              onChips: (chips) => setDead({ pools: chips > 0 ? [chips] : [], preset: false }),
-              onDone: () => {},
-            }}
+            edits={
+              locked
+                ? undefined
+                : {
+                    // Typed or confirmed, the amount is the organizer's own from then on
+                    onChips: (chips) => setDead({ pools: chips > 0 ? [chips] : [], preset: false }),
+                    onDone: () => {},
+                  }
+            }
           />
         </div>
       </section>
@@ -463,35 +498,39 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
                   name={name}
                   player={player}
                   note={noteOf(side)}
-                  edits={{
-                    seats,
-                    takenIds: players.filter((p) => p !== player).map((p) => p.playerId),
-                    // At a table another player is another pot: their own chips, no cover and no
-                    // outs. Away from one the name is only a label, and what was entered stays.
-                    onSeat: (id) => {
-                      if (onStack) setSideOuts(side, undefined);
-                      setEdited(
-                        withSide(side, {
-                          playerId: id,
-                          ...(onStack && {
-                            chips: seats.find((s) => s.id === id)?.chips ?? 0,
-                            cover: false,
-                          }),
-                        }),
-                      );
-                    },
-                    onChips: (chips) => setEdited(withSide(side, { chips })),
-                    onChipsDone: () => commitChips(side),
-                    onCover: (cover) => setCover(side, cover),
-                    lead: {
-                      kind: "reset",
-                      label: `清空${name}的 Outs`,
-                      onSelect: () => {
-                        setSideOuts(side, undefined);
-                        setEdited(withSide(side, { cover: false }));
-                      },
-                    },
-                  }}
+                  edits={
+                    locked
+                      ? undefined
+                      : {
+                          seats,
+                          takenIds: players.filter((p) => p !== player).map((p) => p.playerId),
+                          // At a table another player is another pot: their own chips, no cover and no
+                          // outs. Away from one the name is only a label, and what was entered stays.
+                          onSeat: (id) => {
+                            if (onStack) setSideOuts(side, undefined);
+                            setEdited(
+                              withSide(side, {
+                                playerId: id,
+                                ...(onStack && {
+                                  chips: seats.find((s) => s.id === id)?.chips ?? 0,
+                                  cover: false,
+                                }),
+                              }),
+                            );
+                          },
+                          onChips: (chips) => setEdited(withSide(side, { chips })),
+                          onChipsDone: () => commitChips(side),
+                          onCover: (cover) => setCover(side, cover),
+                          lead: {
+                            kind: "reset",
+                            label: `清空${name}的 Outs`,
+                            onSelect: () => {
+                              setSideOuts(side, undefined);
+                              setEdited(withSide(side, { cover: false }));
+                            },
+                          },
+                        }
+                  }
                 >
                   {/* As wide as the two cards of a hand, so the rows line up either way */}
                   {side === leader ? (
@@ -504,6 +543,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
                     <button
                       type="button"
                       aria-label={`填写${name}的 Outs`}
+                      disabled={locked}
                       onClick={() => setEditingOuts(true)}
                       className={cn(
                         "flex h-11 w-20 shrink-0 flex-col items-center justify-center rounded-lg border",
@@ -523,7 +563,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
             );
           })}
         </ul>
-        {players.length === MIN_PLAYERS && (
+        {players.length === MIN_PLAYERS && !locked && (
           <RoundAction label="切换领先" onSelect={() => setLeader(trailer)}>
             <ArrowUpDown className="size-4" aria-hidden />
           </RoundAction>
@@ -533,14 +573,24 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       <section aria-labelledby="quick-insurance-title" className="mt-3">
         <SectionTitle id="quick-insurance-title" title="保险信息" />
         {ready && parts ? (
-          <PotCover
-            label="主池"
-            parts={parts}
-            potChips={totals.effectiveChips}
-            offers={quickOffers(leaderPlayer.playerId, trailerPlayer.playerId, trailerEntry)}
-            saving={saving}
-            decisions={decisions}
-          />
+          <>
+            <PotCover
+              label="主池"
+              parts={parts}
+              potChips={totals.effectiveChips}
+              offers={offers}
+              saving={saving}
+              decisions={decisions}
+            />
+            <button
+              type="button"
+              disabled={!decided}
+              onClick={() => setRecording(true)}
+              className="mt-3 min-h-12 w-full rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40"
+            >
+              记录{streetText}
+            </button>
+          </>
         ) : (
           <p className="text-sm text-muted">
             {missing.length > 0
@@ -549,6 +599,31 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
           </p>
         )}
       </section>
+
+      {recording && (
+        <Modal title={`${streetText}击中保险？`} onClose={() => setRecording(false)}>
+          <div className="flex flex-col gap-2">
+            {/* With both kinds of card on sale, a hit says which kind came */}
+            {offers.map(({ kind, name }) => (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => record(kind)}
+                className="min-h-12 rounded-xl bg-accent font-semibold text-accent-text"
+              >
+                {offers.length > 1 ? `击中${name}` : "击中"}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => record(undefined)}
+              className="min-h-12 rounded-xl border border-line font-medium"
+            >
+              未击中
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {editingOuts && (
         <OutsDialog

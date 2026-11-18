@@ -1318,9 +1318,31 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The flop works as before: a card is let go by a tap, and a fourth is not picked until one is. The turn is one card, which the next pick replaces.
   - While a flop card is being changed the flop is short, and a turn already picked is set aside. It comes back with the third flop card, unless it was taken in between.
   - 取消 is gone from the picker, as there is nothing to take back.
-  - The card dealt through a hand, the turn or river that is settled, keeps the old picker and its 确认.
+  - The card dealt through a hand first kept the old picker, and moved to this one in #I-066.
   - The arrow by the flop's name is 32px, under the 44px kept elsewhere, as it sits inside the board's line.
 - Decision: do. Checked in the browser preview in dark mode at 393px from the tools page: a flop of two kept when moving to a player, the lines of the menu and the turn refused, a third card for a player ignored, the turn replaced, the turn set aside and back again, and the picker opened from a player's card. Not yet tried on a phone or in a game.
+- Tracking: PR #87
+
+### #I-066 A sliver on the pot ring, cards dealt in the hand's picker, and Outs数速算 recorded to the card
+
+- Type: bug, feature
+- Date: reported, decided and completed 2026-11-18
+- Source: trial on a phone, discussion
+- Problem: On a phone, a pot of 7,560 with 600 of dead money drew a gold sliver at the top of the ring, running from the dead money into the leader's part. Other amounts of dead money, or a cover, did not. Apart from that, the card dealt through a hand still had the old picker, and Outs数速算 had no pen on its tables, kept the pot open to change after a cover was bought, and had no way to say whether the card came.
+- Proposal:
+  - Every arc of the ring is drawn as one dash that begins where the circle's outline begins, turned into its place, with a gap two turns long after it. This holds wherever the ring is used: the insurance block of both ways of working, at both entries, and the overview.
+  - 记录转牌 or 记录河牌, by what the board needs, stands under the insurance in both ways of working. It cannot be pressed until every offer is bought or turned down. It was 选择转牌 in 选牌计算, and missing in Outs数速算.
+  - In 选牌计算 it opens the hand's picker for that card alone: the title does not open, there is no arrow to clear, the cards already in show whose they are and cannot be changed, and 取消 stands beside 确认, which waits for a card. The river is picked nowhere else.
+  - In Outs数速算 it asks 「转牌击中保险？」 with 击中 and 未击中. With covers on both kinds of card it asks which came: 击中反超, 击中平分 or 未击中.
+  - Outs数速算 has the pen at the right of each table's heading, as 选牌计算 has. For now it says 功能开发中.
+  - Once a cover is bought in Outs数速算, the card insured, the dead money, the players, their chips and outs and who leads can no longer be changed.
+  - The line under a cover bought reads 「已投保 · 保费 25」, without the payout under it, which is on the row above.
+- Settled details:
+  - The cause of the sliver: an arc was a dash pushed along the outline by an offset, with a gap of just the rest of the turn. For the last arc, which ends at the top, the pattern then began exactly on the edge between its dash and its gap. Whether a renderer drew a hair of the dash there depended on the rounding of those exact lengths, which is why one amount of dead money showed it and others did not. It could not be made to show in the desktop browser, so the fix rests on the reasoning, and on no arc beginning on an edge any more.
+  - Answering in Outs数速算 settles the covers bought in the game, each as hit or missed, and clears the outs for the next pot. From the tools page, where nothing is recorded, it only clears them.
+  - A cover turned down does not close the pot to change; only one bought does.
+  - The old picker, with nothing left to use it, is removed (`CardPicker`).
+- Decision: do. Checked in the browser preview in dark mode at 393px. In a game, Outs数速算: the pen and its notice, the button waiting for both offers, the pot closed after a purchase, the question with both kinds, and a hit settled in the records with the seat's chips. From the tools page, 选牌计算 with the reported hand and chips: the arcs as drawn, and a turn dealt in the picker with the title shut and the other cards closed. Not yet tried on a phone, where the sliver showed.
 - Tracking: PR #87
 
 ## Not doing or deferred

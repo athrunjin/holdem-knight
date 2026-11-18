@@ -196,9 +196,16 @@ function Arc({
       r={radius}
       fill="none"
       strokeWidth={width}
-      // No round caps: an arc ends where its share ends
-      strokeDasharray={`${drawn} ${circumference - drawn}`}
-      strokeDashoffset={-start * circumference}
+      // No round caps: an arc ends where its share ends.
+      //
+      // Every arc is one dash that starts where the circle's own outline starts, turned to its
+      // place, with a gap two turns long after it. It was a dash pushed along the outline by an
+      // offset, with a gap of just the rest of the turn: for an arc ending at the top, the
+      // pattern then began exactly on the edge between dash and gap, and a renderer working in
+      // single precision could land on the dash side and draw a sliver of it at the top, over
+      // the start of the ring. Nothing begins on an edge now, whatever the numbers.
+      strokeDasharray={`${drawn} ${circumference * 2}`}
+      transform={`rotate(${start * 360} 50 50)`}
       className={className}
     />
   );

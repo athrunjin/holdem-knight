@@ -33,6 +33,12 @@ interface HandCardPickerProps {
   /** Takes every card of every target back */
   onReset: () => void;
   onClose: () => void;
+  /**
+   * Picks for the active target only, for a card dealt through the hand: the other targets show
+   * whose the cards are and cannot be gone to or cleared, and the pick is kept by 确认, with 取消
+   * beside it.
+   */
+  locked?: { readonly onCancel: () => void };
 }
 
 /**
@@ -80,6 +86,7 @@ export function HandCardPicker({
   onCards,
   onReset,
   onClose,
+  locked,
 }: HandCardPickerProps) {
   const target = targets.find(({ id }) => id === active) ?? targets[0];
   if (!target) return null;
@@ -125,19 +132,22 @@ export function HandCardPicker({
             }))}
             value={target.id}
             onChange={onActive}
-            className="font-semibold"
+            disabled={locked !== undefined}
+            className="font-semibold disabled:opacity-100 [&:disabled>svg]:hidden"
           />
-          <button
-            type="button"
-            aria-label="清空所有已选的牌"
-            onClick={onReset}
-            className="-mr-2 grid size-11 shrink-0 place-items-center text-muted"
-          >
-            <RotateCcw className="size-4" strokeWidth={1.75} aria-hidden />
-          </button>
+          {!locked && (
+            <button
+              type="button"
+              aria-label="清空所有已选的牌"
+              onClick={onReset}
+              className="-mr-2 grid size-11 shrink-0 place-items-center text-muted"
+            >
+              <RotateCcw className="size-4" strokeWidth={1.75} aria-hidden />
+            </button>
+          )}
         </span>
       }
-      onClose={onClose}
+      onClose={locked ? locked.onCancel : onClose}
     >
       <div className="grid grid-cols-4 gap-1">
         {RANKS.toReversed().flatMap((rank) =>
@@ -181,13 +191,26 @@ export function HandCardPicker({
           }),
         )}
       </div>
-      <button
-        type="button"
-        onClick={onClose}
-        className="mt-2 min-h-11 w-full rounded-xl bg-accent font-semibold text-accent-text"
-      >
-        确认（{target.cards.length}/{target.count}）
-      </button>
+      <div className={cn("mt-2 grid gap-2", locked && "grid-cols-2")}>
+        {locked && (
+          <button
+            type="button"
+            onClick={locked.onCancel}
+            className="min-h-11 rounded-xl border border-line font-medium"
+          >
+            取消
+          </button>
+        )}
+        <button
+          type="button"
+          // A card dealt is kept only once it is there to keep
+          disabled={locked !== undefined && target.cards.length < target.count}
+          onClick={onClose}
+          className="min-h-11 rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40"
+        >
+          确认（{target.cards.length}/{target.count}）
+        </button>
+      </div>
     </Modal>
   );
 }

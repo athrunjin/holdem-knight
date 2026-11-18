@@ -26,7 +26,6 @@ import { useMemo, useRef, useState } from "react";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { BOARD_PLACES, CardFace } from "./CardFace";
-import { CardPicker } from "./CardPicker";
 import { type CardTarget, HandCardPicker, playerMarks } from "./HandCardPicker";
 import { HandPlayerRow, HoleCards, type StandingNote } from "./HandPlayerRow";
 import {
@@ -255,6 +254,8 @@ export function InsuranceHandFlow({
   const [kept, setHand] = useState(() => open ?? withPresetPools(createHand()));
   // What cards are being picked for: 翻牌, 转牌 or a player, by its ID
   const [picking, setPicking] = useState<string>();
+  // The card picked for the street being dealt, until it is confirmed
+  const [dealt, setDealt] = useState<Card>();
   // A turn set aside while the flop is short of a card, to come back once it is whole again
   const heldTurn = useRef<Card | undefined>(undefined);
   // Dead money's field, where a tap on dead money in a pot's legend lands
@@ -268,7 +269,6 @@ export function InsuranceHandFlow({
   const hand = withFirstPlayers(kept, seats);
   const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? "未知玩家";
   const totals = potTotals(handPotEntries(hand));
-  const usedCards = new Set([...hand.players.flatMap((p) => p.cards), ...hand.board]);
   const street = nextStreet(hand.board);
 
   // Hands saved before the board moved onto this screen can still be on the street step
@@ -688,7 +688,7 @@ export function InsuranceHandFlow({
                 onClick={() => update({ ...hand, step: "deal" })}
                 className={cn(primaryClass, "mt-3")}
               >
-                选择{STREET_TEXT[street]}
+                记录{STREET_TEXT[street]}
               </button>
             </>
           )}
@@ -767,13 +767,36 @@ export function InsuranceHandFlow({
         />
       )}
 
-      {hand.step === "deal" && (
-        <CardPicker
-          title={`选择${street ? STREET_TEXT[street] : "公共牌"}`}
-          count={1}
-          usedCards={usedCards}
-          onConfirm={([card]) => card !== undefined && update(dealCard(hand, card))}
-          onCancel={() => update({ ...hand, step: "buy" })}
+      {hand.step === "deal" && street && (
+        // The card dealt through the hand, in the same picker: the cards already in show whose
+        // they are and stay as they are, and the river is picked nowhere else
+        <HandCardPicker
+          targets={[
+            ...targets,
+            {
+              id: "deal",
+              label: STREET_TEXT[street],
+              count: 1,
+              cards: dealt === undefined ? [] : [dealt],
+              mark: street === "turn" ? "转" : "河",
+              tone: "board",
+            },
+          ]}
+          active="deal"
+          onActive={() => {}}
+          onCards={(_, cards) => setDealt(cards[0])}
+          onReset={() => {}}
+          onClose={() => {
+            if (dealt === undefined) return;
+            setDealt(undefined);
+            update(dealCard(hand, dealt));
+          }}
+          locked={{
+            onCancel: () => {
+              setDealt(undefined);
+              update({ ...hand, step: "buy" });
+            },
+          }}
         />
       )}
     </>

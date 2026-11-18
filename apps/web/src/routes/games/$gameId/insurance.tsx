@@ -211,6 +211,10 @@ function GameInsurance({ game }: { game: Game }) {
               onBuy: handleBuy,
               onRevise: handleRevise,
               boughtIds: new Set(records.map(({ purchase }) => purchase.id)),
+              onSettle: (purchaseId, hit) => {
+                const record = records.find(({ purchase }) => purchase.id === purchaseId);
+                if (record?.status === "pending") handleSettle(record, hit);
+              },
             }}
             handStore={{
               save: saveHand.mutate,
