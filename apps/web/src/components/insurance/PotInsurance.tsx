@@ -29,13 +29,15 @@ interface PotInsuranceProps {
   rule: InsuranceRule;
   /** Missing for the standalone calculator, which prices covers but records nothing. */
   decisions: Decisions | undefined;
-  /** Opens an offer's cards, to give some of them up */
+  /** Opens the cards of an offer's kind, to give some up or sell some as a second cover */
   onManage: (offer: HandOffer) => void;
 }
 
 /** One kind of card sold on a pot, with its own covers and its own decision. */
 export interface PotCoverOffer {
   readonly kind: OfferKind;
+  /** Which of the two covers this is, where the cards of its kind are sold as two. */
+  readonly part?: 1 | 2;
   readonly input: QuoteInput;
   /** The buyer. */
   readonly playerId: string;
@@ -43,11 +45,12 @@ export interface PotCoverOffer {
   readonly decisionKey: string;
   /** What is sold, in words, before the odds: 反超 2 张, 平分 4 张. */
   readonly outsText: string;
-  /** Every card of the kind, where some are given up: it follows the count in gray, 反超 3 / 5. */
+  /** Every card of the kind, where this cover is not on all of them: it follows the count in gray, 反超 3 / 5. */
   readonly outsTotal?: number;
   /**
-   * Opens the cards, to give some of them up. Null where there is nothing to choose between, which
-   * dims the icon; missing where the cards are not known, which leaves the icon out.
+   * Opens the cards, to give some up or sell some apart. Null where there is nothing to choose, or
+   * a cover of the kind is already decided, which dims the icon; missing where the cards are not
+   * known, which leaves the icon out.
    */
   readonly onManage?: (() => void) | null;
   /** The cards sold, a line for each opponent, where the cards are known. */
@@ -224,6 +227,7 @@ interface Pick {
 const FIRST_PICK: Pick = { choice: "stake", customText: "" };
 
 const KIND_TEXT: Record<OfferKind, string> = { overtake: "反超", tie: "平分" };
+const PART_TEXT = { 1: "I", 2: "II" } as const;
 
 type PricedQuote = Extract<InsuranceQuote, { ok: true }>;
 
@@ -301,8 +305,6 @@ function CoverTable({
   const customId = useId();
   const customRef = useRef<HTMLInputElement>(null);
   const [customFocused, setCustomFocused] = useState(false);
-  // Selling a cover to each leader on its own. Only the switch for now: it changes nothing yet.
-  const [split, setSplit] = useState(false);
 
   const decision = decisions?.get(decisionKey);
   const { oddsHundredths, maxPremiumChips } = quote;
@@ -317,34 +319,7 @@ function CoverTable({
 
   return (
     <div className="mt-2 border-t border-line pt-2">
-      <div className="flex items-center justify-between gap-2">
-        <OfferHeading offer={offer} oddsHundredths={oddsHundredths} locked={locked} />
-        {/* Tie cards are sold as they are, so only the cards that overtake have the switch.
-            It ends under the chips of the legend above, which sit a little in from the edge. */}
-        {kind === "overtake" && (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={split}
-            onClick={() => setSplit(!split)}
-            className={cn(
-              "-my-2.5 mr-1 flex min-h-11 shrink-0 items-center gap-1.5 text-sm transition-colors",
-              split ? "text-text" : "text-muted",
-            )}
-          >
-            分开购买
-            <span
-              aria-hidden
-              className={cn(
-                "relative h-4.5 w-8 rounded-full transition-colors after:absolute after:top-0.5 after:size-3.5 after:rounded-full after:transition-[left]",
-                split
-                  ? "bg-text after:left-4 after:bg-bg"
-                  : "bg-line after:left-0.5 after:bg-muted",
-              )}
-            />
-          </button>
-        )}
-      </div>
+      <OfferHeading offer={offer} oddsHundredths={oddsHundredths} locked={locked} />
       <ul className="text-xs text-muted">
         {outsLines.map((line) => (
           <li key={line}>{line}</li>
@@ -511,7 +486,10 @@ function Block({ label, parts, potChips, offers, saving, decisions }: PotCoverPr
           ),
           shareChips: active.offer.input.shareChips,
           // With two kinds of card on sale, the ring says which one its cover is for
-          kindText: offers.length > 1 ? KIND_TEXT[active.offer.kind] : "",
+          kindText:
+            offers.length > 1
+              ? `${KIND_TEXT[active.offer.kind]}${active.offer.part ? PART_TEXT[active.offer.part] : ""}`
+              : "",
         }
       : undefined;
   const cover = ring?.chosen;
@@ -617,26 +595,31 @@ export function PotInsurance({
       parts={potParts(first, nameOf)}
       potChips={pot.amountChips}
       offers={offers.map((offer): PotCoverOffer => {
-        const { key, kind, input, outs, allOuts, skippedOuts } = offer;
-        const kindText = kind === "tie" ? "平分" : "反超";
-        const some = skippedOuts.length > 0;
+        const { key, baseKey, kind, part, input, outs, allOuts, skippedOuts } = offer;
+        const name = `${KIND_TEXT[kind]}${part ? ` ${PART_TEXT[part]}` : ""}`;
+        const some = outs.length < allOuts.length;
+        // Named once for the kind, under its first cover
+        const lead = part !== 2;
         // Tie cards a rule does not sell are still named, so nobody looks for them among the outs
         const unsold = kind === "tie" || rule.tieOuts === "include" ? [] : leader.tieCards;
+        // A cover of the kind already bought or turned down fixes how its cards are sold
+        const decided = offers.some((o) => o.baseKey === baseKey && decisions?.get(o.key));
         return {
           kind,
+          ...(part !== undefined && { part }),
           input,
           playerId: leader.playerId,
           decisionKey: key,
-          // With cards given up, the count reads against all of them: 反超 3 / 5
-          outsText: some ? `${kindText} ${outs.length}` : `${kindText} ${outs.length} 张`,
+          // Where the cover is not on every card, the count reads against all of them: 反超 3 / 5
+          outsText: some ? `${name} ${outs.length}` : `${name} ${outs.length} 张`,
           ...(some && { outsTotal: allOuts.length }),
           // One card leaves nothing to choose between
-          onManage: allOuts.length > 1 ? () => onManage(offer) : null,
+          onManage: allOuts.length > 1 && !decided ? () => onManage(offer) : null,
           // The cards bought on one line, whoever they are good for, and those given up on the next
           outsLines: [
             ...(outs.length > 0 ? [cardsText(outs)] : []),
-            ...(some ? [`弃买 : ${cardsText(skippedOuts)}`] : []),
-            ...(unsold.length > 0
+            ...(lead && skippedOuts.length > 0 ? [`弃买 : ${cardsText(skippedOuts)}`] : []),
+            ...(lead && unsold.length > 0
               ? [`平分 ${unsold.length} 张（不计入）：${cardsText(unsold)}`]
               : []),
           ],

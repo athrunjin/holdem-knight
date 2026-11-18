@@ -1253,9 +1253,35 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The cards given up are kept on the hand by offer (`skippedOuts`), and an offer leaves them out: `handOffers` gives each offer the cards it sells, all its cards, and those given up. A card no longer among the outs is ignored, and giving up every card gives up none.
   - A change to the pot or the players, which already opened every decision again, also takes back the cards given up.
   - An offer with more outs than the odds table keeps its heading and pen, so it can be brought within the table by giving cards up.
-  - Buying some of the cards apart from the rest, which the 分开购买 switch is kept for, is not built yet.
+  - Buying some of the cards apart from the rest followed in #I-063.
   - Closing the dialog with the Escape key drops the change without asking.
 - Decision: do. Checked in the browser preview in dark mode at 393px in 选牌计算 from the tools page: cards given up and bought back, the last card refused, 确认 and both ways of 取消, and the heading, lines and prices on the page after. Not yet tried on a phone or in a game.
+- Tracking: PR #87
+
+### #I-063 Outs sold as two covers, and an outs dialog that sorts and picks by the part
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-18
+- Source: discussion
+- Problem: The outs dialog of #I-062 could only give cards up. A card picked out was shown by a ring that faded in, which did not show at all on a phone set to reduce motion. With many cards there was no way to pick them all or to see them by suit. The 分开购买 switch on the page still did nothing.
+- Proposal:
+  - A card picked out is framed in green with a tick on its top right corner. Neither fades in, so both show whatever the system does about motion.
+  - Each part's heading ends in a button that switches the order of its cards between 大小, the highest first, which it starts as, and 花色, suit by suit.
+  - Under each part's cards, at the left, are 全选, which picks every card of the part, or none if all are picked, and 反选, which turns the pick round and can be pressed while some but not all are picked.
+  - Left of 弃买 in the first part is 分开买. It can be pressed while some but not all of the part's cards are picked, and makes them a second cover: the first part is then 反超 I and the new one 反超 II, or 平分 I and 平分 II, each with its own count and odds.
+  - With two covers, the button in that place reads 池 II in the first and 池 I in the second, and moves the cards picked to the other. The second has a bin at the end of its first line of cards, which gives all its cards up. A second cover left without cards goes, and the first is 反超 again.
+  - 购买 looks like 弃买: it had a filled look of its own.
+  - On the page the 分开购买 switch is gone. With two covers, the second has its own heading, table and decision under the first: 「平分 I 3 / 4 · 赔 10.0」, then 「平分 II 1 / 4 · 赔 30.0」.
+- Settled details:
+  - Each cover is priced on its own cards, with the same targets and the same limit as one cover would have, and pays on its own cards only. Four tie cards at 8.0 become three at 10.0 and one at 30.0.
+  - With two covers, the part of cards given up has 池 I and 池 II in place of 购买, to say which cover a card goes back to.
+  - Moving every card of the first cover to the second leaves one cover, which is then the first.
+  - At least one card stays bought across the two covers. A cover may be emptied by giving its cards up as long as the other holds some.
+  - The cards of the second cover are kept on the hand by the kind's key (`splitOuts`), beside the cards given up. The second cover's own key ends in `-2`, and every offer of a kind carries the key they share (`baseKey`). Both are optional in backups.
+  - The pen is dimmed once either cover of a kind is bought or turned down.
+  - The ring's middle names the cover its arcs are for with its part: 平分I保本.
+  - The switch is gone from Outs数速算 too, which shares the block and has no cards to split.
+- Decision: do. Checked in the browser preview in dark mode at 393px in 选牌计算 from the tools page: each button in each state, a split made, cards moved both ways, a card given up from the second cover, the second cover binned, emptied and made again, the order switched, and the two tables on the page after 确认. The look of a card picked out was checked by its styles, which have no transition. Not yet tried on a phone or in a game.
 - Tracking: PR #87
 
 ## Not doing or deferred

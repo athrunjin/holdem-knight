@@ -5,6 +5,7 @@ import { type Card, DECK, makeCard } from "./cards";
 import { potTotals } from "./pots";
 import { RULE_30 } from "./rules";
 import {
+  arrangeOuts,
   blankInsuranceHand,
   buyOffer,
   dealCard,
@@ -21,7 +22,6 @@ import {
   playersReady,
   premiumBuyIns,
   reviseOffer,
-  skipOuts,
   stakeOf,
   undoDeal,
 } from "./session";
@@ -335,44 +335,93 @@ describe("offers", () => {
     });
   });
 
-  describe("outs given up", () => {
+  describe("outs given up or sold apart", () => {
     // Two queens overtake, four tens tie
     const broadway = hand({
       players: [player("a", 500, ["Ac", "Kd"]), player("b", 500, ["Ad", "Qd"])],
       board: ["Kc", "Qh", "Jd", "9s"].map(c),
     });
+    const tens = (suits: string) => [...suits].map((suit) => c(`T${suit}`));
 
     it("prices an offer on the cards that are left, and pays only on those", () => {
-      const skipped = skipOuts(broadway, "river-0-a-tie", [c("Ts"), c("Th"), c("Td")]);
+      const skipped = arrangeOuts(broadway, "river-0-a-tie", { skipped: tens("shd"), second: [] });
       const [overtake, tie] = handOffers(skipped, RULE_30);
       // The other offer is as it was
       expect(overtake).toMatchObject({ input: { outs: 2 }, skippedOuts: [] });
-      expect(tie).toMatchObject({ input: { outs: 1 }, outs: [c("Tc")] });
+      expect(tie).toMatchObject({ input: { outs: 1 }, outs: tens("c"), baseKey: "river-0-a-tie" });
+      expect(tie?.part).toBeUndefined();
       expect(tie?.allOuts).toHaveLength(4);
-      expect(tie?.skippedOuts.toSorted()).toEqual(["Ts", "Th", "Td"].map(c).toSorted());
+      expect(tie?.skippedOuts.toSorted()).toEqual(tens("shd").toSorted());
       // One card is priced as one card
       expect(tie?.quote).toMatchObject({ ok: true, oddsHundredths: RULE_30.oddsHundredths[0] });
 
       if (!tie?.quote.ok) throw new Error("Expected a quote");
       const bought = buyOffer(skipped, tie, "p", tie.quote.stake, tie.quote.oddsHundredths);
-      expect(bought.purchases[0]?.outs).toEqual([c("Tc")]);
+      expect(bought.purchases[0]?.outs).toEqual(tens("c"));
       expect(dealCard(bought, c("Tc")).purchases[0]?.hit).toBe(true);
       expect(dealCard(bought, c("Ts")).purchases[0]?.hit).toBe(false);
     });
 
     it("takes the cards back, and leaves other offers alone", () => {
-      const skipped = skipOuts(broadway, "river-0-a", [c("Qs")]);
+      const skipped = arrangeOuts(broadway, "river-0-a", { skipped: [c("Qs")], second: [] });
       expect(handOffers(skipped, RULE_30)[0]).toMatchObject({ input: { outs: 1 } });
-      const back = skipOuts(skipOuts(skipped, "river-0-a-tie", [c("Ts")]), "river-0-a", []);
-      expect(back.skippedOuts).toEqual({ "river-0-a-tie": [c("Ts")] });
+      const other = arrangeOuts(skipped, "river-0-a-tie", { skipped: tens("s"), second: [] });
+      const back = arrangeOuts(other, "river-0-a", { skipped: [], second: [] });
+      expect(back.skippedOuts).toEqual({ "river-0-a-tie": tens("s") });
       expect(handOffers(back, RULE_30).map((o) => o.input.outs)).toEqual([2, 3]);
     });
 
     it("always sells at least one card, and ignores cards that are not outs", () => {
-      const all = skipOuts(broadway, "river-0-a", [c("Qs"), c("Qc")]);
+      const all = arrangeOuts(broadway, "river-0-a", { skipped: [c("Qs"), c("Qc")], second: [] });
       expect(handOffers(all, RULE_30)[0]).toMatchObject({ input: { outs: 2 }, skippedOuts: [] });
-      const stray = skipOuts(broadway, "river-0-a", [c("2h")]);
-      expect(handOffers(stray, RULE_30)[0]).toMatchObject({ input: { outs: 2 }, skippedOuts: [] });
+      const stray = arrangeOuts(broadway, "river-0-a", { skipped: [c("2h")], second: [c("3h")] });
+      expect(handOffers(stray, RULE_30).map((o) => [o.key, o.input.outs])).toEqual([
+        ["river-0-a", 2],
+        ["river-0-a-tie", 4],
+      ]);
+    });
+
+    it("sells some of the cards as a second cover, each priced on its own cards", () => {
+      const split = arrangeOuts(broadway, "river-0-a-tie", {
+        skipped: tens("s"),
+        second: tens("dc"),
+      });
+      const offers = handOffers(split, RULE_30);
+      expect(offers.map((o) => [o.key, o.kind, o.part, o.input.outs])).toEqual([
+        ["river-0-a", "overtake", undefined, 2],
+        ["river-0-a-tie", "tie", 1, 1],
+        ["river-0-a-tie-2", "tie", 2, 2],
+      ]);
+      const [, first, second] = offers;
+      expect(first?.outs).toEqual(tens("h"));
+      expect(second?.outs.toSorted()).toEqual(tens("dc").toSorted());
+      // Both know every card of the kind and the ones given up, and share the kind's key
+      for (const offer of [first, second]) {
+        expect(offer).toMatchObject({ baseKey: "river-0-a-tie", skippedOuts: tens("s") });
+        expect(offer?.allOuts).toHaveLength(4);
+      }
+      expect(first?.quote).toMatchObject({ oddsHundredths: RULE_30.oddsHundredths[0] });
+      expect(second?.quote).toMatchObject({ oddsHundredths: RULE_30.oddsHundredths[1] });
+      // The same cap on each: a tie costs half the pot whichever cover it lands on
+      expect(second?.input).toMatchObject({ capChips: 500, keptChips: 500 });
+
+      // Each is decided and settled on its own cards
+      if (!first?.quote.ok || !second?.quote.ok) throw new Error("Expected quotes");
+      const one = buyOffer(split, first, "p1", first.quote.stake, 1);
+      expect(offersDecided(declineOffer(one, "river-0-a"), offers)).toBe(false);
+      const both = buyOffer(one, second, "p2", second.quote.stake, 1);
+      expect(offersDecided(declineOffer(both, "river-0-a"), offers)).toBe(true);
+      expect(dealCard(both, c("Th")).purchases.map((p) => p.hit)).toEqual([true, false]);
+      expect(dealCard(both, c("Td")).purchases.map((p) => p.hit)).toEqual([false, true]);
+      expect(dealCard(both, c("Ts")).purchases.map((p) => p.hit)).toEqual([false, false]);
+    });
+
+    it("has one cover when the second would hold every card sold", () => {
+      const all = arrangeOuts(broadway, "river-0-a-tie", { skipped: [], second: tens("shdc") });
+      const [, tie, ...rest] = handOffers(all, RULE_30);
+      expect(rest).toEqual([]);
+      expect(tie).toMatchObject({ key: "river-0-a-tie", input: { outs: 4 } });
+      expect(tie?.part).toBeUndefined();
     });
   });
 

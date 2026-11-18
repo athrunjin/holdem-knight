@@ -145,6 +145,8 @@ export interface InsuranceHand {
   readonly declined: readonly string[];
   /** Cards of an offer the buyer gives up, by the offer's key: they are left out of what is sold. */
   readonly skippedOuts?: Readonly<Record<string, readonly number[]>>;
+  /** Cards of an offer sold as a second cover apart from the rest, by the offer's key. */
+  readonly splitOuts?: Readonly<Record<string, readonly number[]>>;
   readonly createdAt: Timestamp;
 }
 
