@@ -1235,6 +1235,29 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview at 393px by the arcs drawn: dead money larger than the premium, a premium larger than the dead money, and no dead money. Not yet looked at on a phone.
 - Tracking: PR #87
 
+### #I-062 Outs given up, in a dialog that manages an offer's cards
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-18
+- Source: discussion
+- Problem: An offer was sold on all of its cards or not at all. A buyer who did not want to pay for some of them, or whose outs ran past the odds table, had no way to leave cards out. Under the heading, the cards that overtake were listed a line for each opponent, which repeated cards good for more than one.
+- Proposal:
+  - Under an offer's heading the cards it is bought on are one line, whoever they are good for.
+  - After the heading 「反超 2 张 · 赔 15.0」 is a pen that opens 「主池 反超 Outs 管理」, or 平分 for tie cards. It is there in 选牌计算 only, as Outs数速算 knows no cards. It is dimmed for an offer of one card, where there is nothing to choose, and for an offer already bought or turned down.
+  - The dialog has two parts. The first is headed 「反超 3 / 5 · 赔 6.0」, the cards bought of all the cards, with the total in gray and the odds for the cards bought, then those cards, then 弃买 at the right under them. The second is headed 「弃买 · 2 / 5」, then the cards given up, then 购买. Under both are 取消 and 确认.
+  - A tap picks a card out, any number of them, and another tap lets it go. 弃买 lights once a card bought is picked and moves the cards picked to the second part; 购买 does the same the other way.
+  - At least one card stays bought. Moving the last says 「最少保留一张 Outs，如不想购买可在保险主界面选择」.
+  - 确认 keeps the change and closes, with nothing asked. 取消 asks 「取消本次修改？」 only if something was changed.
+  - With cards given up, the offer's heading on the page reads 「反超 3 / 5 · 赔 6.0」, the cards bought on the first line under it and 「弃买 : 7♠ 7♥」 on the second. The covers are priced on the cards bought, and a purchase pays on those only.
+- Settled details:
+  - The cards given up are kept on the hand by offer (`skippedOuts`), and an offer leaves them out: `handOffers` gives each offer the cards it sells, all its cards, and those given up. A card no longer among the outs is ignored, and giving up every card gives up none.
+  - A change to the pot or the players, which already opened every decision again, also takes back the cards given up.
+  - An offer with more outs than the odds table keeps its heading and pen, so it can be brought within the table by giving cards up.
+  - Buying some of the cards apart from the rest, which the 分开购买 switch is kept for, is not built yet.
+  - Closing the dialog with the Escape key drops the change without asking.
+- Decision: do. Checked in the browser preview in dark mode at 393px in 选牌计算 from the tools page: cards given up and bought back, the last card refused, 确认 and both ways of 取消, and the heading, lines and prices on the page after. Not yet tried on a phone or in a game.
+- Tracking: PR #87
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

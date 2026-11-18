@@ -221,6 +221,7 @@ const insuranceHandSchema = z.object({
     }),
   ),
   declined: z.array(id),
+  skippedOuts: z.record(id, z.array(card)).optional(),
   createdAt: timestamp,
 });
 

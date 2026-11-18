@@ -18,6 +18,7 @@ import {
   potTotals,
   reviseOffer,
   type Standings,
+  skipOuts,
   undoDeal,
 } from "@holdem-knight/core";
 import { Plus } from "lucide-react";
@@ -39,6 +40,7 @@ import {
 import { HandSummary } from "./HandSummary";
 import type { InsuranceSeat } from "./InsuranceCalculator";
 import type { Decisions } from "./LeaderQuote";
+import { OutsManager } from "./OutsManager";
 import { PotColumns, potName } from "./PotColumns";
 import { PotInsurance } from "./PotInsurance";
 import { type PotShare, PotShares } from "./PotShares";
@@ -260,6 +262,8 @@ export function InsuranceHandFlow({
   const deadRef = useRef<HTMLInputElement>(null);
   const [pickingStreet, setPickingStreet] = useState<"flop" | "turn">();
   const [finishing, setFinishing] = useState(false);
+  // The offer whose cards are open, to give some of them up
+  const [managing, setManaging] = useState<string>();
   // Why a tap on the plus added nobody
   const [notice, setNotice] = useState<string>();
 
@@ -347,12 +351,13 @@ export function InsuranceHandFlow({
     ...hand,
     players: hand.players.map((p) => (p.playerId === playerId ? { ...p, ...change } : p)),
     declined: [],
+    skippedOuts: {},
   });
 
   /** Adds the next player of the table, or says that nobody is left to add. */
   function addPlayer() {
     const [next] = nextPlayers(hand.players, seats, 1);
-    if (next) update({ ...hand, players: [...hand.players, next], declined: [] });
+    if (next) update({ ...hand, players: [...hand.players, next], declined: [], skippedOuts: {} });
     else setNotice(store ? "桌上没有更多玩家了。" : "玩家已经加满了。");
   }
 
@@ -373,12 +378,13 @@ export function InsuranceHandFlow({
         p.playerId === playerId ? { ...p, cover } : cover ? { ...p, cover: false } : p,
       ),
       declined: [],
+      skippedOuts: {},
     });
   }
 
   /** Changes the cards entered for the board. Cards dealt through the hand are settled as they come. */
   function saveBoard(next: readonly Card[]) {
-    update({ ...hand, board: next, declined: [] });
+    update({ ...hand, board: next, declined: [], skippedOuts: {} });
     setPickingStreet(undefined);
   }
 
@@ -422,6 +428,7 @@ export function InsuranceHandFlow({
     revise: (key) => update(reviseOffer(hand, key)),
   };
 
+  const managed = offers.find((offer) => offer.key === managing);
   const picking = pickingCards && hand.players.find((p) => p.playerId === pickingCards.playerId);
   const missing = missingParts(hand, nameOf);
 
@@ -435,7 +442,9 @@ export function InsuranceHandFlow({
               {editable && (
                 <SectionReset
                   label="清空底池信息"
-                  onReset={() => update(withPresetPools({ ...hand, board: [], declined: [] }))}
+                  onReset={() =>
+                    update(withPresetPools({ ...hand, board: [], declined: [], skippedOuts: {} }))
+                  }
                 />
               )}
               <StreetCards
@@ -471,6 +480,7 @@ export function InsuranceHandFlow({
                             pools: chips > 0 ? [chips] : [],
                             presetPools: false,
                             declined: [],
+                            skippedOuts: {},
                           }),
                         onDone: () => store?.save(hand),
                       }
@@ -536,6 +546,7 @@ export function InsuranceHandFlow({
                                           ...hand,
                                           players: hand.players.filter((p) => p !== player),
                                           declined: [],
+                                          skippedOuts: {},
                                         }),
                                     },
                             }
@@ -609,6 +620,7 @@ export function InsuranceHandFlow({
                   nameOf={nameOf}
                   rule={rule}
                   decisions={decisions}
+                  onManage={(offer) => setManaging(offer.key)}
                 />
               ))}
               <button
@@ -655,6 +667,21 @@ export function InsuranceHandFlow({
         >
           放弃这手
         </button>
+      )}
+
+      {managed && (
+        <OutsManager
+          title={`${potName(managed.potIndex, potCount)} ${managed.kind === "tie" ? "平分" : "反超"} Outs 管理`}
+          kindText={managed.kind === "tie" ? "平分" : "反超"}
+          cards={managed.allOuts}
+          skipped={managed.skippedOuts}
+          oddsOf={(count) => rule.oddsHundredths[count - 1]}
+          onConfirm={(cards) => {
+            update(skipOuts(hand, managed.key, cards));
+            setManaging(undefined);
+          }}
+          onCancel={() => setManaging(undefined)}
+        />
       )}
 
       {pickingCards && picking && (

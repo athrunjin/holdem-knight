@@ -21,6 +21,7 @@ import {
   playersReady,
   premiumBuyIns,
   reviseOffer,
+  skipOuts,
   stakeOf,
   undoDeal,
 } from "./session";
@@ -331,6 +332,47 @@ describe("offers", () => {
       expect(dealCard(both, c("3h")).purchases.map((p) => p.hit)).toEqual([false, false]);
       // Taking one back leaves the other
       expect(reviseOffer(both, "river-0-a").purchases.map((p) => p.id)).toEqual(["p2"]);
+    });
+  });
+
+  describe("outs given up", () => {
+    // Two queens overtake, four tens tie
+    const broadway = hand({
+      players: [player("a", 500, ["Ac", "Kd"]), player("b", 500, ["Ad", "Qd"])],
+      board: ["Kc", "Qh", "Jd", "9s"].map(c),
+    });
+
+    it("prices an offer on the cards that are left, and pays only on those", () => {
+      const skipped = skipOuts(broadway, "river-0-a-tie", [c("Ts"), c("Th"), c("Td")]);
+      const [overtake, tie] = handOffers(skipped, RULE_30);
+      // The other offer is as it was
+      expect(overtake).toMatchObject({ input: { outs: 2 }, skippedOuts: [] });
+      expect(tie).toMatchObject({ input: { outs: 1 }, outs: [c("Tc")] });
+      expect(tie?.allOuts).toHaveLength(4);
+      expect(tie?.skippedOuts.toSorted()).toEqual(["Ts", "Th", "Td"].map(c).toSorted());
+      // One card is priced as one card
+      expect(tie?.quote).toMatchObject({ ok: true, oddsHundredths: RULE_30.oddsHundredths[0] });
+
+      if (!tie?.quote.ok) throw new Error("Expected a quote");
+      const bought = buyOffer(skipped, tie, "p", tie.quote.stake, tie.quote.oddsHundredths);
+      expect(bought.purchases[0]?.outs).toEqual([c("Tc")]);
+      expect(dealCard(bought, c("Tc")).purchases[0]?.hit).toBe(true);
+      expect(dealCard(bought, c("Ts")).purchases[0]?.hit).toBe(false);
+    });
+
+    it("takes the cards back, and leaves other offers alone", () => {
+      const skipped = skipOuts(broadway, "river-0-a", [c("Qs")]);
+      expect(handOffers(skipped, RULE_30)[0]).toMatchObject({ input: { outs: 1 } });
+      const back = skipOuts(skipOuts(skipped, "river-0-a-tie", [c("Ts")]), "river-0-a", []);
+      expect(back.skippedOuts).toEqual({ "river-0-a-tie": [c("Ts")] });
+      expect(handOffers(back, RULE_30).map((o) => o.input.outs)).toEqual([2, 3]);
+    });
+
+    it("always sells at least one card, and ignores cards that are not outs", () => {
+      const all = skipOuts(broadway, "river-0-a", [c("Qs"), c("Qc")]);
+      expect(handOffers(all, RULE_30)[0]).toMatchObject({ input: { outs: 2 }, skippedOuts: [] });
+      const stray = skipOuts(broadway, "river-0-a", [c("2h")]);
+      expect(handOffers(stray, RULE_30)[0]).toMatchObject({ input: { outs: 2 }, skippedOuts: [] });
     });
   });
 

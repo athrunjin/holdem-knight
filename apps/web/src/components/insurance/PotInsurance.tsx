@@ -10,6 +10,7 @@ import {
   type QuoteOption,
   quoteInsurance,
 } from "@holdem-knight/core";
+import { SquarePen } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { formatCardText } from "@/lib/cards";
 import { formatSignedChips, netColor } from "@/lib/chips";
@@ -28,6 +29,8 @@ interface PotInsuranceProps {
   rule: InsuranceRule;
   /** Missing for the standalone calculator, which prices covers but records nothing. */
   decisions: Decisions | undefined;
+  /** Opens an offer's cards, to give some of them up */
+  onManage: (offer: HandOffer) => void;
 }
 
 /** One kind of card sold on a pot, with its own covers and its own decision. */
@@ -40,6 +43,13 @@ export interface PotCoverOffer {
   readonly decisionKey: string;
   /** What is sold, in words, before the odds: 反超 2 张, 平分 4 张. */
   readonly outsText: string;
+  /** Every card of the kind, where some are given up: it follows the count in gray, 反超 3 / 5. */
+  readonly outsTotal?: number;
+  /**
+   * Opens the cards, to give some of them up. Null where there is nothing to choose between, which
+   * dims the icon; missing where the cards are not known, which leaves the icon out.
+   */
+  readonly onManage?: (() => void) | null;
   /** The cards sold, a line for each opponent, where the cards are known. */
   readonly outsLines?: readonly string[];
 }
@@ -167,6 +177,43 @@ function potParts(
   ];
 }
 
+/**
+ * What an offer sells, as the line over its covers: the count of cards, all of them in gray after
+ * it where some are given up, the odds, and the pen that opens the cards.
+ */
+function OfferHeading({
+  offer: { outsText, outsTotal, onManage },
+  oddsHundredths,
+  locked = false,
+}: {
+  offer: PotCoverOffer;
+  /** Missing where the offer has no price */
+  oddsHundredths?: number;
+  /** The offer is decided, so its cards stay as they are */
+  locked?: boolean;
+}) {
+  return (
+    <span className="flex min-w-0 items-center font-semibold whitespace-nowrap tabular-nums">
+      {outsText}
+      {outsTotal !== undefined && (
+        <span className="font-normal text-muted">&nbsp;/ {outsTotal}</span>
+      )}
+      {oddsHundredths !== undefined && <> · 赔 {formatOddsText(formatOdds(oddsHundredths))}</>}
+      {onManage !== undefined && (
+        <button
+          type="button"
+          aria-label="管理 Outs"
+          disabled={!onManage || locked}
+          onClick={onManage ?? undefined}
+          className="-my-2.5 grid h-11 w-9 shrink-0 place-items-center text-highlight disabled:text-muted disabled:opacity-40"
+        >
+          <SquarePen className="size-4" aria-hidden />
+        </button>
+      )}
+    </span>
+  );
+}
+
 /** The cover picked for one offer, and a custom premium as typed. */
 interface Pick {
   readonly choice: Choice;
@@ -250,7 +297,7 @@ function CoverTable({
   saving: boolean | undefined;
   decisions: Decisions | undefined;
 }) {
-  const { input, decisionKey, outsText, outsLines = [], kind } = offer;
+  const { input, decisionKey, outsLines = [], kind } = offer;
   const customId = useId();
   const customRef = useRef<HTMLInputElement>(null);
   const [customFocused, setCustomFocused] = useState(false);
@@ -271,9 +318,7 @@ function CoverTable({
   return (
     <div className="mt-2 border-t border-line pt-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold whitespace-nowrap">
-          {outsText} · 赔 {formatOddsText(formatOdds(oddsHundredths))}
-        </span>
+        <OfferHeading offer={offer} oddsHundredths={oddsHundredths} locked={locked} />
         {/* Tie cards are sold as they are, so only the cards that overtake have the switch.
             It ends under the chips of the legend above, which sit a little in from the edge. */}
         {kind === "overtake" && (
@@ -519,12 +564,14 @@ function Block({ label, parts, potChips, offers, saving, decisions }: PotCoverPr
             saving={saving}
             decisions={decisions}
           />
-        ) : quoted.length === 1 && only ? (
+        ) : quoted.length === 1 && only && !offer.onManage ? (
           // A pot with nothing to sell says why under the ring, with no heading of its own
           <QuoteBlocked key={offer.decisionKey} block={quote.block} />
         ) : (
+          // With cards to give up, the heading stays: too many outs for the odds table can be
+          // brought within it that way
           <div key={offer.decisionKey} className="mt-2 border-t border-line pt-2">
-            <span className="font-semibold">{offer.outsText}</span>
+            <OfferHeading offer={offer} />
             <QuoteBlocked block={quote.block} />
           </div>
         ),
@@ -552,7 +599,14 @@ export function PotCover(props: PotCoverProps) {
 }
 
 /** The block for one leader's offers on one pot of a hand worked out from the cards. */
-export function PotInsurance({ offers, label, nameOf, rule, decisions }: PotInsuranceProps) {
+export function PotInsurance({
+  offers,
+  label,
+  nameOf,
+  rule,
+  decisions,
+  onManage,
+}: PotInsuranceProps) {
   const [first] = offers;
   if (!first) return null;
   const { leader, pot } = first;
@@ -562,21 +616,26 @@ export function PotInsurance({ offers, label, nameOf, rule, decisions }: PotInsu
       label={pot.leaders.length > 1 ? `${label} · ${nameOf(leader.playerId)} 并列领先` : label}
       parts={potParts(first, nameOf)}
       potChips={pot.amountChips}
-      offers={offers.map(({ key, kind, input, outs }): PotCoverOffer => {
-        const base = { kind, input, playerId: leader.playerId, decisionKey: key };
-        if (kind === "tie") {
-          return { ...base, outsText: `平分 ${outs.length} 张`, outsLines: [cardsText(outs)] };
-        }
+      offers={offers.map((offer): PotCoverOffer => {
+        const { key, kind, input, outs, allOuts, skippedOuts } = offer;
+        const kindText = kind === "tie" ? "平分" : "反超";
+        const some = skippedOuts.length > 0;
         // Tie cards a rule does not sell are still named, so nobody looks for them among the outs
-        const unsold = rule.tieOuts === "include" ? [] : leader.tieCards;
+        const unsold = kind === "tie" || rule.tieOuts === "include" ? [] : leader.tieCards;
         return {
-          ...base,
-          outsText: `反超 ${outs.length} 张`,
+          kind,
+          input,
+          playerId: leader.playerId,
+          decisionKey: key,
+          // With cards given up, the count reads against all of them: 反超 3 / 5
+          outsText: some ? `${kindText} ${outs.length}` : `${kindText} ${outs.length} 张`,
+          ...(some && { outsTotal: allOuts.length }),
+          // One card leaves nothing to choose between
+          onManage: allOuts.length > 1 ? () => onManage(offer) : null,
+          // The cards bought on one line, whoever they are good for, and those given up on the next
           outsLines: [
-            ...leader.byOpponent.map(
-              ({ playerId, cards }) =>
-                `${leader.byOpponent.length > 1 ? `${nameOf(playerId)}：` : ""}${cardsText(cards)}`,
-            ),
+            ...(outs.length > 0 ? [cardsText(outs)] : []),
+            ...(some ? [`弃买 : ${cardsText(skippedOuts)}`] : []),
             ...(unsold.length > 0
               ? [`平分 ${unsold.length} 张（不计入）：${cardsText(unsold)}`]
               : []),
