@@ -1301,6 +1301,28 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 393px with a hand of three players and a side pot: the columns' bottoms and the names' tops at the same height, the corners square, the headings' text, and the pinned ring's place at six points of the scroll. Not yet tried on a phone.
 - Tracking: PR #87
 
+### #I-065 One card picker for the whole hand, kept as it is tapped
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-18
+- Source: discussion
+- Problem: The flop, the turn and each player's cards each opened a picker of their own, which kept nothing until 确认 and had to be closed before the next could be opened. A card taken elsewhere was only grayed, with nothing to say by whom. The arrow that cleared the board also put dead money back to what a pot starts with.
+- Proposal:
+  - The arrow moves to the right of the flop's name, and clears the flop and the turn only. Dead money is left as it is.
+  - The picker's title is a menu: 翻牌, 转牌 and each player in the pot, each with the cards it has of the cards it takes at the end of its line, 「(2/3)」. A tap on a line picks for that one, without leaving. 转牌 is gray, and cannot be picked for while the flop is short.
+  - At the right of the title an arrow takes back every card picked here: the board and every player's cards.
+  - A card taken is framed and carries a very small mark of whose it is: 翻, 转, or the first character of a player's name, its first two letters for a name in letters. Players who would share a mark are numbered, 王1 王2 or Ki1 Ki2. Board cards are in the chip gold and players' in green. Cards of the one being picked for are bright; the others are dimmed, with their mark, and cannot be tapped.
+  - A tap is the pick and is kept at once, so going to another line or leaving loses nothing. A hand may be left short of cards, and reads as not yet filled in. 确认 only closes.
+  - A tap on one of a player's two cards on the page opens the picker with that card let go and the other still picked. The next tap picks its replacement; a tap on the other card lets that one go too.
+- Settled details:
+  - The flop works as before: a card is let go by a tap, and a fourth is not picked until one is. The turn is one card, which the next pick replaces.
+  - While a flop card is being changed the flop is short, and a turn already picked is set aside. It comes back with the third flop card, unless it was taken in between.
+  - 取消 is gone from the picker, as there is nothing to take back.
+  - The card dealt through a hand, the turn or river that is settled, keeps the old picker and its 确认.
+  - The arrow by the flop's name is 32px, under the 44px kept elsewhere, as it sits inside the board's line.
+- Decision: do. Checked in the browser preview in dark mode at 393px from the tools page: a flop of two kept when moving to a player, the lines of the menu and the turn refused, a third card for a player ignored, the turn replaced, the turn set aside and back again, and the picker opened from a player's card. Not yet tried on a phone or in a game.
+- Tracking: PR #87
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

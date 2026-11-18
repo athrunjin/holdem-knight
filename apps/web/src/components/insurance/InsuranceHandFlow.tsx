@@ -21,12 +21,13 @@ import {
   type Standings,
   undoDeal,
 } from "@holdem-knight/core";
-import { Plus } from "lucide-react";
+import { Plus, RotateCcw } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { BOARD_PLACES, CardFace } from "./CardFace";
 import { CardPicker } from "./CardPicker";
+import { type CardTarget, HandCardPicker, playerMarks } from "./HandCardPicker";
 import { HandPlayerRow, HoleCards, type StandingNote } from "./HandPlayerRow";
 import {
   DeadMoney,
@@ -34,7 +35,6 @@ import {
   nextPlayers,
   PRESET_DEAD_CHIPS,
   RoundAction,
-  SectionReset,
   SectionTitle,
 } from "./HandSections";
 import { HandSummary } from "./HandSummary";
@@ -72,10 +72,6 @@ interface InsuranceHandFlowProps {
 }
 
 const STREET_TEXT = { turn: "转牌", river: "河牌" } as const;
-
-/** The cards taken, less the ones being picked again. */
-const withoutCards = (used: ReadonlySet<Card>, free: readonly Card[]) =>
-  new Set([...used].filter((card) => !free.includes(card)));
 
 /** The hand with the dead money it starts with, marked as not yet set. */
 const withPresetPools = (hand: InsuranceHand): InsuranceHand => ({
@@ -257,10 +253,12 @@ export function InsuranceHandFlow({
 }: InsuranceHandFlowProps) {
   // A hand carried on from keeps its own dead money; a new one starts with the preset
   const [kept, setHand] = useState(() => open ?? withPresetPools(createHand()));
-  const [pickingCards, setPickingCards] = useState<{ playerId: string; replace?: number }>();
+  // What cards are being picked for: 翻牌, 转牌 or a player, by its ID
+  const [picking, setPicking] = useState<string>();
+  // A turn set aside while the flop is short of a card, to come back once it is whole again
+  const heldTurn = useRef<Card | undefined>(undefined);
   // Dead money's field, where a tap on dead money in a pot's legend lands
   const deadRef = useRef<HTMLInputElement>(null);
-  const [pickingStreet, setPickingStreet] = useState<"flop" | "turn">();
   const [finishing, setFinishing] = useState(false);
   // The kind of card whose cards are open, by the key its covers share
   const [managing, setManaging] = useState<string>();
@@ -318,7 +316,7 @@ export function InsuranceHandFlow({
 
   function reset() {
     setHand(withPresetPools(createHand()));
-    setPickingCards(undefined);
+    setPicking(undefined);
     setNotice(undefined);
   }
 
@@ -392,7 +390,35 @@ export function InsuranceHandFlow({
   /** Changes the cards entered for the board. Cards dealt through the hand are settled as they come. */
   function saveBoard(next: readonly Card[]) {
     update({ ...hand, board: next, declined: [], skippedOuts: {}, splitOuts: {} });
-    setPickingStreet(undefined);
+  }
+
+  /**
+   * Keeps the cards picked for the flop, the turn or a player, as they are picked. The turn stands
+   * on a whole flop: while a flop card is being changed it is set aside, and comes back with the
+   * third card unless it has been taken meanwhile.
+   */
+  function saveCards(id: string, cards: readonly Card[]) {
+    if (id === "turn") {
+      heldTurn.current = undefined;
+      saveBoard([...hand.board.slice(0, 3), ...cards]);
+    } else if (id === "flop") {
+      const turn = hand.board[3] ?? heldTurn.current;
+      const whole = cards.length === 3;
+      heldTurn.current = whole ? undefined : turn;
+      const free = turn !== undefined && !cards.includes(turn);
+      saveBoard(whole && free && turn !== undefined ? [...cards, turn] : cards);
+    } else {
+      update(withPlayer(id, { cards }));
+    }
+  }
+
+  /** Opens the cards for a target. A tap on a player's card lets that card go, to be picked again. */
+  function pickFor(id: string, replace?: number) {
+    const player = hand.players.find((p) => p.playerId === id);
+    if (player && replace !== undefined) {
+      update(withPlayer(id, { cards: player.cards.filter((_, place) => place !== replace) }));
+    }
+    setPicking(id);
   }
 
   /** The contested pot by who put it in, each with where they stand: leaders first, dead money last. */
@@ -436,7 +462,32 @@ export function InsuranceHandFlow({
   };
 
   const managed = offers.find((offer) => offer.baseKey === managing);
-  const picking = pickingCards && hand.players.find((p) => p.playerId === pickingCards.playerId);
+  const marks = playerMarks(hand.players.map((p) => nameOf(p.playerId)));
+  const flopCards = hand.board.slice(0, 3);
+  const targets: CardTarget[] = [
+    { id: "flop", label: "翻牌", count: 3, cards: flopCards, mark: "翻", tone: "board" },
+    {
+      id: "turn",
+      label: "转牌",
+      count: 1,
+      cards: hand.board.slice(3, 4),
+      mark: "转",
+      tone: "board",
+      // The turn comes after a whole flop
+      disabled: flopCards.length < 3,
+      faint: true,
+    },
+    ...hand.players.map(
+      (p, index): CardTarget => ({
+        id: p.playerId,
+        label: nameOf(p.playerId),
+        count: 2,
+        cards: p.cards,
+        mark: marks[index] ?? "",
+        tone: "player",
+      }),
+    ),
+  ];
   const missing = missingParts(hand, nameOf);
 
   return (
@@ -446,35 +497,35 @@ export function InsuranceHandFlow({
           <section aria-labelledby="hand-pot-title" className="mt-1">
             <SectionTitle id="hand-pot-title" title="底池信息" />
             <div className="relative flex flex-wrap items-stretch justify-center gap-1.5">
-              {editable && (
-                <SectionReset
-                  label="清空底池信息"
-                  onReset={() =>
-                    update(
-                      withPresetPools({
-                        ...hand,
-                        board: [],
-                        declined: [],
-                        skippedOuts: {},
-                        splitOuts: {},
-                      }),
-                    )
-                  }
+              {/* The arrow sits at the end of the flop's own name, and clears the board only */}
+              <div className="relative flex">
+                <StreetCards
+                  label="翻牌"
+                  cards={flopCards}
+                  count={3}
+                  onPick={editable ? () => pickFor("flop") : undefined}
                 />
-              )}
-              <StreetCards
-                label="翻牌"
-                cards={hand.board.slice(0, 3)}
-                count={3}
-                onPick={editable ? () => setPickingStreet("flop") : undefined}
-              />
+                {editable && (
+                  <button
+                    type="button"
+                    aria-label="清空翻牌和转牌"
+                    onClick={() => {
+                      heldTurn.current = undefined;
+                      saveBoard([]);
+                    }}
+                    className="absolute right-0 bottom-0 grid size-8 place-items-center text-muted"
+                  >
+                    <RotateCcw className="size-3.5" strokeWidth={1.75} aria-hidden />
+                  </button>
+                )}
+              </div>
               <StreetCards
                 label={hand.board.length > 3 ? "转牌" : "转牌·可选"}
                 cards={hand.board.slice(3, 4)}
                 count={1}
                 optional
                 disabled={hand.board.length < 3}
-                onPick={editable ? () => setPickingStreet("turn") : undefined}
+                onPick={editable ? () => pickFor("turn") : undefined}
               />
               {hand.board.length === 5 && (
                 <StreetCards label="河牌" cards={hand.board.slice(4)} count={1} />
@@ -571,14 +622,7 @@ export function InsuranceHandFlow({
                       <HoleCards
                         name={nameOf(playerId)}
                         cards={player.cards}
-                        onPick={
-                          editable
-                            ? (replace) =>
-                                setPickingCards(
-                                  replace === undefined ? { playerId } : { playerId, replace },
-                                )
-                            : undefined
-                        }
+                        onPick={editable ? (replace) => pickFor(playerId, replace) : undefined}
                       />
                     </HandPlayerRow>
                   </li>
@@ -702,43 +746,24 @@ export function InsuranceHandFlow({
         />
       )}
 
-      {pickingCards && picking && (
-        <CardPicker
-          title={`${nameOf(picking.playerId)}：${
-            picking.cards.length === 2 ? "更换手牌" : "选择两张手牌"
-          }`}
-          count={2}
-          usedCards={withoutCards(usedCards, picking.cards)}
-          initial={picking.cards}
-          replace={pickingCards.replace}
-          onConfirm={(cards) => {
-            update(withPlayer(picking.playerId, { cards }));
-            setPickingCards(undefined);
+      {picking !== undefined && editable && (
+        <HandCardPicker
+          targets={targets}
+          active={picking}
+          onActive={setPicking}
+          onCards={saveCards}
+          onReset={() => {
+            heldTurn.current = undefined;
+            update({
+              ...hand,
+              board: [],
+              players: hand.players.map((p) => ({ ...p, cards: [] })),
+              declined: [],
+              skippedOuts: {},
+              splitOuts: {},
+            });
           }}
-          onCancel={() => setPickingCards(undefined)}
-        />
-      )}
-
-      {pickingStreet === "flop" && (
-        <CardPicker
-          title="选择三张翻牌"
-          count={3}
-          usedCards={withoutCards(usedCards, hand.board.slice(0, 3))}
-          initial={hand.board.slice(0, 3)}
-          onConfirm={(flop) => saveBoard([...flop, ...hand.board.slice(3)])}
-          onCancel={() => setPickingStreet(undefined)}
-        />
-      )}
-
-      {pickingStreet === "turn" && (
-        <CardPicker
-          title="选择转牌"
-          count={1}
-          optional
-          usedCards={withoutCards(usedCards, hand.board.slice(3, 4))}
-          initial={hand.board.slice(3, 4)}
-          onConfirm={(turn) => saveBoard([...hand.board.slice(0, 3), ...turn])}
-          onCancel={() => setPickingStreet(undefined)}
+          onClose={() => setPicking(undefined)}
         />
       )}
 
