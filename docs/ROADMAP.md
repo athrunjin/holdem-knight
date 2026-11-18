@@ -43,6 +43,9 @@ Each milestone maps to a GitHub Milestone, and each feature in it maps to an iss
 - [x] A summary of each finished hand, which updates the table
 - [x] A hand entered on the page: the pot, the players with their chips from the table, and the insurance shown at once
 - [x] Covers priced by what they pay, with no payout above the pot ([ADR 0032](adr/0032-insurance-covers-priced-by-payout.md))
+- [x] Tie cards sold as a cover of their own, up to what a tie can cost ([ADR 0033](adr/0033-tie-cards-sold-as-their-own-cover.md))
+- [x] Outs given up or sold as two covers, managed card by card
+- [x] One card picker for the whole hand, kept as it is tapped, and the card dealt recorded in both ways of working
 - [x] Odds tables made, renamed, edited and deleted from the calculator and from a game's settings
 
 A preflop all-in is not covered yet, see #I-019 in the [improvement log](IMPROVEMENTS.md).

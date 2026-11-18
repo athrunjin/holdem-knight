@@ -29,10 +29,13 @@ The platforms whose rules could be read do not sell tie cards at all: cards that
 - A rule that does not count tie cards sells what it sold before, and a tied lead that cannot be insured is still refused once.
 - `soldOuts`, which added the two counts, is gone.
 
+- The buyer may give up cards of a kind, and may have some sold as a second cover. The hand keeps both by the key the kind's covers share (`skippedOuts`, `splitOuts`, set by `arrangeOuts`). `handOffers` then gives the first cover, the second with a key ending in `-2`, each priced on its own cards with the same targets and the same limit, and each offer carries `baseKey`, `part`, `allOuts` and the cards given up. At least one card is always sold, and a second cover that would hold every card sold is the first.
+
 ## Consequences
 
 - Prices change under a rule that counts tie cards, whenever a pot has any: the cover on the cards that overtake is priced on fewer cards, so at higher odds. With 6 outs and 2 tie cards at 1 赔 30, it is sold at 5.0 where the cover on all 8 was sold at 3.5.
 - A buyer can hold both covers. Only one can pay, as a card is of one kind.
+- Splitting a kind into two covers prices each on fewer cards, at higher odds: four tie cards at 8.0 become three at 10.0 and one at 30.0. This is the buyer's to choose, as it is at tables where outs are bought apart.
 - A tie never leaves the buyer more than the pot: what the split leaves and the most the cover pays add up to the pot share.
 - Between two players the cap is half the pot, so the tie cover has 保本 and 半池 and no row above them. With whole chips 半池 can be held a little under half, and says so.
 - Insurance already bought keeps what it was sold on. A purchase from before has no `tie` mark and reads as cards that overtake, tie cards included.
