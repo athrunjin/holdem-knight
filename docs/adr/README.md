@@ -38,6 +38,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0031](0031-game-stages.md) | The stages of a game: open, settling, pending and complete | Accepted |
 | [0032](0032-insurance-covers-priced-by-payout.md) | Insurance covers priced by what they pay, and a rule that keeps its odds table | Accepted |
 | [0033](0033-tie-cards-sold-as-their-own-cover.md) | Tie cards sold as a cover of their own | Accepted |
+| [0034](0034-rake-as-a-seat-with-no-buy-in.md) | Rake as a seat with no Buy-in | Accepted |
 
 ## Template
 

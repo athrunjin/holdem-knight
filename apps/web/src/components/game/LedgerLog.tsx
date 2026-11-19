@@ -16,6 +16,8 @@ const RECORD_LABEL: Record<RecordKind, string> = {
   insurance_hit: "保险命中",
   insurance_miss: "保险未中",
   insurance_undo: "撤销保险",
+  rake: "抽水",
+  rake_undo: "撤销抽水",
 };
 
 /** Long lists get a second collapse button at the bottom, so nobody has to scroll back up. */

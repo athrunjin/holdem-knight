@@ -1,5 +1,6 @@
 import {
   CURRENCIES,
+  DEFAULT_RAKE_RULE,
   type GameSettingsForm as FormValues,
   type GameSettings,
   type InsuranceRule,
@@ -8,6 +9,7 @@ import {
   parseInsuranceRule,
   parseTableFee,
   parseWage,
+  type RakeRule,
   type TableFeeIssues,
   type TableFeeRule,
   toDecimalString,
@@ -53,16 +55,32 @@ const CURRENCY_OPTIONS = CURRENCIES.map((currency) => ({
   name: CURRENCY_INFO[currency].label,
 }));
 
-/** Options with no settings yet. Rake comes last, after insurance. */
-const PLANNED_OPTIONS = ["抽水"];
-
-function PlannedOption({ label }: { label: string }) {
-  const [enabled, setEnabled] = useState(false);
-
+/**
+ * Rake, last after insurance. It has one rule for now, a tenth of the pot, so it is only a switch.
+ * Once rake is recorded in the game it stays on, as insurance does.
+ */
+function RakeSettings({
+  enabled,
+  locked,
+  onChange,
+}: {
+  enabled: boolean;
+  locked: boolean;
+  onChange: (enabled: boolean) => void;
+}) {
   return (
     <section className="rounded-xl border border-line bg-surface px-4 py-2">
-      <Toggle label={label} checked={enabled} onChange={setEnabled} />
-      {enabled && <p className="pb-2 text-sm text-muted">开发中</p>}
+      <Toggle
+        label="抽水"
+        {...(enabled && {
+          detail: locked
+            ? "这局已有抽水记录，不能关闭"
+            : `按底池 ${DEFAULT_RAKE_RULE.percent}% 计算，不足 1 筹码舍去`,
+        })}
+        checked={enabled}
+        disabled={locked}
+        onChange={onChange}
+      />
     </section>
   );
 }
@@ -124,6 +142,10 @@ interface GameSettingsFormProps {
   /** Offered as "last time", like the insurance rule */
   lastWage?: WageRule | undefined;
   lastWageLabel?: string | undefined;
+  /** This game's rake. Missing means it is off. */
+  initialRake?: RakeRule | undefined;
+  /** Once rake has been recorded in this game, it cannot be turned off */
+  rakeLocked?: boolean;
   saving: boolean;
   saveFailed: boolean;
   onSubmit: (settings: GameSettings) => void;
@@ -147,6 +169,8 @@ export function GameSettingsForm({
   initialWage,
   lastWage,
   lastWageLabel = "上次配置",
+  initialRake,
+  rakeLocked = false,
   saving,
   saveFailed,
   onSubmit,
@@ -164,6 +188,7 @@ export function GameSettingsForm({
   const [tableFeeIssues, setTableFeeIssues] = useState<TableFeeIssues>({});
   const [wage, setWage] = useState(() => initialWageChoice(initialWage, lastWage));
   const [wageIssues, setWageIssues] = useState<WageIssues>({});
+  const [rake, setRake] = useState(initialRake !== undefined);
   const currencyIcon = (
     <CurrencyIcon currency={values.currency} className="size-5 align-[-0.2em]" />
   );
@@ -185,6 +210,7 @@ export function GameSettingsForm({
       ...(rule && { insurance: rule.rule }),
       ...(fee && { tableFee: fee.rule }),
       ...(hourly && { wage: hourly.rule }),
+      ...(rake && { rake: initialRake ?? DEFAULT_RAKE_RULE }),
     };
   }
 
@@ -277,9 +303,7 @@ export function GameSettingsForm({
               onChange={setInsurance}
             />
           )}
-          {PLANNED_OPTIONS.map((label) => (
-            <PlannedOption key={label} label={label} />
-          ))}
+          <RakeSettings enabled={rake} locked={rakeLocked} onChange={setRake} />
         </div>
 
         {saveFailed && (

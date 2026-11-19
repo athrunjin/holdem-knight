@@ -1,6 +1,7 @@
 import {
   applyCharges,
   attributeInsurance,
+  attributeRake,
   type Charge,
   type ChargeWaiver,
   cents,
@@ -19,6 +20,7 @@ import {
   type PlayerChargeStatus,
   type PlayerLedger,
   type PlayerNet,
+  RAKE_PLAYER_ID,
   reviseGame,
   type SettlementOutcome,
   settleGame,
@@ -38,6 +40,7 @@ import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/Gam
 import { GameRules, hasGameRules } from "@/components/game/GameRules";
 import {
   InsuranceRow,
+  RakeRow,
   type ResultCard,
   ResultCards,
   type ResultLine,
@@ -135,7 +138,7 @@ function SettlementPage() {
           {hasGameRules(game) ? (
             <GameRules game={game} charges={charges} />
           ) : (
-            <p className="pb-1 text-xs text-muted">这局没有开启保险、工资或台费。</p>
+            <p className="pb-1 text-xs text-muted">这局没有开启保险、工资、台费或抽水。</p>
           )}
           {ruleSections.length > 0 && (
             <InfoButton title="计费规则" small>
@@ -204,6 +207,11 @@ function Notice({ gameId, children }: { gameId: string; children: ReactNode }) {
   );
 }
 
+/** One person's result in a list, 0 for someone not in it. */
+function netOf(list: readonly PlayerNet[], id: string) {
+  return list.find((p) => p.playerId === id)?.net ?? ZERO;
+}
+
 interface SettlementResultProps {
   game: Game;
   outcome: SettlementOutcome;
@@ -231,8 +239,11 @@ function SettlementResult({
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const insured = attributeInsurance(outcome.nets, game.insuranceOwner);
   const { insuranceNet, ownerId } = insured;
+  // The rake is always the organizer's, as a share of the results like insurance
+  const rakeSeat = ledger.find((p) => p.playerId === RAKE_PLAYER_ID);
+  const rakeNet = netOf(outcome.nets, RAKE_PLAYER_ID);
   const ruleNotes = chargeRuleNotes(game, game.currency);
-  const charged = applyCharges(insured.nets, charges);
+  const charged = applyCharges(attributeRake(insured.nets), charges);
   const { nets } = charged;
   const { currency, status, smallBlindChips, bigBlindChips, handChips, createdAt } = game;
   // An organizer who plays has chips under the organizer's own ID, and stays on the organizer's card
@@ -283,8 +294,6 @@ function SettlementResult({
   const planName = collectorId ? `代收人 ${nameOf(collectorId)}` : "最优方案";
 
   const organizerNet = nets.find((p) => p.playerId === ORGANIZER_COLLECTOR)?.net;
-  const netOf = (list: readonly PlayerNet[], id: string) =>
-    list.find((p) => p.playerId === id)?.net ?? ZERO;
   // Each person's result from the chips alone, before a difference is split
   const chipNets = settlementOutcome(ledger, game.chipRatio, undefined).nets;
 
@@ -308,6 +317,7 @@ function SettlementResult({
 
   const playerCards = ledger
     .filter((p) => p.playerId !== INSURANCE_PLAYER_ID || separateInsurance)
+    .filter((p) => p.playerId !== RAKE_PLAYER_ID)
     .filter((p) => p.playerId !== ORGANIZER_COLLECTOR)
     .map((player): ResultCard => {
       const { playerId } = player;
@@ -375,6 +385,10 @@ function SettlementResult({
       currency={currency}
     />
   );
+  // The rake seat sits under the insurance seat, as on the game page
+  const rakeRow = rakeSeat && (
+    <RakeRow chips={rakeSeat.cashedOutChips} amount={rakeNet} currency={currency} />
+  );
   // What an organizer can receive besides insurance, always in this order
   const organizerLines: ResultLine[] = [
     ...organizerIncomeLines(game, charges, receivesCharges),
@@ -395,7 +409,14 @@ function SettlementResult({
               base: netOf(chipNets, ORGANIZER_COLLECTOR),
               record: record(ORGANIZER_COLLECTOR),
             }),
-            ...(insuranceRow && { pinned: insuranceRow }),
+            ...((insuranceRow || rakeRow) && {
+              pinned: (
+                <>
+                  {insuranceRow}
+                  {rakeRow}
+                </>
+              ),
+            }),
             lines: organizerLines,
             total: organizerNet,
             collapsible: true,
@@ -429,7 +450,11 @@ function SettlementResult({
     const kinds = [game.tableFee && "台费", game.wage && "工资"].filter(Boolean).join("和");
     return `${kinds} ${chargesText}，计入 ${nameOf(charged.recipientId)}`;
   }
-  const notes = [imbalanceNote(), insuranceNote(), chargesNote()].filter(
+  function rakeNote() {
+    if (rakeNet === 0) return undefined;
+    return `抽水 ${formatGameMoney(rakeNet, currency)}，计入 ${nameOf(ORGANIZER_COLLECTOR)}`;
+  }
+  const notes = [imbalanceNote(), insuranceNote(), rakeNote(), chargesNote()].filter(
     (text) => text !== undefined,
   );
 

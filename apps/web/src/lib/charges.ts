@@ -122,7 +122,7 @@ const SHOWN_OUTS = [1, 3, 8, 9];
  * the game never reached is left out.
  */
 export function gameRuleLines(
-  { insurance, wage, tableFee }: Pick<Game, "insurance" | "wage" | "tableFee">,
+  { insurance, wage, tableFee, rake }: Pick<Game, "insurance" | "wage" | "tableFee" | "rake">,
   charges: readonly Charge[],
   currency: Currency,
 ): GameRuleLine[] {
@@ -163,6 +163,7 @@ export function gameRuleLines(
     const least = tableFee.minMinutes > 0 ? [`在桌满 ${tableFee.minMinutes} 分钟`] : [];
     lines.push({ label: "台费", rows: [[`${money(tableFee.amount)}/人`, ...least]] });
   }
+  if (rake) lines.push({ label: "抽水", rows: [[`底池 ${rake.percent}%`, "不足 1 筹码舍去"]] });
   return lines;
 }
 

@@ -6,28 +6,19 @@ import {
   INSURANCE_PLAYER_ID,
   OPTIMAL_PLAN,
   ORGANIZER_PLAYER_ID,
+  RAKE_PLAYER_ID,
   type Transfer,
 } from "../domain";
 import { chipsToCents, type PlayerLedger } from "../ledger";
 import { allocate, type Cents, cents, InvalidMoneyError, sum, ZERO } from "../money";
 
-export interface BalanceAdjustments {
-  readonly rakeChips: number;
-}
-
-const NO_ADJUSTMENTS: BalanceAdjustments = { rakeChips: 0 };
-
 /**
- * Balance difference: all players' results + rake, which is 0 when balanced. Insurance needs no
- * term because the insurance seat is one of the players (ADR 0014).
- * Positive means more was cashed out than bought in. Rake stays 0 until M4.
+ * Balance difference: all players' results, which add up to 0 when balanced. Insurance and rake
+ * need no term of their own: their seats are among the players (ADR 0014, ADR 0034).
+ * Positive means more was cashed out than bought in.
  */
-export function chipDifference(
-  players: readonly PlayerLedger[],
-  { rakeChips }: BalanceAdjustments = NO_ADJUSTMENTS,
-): number {
-  const net = players.reduce((total, p) => total + p.cashedOutChips - p.boughtChips, 0);
-  return net + rakeChips;
+export function chipDifference(players: readonly PlayerLedger[]): number {
+  return players.reduce((total, p) => total + p.cashedOutChips - p.boughtChips, 0);
 }
 
 export interface PlayerNet {
@@ -162,6 +153,19 @@ export function attributeInsurance(
   return { nets: moved, insuranceNet, ownerId };
 }
 
+/**
+ * Moves the rake seat's result to the organizer, on their own row if they play. The rake is what
+ * the organizer keeps, so it never has an owner to choose.
+ */
+export function attributeRake(nets: readonly PlayerNet[]): PlayerNet[] {
+  const rake = nets.find((p) => p.playerId === RAKE_PLAYER_ID)?.net ?? ZERO;
+  const rest = nets.filter((p) => p.playerId !== RAKE_PLAYER_ID);
+  if (rake === 0) return rest;
+  return rest.some((p) => p.playerId === ORGANIZER_COLLECTOR)
+    ? rest.map((p) => (p.playerId === ORGANIZER_COLLECTOR ? { ...p, net: cents(p.net + rake) } : p))
+    : [...rest, { playerId: ORGANIZER_COLLECTOR, net: rake }];
+}
+
 function largest(balances: Map<string, number>, sign: 1 | -1): [string, number] | undefined {
   let best: [string, number] | undefined;
   for (const [id, balance] of balances) {
@@ -213,17 +217,19 @@ export function isValidCollector(nets: readonly PlayerNet[], collectorId: string
 /**
  * Who collects at settlement, or `undefined` for the optimal plan. A saved choice comes first.
  * Without one, or with a collector no longer in the game (for example after it went back to the
- * table), a game with insurance, a table fee or wages goes through the organizer, and any other
- * game takes the optimal plan. Rake will count with them once it exists (M4).
+ * table), a game with insurance, a table fee, wages or rake goes through the organizer, and any
+ * other game takes the optimal plan.
  */
 export function transferCollector(
-  game: Pick<Game, "collectorId" | "insurance" | "tableFee" | "wage">,
+  game: Pick<Game, "collectorId" | "insurance" | "tableFee" | "wage" | "rake">,
   nets: readonly PlayerNet[],
 ): string | undefined {
   const { collectorId } = game;
   if (collectorId === OPTIMAL_PLAN) return undefined;
   if (collectorId !== undefined && isValidCollector(nets, collectorId)) return collectorId;
-  return game.insurance || game.tableFee || game.wage ? ORGANIZER_COLLECTOR : undefined;
+  return game.insurance || game.tableFee || game.wage || game.rake
+    ? ORGANIZER_COLLECTOR
+    : undefined;
 }
 
 function sameTransfer(a: Transfer, b: Transfer) {

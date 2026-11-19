@@ -1,5 +1,5 @@
 import { type Cents, type Currency, cents } from "@holdem-knight/core";
-import { Calculator, ChevronRight } from "lucide-react";
+import { Calculator, ChevronRight, HandCoins } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { breakable, formatSignedChips, netColor } from "@/lib/chips";
@@ -61,7 +61,10 @@ export interface ResultCard {
   readonly base?: Cents;
   /** The person's Buy-in record, over the lines. Missing for an organizer who is not playing. */
   readonly record?: ReactNode;
-  /** Rows under the first one that stay in view however the card is folded: the insurance seat. */
+  /**
+   * Rows under the first one that stay in view however the card is folded: the insurance and rake
+   * seats.
+   */
   readonly pinned?: ReactNode;
   readonly lines: readonly ResultLine[];
   readonly total: Cents;
@@ -173,6 +176,62 @@ export function InsuranceRow({
       <span className="text-right whitespace-nowrap text-highlight">
         {formatGameAmount(amount, currency, amount === 0 ? "auto" : "exceptZero")}
       </span>
+    </div>
+  );
+}
+
+/**
+ * The rake seat's name on the organizer's card, under the insurance seat's and in the green of the
+ * charges the organizer receives.
+ */
+export const rakeNameClass = "flex min-w-0 items-center gap-0.5 pl-3 text-win";
+
+export function RakeName() {
+  return (
+    <>
+      <HandCoins className="size-4 shrink-0" aria-hidden />
+      <span className="truncate">抽水</span>
+    </>
+  );
+}
+
+/**
+ * The rake seat's cells after its name: no Buy-in, the rake in chips, the same as a win, and what
+ * it comes to. All in green, as the rake is the organizer's.
+ */
+export function RakeCells({
+  chips,
+  amount,
+  currency,
+}: {
+  chips: number;
+  amount: Cents;
+  currency: Currency;
+}) {
+  return (
+    <>
+      <span aria-hidden />
+      <span className={cn(figureClass, "text-center")}>
+        {breakable(chips.toLocaleString("zh-CN"))}
+      </span>
+      <span className={cn(figureClass, "text-right text-win")}>
+        {breakable(formatSignedChips(chips))}
+      </span>
+      <span className="text-right whitespace-nowrap text-win">
+        {formatGameAmount(amount, currency, amount === 0 ? "auto" : "exceptZero")}
+      </span>
+    </>
+  );
+}
+
+/** The rake seat on the organizer's card, to read only, as the settlement page shows it. */
+export function RakeRow(props: { chips: number; amount: Cents; currency: Currency }) {
+  return (
+    <div className={cn(columnsClass, "min-h-11 text-xs")}>
+      <span className={rakeNameClass}>
+        <RakeName />
+      </span>
+      <RakeCells {...props} />
     </div>
   );
 }

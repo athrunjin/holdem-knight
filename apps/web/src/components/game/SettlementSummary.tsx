@@ -5,6 +5,7 @@ import {
   INSURANCE_PLAYER_ID,
   ledgerTotals,
   type PlayerLedger,
+  RAKE_PLAYER_ID,
   timerElapsedMs,
 } from "@holdem-knight/core";
 import { useSaveGame } from "@/data/games";
@@ -29,7 +30,9 @@ export function SettlementSummary({ game, ledger, difference, onLocked }: Settle
   const saveGame = useSaveGame();
   const { timer } = game;
   const settled = game.status === "settled";
-  const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
+  const people = ledger.filter(
+    (p) => p.playerId !== INSURANCE_PLAYER_ID && p.playerId !== RAKE_PLAYER_ID,
+  );
   const { boughtChips } = ledgerTotals(people);
   const elapsed = timer && formatElapsed(timerElapsedMs(timer, game.settledAt ?? Date.now()));
   // Short enough to sit over the balance box; the box under it has the amount

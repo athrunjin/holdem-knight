@@ -9,6 +9,7 @@ import {
   type LedgerEvent,
   ORGANIZER_PLAYER_ID,
   type PlayerLedger,
+  RAKE_PLAYER_ID,
 } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
@@ -27,7 +28,10 @@ import {
   InsuranceName,
   insuranceNameClass,
   PersonCard,
+  RakeCells,
+  RakeName,
   type ResultCard,
+  rakeNameClass,
 } from "./ResultCards";
 
 const actionClass = "min-h-11 shrink-0 rounded-lg border border-line px-2 text-sm font-medium";
@@ -66,6 +70,8 @@ interface LedgerPlayersProps {
   onReturnAll: () => void;
   /** The player leaves with the chips on the page, at once */
   onLeave: (playerId: string) => void;
+  /** Opens the rake: what has been taken so far, and adding to it */
+  onRake: () => void;
   /** Shown at the foot of the seated players */
   addPlayer: ReactNode;
   /** Whether the seated players' cards are open, on their record, charges and total */
@@ -129,6 +135,7 @@ export function LedgerPlayers({
   onReturn,
   onReturnAll,
   onLeave,
+  onRake,
   addPlayer,
   detailMode,
   onDetailModeChange,
@@ -178,8 +185,12 @@ export function LedgerPlayers({
   const seat = players.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   // An organizer who plays stays in the organizer's card, never among the players
   const host = players.find((p) => p.playerId === ORGANIZER_PLAYER_ID);
+  const rakeSeat = players.find((p) => p.playerId === RAKE_PLAYER_ID);
   const people = players.filter(
-    (p) => p.playerId !== INSURANCE_PLAYER_ID && p.playerId !== ORGANIZER_PLAYER_ID,
+    (p) =>
+      p.playerId !== INSURANCE_PLAYER_ID &&
+      p.playerId !== ORGANIZER_PLAYER_ID &&
+      p.playerId !== RAKE_PLAYER_ID,
   );
   const seated = people.filter((p) => p.seated);
   const left = people.filter((p) => !p.seated);
@@ -199,11 +210,14 @@ export function LedgerPlayers({
   const charged = { tableFee: game.tableFee !== undefined, wage: game.wage !== undefined };
   const insurance = seat && chipsToCents(seat.netChips, ratio);
   const ownCash = host && chipsToCents(host.netChips, ratio);
-  const organizerTotal = cents((ownCash ?? 0) + (insurance ?? 0) + tableFees + wages);
-  // A game with insurance always shows its seat
+  const rakeTaken = rakeSeat?.netChips ?? 0;
+  const rake = chipsToCents(rakeTaken, ratio);
+  const organizerTotal = cents((ownCash ?? 0) + (insurance ?? 0) + rake + tableFees + wages);
+  // A game with insurance or rake always shows its seat, and so does one turned off with records
   const showInsurance = seat !== undefined || game.insurance !== undefined;
+  const showRake = rakeSeat !== undefined || game.rake !== undefined;
   const showOrganizer =
-    editable || host !== undefined || showInsurance || charged.tableFee || charged.wage;
+    editable || host !== undefined || showInsurance || showRake || charged.tableFee || charged.wage;
   const dash = (align: string) => <span className={cn(align, "text-muted")}>—</span>;
 
   /**
@@ -391,8 +405,31 @@ export function LedgerPlayers({
   }
 
   /**
+   * The rake seat, under the insurance seat. Any tap on the row opens the rake, while the game is
+   * still being played.
+   */
+  function rakeRow() {
+    const cells = (
+      <>
+        <span className={cn(rakeNameClass, "min-h-11")}>
+          <RakeName />
+        </span>
+        <RakeCells chips={rakeTaken} amount={rake} currency={currency} />
+      </>
+    );
+    const rowClass = cn(columnsClass, "min-h-11 w-full text-left text-xs");
+    return editable ? (
+      <button type="button" aria-label="修改抽水" onClick={onRake} className={rowClass}>
+        {cells}
+      </button>
+    ) : (
+      <div className={rowClass}>{cells}</div>
+    );
+  }
+
+  /**
    * What the organizer has so far, in the settlement page's own card: their chips if they play,
-   * the insurance seat, and the wages and table fees charged so far. It folds on its own, apart
+   * the insurance and rake seats, and the wages and table fees charged so far. It folds on its own, apart
    * from the 详细模式 switch.
    */
   function organizerCard() {
@@ -415,7 +452,14 @@ export function LedgerPlayers({
           />
         ),
       }),
-      ...(showInsurance && { pinned: insuranceRow() }),
+      ...((showInsurance || showRake) && {
+        pinned: (
+          <>
+            {showInsurance && insuranceRow()}
+            {showRake && rakeRow()}
+          </>
+        ),
+      }),
       lines: organizerIncomeLines(game, live.charges),
       total: organizerTotal,
       collapsible: true,

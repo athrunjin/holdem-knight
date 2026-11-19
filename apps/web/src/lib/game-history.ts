@@ -76,9 +76,8 @@ export function isFiltered({ period, currency, options }: HistoryView) {
   return period !== "all" || currency !== "all" || options.length < GAME_OPTIONS.length;
 }
 
-/** Rake has no setting until M4, so no game has it on yet. */
 export function hasOption(game: Game, option: GameOption) {
-  return option !== "rake" && game[option] !== undefined;
+  return game[option] !== undefined;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

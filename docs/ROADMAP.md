@@ -52,6 +52,7 @@ A preflop all-in is not covered yet, see #I-019 in the [improvement log](IMPROVE
 
 ## M4 Rake
 
+- [x] A rake seat on the organizer's card, with a dialog that works out a pot's rake and adds it, and undo ([ADR 0034](adr/0034-rake-as-a-seat-with-no-buy-in.md)). The rule is fixed at 10% of the pot for now
 - Rake rules: percentage, cap, no flop no drop
 - Per-pot records and rake totals
 

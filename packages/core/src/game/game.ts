@@ -136,19 +136,20 @@ export interface NewGameMeta {
   readonly timeZone?: string;
 }
 
-type GameOptions = Pick<GameSettings, "insurance" | "tableFee" | "wage">;
+type GameOptions = Pick<GameSettings, "insurance" | "tableFee" | "wage" | "rake">;
 
 /** Only the options that are on, so a game never stores a key set to undefined. */
-function optionsOf({ insurance, tableFee, wage }: GameOptions) {
+function optionsOf({ insurance, tableFee, wage, rake }: GameOptions) {
   return {
     ...(insurance && { insurance }),
     ...(tableFee && { tableFee }),
     ...(wage && { wage }),
+    ...(rake && { rake }),
   };
 }
 
 function withHandChips(settings: GameSettings) {
-  const { insurance: _, tableFee: _fee, wage: _wage, ...basics } = settings;
+  const { insurance: _, tableFee: _fee, wage: _wage, rake: _rake, ...basics } = settings;
   return { ...basics, handChips: handChipsFor(settings), ...optionsOf(settings) };
 }
 
@@ -236,7 +237,7 @@ export function updateGameSettings(
   settings: GameSettings,
   { hasLedgerEvents }: { readonly hasLedgerEvents: boolean },
 ): Game {
-  const { insurance: _, tableFee: _fee, wage: _wage, ...rest } = game;
+  const { insurance: _, tableFee: _fee, wage: _wage, rake: _rake, ...rest } = game;
   const { smallBlindChips, bigBlindChips } = settings;
   const updated = hasLedgerEvents
     ? { ...rest, smallBlindChips, bigBlindChips }

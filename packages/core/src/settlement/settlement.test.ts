@@ -1,13 +1,14 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { INSURANCE_PLAYER_ID, OPTIMAL_PLAN } from "../domain";
+import { DEFAULT_RAKE_RULE, INSURANCE_PLAYER_ID, OPTIMAL_PLAN, RAKE_PLAYER_ID } from "../domain";
 import { createGame, DEFAULT_GAME_SETTINGS } from "../game";
 import { RULE_30 } from "../insurance";
 import { chipsToCents, type PlayerLedger } from "../ledger";
 import { cents, sum } from "../money";
 import {
   attributeInsurance,
+  attributeRake,
   chipDifference,
   collectorTransfers,
   isTransferDone,
@@ -65,9 +66,9 @@ describe("chipDifference", () => {
     expect(chipDifference([ledger("a", 1000, 700)])).toBe(-300);
   });
 
-  it("balances when results + rake = 0", () => {
-    const players = [ledger("a", 1000, 900)];
-    expect(chipDifference(players, { rakeChips: 100 })).toBe(0);
+  it("balances with the rake seat's result among the players", () => {
+    const players = [ledger("a", 1000, 900), ledger(RAKE_PLAYER_ID, 0, 100)];
+    expect(chipDifference(players)).toBe(0);
   });
 });
 
@@ -191,6 +192,7 @@ describe("transferCollector", () => {
     expect(transferCollector(fee, nets)).toBe(ORGANIZER_COLLECTOR);
     expect(transferCollector({ wage: { hourly: cents(1000) } }, nets)).toBe(ORGANIZER_COLLECTOR);
     expect(transferCollector({ insurance: RULE_30 }, nets)).toBe(ORGANIZER_COLLECTOR);
+    expect(transferCollector({ rake: DEFAULT_RAKE_RULE }, nets)).toBe(ORGANIZER_COLLECTOR);
   });
 
   it("keeps a saved choice, the optimal plan included", () => {
@@ -341,6 +343,49 @@ describe("settlementOutcome", () => {
           expect(sum(nets.map((p) => p.net))).toBe(0);
           expect(unresolved).toBe(0);
           expect(new Set(nets.map((p) => p.playerId)).size).toBe(nets.length);
+        },
+      ),
+    );
+  });
+});
+
+describe("attributeRake", () => {
+  const net = (playerId: string, amount: number): PlayerNet => ({ playerId, net: cents(amount) });
+
+  it("gives the rake to the organizer on a row of their own", () => {
+    const nets = [net("a", 300), net("b", -500), net(RAKE_PLAYER_ID, 200)];
+    expect(attributeRake(nets)).toEqual([
+      net("a", 300),
+      net("b", -500),
+      net(ORGANIZER_COLLECTOR, 200),
+    ]);
+  });
+
+  it("adds it to an organizer who already has a row", () => {
+    const nets = [net(ORGANIZER_COLLECTOR, -100), net("b", -100), net(RAKE_PLAYER_ID, 200)];
+    expect(attributeRake(nets)).toEqual([net(ORGANIZER_COLLECTOR, 100), net("b", -100)]);
+  });
+
+  it("leaves the results alone with no rake", () => {
+    const nets = [net("a", 100), net("b", -100)];
+    expect(attributeRake(nets)).toEqual(nets);
+  });
+
+  it("keeps the results adding up to the same total", () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.integer({ min: -100_000, max: 100_000 }), { maxLength: 8 }),
+        fc.integer({ min: 0, max: 100_000 }),
+        fc.boolean(),
+        (amounts, rake, hostPlays) => {
+          const nets = [
+            ...amounts.map((amount, i) => net(`p${i}`, amount)),
+            ...(hostPlays ? [net(ORGANIZER_COLLECTOR, -rake)] : []),
+            net(RAKE_PLAYER_ID, rake),
+          ];
+          const moved = attributeRake(nets);
+          expect(sum(moved.map((p) => p.net))).toBe(sum(nets.map((p) => p.net)));
+          expect(moved.some((p) => p.playerId === RAKE_PLAYER_ID)).toBe(false);
         },
       ),
     );
