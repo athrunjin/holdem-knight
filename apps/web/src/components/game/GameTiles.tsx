@@ -2,7 +2,7 @@ import { chipsToCents, type Game } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { Calculator, Check, Timer, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { ChipIcon } from "@/components/ChipIcon";
+import { ChipStack } from "@/components/ChipStack";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
@@ -104,7 +104,7 @@ function useCashOrChips(game: Pick<Game, "chipRatio" | "currency">) {
     mark: (
       <span aria-hidden>
         {inChips ? (
-          <ChipIcon className={markClass} />
+          <ChipStack ground="var(--surface)" className={markClass} />
         ) : (
           <CurrencyIcon currency={game.currency} className={markClass} />
         )}
