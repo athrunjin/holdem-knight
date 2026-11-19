@@ -1,5 +1,5 @@
 import { type ChipRatio, type Currency, chipsToCents, parseChips } from "@holdem-knight/core";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { TextField } from "@/components/TextField";
 import { formatGameMoney } from "@/lib/currency";
 import { FormDialog } from "./FormDialog";
@@ -7,11 +7,8 @@ import { FormDialog } from "./FormDialog";
 interface ChipAmountDialogProps {
   title: string;
   submitLabel: string;
+  /** Buy-ins and rebuys, which must be above 0 */
   initialChips: number | undefined;
-  /** A cash-out can be 0 (busted); buy-ins and rebuys must be above 0 */
-  allowZero: boolean;
-  /** Select the input on open so a number can be typed right away */
-  selectInput?: boolean;
   ratio: ChipRatio;
   currency: Currency;
   saving: boolean;
@@ -24,8 +21,6 @@ export function ChipAmountDialog({
   title,
   submitLabel,
   initialChips,
-  allowZero,
-  selectInput = false,
   ratio,
   currency,
   saving,
@@ -33,20 +28,15 @@ export function ChipAmountDialog({
   onSubmit,
   onClose,
 }: ChipAmountDialogProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(initialChips === undefined ? "" : String(initialChips));
   const [issue, setIssue] = useState<string>();
   const chips = parseChips(value);
-
-  useEffect(() => {
-    if (selectInput) inputRef.current?.select();
-  }, [selectInput]);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (chips === null) {
       setIssue("请输入整数筹码数");
-    } else if (chips === 0 && !allowZero) {
+    } else if (chips === 0) {
       setIssue("必须大于 0");
     } else {
       onSubmit(chips);
@@ -70,7 +60,6 @@ export function ChipAmountDialog({
           issue={issue}
           suffix="筹码"
           inputMode="numeric"
-          inputRef={inputRef}
           onChange={setValue}
         />
         {chips !== null && (

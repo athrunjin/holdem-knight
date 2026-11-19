@@ -444,7 +444,6 @@ function GameLedger({ game }: { game: Game }) {
           title={`${nextBuyType(events, pending.playerId) === "buy_in" ? "Buy-in" : "补码"} · ${pending.name}`}
           submitLabel="确定"
           initialChips={lastBuyChips(events)}
-          allowZero={false}
           ratio={chipRatio}
           currency={currency}
           saving={appendEvent.isPending}
