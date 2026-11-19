@@ -9,15 +9,19 @@ import {
   formatRakeNumber,
   MAX_WAGE_SEGMENTS,
   MAX_WAGE_SEGMENTS_IN_ALL,
+  parseChips,
   parseRake,
   parseTableFee,
   parseWage,
+  potForRake,
   RAKE_PERCENT_PICKS,
   RAKE_ROUNDINGS,
   type RakeAmount,
   type RakeForm,
   type RakeIssues,
   type RakeRule,
+  rakeCapChips,
+  rakeFromPot,
   type SavedChargeRule,
   type TableFeeForm,
   type TableFeeIssues,
@@ -468,16 +472,19 @@ export function TableFeeSettings({
       {enabled && (
         <>
           <div className="flex min-h-11 items-center justify-between gap-3">
-            <label htmlFor="table-fee-amount" className="font-medium">
-              基础台费
-            </label>
+            <span className="flex items-center gap-2">
+              <label htmlFor="table-fee-amount" className="font-medium">
+                基础台费
+              </label>
+              {minutes === 0 && <span className="text-xs text-highlight">上桌就收</span>}
+            </span>
             <InlineNumber
               id="table-fee-amount"
               label="基础台费"
               value={form.amount}
               invalid={shown.amount !== undefined}
               prefix={CURRENCY_INFO[currency].symbol}
-              suffix="/人/台"
+              suffix="/ 人 / 台"
               minChars={6}
               format={formatMoneyText}
               onChange={(amount) => setForm({ amount })}
@@ -1001,6 +1008,56 @@ function RakeAmountFigures({
   );
 }
 
+/**
+ * Under the cap: the smallest pot whose rake reaches it, in chips whatever the cap shows. Typing a
+ * pot sets the cap to the rake that pot gives, kept in the cap's unit.
+ */
+function MaxPotLine({
+  form,
+  stakes,
+  onCap,
+}: {
+  form: RakeForm;
+  stakes: RakeStakes;
+  onCap: (unit: RakeAmount["unit"], amount: string) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const bigBlind = stakes.bigBlindChips ?? undefined;
+  const parsed = parseRake(form);
+  const rule = parsed.ok ? parsed.rule : null;
+  const capChips = rule && rakeCapChips(rule, bigBlind);
+  const maxPot = rule && capChips ? potForRake(capChips, rule, bigBlind) : null;
+
+  function typePot(text: string) {
+    setDraft(text);
+    const pot = parseChips(text);
+    if (!rule || pot === null || pot <= 0) return;
+    const { cap: _, ...uncapped } = rule;
+    const chips = rakeFromPot(pot, uncapped, bigBlind);
+    if (chips <= 0) return;
+    if (form.capUnit === "chips" || !bigBlind) onCap("chips", String(chips));
+    else onCap("bigBlinds", formatRakeNumber(Math.round((chips / bigBlind) * 100) / 100));
+  }
+
+  return (
+    <div className="-mt-2 flex items-center justify-end font-medium">
+      <span className="mr-1 text-xs font-normal text-muted">等值最大底池：</span>
+      <FigureInput
+        label="等值最大底池（筹码）"
+        value={draft ?? (maxPot === null ? "" : String(maxPot))}
+        onChange={typePot}
+        onBlur={() => setDraft(null)}
+        tidy={chipsText}
+        wholeNumber
+        wide
+      />
+      <Mark>
+        <ChipStack ground="var(--surface)" className="size-5" />
+      </Mark>
+    </div>
+  );
+}
+
 interface RakeSettingsProps extends ChargeSettingsProps<RakeRule, RakeForm, RakeIssues> {
   /** Once rake has been recorded in this game, it cannot be turned off */
   locked: boolean;
@@ -1096,8 +1153,9 @@ export function RakeSettings({
             </span>
           </div>
 
-          <div className="flex min-h-11 items-center justify-between gap-2">
-            <span className="flex items-center gap-1.5">
+          {/* Each row puts its figures on a line of their own when they do not fit beside it */}
+          <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-2">
+            <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
               <span className={titleClass(form.capOn)}>封顶</span>
               <MiniSwitch
                 label="封顶"
@@ -1107,20 +1165,30 @@ export function RakeSettings({
               />
             </span>
             {form.capOn && (
-              <RakeAmountFigures
-                label="封顶"
-                unit={form.capUnit}
-                amount={form.capAmount}
-                invalid={shown.capAmount !== undefined}
-                stakes={stakes}
-                currency={currency}
-                onChange={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
-              />
+              <span className="ml-auto flex shrink-0 items-center">
+                <span className="mr-1 text-xs whitespace-nowrap text-muted">单笔最多收：</span>
+                <RakeAmountFigures
+                  label="封顶"
+                  unit={form.capUnit}
+                  amount={form.capAmount}
+                  invalid={shown.capAmount !== undefined}
+                  stakes={stakes}
+                  currency={currency}
+                  onChange={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
+                />
+              </span>
             )}
           </div>
+          {form.capOn && (
+            <MaxPotLine
+              form={form}
+              stakes={stakes}
+              onCap={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
+            />
+          )}
 
-          <div className="flex min-h-11 items-center justify-between gap-2">
-            <span className="flex items-center gap-1.5">
+          <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-2">
+            <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
               <span className={titleClass(form.roundOn)}>取整</span>
               <MiniSwitch
                 label="取整"
@@ -1139,15 +1207,17 @@ export function RakeSettings({
               )}
             </span>
             {form.roundOn && (
-              <RakeAmountFigures
-                label="最小面额"
-                unit={form.roundUnit}
-                amount={form.roundAmount}
-                invalid={shown.roundAmount !== undefined}
-                stakes={stakes}
-                currency={currency}
-                onChange={(roundUnit, roundAmount) => setForm({ roundUnit, roundAmount })}
-              />
+              <span className="ml-auto flex shrink-0 items-center">
+                <RakeAmountFigures
+                  label="最小面额"
+                  unit={form.roundUnit}
+                  amount={form.roundAmount}
+                  invalid={shown.roundAmount !== undefined}
+                  stakes={stakes}
+                  currency={currency}
+                  onChange={(roundUnit, roundAmount) => setForm({ roundUnit, roundAmount })}
+                />
+              </span>
             )}
           </div>
 

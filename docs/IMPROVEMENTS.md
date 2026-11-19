@@ -1377,7 +1377,8 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Proposal:
   - Game setup has rake in the same style as the other options: its config on the switch row, 保存配置 for a valid new config, and last time's values carried over.
   - 比例 takes decimals, with quick picks of 2.5%, 3%, 5% and 10%, default 5%, shown without decimals it does not need.
-  - 封顶 has a switch, off by default, which fades and strikes through its title. On, it reads `2 BB ⇔ 4 [chip]`: either figure can be typed and the other follows, and a tap on the chip mark shows points.
+  - 封顶 has a switch, off by default, which fades and strikes through its title. On, it reads `单笔最多收：2 BB ⇔ 4 [chip]`: either figure can be typed and the other follows, and a tap on the chip mark shows points. A line under it reads `等值最大底池：60 [chip]`, the smallest pot whose rake reaches the cap once rounded, always in chips with its mark under the one above; typing a pot sets the cap to that pot's rake, in the cap's unit.
+  - When the cap or rounding row has no room beside its switch, its figures go to a line of their own.
   - 取整 has a switch, on by default, then 四舍五入 (default), 向下取整 or 向上取整, and the smallest chip as `1 BB ⇔ chips` in the same way, lined up under the cap.
   - 保险报价先扣除抽水 is kept as a switch, off by default, marked 开发中.
   - The rake dialog keeps each rake with its time and, when worked out from a pot, the pot, and lists them under 记录.
@@ -1388,7 +1389,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The default cap of 2 BB follows live rooms, which cap at about $4–6, a couple of big blinds at $1/$2.
   - With rounding off, the rake rounds down to whole chips.
   - Wages at setup in the same round: 基础薪资 for 基础时薪, figures centered with no underline in a slot for 00.00, 精确到 每分钟 / 每15分 / 每30分 / 每小时, 超出部分 with its info mark before the rounding, and 根据时间 and 根据时长 for the two kinds of segment. The 精确到 row sits closer under 基础薪资, and the info mark before 超出部分 is the size of that text and explains only the rounding and the stretches of time.
-  - The table fee in the same style: 基础台费 with its amount at the right as `¥ 100.00 /人/台`, centered in a slot for 000.00, and 在桌满 5 分钟收 as a switch at the right, on by default, with 防止误添加玩家产生台费 under it. The minutes are fixed at 5; a game set up with another time keeps it while the switch is on.
+  - The table fee in the same style: 基础台费 with its amount at the right as `¥ 100.00 /人/台`, centered in a slot for 000.00, and 在桌满 5 分钟收 as a switch at the right, on by default, with 防止误添加玩家产生台费 under it. The minutes are fixed at 5; a game set up with another time keeps it while the switch is on. With the switch off, 上桌就收 shows in small gold type after 基础台费, and the amount reads `/ 人 / 台`.
   - Games with the older rule keep 10% rounded down, and carry it over that way.
   - Online rooms take rake off the pot before pricing an all-in cash-out; nothing was found for live games, so the insurance switch waits for a decision.
   - Settlement is unchanged, apart from its rule line naming the new settings. Backups move to version 14.

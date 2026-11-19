@@ -31,6 +31,12 @@ function capChips(rule: RakeRule, unit: number, bigBlindChips: number | undefine
   return Math.floor(chips / unit) * unit;
 }
 
+/** The most rake a pot can give up under the rule, in chips once rounded, or null with no cap. */
+export function rakeCapChips(rule: RakeRule, bigBlindChips?: number): number | null {
+  const cap = capChips(rule, roundingUnit(rule, bigBlindChips), bigBlindChips);
+  return Number.isFinite(cap) ? cap : null;
+}
+
 /**
  * The rake on a pot of `potChips`: the rule's percentage, rounded to its smallest chip, and no more
  * than its cap. Amounts in big blinds need the game's big blind, and are left out without one.

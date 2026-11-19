@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RAKE_RULE, type RakeRule } from "../domain";
-import { parseRake, potForRake, rakeFromPot, toRakeForm } from "./rake";
+import { parseRake, potForRake, rakeCapChips, rakeFromPot, toRakeForm } from "./rake";
 
 /** A rule from before rake had settings: 10%, rounded down to whole chips, no cap. */
 const OLDER: RakeRule = { percent: 10 };
@@ -53,6 +53,10 @@ describe("rakeFromPot", () => {
     expect(rakeFromPot(1000, { ...byBlinds, roundTo: { unit: "chips", amount: 10 } }, 10)).toBe(20);
     // With no big blind to go by, a cap in big blinds does not apply
     expect(rakeFromPot(1000, byBlinds)).toBe(50);
+    expect(rakeCapChips(byBlinds, 10)).toBe(25);
+    expect(rakeCapChips({ ...byBlinds, roundTo: { unit: "chips", amount: 10 } }, 10)).toBe(20);
+    expect(rakeCapChips(byBlinds)).toBeNull();
+    expect(rakeCapChips(BY_CHIP)).toBeNull();
   });
 
   it("takes nothing from an empty, negative or part-chip pot", () => {
