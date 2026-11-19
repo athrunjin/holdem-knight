@@ -969,8 +969,9 @@ function RakeAmountFigures({
     }
   }
 
+  // Five cells of the rake grid: blinds, their mark, ⇔, chips or points, and the switching mark
   return (
-    <span className="flex items-center font-medium">
+    <span className="contents font-medium">
       <FigureInput
         label={`${label}（${mark}）`}
         value={unit === blind ? amount : blinds === null ? "" : blindText(blinds)}
@@ -1013,6 +1014,13 @@ function RakeAmountFigures({
   );
 }
 
+/** A caption in the rake grid, right-aligned so the colons of every row line up. */
+const Caption = ({ children }: { children: ReactNode }) => (
+  <span className="col-start-2 pr-1 text-right text-xs whitespace-nowrap text-muted">
+    {children}
+  </span>
+);
+
 /**
  * Under the cap: the pot whose rake, before rounding, is the cap, in chips whatever the cap shows.
  * Typing a pot sets the cap to that pot's rate, kept in the cap's unit, so the pot comes back as
@@ -1044,22 +1052,25 @@ function MaxPotLine({
     else onCap(form.capUnit, blindText(chips / blind));
   }
 
+  // A row of the rake grid: its caption, then the pot under the chips above it
   return (
-    <div className="-mt-2 flex items-center justify-end font-medium">
-      <span className="mr-1 text-xs font-normal text-muted">等值最大底池：</span>
-      <FigureInput
-        label="等值最大底池（筹码）"
-        value={draft ?? (maxPot ? String(maxPot) : "")}
-        onChange={typePot}
-        onBlur={() => setDraft(null)}
-        tidy={chipsText}
-        wholeNumber
-        wide
-      />
+    <span className="contents font-medium">
+      <Caption>等值最大底池:</Caption>
+      <span className="col-start-6">
+        <FigureInput
+          label="等值最大底池（筹码）"
+          value={draft ?? (maxPot ? String(maxPot) : "")}
+          onChange={typePot}
+          onBlur={() => setDraft(null)}
+          tidy={chipsText}
+          wholeNumber
+          wide
+        />
+      </span>
       <Mark>
         <ChipStack ground="var(--surface)" className="size-5" />
       </Mark>
-    </div>
+    </span>
   );
 }
 
@@ -1102,11 +1113,9 @@ export function RakeSettings({
   // Issues show as they are made, not only once the game is started
   const live = parseRake(form);
   const shown: RakeIssues = { ...(live.ok ? {} : live.issues), ...issues };
-  /**
-   * A row's figures share its line on a wide enough card and take their own line on a narrow one,
-   * decided by the card's width, not by the numbers, so typing never moves them between lines.
-   */
-  const figuresClass = "ml-auto flex shrink-0 items-center justify-end @max-xs:basis-full";
+  /** A title and its switch start a row of the rake grid, and have a line of their own when narrow. */
+  const titleCellClass =
+    "col-start-1 flex min-h-11 items-center gap-1.5 whitespace-nowrap @max-xs:col-span-full";
   /** A switched-off setting reads faded and struck through. */
   const titleClass = (on: boolean) => cn("font-medium", !on && "text-muted line-through");
 
@@ -1163,9 +1172,13 @@ export function RakeSettings({
             </span>
           </div>
 
-          {/* Each row puts its figures on a line of their own when they do not fit beside it */}
-          <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-2">
-            <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+          {/*
+            One grid for the cap and the rounding, so their colons, figures and marks line up.
+            On a narrow card each title takes a line of its own, decided by the card's width,
+            not by the numbers, so typing never moves anything between lines.
+          */}
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto_auto_auto] items-center">
+            <span className={titleCellClass}>
               <span className={titleClass(form.capOn)}>封顶</span>
               <MiniSwitch
                 label="封顶"
@@ -1175,8 +1188,8 @@ export function RakeSettings({
               />
             </span>
             {form.capOn && (
-              <span className={figuresClass}>
-                <span className="mr-1 text-xs whitespace-nowrap text-muted">单笔最多收：</span>
+              <>
+                <Caption>单笔最多收:</Caption>
                 <RakeAmountFigures
                   label="封顶"
                   blind="bigBlinds"
@@ -1187,19 +1200,15 @@ export function RakeSettings({
                   currency={currency}
                   onChange={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
                 />
-              </span>
+                <MaxPotLine
+                  form={form}
+                  stakes={stakes}
+                  onCap={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
+                />
+              </>
             )}
-          </div>
-          {form.capOn && (
-            <MaxPotLine
-              form={form}
-              stakes={stakes}
-              onCap={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
-            />
-          )}
 
-          <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-2">
-            <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+            <span className={titleCellClass}>
               <span className={titleClass(form.roundOn)}>取整</span>
               <MiniSwitch
                 label="取整"
@@ -1207,20 +1216,12 @@ export function RakeSettings({
                 checked={form.roundOn}
                 onChange={(roundOn) => setForm({ roundOn })}
               />
-              {form.roundOn && (
-                <TextMenu
-                  label="取整方式"
-                  options={RAKE_ROUNDING_OPTIONS}
-                  value={form.rounding}
-                  onChange={(rounding) => setForm({ rounding })}
-                  className="text-sm font-medium"
-                />
-              )}
             </span>
             {form.roundOn && (
-              <span className={figuresClass}>
+              <>
+                <Caption>最小筹码面值:</Caption>
                 <RakeAmountFigures
-                  label="最小面额"
+                  label="最小筹码面值"
                   blind="smallBlinds"
                   unit={form.roundUnit}
                   amount={form.roundAmount}
@@ -1229,7 +1230,19 @@ export function RakeSettings({
                   currency={currency}
                   onChange={(roundUnit, roundAmount) => setForm({ roundUnit, roundAmount })}
                 />
-              </span>
+                <Caption>超出部分:</Caption>
+                {/* Its chevron sits under the chip mark above */}
+                <span className="col-span-5 col-start-3 justify-self-end">
+                  <TextMenu
+                    label="超出部分"
+                    options={RAKE_ROUNDING_OPTIONS}
+                    value={form.rounding}
+                    onChange={(rounding) => setForm({ rounding })}
+                    align="right"
+                    className="pr-0.5 text-sm font-medium"
+                  />
+                </span>
+              </>
             )}
           </div>
 
