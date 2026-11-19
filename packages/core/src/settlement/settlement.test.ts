@@ -274,6 +274,18 @@ describe("settlementOutcome", () => {
     expect(netOf(shared.nets, "a")).toBe(285_000);
   });
 
+  it("leaves the insurance seat out of a split unless it is asked in", () => {
+    const players = [
+      ledger("a", 1000, 4000),
+      ledger(INSURANCE_PLAYER_ID, 0, 1000),
+      ledger("c", 3800, 0),
+    ];
+    const out = settlementOutcome(players, oneToOne, "split");
+    expect(netOf(out.nets, INSURANCE_PLAYER_ID)).toBe(100_000);
+    const shared = settlementOutcome(players, oneToOne, "split", { insuranceInSplit: true });
+    expect(netOf(shared.nets, INSURANCE_PLAYER_ID)).toBe(95_000);
+  });
+
   it("splits with the rake when no one else is on its side", () => {
     const players = [ledger(RAKE_PLAYER_ID, 0, 300), ledger("c", 1000, 800)];
     const { nets, unresolved } = settlementOutcome(players, oneToOne, "split");

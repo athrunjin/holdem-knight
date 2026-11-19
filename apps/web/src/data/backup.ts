@@ -118,6 +118,8 @@ const gameFields = {
   rake: rakeSchema.optional(),
   /** Added in version 13. */
   rakeInSplit: z.literal(true).optional(),
+  /** Added in version 13. */
+  insuranceInSplit: z.literal(true).optional(),
 };
 
 const gameSchema = z.object({

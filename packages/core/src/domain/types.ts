@@ -368,6 +368,8 @@ export interface Game {
   readonly rake?: RakeRule;
   /** Set when the rake takes its share of a difference split by win or loss. Missing leaves it out. */
   readonly rakeInSplit?: true;
+  /** Set when the insurance seat takes its share of such a split. Missing leaves it out. */
+  readonly insuranceInSplit?: true;
   /** Charges let off at settlement. Missing means none. */
   readonly waivedCharges?: readonly ChargeWaiver[];
   /**

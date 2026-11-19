@@ -30,15 +30,17 @@ export const labelClass = "col-span-4 flex min-w-0 items-center gap-2";
 export interface ResultLine {
   readonly key: string;
   readonly label: string;
-  /** Missing shows a dash, for a charge that does not apply. */
+  /** Missing shows a dash, for a charge that does not apply, or nothing on a line switched off. */
   readonly amount?: Cents;
+  /** Chips beside the amount, in the win or loss column: a share of a difference. */
+  readonly chips?: number;
   /** Charges are muted, other adjustments use the highlight color. */
   readonly tone: "charge" | "adjustment";
   /** Lines in the same group add up to one item when the card is collapsed. */
   readonly group?: SummaryGroup;
   /** Text only, with no amount: how the lines after it were worked out. */
   readonly note?: boolean;
-  /** A charge the organizer can let the player off. */
+  /** A charge the organizer can let the player off, or a seat that can take a share. */
   readonly waiver?: {
     readonly waived: boolean;
     readonly disabled: boolean;
@@ -274,17 +276,14 @@ export function RakeCells({
   chips,
   amount,
   currency,
-  buyIn,
 }: {
   chips: number;
   amount: Cents;
   currency: Currency;
-  /** In place of the Buy-in the seat does not have, such as whether it shares a difference */
-  buyIn?: ReactNode;
 }) {
   return (
     <>
-      {buyIn ?? <span aria-hidden />}
+      <span aria-hidden />
       {/* Rolls when the rake changes, as it does in the rake dialog */}
       <span className={cn(figureClass, "text-center")}>
         <RollingNumber value={chips} />
@@ -300,12 +299,7 @@ export function RakeCells({
 }
 
 /** The rake seat on the organizer's card, to read only, as the settlement page shows it. */
-export function RakeRow(props: {
-  chips: number;
-  amount: Cents;
-  currency: Currency;
-  buyIn?: ReactNode;
-}) {
+export function RakeRow(props: { chips: number; amount: Cents; currency: Currency }) {
   return (
     <div className={cn(columnsClass, "min-h-11 text-xs")}>
       <span className={rakeNameClass}>
@@ -318,7 +312,7 @@ export function RakeRow(props: {
 
 /** One line under a card's row, with a box to waive it where it is a charge the organizer can drop. */
 export function Line({ line, currency }: { line: ResultLine; currency: Currency }) {
-  const { label, amount, tone, waiver } = line;
+  const { label, amount, chips, tone, waiver } = line;
   if (line.note) {
     return <p className="flex min-h-6 items-center pl-6 text-xs text-muted">{label}</p>;
   }
@@ -328,20 +322,33 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
     : tone === "charge"
       ? "text-muted"
       : "text-highlight";
+  // A line switched off with nothing to show leaves its figures blank rather than a dash
   const value =
     amount === undefined
-      ? "—"
+      ? off
+        ? ""
+        : "—"
       : formatGameAmount(amount, currency, amount === 0 ? "auto" : "exceptZero");
-  const amountText = <span className={cn("text-right whitespace-nowrap", text)}>{value}</span>;
+  const figures = (
+    <>
+      {chips !== undefined && (
+        <span className={cn("text-right whitespace-nowrap tabular-nums", text)}>
+          {formatSignedChips(chips)}
+        </span>
+      )}
+      <span className={cn("text-right whitespace-nowrap", text)}>{value}</span>
+    </>
+  );
+  const labelSpan = cn(labelClass, chips !== undefined && "col-span-3");
 
   if (!waiver) {
     return (
       <div className={cn(columnsClass, "min-h-6 text-xs")}>
-        <span className={labelClass}>
+        <span className={labelSpan}>
           <span className="size-4 shrink-0" aria-hidden />
           <span className={cn("truncate", text)}>{label}</span>
         </span>
-        {amountText}
+        {figures}
       </div>
     );
   }
@@ -350,7 +357,7 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
     <label
       className={cn(columnsClass, "min-h-6 cursor-pointer text-xs has-disabled:cursor-default")}
     >
-      <span className={labelClass}>
+      <span className={labelSpan}>
         <input
           type="checkbox"
           checked={!off}
@@ -360,7 +367,7 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
         />
         <span className={cn("truncate", text)}>{label}</span>
       </span>
-      {amountText}
+      {figures}
     </label>
   );
 }

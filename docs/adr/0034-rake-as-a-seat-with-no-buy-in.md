@@ -29,6 +29,6 @@ The first version fixes the rule at 10% of the pot, rounded down to whole chips,
 ## Consequences
 
 - The rake comes out of the table balance only once the stacks show it gone. Until the organizer types the stacks after the pot, the balance reads the rake as too much.
-- With 水上比例分摊 the rake seat stays out of the split unless the organizer ticks 参与均摊 (`rakeInSplit` on the game), or no one else is on its side. The insurance seat always takes its share.
+- With 水上比例分摊 the rake seat stays out of the split unless the organizer switches it in, as [ADR 0035](0035-seats-join-a-split-only-when-asked.md) sets out for both seats.
 - Rake recorded in a game keeps it on: the switch cannot be turned off until the rake is taken back.
 - The Supabase implementation (M6) must accept the seat's ID and the `rake` event type.

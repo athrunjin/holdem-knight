@@ -76,20 +76,28 @@ export interface SettlementOutcome {
   readonly unresolved: Cents;
 }
 
+/** Which seats take a share of a difference split by win or loss. Both stay out unless set. */
+export interface SplitSeats {
+  readonly insuranceInSplit?: boolean;
+  readonly rakeInSplit?: boolean;
+}
+
 /**
  * Takes the difference off the side that is too large, in proportion to each player's result.
  * With 200 too much, winners of 3000 and 1000 give up 150 and 50. With too little, losers pay less.
- * The rake seat takes a share only when asked to, or when no one else is on its side.
+ * The insurance and rake seats take a share only when asked to, or when no player is on their side.
  */
 function splitDifference(
   raw: readonly PlayerNet[],
   difference: Cents,
-  rakeInSplit: boolean,
+  { insuranceInSplit = false, rakeInSplit = false }: SplitSeats,
 ): PlayerNet[] {
   const sign = Math.sign(difference);
   const onSide = raw.filter((p) => p.net * sign > 0);
-  const withoutRake = onSide.filter((p) => p.playerId !== RAKE_PLAYER_ID);
-  const side = rakeInSplit || withoutRake.length === 0 ? onSide : withoutRake;
+  const left = (id: string) =>
+    (id === INSURANCE_PLAYER_ID && !insuranceInSplit) || (id === RAKE_PLAYER_ID && !rakeInSplit);
+  const asked = onSide.filter((p) => !left(p.playerId));
+  const side = asked.length === 0 ? onSide : asked;
   const shares = new Map<string, Cents>();
   allocate(
     cents(Math.abs(difference)),
@@ -106,20 +114,20 @@ function splitDifference(
 
 /**
  * Works out results for any books. Unbalanced books with no handling chosen stay unhandled. A split
- * leaves the rake seat out unless `rakeInSplit` is set.
+ * leaves the insurance and rake seats out unless `seats` asks them in.
  */
 export function settlementOutcome(
   players: readonly PlayerLedger[],
   ratio: ChipRatio,
   handling: ImbalanceHandling | undefined,
-  { rakeInSplit = false }: { readonly rakeInSplit?: boolean } = {},
+  seats: SplitSeats = {},
 ): SettlementOutcome {
   const raw = rawNetCents(players, ratio);
   const difference = sum(raw.map((p) => p.net));
   if (difference === 0) return { nets: raw, difference, unresolved: ZERO };
 
   if (handling === "split") {
-    return { nets: splitDifference(raw, difference, rakeInSplit), difference, unresolved: ZERO };
+    return { nets: splitDifference(raw, difference, seats), difference, unresolved: ZERO };
   }
   if (handling === "organizer") {
     // An organizer who is playing keeps one row: their own result less the difference

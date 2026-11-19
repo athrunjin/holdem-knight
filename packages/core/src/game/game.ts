@@ -228,6 +228,12 @@ export function chooseRakeInSplit(game: Game, rakeInSplit: boolean): Game {
   return rakeInSplit ? { ...rest, rakeInSplit: true } : rest;
 }
 
+/** Saves whether the insurance seat takes its share of a difference split by win or loss. */
+export function chooseInsuranceInSplit(game: Game, insuranceInSplit: boolean): Game {
+  const { insuranceInSplit: _, ...rest } = game;
+  return insuranceInSplit ? { ...rest, insuranceInSplit: true } : rest;
+}
+
 export function chooseImbalanceHandling(game: Game, imbalanceHandling: ImbalanceHandling): Game {
   return { ...game, imbalanceHandling };
 }
