@@ -169,10 +169,10 @@ export const RAKE_PLAYER_NAME = "抽水";
 /** How a pot's rake is rounded to the smallest chip in play. */
 export type RakeRounding = "nearest" | "down" | "up";
 
-/** An amount for rake in chips, or in big blinds of the game. */
+/** An amount for rake in chips, or in small or big blinds of the game. */
 export interface RakeAmount {
-  readonly unit: "chips" | "bigBlinds";
-  /** Above 0: whole for chips, with at most two decimals for big blinds. */
+  readonly unit: "chips" | "smallBlinds" | "bigBlinds";
+  /** Above 0: whole for chips, with at most two decimals for blinds. */
   readonly amount: number;
 }
 
@@ -193,11 +193,11 @@ export interface RakeRule {
   readonly insuranceAfterRake?: boolean;
 }
 
-/** 5% of the pot, rounded to the nearest big blind, with no cap. */
+/** 5% of the pot, rounded to the nearest small blind, with no cap. */
 export const DEFAULT_RAKE_RULE: RakeRule = {
   percent: 5,
   rounding: "nearest",
-  roundTo: { unit: "bigBlinds", amount: 1 },
+  roundTo: { unit: "smallBlinds", amount: 1 },
 };
 
 /**

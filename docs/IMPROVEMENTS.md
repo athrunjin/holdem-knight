@@ -1377,9 +1377,10 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Proposal:
   - Game setup has rake in the same style as the other options: its config on the switch row, 保存配置 for a valid new config, and last time's values carried over.
   - 比例 takes decimals, with quick picks of 2.5%, 3%, 5% and 10%, default 5%, shown without decimals it does not need.
-  - 封顶 has a switch, off by default, which fades and strikes through its title. On, it reads `单笔最多收：2 BB ⇔ 4 [chip]`: either figure can be typed and the other follows, and a tap on the chip mark shows points. A line under it reads `等值最大底池：60 [chip]`, the smallest pot whose rake reaches the cap once rounded, always in chips with its mark under the one above; typing a pot sets the cap to that pot's rake, in the cap's unit.
-  - When the cap or rounding row has no room beside its switch, its figures go to a line of their own.
-  - 取整 has a switch, on by default, then 四舍五入 (default), 向下取整 or 向上取整, and the smallest chip as `1 BB ⇔ chips` in the same way, lined up under the cap.
+  - 封顶 has a switch, off by default, which fades and strikes through its title. On, it reads `单笔最多收：2 BB ⇔ 4 [chip]`: either figure can be typed and the other follows, and a tap on the chip mark shows points. A line under it reads `等值最大底池：400 [chip]`, the cap over the rate, always in chips with its mark under the one above; typing a pot sets the cap to that pot's rate in the cap's unit, so the pot comes back as typed.
+  - On a narrow card (under 320px) the cap and rounding rows put their figures on a line of their own, decided by the card's width so typing never moves them between lines. A figure keeps one width whether it is being typed or not.
+  - Fixed from trying the preview: two fields tapped in quick succession took focus back from each other without end, as the delayed select-all also focuses a field; it now selects only a field that still has focus. The max pot no longer drops below what was typed: it was the pot where the rounded rake first reached the cap.
+  - 取整 has a switch, on by default, then 四舍五入 (default), 向下取整 or 向上取整, and the smallest chip as `1 SB ⇔ chips` in the same way, lined up under the cap. The default is 1 SB.
   - 保险报价先扣除抽水 is kept as a switch, off by default, marked 开发中.
   - The rake dialog keeps each rake with its time and, when worked out from a pot, the pot, and lists them under 记录.
   - 抽水计算 on the tools page opens the same dialog with the default rule, reading and saving nothing, under the icon the rake seat has on the game page.

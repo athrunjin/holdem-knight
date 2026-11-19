@@ -44,9 +44,9 @@ const tableFeeSchema = z.object({ amount: money, minMinutes: z.number().int().mi
 /** At most two decimals, allowing for how they are stored. */
 const twoDecimals = (value: number) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
 
-/** Whole for chips, with at most two decimals for big blinds. */
+/** Whole for chips, with at most two decimals for blinds. */
 const rakeAmountSchema = z
-  .object({ unit: z.enum(["chips", "bigBlinds"]), amount: z.number().positive() })
+  .object({ unit: z.enum(["chips", "smallBlinds", "bigBlinds"]), amount: z.number().positive() })
   .refine(({ unit, amount }) =>
     unit === "chips" ? Number.isInteger(amount) : twoDecimals(amount),
   );

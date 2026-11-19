@@ -64,7 +64,10 @@ export function FigureInput({
         onChange={(event) =>
           onChange(wholeNumber ? event.target.value.replace(/\D/g, "") : event.target.value)
         }
-        style={{ width: `${Math.max(wide ? 4 : 3, shown.length) + 1}ch` }}
+        // As wide as the value both tidied and as typed, so a tap never changes its width
+        style={{
+          width: `${Math.max(wide ? 4 : 3, value.length, (tidy?.(value) ?? value).length) + 1}ch`,
+        }}
         className={cn(
           "min-h-9 border-b bg-transparent text-center font-medium tabular-nums outline-none focus:border-highlight disabled:opacity-60",
           invalid ? "border-highlight" : "border-transparent",

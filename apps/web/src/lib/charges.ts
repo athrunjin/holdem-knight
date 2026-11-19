@@ -89,7 +89,7 @@ export const RAKE_ROUNDING_NAMES: Record<RakeRounding, string> = {
 export function rakeRuleParts(rule: RakeRule): string[] {
   const { cap, roundTo, rounding } = rule;
   const amount = ({ unit, amount: value }: RakeAmount) =>
-    `${formatRakeNumber(value)}${unit === "chips" ? " 筹码" : " BB"}`;
+    `${formatRakeNumber(value)}${unit === "chips" ? " 筹码" : unit === "smallBlinds" ? " SB" : " BB"}`;
   return [
     `底池 ${formatRakeNumber(rule.percent)}%`,
     cap ? `封顶 ${amount(cap)}` : "不封顶",

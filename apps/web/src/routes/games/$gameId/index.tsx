@@ -397,7 +397,7 @@ function GameLedger({ game }: { game: Game }) {
         <RakeDialog
           currentChips={rakeTotal}
           rule={game.rake ?? DEFAULT_RAKE_RULE}
-          bigBlindChips={game.bigBlindChips}
+          blinds={{ smallBlindChips: game.smallBlindChips, bigBlindChips: game.bigBlindChips }}
           entries={rakeRecords(events)}
           undoTo={latestRake && rakeTotal - latestRake.chips}
           saving={appendEvent.isPending}

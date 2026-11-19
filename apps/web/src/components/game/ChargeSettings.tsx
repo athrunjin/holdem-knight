@@ -13,15 +13,14 @@ import {
   parseRake,
   parseTableFee,
   parseWage,
-  potForRake,
+  potAtCap,
   RAKE_PERCENT_PICKS,
   RAKE_ROUNDINGS,
   type RakeAmount,
   type RakeForm,
   type RakeIssues,
   type RakeRule,
-  rakeCapChips,
-  rakeFromPot,
+  rakeAmountChips,
   type SavedChargeRule,
   type TableFeeForm,
   type TableFeeIssues,
@@ -892,20 +891,30 @@ const RAKE_ROUNDING_OPTIONS = RAKE_ROUNDINGS.map((mode) => ({
   label: RAKE_ROUNDING_NAMES[mode],
 }));
 
-/** The game's big blind and chip ratio as typed, for showing rake amounts in chips and points. */
+/** The game's blinds and chip ratio as typed, for showing rake amounts in chips and points. */
 export interface RakeStakes {
+  readonly smallBlindChips: number | null;
   readonly bigBlindChips: number | null;
   /** `amount` is in cents */
   readonly ratio: { readonly chips: number; readonly amount: number } | null;
 }
 
+const blindsOf = ({ smallBlindChips, bigBlindChips }: RakeStakes) => ({
+  smallBlindChips: smallBlindChips ?? undefined,
+  bigBlindChips: bigBlindChips ?? undefined,
+});
+
+/** A blind with a decimal or two, as it is kept. */
+const blindText = (value: number) => formatRakeNumber(Math.round(value * 100) / 100);
+
 /**
- * An amount for rake in big blinds ⇔ chips, as the Buy-in row reads: either can be typed and the
- * other follows. A tap on the chip mark shows points instead. What was typed last is what is kept,
- * so a cap typed in big blinds follows the blinds and one typed in chips does not.
+ * An amount for rake in blinds ⇔ chips, as the Buy-in row reads: either can be typed and the other
+ * follows. A tap on the chip mark shows points instead. What was typed last is what is kept, so an
+ * amount typed in blinds follows the blinds and one typed in chips does not.
  */
 function RakeAmountFigures({
   label,
+  blind,
   unit,
   amount,
   invalid,
@@ -914,6 +923,8 @@ function RakeAmountFigures({
   onChange,
 }: {
   label: string;
+  /** The blind the left figure counts in */
+  blind: Exclude<RakeAmount["unit"], "chips">;
   unit: RakeAmount["unit"];
   amount: string;
   invalid: boolean;
@@ -924,22 +935,17 @@ function RakeAmountFigures({
   const [inPoints, setInPoints] = useState(false);
   // Points being typed, from which the chips are worked out
   const [draft, setDraft] = useState<string | null>(null);
-  const { bigBlindChips, ratio } = stakes;
+  const { ratio } = stakes;
   const typed = Number(amount);
   const known = amount.trim() !== "" && Number.isFinite(typed);
-  const chips = !known
+  const chips = known ? (rakeAmountChips({ unit, amount: typed }, blindsOf(stakes)) ?? null) : null;
+  const blindChips = blind === "smallBlinds" ? stakes.smallBlindChips : stakes.bigBlindChips;
+  const blinds = !known
     ? null
-    : unit === "chips"
+    : unit === blind
       ? typed
-      : bigBlindChips
-        ? typed * bigBlindChips
-        : null;
-  const bigBlinds = !known
-    ? null
-    : unit === "bigBlinds"
-      ? typed
-      : bigBlindChips && chips !== null
-        ? chips / bigBlindChips
+      : blindChips && chips !== null
+        ? chips / blindChips
         : null;
   const points = chips !== null && ratio ? Math.round((chips * ratio.amount) / ratio.chips) : null;
   const right = inPoints
@@ -949,6 +955,7 @@ function RakeAmountFigures({
       : chips === null
         ? ""
         : formatRakeNumber(chips);
+  const mark = blind === "smallBlinds" ? "SB" : "BB";
 
   function typeRight(text: string) {
     if (!inPoints) {
@@ -965,14 +972,12 @@ function RakeAmountFigures({
   return (
     <span className="flex items-center font-medium">
       <FigureInput
-        label={`${label}（BB）`}
-        value={
-          unit === "bigBlinds" ? amount : bigBlinds === null ? "" : formatRakeNumber(bigBlinds)
-        }
-        onChange={(text) => onChange("bigBlinds", text)}
-        invalid={invalid && unit === "bigBlinds"}
+        label={`${label}（${mark}）`}
+        value={unit === blind ? amount : blinds === null ? "" : blindText(blinds)}
+        onChange={(text) => onChange(blind, text)}
+        invalid={invalid && unit === blind}
       />
-      <Mark>BB</Mark>
+      <Mark>{mark}</Mark>
       <Join>
         <span aria-hidden className="text-xl leading-none">
           ⇔
@@ -1009,8 +1014,9 @@ function RakeAmountFigures({
 }
 
 /**
- * Under the cap: the smallest pot whose rake reaches it, in chips whatever the cap shows. Typing a
- * pot sets the cap to the rake that pot gives, kept in the cap's unit.
+ * Under the cap: the pot whose rake, before rounding, is the cap, in chips whatever the cap shows.
+ * Typing a pot sets the cap to that pot's rate, kept in the cap's unit, so the pot comes back as
+ * typed. Rounding can make the rake reach the cap a little sooner.
  */
 function MaxPotLine({
   form,
@@ -1022,21 +1028,20 @@ function MaxPotLine({
   onCap: (unit: RakeAmount["unit"], amount: string) => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
-  const bigBlind = stakes.bigBlindChips ?? undefined;
+  const blinds = blindsOf(stakes);
   const parsed = parseRake(form);
   const rule = parsed.ok ? parsed.rule : null;
-  const capChips = rule && rakeCapChips(rule, bigBlind);
-  const maxPot = rule && capChips ? potForRake(capChips, rule, bigBlind) : null;
+  const maxPot = rule && potAtCap(rule, blinds);
 
   function typePot(text: string) {
     setDraft(text);
     const pot = parseChips(text);
-    if (!rule || pot === null || pot <= 0) return;
-    const { cap: _, ...uncapped } = rule;
-    const chips = rakeFromPot(pot, uncapped, bigBlind);
-    if (chips <= 0) return;
-    if (form.capUnit === "chips" || !bigBlind) onCap("chips", String(chips));
-    else onCap("bigBlinds", formatRakeNumber(Math.round((chips / bigBlind) * 100) / 100));
+    const percent = rule?.percent;
+    if (!percent || pot === null || pot <= 0) return;
+    const chips = (pot * percent) / 100;
+    const blind = rakeAmountChips({ unit: form.capUnit, amount: 1 }, blinds);
+    if (form.capUnit === "chips" || !blind) onCap("chips", String(Math.max(1, Math.round(chips))));
+    else onCap(form.capUnit, blindText(chips / blind));
   }
 
   return (
@@ -1044,7 +1049,7 @@ function MaxPotLine({
       <span className="mr-1 text-xs font-normal text-muted">等值最大底池：</span>
       <FigureInput
         label="等值最大底池（筹码）"
-        value={draft ?? (maxPot === null ? "" : String(maxPot))}
+        value={draft ?? (maxPot ? String(maxPot) : "")}
         onChange={typePot}
         onBlur={() => setDraft(null)}
         tidy={chipsText}
@@ -1097,11 +1102,16 @@ export function RakeSettings({
   // Issues show as they are made, not only once the game is started
   const live = parseRake(form);
   const shown: RakeIssues = { ...(live.ok ? {} : live.issues), ...issues };
+  /**
+   * A row's figures share its line on a wide enough card and take their own line on a narrow one,
+   * decided by the card's width, not by the numbers, so typing never moves them between lines.
+   */
+  const figuresClass = "ml-auto flex shrink-0 items-center justify-end @max-xs:basis-full";
   /** A switched-off setting reads faded and struck through. */
   const titleClass = (on: boolean) => cn("font-medium", !on && "text-muted line-through");
 
   return (
-    <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
+    <section className="@container flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
         label="抽水"
         {...(locked && { detail: "这局已有抽水记录，不能关闭" })}
@@ -1165,10 +1175,11 @@ export function RakeSettings({
               />
             </span>
             {form.capOn && (
-              <span className="ml-auto flex shrink-0 items-center">
+              <span className={figuresClass}>
                 <span className="mr-1 text-xs whitespace-nowrap text-muted">单笔最多收：</span>
                 <RakeAmountFigures
                   label="封顶"
+                  blind="bigBlinds"
                   unit={form.capUnit}
                   amount={form.capAmount}
                   invalid={shown.capAmount !== undefined}
@@ -1207,9 +1218,10 @@ export function RakeSettings({
               )}
             </span>
             {form.roundOn && (
-              <span className="ml-auto flex shrink-0 items-center">
+              <span className={figuresClass}>
                 <RakeAmountFigures
                   label="最小面额"
+                  blind="smallBlinds"
                   unit={form.roundUnit}
                   amount={form.roundAmount}
                   invalid={shown.roundAmount !== undefined}

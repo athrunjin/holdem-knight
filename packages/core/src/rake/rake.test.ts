@@ -1,7 +1,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RAKE_RULE, type RakeRule } from "../domain";
-import { parseRake, potForRake, rakeCapChips, rakeFromPot, toRakeForm } from "./rake";
+import { parseRake, potAtCap, potForRake, rakeCapChips, rakeFromPot, toRakeForm } from "./rake";
+
+/** Blinds of 5 and 10. */
+const BLINDS = { smallBlindChips: 5, bigBlindChips: 10 };
 
 /** A rule from before rake had settings: 10%, rounded down to whole chips, no cap. */
 const OLDER: RakeRule = { percent: 10 };
@@ -34,9 +37,9 @@ describe("rakeFromPot", () => {
     expect(rakeFromPot(201, { ...rule, rounding: "up" })).toBe(15);
   });
 
-  it("rounds the default to the nearest big blind, or whole chips with no big blind", () => {
-    expect(rakeFromPot(250, DEFAULT_RAKE_RULE, 10)).toBe(10);
-    expect(rakeFromPot(300, DEFAULT_RAKE_RULE, 10)).toBe(20);
+  it("rounds the default to the nearest small blind, or whole chips with no blinds", () => {
+    expect(rakeFromPot(250, DEFAULT_RAKE_RULE, BLINDS)).toBe(15);
+    expect(rakeFromPot(240, DEFAULT_RAKE_RULE, BLINDS)).toBe(10);
     expect(rakeFromPot(125, DEFAULT_RAKE_RULE)).toBe(6);
   });
 
@@ -49,14 +52,25 @@ describe("rakeFromPot", () => {
     expect(rakeFromPot(1000, rule)).toBe(30);
     expect(rakeFromPot(400, rule)).toBe(20);
     const byBlinds: RakeRule = { ...BY_CHIP, cap: { unit: "bigBlinds", amount: 2.5 } };
-    expect(rakeFromPot(1000, byBlinds, 10)).toBe(25);
-    expect(rakeFromPot(1000, { ...byBlinds, roundTo: { unit: "chips", amount: 10 } }, 10)).toBe(20);
+    const byTens: RakeRule = { ...byBlinds, roundTo: { unit: "chips", amount: 10 } };
+    expect(rakeFromPot(1000, byBlinds, BLINDS)).toBe(25);
+    expect(rakeFromPot(1000, byTens, BLINDS)).toBe(20);
     // With no big blind to go by, a cap in big blinds does not apply
     expect(rakeFromPot(1000, byBlinds)).toBe(50);
-    expect(rakeCapChips(byBlinds, 10)).toBe(25);
-    expect(rakeCapChips({ ...byBlinds, roundTo: { unit: "chips", amount: 10 } }, 10)).toBe(20);
+    expect(rakeCapChips(byBlinds, BLINDS)).toBe(25);
+    expect(rakeCapChips(byTens, BLINDS)).toBe(20);
     expect(rakeCapChips(byBlinds)).toBeNull();
     expect(rakeCapChips(BY_CHIP)).toBeNull();
+  });
+
+  it("works out the pot whose rake before rounding is the cap, so it comes back as typed", () => {
+    const rule: RakeRule = { ...DEFAULT_RAKE_RULE, cap: { unit: "bigBlinds", amount: 51 } };
+    // 51 big blinds of 5 are 255 chips, 5% of a 5,100 pot
+    expect(potAtCap({ ...rule, cap: { unit: "chips", amount: 255 } })).toBe(5100);
+    expect(potAtCap(rule, { bigBlindChips: 5 })).toBe(5100);
+    expect(potAtCap({ ...rule, percent: 3 }, { bigBlindChips: 5 })).toBe(8500);
+    expect(potAtCap(rule)).toBeNull();
+    expect(potAtCap(DEFAULT_RAKE_RULE, BLINDS)).toBeNull();
   });
 
   it("takes nothing from an empty, negative or part-chip pot", () => {
@@ -70,7 +84,7 @@ describe("rakeFromPot", () => {
     expect(potForRake(7, { percent: 3 })).toBe(234);
     expect(potForRake(0, OLDER)).toBe(0);
     expect(potForRake(40, { ...BY_CHIP, cap: { unit: "chips", amount: 30 } })).toBe(0);
-    expect(potForRake(10, DEFAULT_RAKE_RULE, 10)).toBe(100);
+    expect(potForRake(10, DEFAULT_RAKE_RULE, BLINDS)).toBe(150);
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 10_000_000 }),
@@ -127,8 +141,11 @@ describe("parseRake", () => {
     expect(parseRake(form)).toEqual({ ok: true, rule: { percent: 5, rounding: "nearest" } });
   });
 
-  it("starts a cap at 2 big blinds when one is switched on", () => {
+  it("rounds new rules to a small blind, and starts a cap at 2 big blinds when switched on", () => {
     expect(toRakeForm(DEFAULT_RAKE_RULE)).toMatchObject({
+      roundOn: true,
+      roundUnit: "smallBlinds",
+      roundAmount: "1",
       capOn: false,
       capUnit: "bigBlinds",
       capAmount: "2",

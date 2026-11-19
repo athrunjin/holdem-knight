@@ -467,6 +467,7 @@ export function GameSettingsForm({
           lastRuleLabel={lastRakeLabel}
           locked={rakeLocked}
           stakes={{
+            smallBlindChips: smallBlind,
             bigBlindChips: bigBlind,
             ratio: ratioChips && ratioAmount ? { chips: ratioChips, amount: ratioAmount } : null,
           }}

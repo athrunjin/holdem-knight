@@ -1,4 +1,10 @@
-import { parseChips, potForRake, type RakeRule, rakeFromPot } from "@holdem-knight/core";
+import {
+  parseChips,
+  potForRake,
+  type RakeBlinds,
+  type RakeRule,
+  rakeFromPot,
+} from "@holdem-knight/core";
 import { Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -26,8 +32,8 @@ interface RakeDialogProps {
   /** The rake recorded so far, in chips */
   currentChips: number;
   rule: RakeRule;
-  /** The game's big blind, for a cap in big blinds. Missing outside a game */
-  bigBlindChips?: number | undefined;
+  /** The game's blinds, for amounts set in blinds. Missing outside a game */
+  blinds?: RakeBlinds | undefined;
   /** What has been saved, oldest first */
   entries: readonly RakeEntry[];
   /** The total 撤销 goes back to. Missing when there is nothing to take back */
@@ -63,7 +69,7 @@ function chipsOf(text: string, empty: number | null) {
 export function RakeDialog({
   currentChips,
   rule,
-  bigBlindChips,
+  blinds,
   entries,
   undoTo,
   saving,
@@ -96,7 +102,7 @@ export function RakeDialog({
   // A rake typed by hand shows, faintly, the smallest pot it could have come from
   const potHint =
     potText === "" && addText.trim() !== "" && added !== null && added > 0
-      ? potForRake(added, rule, bigBlindChips)
+      ? potForRake(added, rule, blinds)
       : undefined;
   // Nothing typed: the totals show the saved rake, and roll when a save or 撤销 changes it
   const untouched = currentText === undefined && addText.trim() === "";
@@ -117,7 +123,7 @@ export function RakeDialog({
   function handlePot(text: string) {
     setPotText(text);
     const pot = parseChips(text);
-    setAddText(pot === null || pot === 0 ? "" : String(rakeFromPot(pot, rule, bigBlindChips)));
+    setAddText(pot === null || pot === 0 ? "" : String(rakeFromPot(pot, rule, blinds)));
     disarm();
   }
 
@@ -136,7 +142,7 @@ export function RakeDialog({
       pot !== null &&
       pot > 0 &&
       currentText === undefined &&
-      added === rakeFromPot(pot, rule, bigBlindChips)
+      added === rakeFromPot(pot, rule, blinds)
         ? pot
         : undefined;
     try {

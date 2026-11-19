@@ -9,43 +9,50 @@ export const RAKE_PERCENT_PICKS = ["2.5", "3", "5", "10"] as const;
 /** The rule's percentage in hundredths of a percent, so 2.5% is 250. */
 const basisPoints = ({ percent }: RakeRule) => Math.round(percent * 100);
 
-/** An amount in chips, from chips or big blinds. Undefined for big blinds with no big blind to go by. */
+/** The game's blinds, for amounts set in blinds. Missing outside a game, as on the tools page. */
+export interface RakeBlinds {
+  readonly smallBlindChips?: number | undefined;
+  readonly bigBlindChips?: number | undefined;
+}
+
+/** An amount in chips, from chips or blinds. Undefined for blinds with no blind to go by. */
 export function rakeAmountChips(
   { unit, amount }: RakeAmount,
-  bigBlindChips: number | undefined,
+  { smallBlindChips, bigBlindChips }: RakeBlinds = {},
 ): number | undefined {
   if (unit === "chips") return amount;
-  return bigBlindChips ? amount * bigBlindChips : undefined;
+  const blind = unit === "smallBlinds" ? smallBlindChips : bigBlindChips;
+  return blind ? amount * blind : undefined;
 }
 
 /** The smallest chip the rake is rounded to: at least 1, and a whole number of chips. */
-function roundingUnit(rule: RakeRule, bigBlindChips: number | undefined) {
-  const chips = rule.roundTo && rakeAmountChips(rule.roundTo, bigBlindChips);
+function roundingUnit(rule: RakeRule, blinds: RakeBlinds | undefined) {
+  const chips = rule.roundTo && rakeAmountChips(rule.roundTo, blinds);
   return chips ? Math.max(1, Math.round(chips)) : 1;
 }
 
 /** The cap in chips, rounded down to the smallest chip, or Infinity with none. */
-function capChips(rule: RakeRule, unit: number, bigBlindChips: number | undefined) {
-  const chips = rule.cap && rakeAmountChips(rule.cap, bigBlindChips);
+function capChips(rule: RakeRule, unit: number, blinds: RakeBlinds | undefined) {
+  const chips = rule.cap && rakeAmountChips(rule.cap, blinds);
   if (!chips || chips <= 0) return Number.POSITIVE_INFINITY;
   return Math.floor(chips / unit) * unit;
 }
 
 /** The most rake a pot can give up under the rule, in chips once rounded, or null with no cap. */
-export function rakeCapChips(rule: RakeRule, bigBlindChips?: number): number | null {
-  const cap = capChips(rule, roundingUnit(rule, bigBlindChips), bigBlindChips);
+export function rakeCapChips(rule: RakeRule, blinds?: RakeBlinds): number | null {
+  const cap = capChips(rule, roundingUnit(rule, blinds), blinds);
   return Number.isFinite(cap) ? cap : null;
 }
 
 /**
  * The rake on a pot of `potChips`: the rule's percentage, rounded to its smallest chip, and no more
- * than its cap. Amounts in big blinds need the game's big blind, and are left out without one.
- * Without a smallest chip the rake rounds down to whole chips, as rules from before rake had
- * settings did. Not a whole number of chips, or below 0, takes nothing.
+ * than its cap. Amounts in blinds use the game's blinds, and are left out without them. Without a
+ * smallest chip the rake rounds down to whole chips, as rules from before rake had settings did.
+ * Not a whole number of chips, or below 0, takes nothing.
  */
-export function rakeFromPot(potChips: number, rule: RakeRule, bigBlindChips?: number): number {
+export function rakeFromPot(potChips: number, rule: RakeRule, blinds?: RakeBlinds): number {
   if (!Number.isSafeInteger(potChips) || potChips <= 0) return 0;
-  const unit = roundingUnit(rule, bigBlindChips);
+  const unit = roundingUnit(rule, blinds);
   const rounding = rule.roundTo ? (rule.rounding ?? "down") : "down";
   // Whole numbers throughout: the rake is potChips × points / 10000, counted in units of the chip
   const numerator = potChips * basisPoints(rule);
@@ -58,22 +65,32 @@ export function rakeFromPot(potChips: number, rule: RakeRule, bigBlindChips?: nu
       : rounding === "up"
         ? whole + (rest > 0 ? 1 : 0)
         : whole + (rest * 2 >= denominator ? 1 : 0);
-  return Math.min(units * unit, capChips(rule, unit, bigBlindChips));
+  return Math.min(units * unit, capChips(rule, unit, blinds));
+}
+
+/**
+ * The pot whose rake, before rounding, is the cap: the cap over the rate, rounded up to whole chips.
+ * What 等值最大底池 shows, so a pot typed there comes back as typed. Null with no cap to go by.
+ */
+export function potAtCap(rule: RakeRule, blinds?: RakeBlinds): number | null {
+  const cap = rule.cap && rakeAmountChips(rule.cap, blinds);
+  if (!cap || cap <= 0) return null;
+  return Math.ceil((cap * 10_000) / basisPoints(rule) - 1e-9);
 }
 
 /**
  * The smallest pot that gives up at least `rakeChips` under the rule: what a rake typed in by hand
  * came from, as far as the rule can tell. 0 for no rake, or for one above the cap.
  */
-export function potForRake(rakeChips: number, rule: RakeRule, bigBlindChips?: number): number {
+export function potForRake(rakeChips: number, rule: RakeRule, blinds?: RakeBlinds): number {
   if (!Number.isSafeInteger(rakeChips) || rakeChips <= 0) return 0;
-  const unit = roundingUnit(rule, bigBlindChips);
+  const unit = roundingUnit(rule, blinds);
   let low = 1;
   let high = Math.ceil(((rakeChips + unit) * 10_000) / basisPoints(rule)) + 1;
-  if (rakeFromPot(high, rule, bigBlindChips) < rakeChips) return 0;
+  if (rakeFromPot(high, rule, blinds) < rakeChips) return 0;
   while (low < high) {
     const middle = Math.floor((low + high) / 2);
-    if (rakeFromPot(middle, rule, bigBlindChips) >= rakeChips) high = middle;
+    if (rakeFromPot(middle, rule, blinds) >= rakeChips) high = middle;
     else low = middle + 1;
   }
   return low;
@@ -112,7 +129,7 @@ export function toRakeForm(rule: RakeRule): RakeForm {
   const cap = rule.cap ?? DEFAULT_RAKE_CAP;
   const older = rule.rounding === undefined;
   const roundTo: RakeAmount =
-    rule.roundTo ?? (older ? { unit: "chips", amount: 1 } : { unit: "bigBlinds", amount: 1 });
+    rule.roundTo ?? (older ? { unit: "chips", amount: 1 } : { unit: "smallBlinds", amount: 1 });
   return {
     percent: formatRakeNumber(rule.percent),
     capOn: rule.cap !== undefined,
