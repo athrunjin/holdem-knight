@@ -1387,7 +1387,8 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The cap is rounded down to the smallest chip, and the rake after rounding never passes it. An amount in big blinds uses the game's big blind; the unit last typed is the one kept.
   - The default cap of 2 BB follows live rooms, which cap at about $4–6, a couple of big blinds at $1/$2.
   - With rounding off, the rake rounds down to whole chips.
-  - Wages at setup in the same round: 基础薪资 for 基础时薪, figures centered with no underline in a slot for 00.00, 精确到 每分钟 / 每15分 / 每30分 / 每小时, 超出部分 with its info mark before the rounding, and 根据时间 and 根据时长 for the two kinds of segment.
+  - Wages at setup in the same round: 基础薪资 for 基础时薪, figures centered with no underline in a slot for 00.00, 精确到 每分钟 / 每15分 / 每30分 / 每小时, 超出部分 with its info mark before the rounding, and 根据时间 and 根据时长 for the two kinds of segment. The 精确到 row sits closer under 基础薪资, and the info mark before 超出部分 is the size of that text and explains only the rounding and the stretches of time.
+  - The table fee in the same style: 基础台费 with its amount at the right as `¥ 100.00 /人/台`, centered in a slot for 000.00, and 在桌满 5 分钟收 as a switch at the right, on by default, with 防止误添加玩家产生台费 under it. The minutes are fixed at 5; a game set up with another time keeps it while the switch is on.
   - Games with the older rule keep 10% rounded down, and carry it over that way.
   - Online rooms take rake off the pot before pricing an all-in cash-out; nothing was found for live games, so the insurance switch waits for a decision.
   - Settlement is unchanged, apart from its rule line naming the new settings. Backups move to version 14.

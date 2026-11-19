@@ -43,7 +43,6 @@ import { InfoButton } from "@/components/InfoButton";
 import { ChoiceModal } from "@/components/insurance/ChoiceModal";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { SaveNameDialog } from "@/components/SaveNameDialog";
-import { TextField } from "@/components/TextField";
 import { TextMenu } from "@/components/TextMenu";
 import { Toggle } from "@/components/Toggle";
 import {
@@ -431,6 +430,10 @@ export function TableFeeSettings({
   const { enabled, source, form } = value;
   const setForm = (next: Partial<TableFeeForm>) =>
     onChange({ ...value, source: CUSTOM_PRESET, form: { ...form, ...next } });
+  const minutes = Number(form.minMinutes) || 0;
+  // Issues show as they are made, not only once the game is started
+  const live = parseTableFee(form);
+  const shown: TableFeeIssues = { ...(live.ok ? {} : live.issues), ...issues };
   const { choices, selectedId, saved, isNew } = useChargePresets(
     "table_fee",
     lastRule,
@@ -445,7 +448,7 @@ export function TableFeeSettings({
   );
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-4 py-2">
+    <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
         label="台费"
         info="每位玩家每局收一次，只计对局计时器运行时的在桌时间，结算时计入组织者"
@@ -464,38 +467,32 @@ export function TableFeeSettings({
       />
       {enabled && (
         <>
-          <div className="grid grid-cols-2 items-start gap-2">
-            <TextField
+          <div className="flex min-h-11 items-center justify-between gap-3">
+            <label htmlFor="table-fee-amount" className="font-medium">
+              基础台费
+            </label>
+            <InlineNumber
               id="table-fee-amount"
-              label="每人台费"
+              label="基础台费"
               value={form.amount}
-              issue={issueText(issues.amount)}
+              invalid={shown.amount !== undefined}
               prefix={CURRENCY_INFO[currency].symbol}
-              inputMode="decimal"
-              selectOnFocus
-              onBlur={() => {
-                const amount = formatMoneyText(form.amount);
-                if (amount !== form.amount) setForm({ amount });
-              }}
+              suffix="/人/台"
+              minChars={6}
+              format={formatMoneyText}
               onChange={(amount) => setForm({ amount })}
             />
-            <TextField
-              id="table-fee-minutes"
-              label="在桌满"
-              labelAccessory={
-                <InfoButton
-                  title="在桌满"
-                  text={"建议保留一定时长，防止误添加玩家产生台费。\n0 表示上桌就收。"}
-                />
-              }
-              value={form.minMinutes}
-              issue={issueText(issues.minMinutes)}
-              suffix="分钟才收"
-              inputMode="numeric"
-              selectOnFocus
-              onChange={(minMinutes) => setForm({ minMinutes })}
-            />
           </div>
+          {shown.amount && <p className="text-sm text-highlight">{issueText(shown.amount)}</p>}
+          {/* Fixed at 5 minutes; a game set up with another time keeps it */}
+          <Toggle
+            label={`在桌满 ${minutes > 0 ? minutes : DEFAULT_TABLE_FEE.minMinutes} 分钟收`}
+            detail="防止误添加玩家产生台费"
+            checked={minutes > 0}
+            onChange={(on) =>
+              setForm({ minMinutes: on ? String(DEFAULT_TABLE_FEE.minMinutes) : "0" })
+            }
+          />
           <SaveChargeConfig
             kind="table_fee"
             title="台费"
@@ -532,14 +529,10 @@ const ROUNDING_OPTIONS = WAGE_ROUNDINGS.map((mode) => ({
 }));
 
 const ROUNDING_INFO = [
-  "每位玩家的在桌时间，从坐下起按计费单位切成一段一段。最后不满一段的部分：",
+  "每位玩家的在桌时间，从坐下起按「精确到」的时长切成一段一段，只计对局计时器运行的时间。最后不满一段的超出部分：",
   "四舍五入：满半段算一段，不满半段不收。",
   "向上取整：不满一段也算一段。",
   "向下取整：不满一段不收。",
-  "",
-  "一段时间跨两种时薪时，按占时较长的时薪收；一样长时按较高的收。算作一段的不满部分，顺延到离桌之后再比较。",
-  "",
-  "例如零点前 ¥20、零点后 ¥30，按 30 分钟计费、向上取整，23:16 坐到 0:13：23:16–23:46 按 ¥20；余下 27 分钟算一段（23:46–0:16），零点后占 16 分钟，按 ¥30。",
 ].join("\n");
 
 /**
@@ -665,7 +658,7 @@ export function WageSettings({
           </div>
           {shown.hourly && <p className="text-sm text-highlight">{issueText(shown.hourly)}</p>}
 
-          <div className="flex flex-wrap items-center justify-between gap-x-3 text-sm">
+          <div className="-mt-2 flex flex-wrap items-center justify-between gap-x-3 text-sm">
             <TextMenu
               label="精确到"
               caption="精确到"
@@ -675,8 +668,10 @@ export function WageSettings({
               className="font-medium"
             />
             <span className="flex items-center">
-              <InfoButton title="超出部分" text={ROUNDING_INFO} />
-              <span className="mr-1 text-xs text-muted">超出部分</span>
+              <span className="mr-1 flex items-center text-xs text-muted">
+                <InfoButton title="超出部分" text={ROUNDING_INFO} inline />
+                超出部分
+              </span>
               <TextMenu
                 label="取整方式"
                 options={ROUNDING_OPTIONS}

@@ -9,8 +9,8 @@ import type {
 } from "../domain";
 import { type Cents, cents, toDecimalString, tryParseMoney } from "../money";
 
-/** 100 in the game's currency once a player has sat for 10 minutes. */
-export const DEFAULT_TABLE_FEE: TableFeeRule = { amount: cents(10_000), minMinutes: 10 };
+/** 100 in the game's currency once a player has sat for 5 minutes. */
+export const DEFAULT_TABLE_FEE: TableFeeRule = { amount: cents(10_000), minMinutes: 5 };
 
 /** 25 an hour in the game's currency, by the minute, with half a minute or more counted as one. */
 export const DEFAULT_WAGE: WageRule = { hourly: cents(2_500), unitMinutes: 1, rounding: "nearest" };
