@@ -1,6 +1,7 @@
 import {
   chipsToCents,
   chooseImbalanceHandling,
+  DEFAULT_RAKE_RULE,
   type Game,
   type HandChange,
   type ImbalanceHandling,
@@ -13,6 +14,9 @@ import {
   ORGANIZER_PLAYER_ID,
   type Player,
   pauseTimer,
+  RAKE_PLAYER_ID,
+  rakeChips,
+  rakeRecords,
   resumeGame,
   soleBuyIn,
   startSettling,
@@ -37,6 +41,7 @@ import { HandsDialog } from "@/components/game/HandsDialog";
 import { LedgerLog } from "@/components/game/LedgerLog";
 import { LedgerPlayers } from "@/components/game/LedgerPlayers";
 import { useLiveCharges } from "@/components/game/liveCharges";
+import { RakeDialog } from "@/components/game/RakeDialog";
 import { SettleDialog } from "@/components/game/SettleDialog";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
@@ -51,8 +56,8 @@ import {
   useReturnAll,
 } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
-import { formatGameMoney } from "@/lib/currency";
-import { gameNameOf } from "@/lib/player-name";
+import { formatGameAmount } from "@/lib/currency";
+import { gameInitialsOf, gameNameOf } from "@/lib/player-name";
 
 export const Route = createFileRoute("/games/$gameId/")({
   component: GamePage,
@@ -78,11 +83,11 @@ function GamePage() {
 
 /**
  * The record being entered.
- * `buy` and `stack` take chips, and the others take hands:
+ * `buy` takes chips, and the others take hands:
  * `join` is a first buy-in and `edit` sets a target.
  */
 type PendingEntry = {
-  kind: "buy" | "stack" | "join" | "edit";
+  kind: "buy" | "join" | "edit";
   playerId: string;
   name: string;
   /** Hands changed from a Buy-in on the page, which shows the change before it is applied */
@@ -108,6 +113,7 @@ function GameLedger({ game }: { game: Game }) {
   const navigate = Route.useNavigate();
   const [settling, setSettling] = useState(false);
   const [pending, setPending] = useState<PendingEntry>();
+  const [raking, setRaking] = useState(false);
   // Off to begin with: folded cards already show what each player owes, behind 含费
   const [detailMode, setDetailMode] = useState(false);
 
@@ -122,11 +128,15 @@ function GameLedger({ game }: { game: Game }) {
 
   const ledger = summarizeByPlayer(events);
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
-  const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
+  // The insurance and rake seats are not players: the rake seat never sits, and leaves with no one
+  const people = ledger.filter(
+    (p) => p.playerId !== INSURANCE_PLAYER_ID && p.playerId !== RAKE_PLAYER_ID,
+  );
   const balanceChips = ledgerTotals(ledger).balanceChips;
   const live = useLiveCharges(game, events);
   const totals = ledgerTotals(people);
   const nameOf = gameNameOf(players, game);
+  const initialsOf = gameInitialsOf(players);
 
   function playerTotals(playerId: string) {
     const player = ledger.find((p) => p.playerId === playerId);
@@ -150,11 +160,11 @@ function GameLedger({ game }: { game: Game }) {
 
   function handleChips(chips: number) {
     if (!pending) return;
-    const { kind, playerId } = pending;
+    const { playerId } = pending;
     appendEvent.mutate(
       {
         ...newEventMeta(gameId),
-        type: kind === "stack" ? "stack_set" : nextBuyType(events, playerId),
+        type: nextBuyType(events, playerId),
         playerId,
         chips,
       },
@@ -194,13 +204,40 @@ function GameLedger({ game }: { game: Game }) {
     return boughtHands(playerId) === 1 && soleBuyIn(events, playerId) !== undefined;
   }
 
-  /** Everyone who left comes back, the organizer and the insurance seat included. */
+  /** Everyone who left comes back at once, the organizer and the insurance seat included. */
   function handleReturnAll() {
-    const gone = ledger.filter((p) => !p.seated);
-    const count = gone.filter((p) => p.playerId !== INSURANCE_PLAYER_ID).length;
-    if (window.confirm(`让已离桌的 ${count} 人全部回桌？`)) {
-      returnAll.mutate(gone.map((p) => p.playerId));
-    }
+    const gone = ledger.filter((p) => !p.seated && p.playerId !== RAKE_PLAYER_ID);
+    returnAll.mutate(gone.map((p) => p.playerId));
+  }
+
+  /** A stack typed over on a card, saved as it is left. */
+  function handleSetStack(playerId: string, chips: number) {
+    appendEvent.mutate({ ...newEventMeta(gameId), type: "stack_set", playerId, chips });
+  }
+
+  const rakeTotal = rakeChips(events);
+  const latestRake = rakeRecords(events).at(-1);
+
+  /** A new rake total, saved as the change from the one before. */
+  async function saveRake(totalChips: number) {
+    const chips = totalChips - rakeTotal;
+    if (chips === 0) return;
+    await appendEvent.mutateAsync({
+      ...newEventMeta(gameId),
+      type: "rake",
+      playerId: RAKE_PLAYER_ID,
+      chips,
+    });
+  }
+
+  /** Takes back the latest rake, back to the total saved before it. */
+  async function undoRake() {
+    if (!latestRake) return;
+    await appendEvent.mutateAsync({
+      ...newEventMeta(gameId),
+      type: "reversal",
+      reversedEventId: latestRake.id,
+    });
   }
 
   function handleToggleTimer() {
@@ -295,25 +332,34 @@ function GameLedger({ game }: { game: Game }) {
         onReturnAll={handleReturnAll}
         players={ledger}
         nameOf={nameOf}
+        initialsOf={initialsOf}
         editable={editable}
         onEditHands={(playerId) =>
           setPending({ kind: "edit", playerId, name: nameOf(playerId), review: true })
         }
-        onEditStack={(playerId) => setPending({ kind: "stack", playerId, name: nameOf(playerId) })}
+        onSetStack={handleSetStack}
         onRebuy={(playerId) => setPending({ kind: "buy", playerId, name: nameOf(playerId) })}
         onReturn={handleReturn}
         onLeave={handleLeave}
+        onRake={() => setRaking(true)}
         detailMode={detailMode}
         onDetailModeChange={setDetailMode}
         addPlayer={
-          editable && (
-            <AddPlayerToGame
-              excludedIds={new Set(people.map(({ playerId }) => playerId))}
-              onPick={({ id, name }: Player) =>
-                setPending({ kind: handChips === undefined ? "buy" : "join", playerId: id, name })
-              }
-            />
-          )
+          editable
+            ? (variant) => (
+                <AddPlayerToGame
+                  variant={variant}
+                  excludedIds={new Set(people.map(({ playerId }) => playerId))}
+                  onPick={({ id, name }: Player) =>
+                    setPending({
+                      kind: handChips === undefined ? "buy" : "join",
+                      playerId: id,
+                      name,
+                    })
+                  }
+                />
+              )
+            : undefined
         }
       />
 
@@ -322,7 +368,8 @@ function GameLedger({ game }: { game: Game }) {
         leaveTable.isError ||
         returnAll.isError ||
         (saveGame.isError && !settling)) &&
-        !pending && (
+        !pending &&
+        !raking && (
           <p role="alert" className="mt-2 text-sm text-highlight">
             保存失败，请重试。
           </p>
@@ -335,13 +382,29 @@ function GameLedger({ game }: { game: Game }) {
           seatedCount={seatedCount}
           pendingInsurance={pendingInsurance}
           balanceChips={balanceChips}
-          cash={formatGameMoney(chipsToCents(Math.abs(balanceChips), chipRatio), currency)}
+          cash={formatGameAmount(chipsToCents(Math.abs(balanceChips), chipRatio), currency)}
           organizerName={nameOf(ORGANIZER_PLAYER_ID)}
           initialHandling={game.imbalanceHandling}
           saving={leaveAll.isPending || saveGame.isPending}
           saveFailed={leaveAll.isError || saveGame.isError}
           onSubmit={confirmSettle}
           onClose={() => setSettling(false)}
+        />
+      )}
+
+      {raking && (
+        <RakeDialog
+          currentChips={rakeTotal}
+          rule={game.rake ?? DEFAULT_RAKE_RULE}
+          undoTo={latestRake && rakeTotal - latestRake.chips}
+          saving={appendEvent.isPending}
+          saveFailed={appendEvent.isError}
+          onSave={saveRake}
+          onUndo={undoRake}
+          onClose={() => {
+            setRaking(false);
+            appendEvent.reset();
+          }}
         />
       )}
 
@@ -375,18 +438,13 @@ function GameLedger({ game }: { game: Game }) {
           />
         )}
 
-      {pending && (pending.kind === "buy" || pending.kind === "stack") && (
+      {pending?.kind === "buy" && (
         <ChipAmountDialog
           key={pending.playerId}
-          title={`${pending.kind === "stack" ? "筹码" : nextBuyType(events, pending.playerId) === "buy_in" ? "Buy-in" : "补码"} · ${pending.name}`}
+          title={`${nextBuyType(events, pending.playerId) === "buy_in" ? "Buy-in" : "补码"} · ${pending.name}`}
           submitLabel="确定"
-          initialChips={
-            pending.kind === "stack"
-              ? playerTotals(pending.playerId).stackChips
-              : lastBuyChips(events)
-          }
-          allowZero={pending.kind === "stack"}
-          selectInput={pending.kind === "stack"}
+          initialChips={lastBuyChips(events)}
+          allowZero={false}
           ratio={chipRatio}
           currency={currency}
           saving={appendEvent.isPending}

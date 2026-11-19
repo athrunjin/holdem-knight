@@ -16,6 +16,8 @@ const RECORD_LABEL: Record<RecordKind, string> = {
   insurance_hit: "保险命中",
   insurance_miss: "保险未中",
   insurance_undo: "撤销保险",
+  rake: "抽水",
+  rake_undo: "撤销抽水",
 };
 
 /** Long lists get a second collapse button at the bottom, so nobody has to scroll back up. */
@@ -54,7 +56,7 @@ export function LedgerLog({ events, nameOf }: LedgerLogProps) {
           onClick={() => setOpen(!open)}
           className="flex min-h-11 w-full items-center gap-1 text-sm text-muted"
         >
-          牌局记录（{entries.length}）
+          牌局记录 ({entries.length})
           <ChevronDown
             className={cn("size-4 transition-transform", open && "rotate-180")}
             aria-hidden

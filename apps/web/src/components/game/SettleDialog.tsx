@@ -68,7 +68,7 @@ export function SettleDialog({
         ) : (
           <>
             <X className="size-4 shrink-0" aria-hidden />
-            筹码未配平，{balanceChips > 0 ? "多" : "少"} {chips} 筹码（{cash}）
+            筹码未配平，{balanceChips > 0 ? "多" : "少"} {chips} 筹码 / {cash}
           </>
         )}
       </p>
@@ -85,7 +85,7 @@ export function SettleDialog({
       {seatedCount > 0 && (
         <p className="text-sm text-muted">
           还有 {seatedCount}{" "}
-          人在桌，一键离桌会按当前筹码记录，之后可以点「回桌」或「一键回桌」回到牌桌。
+          人在桌，一键离桌会按当前筹码记录，之后可以点「回桌」或「全部回桌」回到牌桌。
         </p>
       )}
       {pendingInsurance > 0 && (

@@ -157,6 +157,24 @@ export const INSURANCE_PLAYER_ID = "insurance";
 export const INSURANCE_PLAYER_NAME = "保险";
 
 /**
+ * The rake seat in a game. It has no Buy-in: its chips are the rake taken from pots, which leave the
+ * table, and at settlement they go to the organizer.
+ */
+export const RAKE_PLAYER_ID = "rake";
+
+/** Reserved: no player can take this name. */
+export const RAKE_PLAYER_NAME = "抽水";
+
+/** How rake is taken from a pot: a whole percentage of it, rounded down to whole chips. */
+export interface RakeRule {
+  /** 1–99. */
+  readonly percent: number;
+}
+
+/** The only rake rule for now, until rake has settings of its own. */
+export const DEFAULT_RAKE_RULE: RakeRule = { percent: 10 };
+
+/**
  * The organizer in a game. Playing, they have chips under this ID like the insurance seat, with no
  * record in the player list, and at settlement everything else they receive lands on the same row
  * (ADR 0028).
@@ -281,6 +299,8 @@ export type GameSettings = Pick<
   readonly tableFee?: TableFeeRule;
   /** Missing means no wages. Has its own editor, like insurance. */
   readonly wage?: WageRule;
+  /** Missing means no rake. */
+  readonly rake?: RakeRule;
 };
 
 /** One stretch of the game clock running, from start to pause. */
@@ -344,6 +364,12 @@ export interface Game {
   readonly tableFee?: TableFeeRule;
   /** This game's wages. Missing means none. Charged at settlement, outside the chips. */
   readonly wage?: WageRule;
+  /** This game's rake. Missing means none. Recorded in chips on the rake seat. */
+  readonly rake?: RakeRule;
+  /** Set when the rake takes its share of a difference split by win or loss. Missing leaves it out. */
+  readonly rakeInSplit?: true;
+  /** Set when the insurance seat takes its share of such a split. Missing leaves it out. */
+  readonly insuranceInSplit?: true;
   /** Charges let off at settlement. Missing means none. */
   readonly waivedCharges?: readonly ChargeWaiver[];
   /**
@@ -428,10 +454,23 @@ export interface InsuranceSettleEvent extends LedgerEventBase {
   readonly handId?: string;
 }
 
+/**
+ * Rake taken from the pots, added to the rake seat. Its chips leave the table, so the players' stacks
+ * already show them gone. A total typed in over the old one is recorded as the change, which can be
+ * below 0, though the total never is. Undoing it is a reversal, like any other event.
+ */
+export interface RakeEvent extends LedgerEventBase {
+  readonly type: "rake";
+  readonly playerId: typeof RAKE_PLAYER_ID;
+  /** The change in chips, never 0. */
+  readonly chips: number;
+}
+
 /** Ledger event. Append-only, never changed (ADR 0005). */
 export type LedgerEvent =
   | ChipEvent
   | StackSetEvent
   | ReversalEvent
   | InsuranceBuyEvent
-  | InsuranceSettleEvent;
+  | InsuranceSettleEvent
+  | RakeEvent;

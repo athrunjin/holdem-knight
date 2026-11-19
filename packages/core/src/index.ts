@@ -12,4 +12,5 @@ export * from "./insurance";
 export * from "./ledger";
 export * from "./money";
 export * from "./player";
+export * from "./rake";
 export * from "./settlement";

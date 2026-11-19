@@ -4,13 +4,13 @@ import { Modal } from "@/components/insurance/Modal";
 import { gameRuleLines, oddsText } from "@/lib/charges";
 
 interface GameRulesProps {
-  game: Pick<Game, "insurance" | "wage" | "tableFee" | "currency">;
+  game: Pick<Game, "insurance" | "wage" | "tableFee" | "rake" | "currency">;
   charges: readonly Charge[];
 }
 
-/** Whether the game has any rule worth listing: insurance, a table fee or wages. */
-export function hasGameRules(game: Pick<Game, "insurance" | "wage" | "tableFee">) {
-  return Boolean(game.insurance || game.tableFee || game.wage);
+/** Whether the game has any rule worth listing: insurance, a table fee, wages or rake. */
+export function hasGameRules(game: Pick<Game, "insurance" | "wage" | "tableFee" | "rake">) {
+  return Boolean(game.insurance || game.tableFee || game.wage || game.rake);
 }
 
 /** The whole odds table, by outs. */
@@ -36,7 +36,7 @@ function OddsTable({ odds, onClose }: { odds: readonly number[]; onClose: () => 
 }
 
 /**
- * The game's insurance, table fee and wages in brief, in plain lines. Insurance shows a few odds
+ * The game's insurance, wages, table fee and rake in brief, in plain lines. Insurance shows a few odds
  * on a second row, with the whole table behind the dots.
  */
 export function GameRules({ game, charges }: GameRulesProps) {

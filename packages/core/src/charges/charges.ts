@@ -13,7 +13,7 @@ import type {
   WagePart,
   WageRule,
 } from "../domain";
-import { INSURANCE_PLAYER_ID, ORGANIZER_PLAYER_ID } from "../domain";
+import { INSURANCE_PLAYER_ID, ORGANIZER_PLAYER_ID, RAKE_PLAYER_ID } from "../domain";
 import { timerRuns } from "../game";
 import { summarizeByPlayer } from "../ledger";
 import { type Cents, cents, multiply, sum, ZERO } from "../money";
@@ -469,9 +469,16 @@ function countedSessions(
   return { sessions, runs };
 }
 
-/** The insurance seat and an organizer who plays are never charged: the organizer would pay themselves. */
+/**
+ * The insurance and rake seats and an organizer who plays are never charged: the organizer would pay
+ * themselves.
+ */
 function isCharged(playerId: string) {
-  return playerId !== INSURANCE_PLAYER_ID && playerId !== ORGANIZER_PLAYER_ID;
+  return (
+    playerId !== INSURANCE_PLAYER_ID &&
+    playerId !== ORGANIZER_PLAYER_ID &&
+    playerId !== RAKE_PLAYER_ID
+  );
 }
 
 /** Counted time for each charged player in the game, in ledger order. */

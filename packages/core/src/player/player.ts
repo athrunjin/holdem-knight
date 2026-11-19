@@ -1,5 +1,5 @@
 /** Player list: name validation and search. */
-import { INSURANCE_PLAYER_NAME, type Player } from "../domain";
+import { INSURANCE_PLAYER_NAME, type Player, RAKE_PLAYER_NAME } from "../domain";
 
 export const MAX_PLAYER_NAME_LENGTH = 30;
 
@@ -24,7 +24,9 @@ export function parsePlayerName(input: string, otherNames: readonly string[]): P
   if (name === "") return { ok: false, issue: "empty" };
   if ([...name].length > MAX_PLAYER_NAME_LENGTH) return { ok: false, issue: "too-long" };
   const key = comparable(name);
-  if (key === comparable(INSURANCE_PLAYER_NAME)) return { ok: false, issue: "reserved" };
+  if ([INSURANCE_PLAYER_NAME, RAKE_PLAYER_NAME].some((reserved) => comparable(reserved) === key)) {
+    return { ok: false, issue: "reserved" };
+  }
   if (otherNames.some((other) => comparable(other) === key)) {
     return { ok: false, issue: "duplicate" };
   }

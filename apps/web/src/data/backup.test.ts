@@ -1,10 +1,13 @@
 import {
   type BackupData,
   cents,
+  DEFAULT_GAME_SETTINGS,
+  DEFAULT_RAKE_RULE,
   INSURANCE_PLAYER_ID,
   type LedgerEvent,
   OPTIMAL_PLAN,
   ORGANIZER_PLAYER_ID,
+  RAKE_PLAYER_ID,
   RULE_30,
 } from "@holdem-knight/core";
 import { describe, expect, it } from "vitest";
@@ -281,6 +284,58 @@ describe("backup file", () => {
     expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
   });
 
+  it("round-trips a game's rake and the rake taken, with no player record", () => {
+    const meta = { organizerId: "guest", gameId: "g", occurredAt: 3 };
+    const rake: LedgerEvent = {
+      ...meta,
+      id: "k",
+      type: "rake",
+      playerId: RAKE_PLAYER_ID,
+      chips: 120,
+    };
+    const undo: LedgerEvent = { ...meta, id: "u", type: "reversal", reversedEventId: "k" };
+    const [game] = data.games;
+    const full = {
+      ...data,
+      games: game
+        ? [
+            {
+              ...game,
+              rake: DEFAULT_RAKE_RULE,
+              rakeInSplit: true as const,
+              insuranceInSplit: true as const,
+            },
+          ]
+        : [],
+      ledgerEvents: [...data.ledgerEvents, rake, undo],
+      gameConfigs: [
+        {
+          id: "c",
+          organizerId: "guest",
+          name: "抽水局",
+          settings: { ...DEFAULT_GAME_SETTINGS, rake: DEFAULT_RAKE_RULE },
+          createdAt: 1,
+        },
+      ],
+    };
+    expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
+  });
+
+  it("rejects rake of no chips", () => {
+    const text = edit((backup) => {
+      backup.ledgerEvents = [
+        {
+          ...{ organizerId: "guest", gameId: "g", occurredAt: 3 },
+          id: "k",
+          type: "rake",
+          playerId: RAKE_PLAYER_ID,
+          chips: 0,
+        },
+      ];
+    });
+    expect(parseBackup(text)).toEqual({ ok: false, issue: "invalid" });
+  });
+
   it("round-trips insurance rules, purchases and the insurance seat", () => {
     const rule = { ...RULE_30, riverCoverLimit: 50 };
     const [game] = data.games;
@@ -395,7 +450,7 @@ describe("backup file", () => {
 
   it("rejects backups from a newer version", () => {
     const text = edit((backup) => {
-      backup.version = 13;
+      backup.version = 14;
     });
     expect(parseBackup(text)).toEqual({ ok: false, issue: "newer-version" });
   });

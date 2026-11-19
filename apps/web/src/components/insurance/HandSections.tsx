@@ -1,6 +1,7 @@
 import type { InsuranceHandPlayer } from "@holdem-knight/core";
 import { RotateCcw } from "lucide-react";
 import { type ReactNode, type Ref, useId, useRef, useState } from "react";
+import { ChipStack } from "@/components/ChipStack";
 import { cn } from "@/lib/cn";
 import { selectOnFocus } from "@/lib/number-input";
 import type { InsuranceSeat } from "./InsuranceCalculator";
@@ -93,29 +94,6 @@ export function RoundAction({
         {children}
       </span>
     </button>
-  );
-}
-
-/** Three chips in a stack: outlines while empty, filled once there is dead money. */
-function ChipStack({ lit }: { lit: boolean }) {
-  // Opaque fills, so each chip hides the one under it
-  const side = lit ? "color-mix(in srgb, currentColor 35%, var(--bg))" : "var(--bg)";
-  const face = lit ? "color-mix(in srgb, currentColor 60%, var(--bg))" : "var(--bg)";
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-6 shrink-0"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      aria-hidden
-    >
-      {[15, 10.5, 6].map((top) => (
-        <g key={top}>
-          <path d={`M4 ${top}v3.5a8 3 0 0 0 16 0v-3.5`} fill={side} />
-          <ellipse cx="12" cy={top} rx="8" ry="3" fill={face} />
-        </g>
-      ))}
-    </svg>
   );
 }
 

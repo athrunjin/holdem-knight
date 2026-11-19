@@ -117,6 +117,7 @@ function NewGamePage() {
             initialWage={start.wage}
             lastWage={configWage ?? games.data?.find((game) => game.wage)?.wage}
             lastWageLabel={configWage && applied.choice?.name}
+            initialRake={start.rake}
             submitLabel="下一步：选择玩家"
             saving={false}
             saveFailed={false}

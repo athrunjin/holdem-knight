@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script>
+      // iOS zooms in on a field under 16px, such as a stack typed over on a card. Capping the scale
+      // stops that there, and iOS still lets the page be pinched; elsewhere the cap is left off.
+      if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent))) {
+        const viewport = document.querySelector('meta[name="viewport"]');
+        viewport?.setAttribute("content", `${viewport.getAttribute("content")}, maximum-scale=1`);
+      }
+    </script>
     <meta name="theme-color" content="#13241e" />
     <meta name="description" content="线下德州扑克组局助手：买入记账、结算、保险、抽水、计时" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

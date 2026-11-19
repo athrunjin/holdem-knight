@@ -81,6 +81,37 @@
     }
   }
 
+  /* A figure rolling to its new value: up when it grows, down when it shrinks */
+  --animate-roll-in-up: roll-in-up 0.4s ease-out;
+  --animate-roll-out-up: roll-out-up 0.4s ease-out forwards;
+  --animate-roll-in-down: roll-in-down 0.4s ease-out;
+  --animate-roll-out-down: roll-out-down 0.4s ease-out forwards;
+
+  @keyframes roll-in-up {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+  }
+  @keyframes roll-out-up {
+    to {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+  }
+  @keyframes roll-in-down {
+    from {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+  }
+  @keyframes roll-out-down {
+    to {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+  }
+
   /* A fill that runs out from the right, for a button that stays lit a few seconds */
   --animate-drain: drain 5s linear forwards;
 

@@ -7,12 +7,13 @@ import {
   INSURANCE_PLAYER_ID,
   type LegacyGame,
   ORGANIZER_PLAYER_ID,
+  RAKE_PLAYER_ID,
   upgradeLegacyGame,
 } from "@holdem-knight/core";
 import { z } from "zod";
 
 const FORMAT = "holdem-backup";
-const VERSION = 12;
+const VERSION = 13;
 
 const id = z.string().min(1);
 const money = z
@@ -39,6 +40,8 @@ const insuranceRuleSchema = z.object({
 });
 
 const tableFeeSchema = z.object({ amount: money, minMinutes: z.number().int().min(0) });
+
+const rakeSchema = z.object({ percent: z.number().int().min(1).max(99) });
 
 const hour = z.number().int().min(0).max(23);
 
@@ -111,6 +114,12 @@ const gameFields = {
   allReceived: z.literal(true).optional(),
   /** Added in version 12. */
   doneTransfers: z.array(z.object({ from: id, to: id, amount: money })).optional(),
+  /** Added in version 13. */
+  rake: rakeSchema.optional(),
+  /** Added in version 13. */
+  rakeInSplit: z.literal(true).optional(),
+  /** Added in version 13. */
+  insuranceInSplit: z.literal(true).optional(),
 };
 
 const gameSchema = z.object({
@@ -168,6 +177,16 @@ const eventSchema = z.discriminatedUnion("type", [
     chips,
     handId: id.optional(),
   }),
+  /** Added in version 13. */
+  z.object({
+    ...eventBase,
+    type: z.literal("rake"),
+    playerId: z.literal(RAKE_PLAYER_ID),
+    chips: z
+      .number()
+      .int()
+      .refine((change) => change !== 0),
+  }),
 ]);
 
 const savedRuleSchema = z.object({
@@ -191,6 +210,8 @@ const gameConfigSchema = z.object({
     insurance: insuranceRuleSchema.optional(),
     tableFee: tableFeeSchema.optional(),
     wage: wageSchema.optional(),
+    /** Added in version 13. */
+    rake: rakeSchema.optional(),
   }),
   createdAt: timestamp,
 });
@@ -274,9 +295,13 @@ function linksAreValid({ games, players, ledgerEvents, insuranceHands }: BackupD
   const gameIds = new Set(games.map((g) => g.id));
   const playerIds = new Set(players.map((p) => p.id));
   const eventIds = new Set(ledgerEvents.map((e) => e.id));
-  // Version 11 lets the organizer play under their own ID, with no player record
+  // Version 11 lets the organizer play under their own ID, with no player record, and version 13
+  // adds the rake seat
   const isPlayer = (id: string) =>
-    id === INSURANCE_PLAYER_ID || id === ORGANIZER_PLAYER_ID || playerIds.has(id);
+    id === INSURANCE_PLAYER_ID ||
+    id === ORGANIZER_PLAYER_ID ||
+    id === RAKE_PLAYER_ID ||
+    playerIds.has(id);
   if (!insuranceHands.every((hand) => gameIds.has(hand.gameId))) return false;
   return ledgerEvents.every(
     (e) =>

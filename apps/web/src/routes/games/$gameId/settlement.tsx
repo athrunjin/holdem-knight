@@ -1,6 +1,7 @@
 import {
   applyCharges,
   attributeInsurance,
+  attributeRake,
   type Charge,
   type ChargeWaiver,
   cents,
@@ -8,6 +9,8 @@ import {
   chargesFrom,
   chipDifference,
   chooseCollector,
+  chooseInsuranceInSplit,
+  chooseRakeInSplit,
   collectorTransfers,
   type Game,
   INSURANCE_PLAYER_ID,
@@ -19,6 +22,7 @@ import {
   type PlayerChargeStatus,
   type PlayerLedger,
   type PlayerNet,
+  RAKE_PLAYER_ID,
   reviseGame,
   type SettlementOutcome,
   settleGame,
@@ -38,6 +42,7 @@ import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/Gam
 import { GameRules, hasGameRules } from "@/components/game/GameRules";
 import {
   InsuranceRow,
+  RakeRow,
   type ResultCard,
   ResultCards,
   type ResultLine,
@@ -55,7 +60,7 @@ import { CHARGE_CLOCK_RULE, chargeClock, chargeRuleNotes, chargeRuleSections } f
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
-import { gameNameOf } from "@/lib/player-name";
+import { gameInitialsOf, gameNameOf } from "@/lib/player-name";
 import { renderSettlementImage } from "@/lib/settlement-image";
 import { shareFile } from "@/lib/share";
 
@@ -103,6 +108,7 @@ function SettlementPage() {
   const charges = chargesFrom(game, statuses);
   const ruleSections = chargeRuleSections(game, game.currency);
   const nameOf = gameNameOf(players, game);
+  const initialsOf = gameInitialsOf(players);
   const seated = ledger
     .filter((p) => p.seated && p.playerId !== INSURANCE_PLAYER_ID)
     .map((p) => nameOf(p.playerId));
@@ -135,7 +141,7 @@ function SettlementPage() {
           {hasGameRules(game) ? (
             <GameRules game={game} charges={charges} />
           ) : (
-            <p className="pb-1 text-xs text-muted">这局没有开启保险、工资或台费。</p>
+            <p className="pb-1 text-xs text-muted">这局没有开启保险、工资、台费或抽水。</p>
           )}
           {ruleSections.length > 0 && (
             <InfoButton title="计费规则" small>
@@ -171,12 +177,16 @@ function SettlementPage() {
           {difference === 0 || game.imbalanceHandling ? (
             <SettlementResult
               game={game}
-              outcome={settlementOutcome(ledger, game.chipRatio, game.imbalanceHandling)}
+              outcome={settlementOutcome(ledger, game.chipRatio, game.imbalanceHandling, {
+                insuranceInSplit: game.insuranceInSplit === true,
+                rakeInSplit: game.rakeInSplit === true,
+              })}
               ledger={ledger}
               events={events}
               statuses={statuses}
               charges={charges}
               nameOf={nameOf}
+              initialsOf={initialsOf}
               nudge={nudge}
               onNudge={setNudge}
             />
@@ -204,6 +214,11 @@ function Notice({ gameId, children }: { gameId: string; children: ReactNode }) {
   );
 }
 
+/** One person's result in a list, 0 for someone not in it. */
+function netOf(list: readonly PlayerNet[], id: string) {
+  return list.find((p) => p.playerId === id)?.net ?? ZERO;
+}
+
 interface SettlementResultProps {
   game: Game;
   outcome: SettlementOutcome;
@@ -212,6 +227,7 @@ interface SettlementResultProps {
   statuses: readonly PlayerChargeStatus[];
   charges: readonly Charge[];
   nameOf: (playerId: string) => string;
+  initialsOf: (playerId: string, name: string) => string;
   nudge: Nudge | undefined;
   onNudge: (nudge: Nudge | undefined) => void;
 }
@@ -224,6 +240,7 @@ function SettlementResult({
   statuses,
   charges,
   nameOf,
+  initialsOf,
   nudge,
   onNudge,
 }: SettlementResultProps) {
@@ -231,8 +248,11 @@ function SettlementResult({
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const insured = attributeInsurance(outcome.nets, game.insuranceOwner);
   const { insuranceNet, ownerId } = insured;
+  // The rake is always the organizer's, as a share of the results like insurance
+  const rakeSeat = ledger.find((p) => p.playerId === RAKE_PLAYER_ID);
+  const rakeNet = netOf(outcome.nets, RAKE_PLAYER_ID);
   const ruleNotes = chargeRuleNotes(game, game.currency);
-  const charged = applyCharges(insured.nets, charges);
+  const charged = applyCharges(attributeRake(insured.nets), charges);
   const { nets } = charged;
   const { currency, status, smallBlindChips, bigBlindChips, handChips, createdAt } = game;
   // An organizer who plays has chips under the organizer's own ID, and stays on the organizer's card
@@ -283,17 +303,74 @@ function SettlementResult({
   const planName = collectorId ? `代收人 ${nameOf(collectorId)}` : "最优方案";
 
   const organizerNet = nets.find((p) => p.playerId === ORGANIZER_COLLECTOR)?.net;
-  const netOf = (list: readonly PlayerNet[], id: string) =>
-    list.find((p) => p.playerId === id)?.net ?? ZERO;
   // Each person's result from the chips alone, before a difference is split
   const chipNets = settlementOutcome(ledger, game.chipRatio, undefined).nets;
 
+  // The insurance result before any split. Its share of a split is a line of its own
+  const insuranceBefore = netOf(chipNets, INSURANCE_PLAYER_ID);
   function insuranceLine(id: string): ResultLine[] {
-    if (insuranceNet === 0 || id !== ownerId) return [];
+    if (insuranceBefore === 0 || id !== ownerId) return [];
     return [
-      { key: "insurance", label: "保险", amount: insuranceNet, tone: "adjustment", group: "保险" },
+      {
+        key: "insurance",
+        label: "保险",
+        amount: insuranceBefore,
+        tone: "adjustment",
+        group: "保险",
+      },
     ];
   }
+
+  const splitting = game.imbalanceHandling === "split" && difference !== 0;
+  /** Someone's share of a split, as an amount. */
+  const splitLine = (key: string, label: string, share: number): ResultLine => ({
+    key,
+    label,
+    amount: cents(share),
+    tone: "adjustment",
+    group: "分摊",
+  });
+  /**
+   * A seat's share of a split, which the organizer switches on. Off, it is struck through with no
+   * amount, since the seat takes no share. Only a seat on the side being split has the line. A seat
+   * that has to share, with no player on its side, shows its share and cannot be switched off.
+   */
+  function seatSplitLine(
+    seatId: string,
+    label: string,
+    on: boolean,
+    choose: (game: Game, on: boolean) => Game,
+  ): ResultLine[] {
+    const before = netOf(chipNets, seatId);
+    if (!splitting || before * difference <= 0) return [];
+    const share = netOf(outcome.nets, seatId) - before;
+    const forced = !on && share !== 0;
+    const line = on || forced ? splitLine(`split-${seatId}`, label, share) : undefined;
+    return [
+      {
+        ...(line ?? { key: `split-${seatId}`, label, tone: "adjustment", group: "分摊" }),
+        waiver: {
+          waived: !on && !forced,
+          disabled: saveGame.isPending || forced,
+          locked: settled,
+          onChange: (waived) =>
+            settled ? point("revise") : saveGame.mutate(choose(game, !waived)),
+        },
+      },
+    ];
+  }
+  const insuranceSplit = seatSplitLine(
+    INSURANCE_PLAYER_ID,
+    "差额分摊 - 保险",
+    game.insuranceInSplit === true,
+    chooseInsuranceInSplit,
+  );
+  const rakeSplit = seatSplitLine(
+    RAKE_PLAYER_ID,
+    "差额分摊 - 抽水",
+    game.rakeInSplit === true,
+    chooseRakeInSplit,
+  );
 
   // Once settled a charge cannot change: the tap points at the button that opens the results again
   const waiving = {
@@ -308,26 +385,24 @@ function SettlementResult({
 
   const playerCards = ledger
     .filter((p) => p.playerId !== INSURANCE_PLAYER_ID || separateInsurance)
+    .filter((p) => p.playerId !== RAKE_PLAYER_ID)
     .filter((p) => p.playerId !== ORGANIZER_COLLECTOR)
     .map((player): ResultCard => {
       const { playerId } = player;
       const base = netOf(chipNets, playerId);
       const share = netOf(outcome.nets, playerId) - base;
+      // The insurance seat on its own row has the switch; a player has their share as it is
       const split: ResultLine[] =
-        share === 0
-          ? []
-          : [
-              {
-                key: "split",
-                label: "差额分摊",
-                amount: cents(share),
-                tone: "adjustment",
-                group: "分摊",
-              },
-            ];
+        playerId === INSURANCE_PLAYER_ID
+          ? insuranceSplit
+          : share === 0
+            ? []
+            : [splitLine("split", "差额分摊", share)];
+      const name = nameOf(playerId);
       return {
         id: playerId,
-        name: nameOf(playerId),
+        name,
+        initials: initialsOf(playerId, name),
         hands: handChips === undefined ? "—" : String(player.boughtChips / handChips),
         chips: player.cashedOutChips.toLocaleString("zh-CN"),
         netChips: player.cashedOutChips - player.boughtChips,
@@ -338,12 +413,13 @@ function SettlementResult({
           ...chargeLines(game, statuses, charges, playerId, waiving),
           ...split,
           ...insuranceLine(playerId),
+          // A player who takes the insurance result has its share of a split under it
+          ...(playerId === ownerId && playerId !== INSURANCE_PLAYER_ID ? insuranceSplit : []),
         ],
         total: netOf(nets, playerId),
         collapsible: true,
       };
-    })
-    .toSorted((a, b) => b.total - a.total);
+    });
 
   // What handling the difference adds to the organizer, beyond their own chips if they play
   const covered =
@@ -357,13 +433,7 @@ function SettlementResult({
           tone: "adjustment",
           group: "差额",
         }
-      : {
-          key: "split",
-          label: "差额分摊",
-          amount: cents(covered),
-          tone: "adjustment",
-          group: "分摊",
-        };
+      : splitLine("split", "差额分摊", covered);
   const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
   // The insurance seat sits on the organizer's card as on the game page, when its result is theirs
   const insuranceRow = seat && ownerId === ORGANIZER_COLLECTOR && (
@@ -371,14 +441,26 @@ function SettlementResult({
       hands={handChips === undefined ? "—" : String(seat.boughtChips / handChips)}
       chips={seat.cashedOutChips.toLocaleString("zh-CN")}
       netChips={seat.cashedOutChips - seat.boughtChips}
-      amount={insuranceNet}
+      amount={insuranceBefore}
+      currency={currency}
+    />
+  );
+  // The rake seat sits under the insurance seat, as on the game page, with what it took before
+  // any split. Its share of a split is one of the organizer's lines
+  const rakeRow = rakeSeat && (
+    <RakeRow
+      chips={rakeSeat.cashedOutChips}
+      amount={netOf(chipNets, RAKE_PLAYER_ID)}
       currency={currency}
     />
   );
   // What an organizer can receive besides insurance, always in this order
+  // then the shares of a split: their own as a player, the insurance seat's and the rake's
   const organizerLines: ResultLine[] = [
     ...organizerIncomeLines(game, charges, receivesCharges),
     ...(covered === 0 ? [] : [coveredLine]),
+    ...(ownerId === ORGANIZER_COLLECTOR ? insuranceSplit : []),
+    ...rakeSplit,
   ];
   const organizerCard: ResultCard[] =
     organizerNet === undefined
@@ -395,7 +477,14 @@ function SettlementResult({
               base: netOf(chipNets, ORGANIZER_COLLECTOR),
               record: record(ORGANIZER_COLLECTOR),
             }),
-            ...(insuranceRow && { pinned: insuranceRow }),
+            ...((insuranceRow || rakeRow) && {
+              pinned: (
+                <>
+                  {insuranceRow}
+                  {rakeRow}
+                </>
+              ),
+            }),
             lines: organizerLines,
             total: organizerNet,
             collapsible: true,
@@ -412,9 +501,8 @@ function SettlementResult({
     if (game.imbalanceHandling === "organizer") {
       return `${nameOf(ORGANIZER_COLLECTOR)} ${difference > 0 ? "补齐" : "收取"} ${size}`;
     }
-    const count = [...playerCards, ...organizerCard].filter(
-      (r) => (r.netChips ?? 0) * difference > 0,
-    ).length;
+    // Everyone who takes a share, the seats included
+    const count = outcome.nets.filter((p) => p.net !== netOf(chipNets, p.playerId)).length;
     return difference > 0
       ? `水上多 ${size}，由 ${count} 位赢家按水上比例扣减`
       : `水下多 ${size}，由 ${count} 位输家按水下比例少付`;
@@ -429,7 +517,11 @@ function SettlementResult({
     const kinds = [game.tableFee && "台费", game.wage && "工资"].filter(Boolean).join("和");
     return `${kinds} ${chargesText}，计入 ${nameOf(charged.recipientId)}`;
   }
-  const notes = [imbalanceNote(), insuranceNote(), chargesNote()].filter(
+  function rakeNote() {
+    if (rakeNet === 0) return undefined;
+    return `抽水 ${formatGameMoney(rakeNet, currency)}，计入 ${nameOf(ORGANIZER_COLLECTOR)}`;
+  }
+  const notes = [imbalanceNote(), insuranceNote(), rakeNote(), chargesNote()].filter(
     (text) => text !== undefined,
   );
 

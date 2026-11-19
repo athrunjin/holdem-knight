@@ -10,6 +10,8 @@ import {
   type InsuranceBuyEvent,
   type LedgerEvent,
   type Player,
+  RAKE_PLAYER_ID,
+  type RakeEvent,
 } from "../domain";
 import { type Cents, multiply } from "../money";
 import { comparePlayers } from "../player";
@@ -103,7 +105,9 @@ function liveStacks(events: readonly LedgerEvent[]): Map<string, number> {
           ? event.chips - current
           : event.type === "cash_out"
             ? -current
-            : event.type === "insurance_buy" || event.type === "insurance_settle"
+            : event.type === "insurance_buy" ||
+                event.type === "insurance_settle" ||
+                event.type === "rake"
               ? 0
               : event.chips;
       applied.set(event.id, change);
@@ -130,7 +134,37 @@ export interface PlayerLedger {
   readonly netChips: number;
 }
 
-/** Each player's totals, in order of first buy-in. */
+/** Rake still in effect, oldest first. */
+export function rakeRecords(events: readonly LedgerEvent[]): RakeEvent[] {
+  const reversed = reversedEventIds(events);
+  return events.filter((e): e is RakeEvent => e.type === "rake" && !reversed.has(e.id));
+}
+
+/** All the rake taken so far, in chips. */
+export function rakeChips(events: readonly LedgerEvent[]): number {
+  return rakeRecords(events).reduce((total, e) => total + e.chips, 0);
+}
+
+/**
+ * The rake seat as a player who has already left with every chip of rake: nothing bought, so its
+ * result is the rake, and the table balances with it as one more result. Missing with no rake.
+ */
+function rakeSeat(events: readonly LedgerEvent[]): PlayerLedger[] {
+  const chips = rakeChips(events);
+  if (chips === 0) return [];
+  return [
+    {
+      playerId: RAKE_PLAYER_ID,
+      boughtChips: 0,
+      cashedOutChips: chips,
+      seated: false,
+      stackChips: 0,
+      netChips: chips,
+    },
+  ];
+}
+
+/** Each player's totals, in order of first buy-in, then the rake seat if the game has rake. */
 export function summarizeByPlayer(events: readonly LedgerEvent[]): PlayerLedger[] {
   const byPlayer = new Map<string, Omit<PlayerLedger, "stackChips" | "netChips">>();
   for (const event of activeChipEvents(events)) {
@@ -149,11 +183,12 @@ export function summarizeByPlayer(events: readonly LedgerEvent[]): PlayerLedger[
     );
   }
   const stacks = liveStacks(events);
-  return [...byPlayer.values()].map((player) => {
+  const players = [...byPlayer.values()].map((player) => {
     const stackChips = player.seated ? (stacks.get(player.playerId) ?? 0) : 0;
     const netChips = stackChips + player.cashedOutChips - player.boughtChips;
     return { ...player, stackChips, netChips };
   });
+  return [...players, ...rakeSeat(events)];
 }
 
 export interface LedgerTotals {
@@ -336,7 +371,9 @@ export type RecordKind =
   | "insurance_buy"
   | "insurance_hit"
   | "insurance_miss"
-  | "insurance_undo";
+  | "insurance_undo"
+  | "rake"
+  | "rake_undo";
 
 /** One thing that happened in a game, as the organizer would describe it. */
 export interface RecordEntry {
@@ -385,6 +422,8 @@ export function gameRecord(events: readonly LedgerEvent[]): RecordEntry[] {
         const buy = trackBuy(id, playerId);
         if (undoing) buy.reversed += chips;
         else buy.added = target;
+      } else if (target.type === "rake") {
+        entries.push({ id, kind: undoing ? "rake_undo" : "rake", playerId, chips, occurredAt });
       } else if (target.type === "cash_out") {
         const kind = undoing ? "return" : "cash_out";
         entries.push({ id, kind, playerId, chips, occurredAt });

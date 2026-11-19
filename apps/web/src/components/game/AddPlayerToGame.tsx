@@ -13,11 +13,16 @@ const pillClass =
 interface AddPlayerToGameProps {
   /** Players already in this game, left out of the suggestions */
   excludedIds: ReadonlySet<string>;
+  /**
+   * `invite` is a quiet row in place of the first player, `plus` a small plus under the players
+   * already seated.
+   */
+  variant: "invite" | "plus";
   onPick: (player: Player) => void;
 }
 
-/** A small plus opens the search: pick a player to buy in, or create one if it finds nothing. */
-export function AddPlayerToGame({ excludedIds, onPick }: AddPlayerToGameProps) {
+/** Opens the search: pick a player to buy in, or create one if it finds nothing. */
+export function AddPlayerToGame({ excludedIds, variant, onPick }: AddPlayerToGameProps) {
   const { data: players = [] } = usePlayers();
   const savePlayer = useSavePlayer();
   const [open, setOpen] = useState(false);
@@ -50,16 +55,27 @@ export function AddPlayerToGame({ excludedIds, onPick }: AddPlayerToGameProps) {
 
   return (
     <>
-      <button
-        type="button"
-        aria-label="加入玩家"
-        onClick={() => setOpen(true)}
-        className="grid min-h-11 w-full place-items-center text-highlight"
-      >
-        <span className="grid size-5.5 place-items-center rounded-full border border-line">
-          <Plus className="size-3" aria-hidden />
-        </span>
-      </button>
+      {variant === "invite" ? (
+        // Where the first player's card will be, as tall as one
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="grid min-h-11 w-full place-items-center rounded-xl border border-line bg-surface/50 text-sm text-muted"
+        >
+          点击邀请
+        </button>
+      ) : (
+        <button
+          type="button"
+          aria-label="加入玩家"
+          onClick={() => setOpen(true)}
+          className="mx-auto grid size-11 place-items-center text-highlight"
+        >
+          <span className="grid size-4.5 place-items-center rounded-full border border-line">
+            <Plus className="size-2.5" aria-hidden />
+          </span>
+        </button>
+      )}
 
       {open && (
         <Modal title="加入玩家" onClose={close}>

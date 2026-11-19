@@ -1,7 +1,9 @@
 import { chipsToCents, type Game } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeftRight, Calculator, Check, Timer, X } from "lucide-react";
+import { Calculator, Check, Timer, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { ChipStack } from "@/components/ChipStack";
+import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
 
@@ -84,34 +86,44 @@ function Figure({ text, lead }: { text: string; lead?: string }) {
   );
 }
 
-/** A figure a tap on its box switches between cash, shown first, and chips. */
+/**
+ * A figure a tap on its box switches between cash, shown first, and chips. The box's top right
+ * corner shows which, as the currency's mark or a chip, set over the box so it keeps its size.
+ */
 function useCashOrChips(game: Pick<Game, "chipRatio" | "currency">) {
   const [inChips, setInChips] = useState(false);
   const show = (chips: number) =>
     inChips
       ? chips.toLocaleString("zh-CN")
       : formatGameAmount(chipsToCents(chips, game.chipRatio), game.currency);
+  const markClass = "absolute top-1 right-1 size-3 text-muted";
   return {
     show,
     hint: `，点按切换为${inChips ? "金额" : "筹码"}`,
     toggle: () => setInChips(!inChips),
+    mark: (
+      <span aria-hidden>
+        {inChips ? (
+          <ChipStack ground="var(--surface)" className={markClass} />
+        ) : (
+          <CurrencyIcon currency={game.currency} className={markClass} />
+        )}
+      </span>
+    ),
   };
 }
-
-/** The mark of a box that switches what it shows, after its label. The whole box takes the tap. */
-const switchMark = <ArrowLeftRight className="ml-1 size-2.5 shrink-0" aria-hidden />;
 
 type TileGame = Pick<Game, "chipRatio" | "currency" | "handChips">;
 
 /** Everything bought in: how many Buy-ins, then their cash value or, after a tap, their chips. */
 export function BuyInTile({ game, boughtChips }: { game: TileGame; boughtChips: number }) {
-  const { show, hint, toggle } = useCashOrChips(game);
+  const { show, hint, toggle, mark } = useCashOrChips(game);
   const { handChips } = game;
   return (
-    <button type="button" onClick={toggle} className={tileClass}>
+    <button type="button" onClick={toggle} className={cn(tileClass, "relative")}>
+      {mark}
       <span className={labelClass}>
         总 Buy-in{handChips !== undefined && ` · ${boughtChips / handChips}`}
-        {switchMark}
       </span>
       <span className="block">
         <Figure text={show(boughtChips)} />
@@ -127,7 +139,7 @@ export function BuyInTile({ game, boughtChips }: { game: TileGame; boughtChips: 
  * switches that figure between cash and chips, apart from the Buy-in box.
  */
 export function BalanceTile({ game, balanceChips }: { game: TileGame; balanceChips: number }) {
-  const { show, hint, toggle } = useCashOrChips(game);
+  const { show, hint, toggle, mark } = useCashOrChips(game);
   if (balanceChips === 0) {
     return (
       <div className={cn(tileClass, "flex items-center justify-center gap-1 text-win")}>
@@ -137,7 +149,8 @@ export function BalanceTile({ game, balanceChips }: { game: TileGame; balanceChi
     );
   }
   return (
-    <button type="button" onClick={toggle} className={cn(tileClass, "text-loss")}>
+    <button type="button" onClick={toggle} className={cn(tileClass, "relative text-loss")}>
+      {mark}
       <span className="flex items-center justify-center text-xs whitespace-nowrap">
         未配平
         <X className="ml-0.5 size-3.5" aria-hidden />

@@ -9,11 +9,14 @@ import {
   type LedgerEvent,
   ORGANIZER_PLAYER_ID,
   type PlayerLedger,
+  RAKE_PLAYER_ID,
 } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, UserPen } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Modal } from "@/components/insurance/Modal";
 import { MiniSwitch } from "@/components/MiniSwitch";
+import { type CardSort, DEFAULT_SORT, nextSort } from "@/lib/card-sort";
 import { breakable, formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
@@ -27,8 +30,13 @@ import {
   InsuranceName,
   insuranceNameClass,
   PersonCard,
+  RakeCells,
+  RakeName,
   type ResultCard,
+  rakeNameClass,
+  sortResultCards,
 } from "./ResultCards";
+import { StackField } from "./StackField";
 
 const actionClass = "min-h-11 shrink-0 rounded-lg border border-line px-2 text-sm font-medium";
 const listClass = "divide-y divide-line rounded-xl border border-line bg-surface px-2";
@@ -48,6 +56,8 @@ interface LedgerPlayersProps {
   organizerName: string;
   players: readonly PlayerLedger[];
   nameOf: (playerId: string) => string;
+  /** Initials for ordering by name */
+  initialsOf: (playerId: string, name: string) => string;
   /** Actions are hidden once the game is settled */
   editable: boolean;
   /** Everyone's time and charges so far, as of the moment the cards show */
@@ -57,17 +67,23 @@ interface LedgerPlayersProps {
   /** While a waiver is being saved */
   waiving: boolean;
   onEditHands: (playerId: string) => void;
-  onEditStack: (playerId: string) => void;
+  /** A stack typed over on the card */
+  onSetStack: (playerId: string, chips: number) => void;
   onRebuy: (playerId: string) => void;
   /** A first buy-in for the organizer, or for an insurance seat the game is missing */
   onJoin: (playerId: string) => void;
   onReturn: (playerId: string) => void;
-  /** Everyone who left comes back, after the organizer confirms */
+  /** Everyone who left comes back */
   onReturnAll: () => void;
   /** The player leaves with the chips on the page, at once */
   onLeave: (playerId: string) => void;
-  /** Shown at the foot of the seated players */
-  addPlayer: ReactNode;
+  /** Opens the rake: what has been taken so far, and adding to it */
+  onRake: () => void;
+  /**
+   * Adding a player: a row to invite the first one while no one is seated, then a small plus at
+   * the foot of the seated players. Missing once the game is settled.
+   */
+  addPlayer?: ((variant: "invite" | "plus") => ReactNode) | undefined;
   /** Whether the seated players' cards are open, on their record, charges and total */
   detailMode: boolean;
   onDetailModeChange: (on: boolean) => void;
@@ -118,17 +134,19 @@ export function LedgerPlayers({
   organizerName,
   players,
   nameOf,
+  initialsOf,
   editable,
   live,
   onWaive,
   waiving,
   onEditHands,
-  onEditStack,
+  onSetStack,
   onRebuy,
   onJoin,
   onReturn,
   onReturnAll,
   onLeave,
+  onRake,
   addPlayer,
   detailMode,
   onDetailModeChange,
@@ -139,6 +157,8 @@ export function LedgerPlayers({
     game.tableFee !== undefined || game.wage !== undefined,
   );
   const [leftOpen, setLeftOpen] = useState(false);
+  const [sort, setSort] = useState<CardSort>(DEFAULT_SORT);
+  const [managing, setManaging] = useState(false);
   // Whether folded cards show what the players owe and their result after it. Games that charge
   // players outside their chips have the switch, on to begin with and apart from 详细模式
   const hasFees = game.tableFee !== undefined || game.wage !== undefined;
@@ -178,8 +198,12 @@ export function LedgerPlayers({
   const seat = players.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   // An organizer who plays stays in the organizer's card, never among the players
   const host = players.find((p) => p.playerId === ORGANIZER_PLAYER_ID);
+  const rakeSeat = players.find((p) => p.playerId === RAKE_PLAYER_ID);
   const people = players.filter(
-    (p) => p.playerId !== INSURANCE_PLAYER_ID && p.playerId !== ORGANIZER_PLAYER_ID,
+    (p) =>
+      p.playerId !== INSURANCE_PLAYER_ID &&
+      p.playerId !== ORGANIZER_PLAYER_ID &&
+      p.playerId !== RAKE_PLAYER_ID,
   );
   const seated = people.filter((p) => p.seated);
   const left = people.filter((p) => !p.seated);
@@ -199,11 +223,14 @@ export function LedgerPlayers({
   const charged = { tableFee: game.tableFee !== undefined, wage: game.wage !== undefined };
   const insurance = seat && chipsToCents(seat.netChips, ratio);
   const ownCash = host && chipsToCents(host.netChips, ratio);
-  const organizerTotal = cents((ownCash ?? 0) + (insurance ?? 0) + tableFees + wages);
-  // A game with insurance always shows its seat
+  const rakeTaken = rakeSeat?.netChips ?? 0;
+  const rake = chipsToCents(rakeTaken, ratio);
+  const organizerTotal = cents((ownCash ?? 0) + (insurance ?? 0) + rake + tableFees + wages);
+  // A game with insurance or rake always shows its seat, and so does one turned off with records
   const showInsurance = seat !== undefined || game.insurance !== undefined;
+  const showRake = rakeSeat !== undefined || game.rake !== undefined;
   const showOrganizer =
-    editable || host !== undefined || showInsurance || charged.tableFee || charged.wage;
+    editable || host !== undefined || showInsurance || showRake || charged.tableFee || charged.wage;
   const dash = (align: string) => <span className={cn(align, "text-muted")}>—</span>;
 
   /**
@@ -265,14 +292,12 @@ export function LedgerPlayers({
       );
     }
     return (
-      <button
-        type="button"
-        aria-label={`输入${nameOf(playerId)}的筹码，现在 ${stackChips}`}
-        onClick={() => onEditStack(playerId)}
-        className={cn(cellButtonClass, figureClass, flash(playerId))}
-      >
-        {breakable(stackChips.toLocaleString("zh-CN"))}
-      </button>
+      <StackField
+        chips={stackChips}
+        label={`${nameOf(playerId)}的筹码`}
+        className={flash(playerId)}
+        onCommit={(chips) => onSetStack(playerId, chips)}
+      />
     );
   }
 
@@ -299,12 +324,14 @@ export function LedgerPlayers({
    * charges so far. Folded, it is its first row, with the settlement page's line of charges and
    * total under it while 含费 is on.
    */
-  function playerCard(player: PlayerLedger) {
+  function cardOf(player: PlayerLedger): ResultCard {
     const { playerId, netChips, stackChips } = player;
     const cash = chipsToCents(netChips, ratio);
-    const card: ResultCard = {
+    const name = nameOf(playerId);
+    return {
       id: playerId,
-      name: nameOf(playerId),
+      name,
+      initials: initialsOf(playerId, name),
       hands: "—",
       chips: "—",
       handsCell: hands(player),
@@ -331,13 +358,16 @@ export function LedgerPlayers({
         <SettleButton armed={playerId === armedId} onClick={() => settle(playerId)} />
       ),
     };
+  }
+
+  function personCard(card: ResultCard) {
     return (
       <PersonCard
-        key={playerId}
+        key={card.id}
         card={card}
         currency={currency}
-        open={isOpen(playerId)}
-        onToggle={() => toggle(playerId)}
+        open={isOpen(card.id)}
+        onToggle={() => toggle(card.id)}
         summary={hasFees && withFees}
       />
     );
@@ -391,18 +421,60 @@ export function LedgerPlayers({
   }
 
   /**
+   * The rake seat, under the insurance seat. Any tap on the row opens the rake, while the game is
+   * still being played.
+   */
+  function rakeRow() {
+    const cells = (
+      <>
+        <span className={cn(rakeNameClass, "min-h-11")}>
+          <RakeName />
+        </span>
+        <RakeCells chips={rakeTaken} amount={rake} currency={currency} />
+      </>
+    );
+    const rowClass = cn(columnsClass, "min-h-11 w-full text-left text-xs");
+    return editable ? (
+      <button type="button" aria-label="修改抽水" onClick={onRake} className={rowClass}>
+        {cells}
+      </button>
+    ) : (
+      <div className={rowClass}>{cells}</div>
+    );
+  }
+
+  /**
    * What the organizer has so far, in the settlement page's own card: their chips if they play,
-   * the insurance seat, and the wages and table fees charged so far. It folds on its own, apart
+   * the insurance and rake seats, and the wages and table fees charged so far. It folds on its own, apart
    * from the 详细模式 switch.
    */
   function organizerCard() {
+    // An organizer who played and left keeps their row, its name, Buy-in and chips in gray
+    const hostLeft = host !== undefined && !host.seated;
     const card: ResultCard = {
       id: ORGANIZER_PLAYER_ID,
       name: organizerName,
       hands: "—",
       chips: "—",
-      handsCell: host ? hands(host) : join(ORGANIZER_PLAYER_ID, "组织者加入牌局"),
-      chipsCell: host ? stack(host) : dash("text-center"),
+      dimmed: hostLeft,
+      handsCell: hostLeft ? (
+        <span className="text-center text-muted">
+          {handChips === undefined ? "—" : host.boughtChips / handChips}
+        </span>
+      ) : host ? (
+        hands(host)
+      ) : (
+        join(ORGANIZER_PLAYER_ID, "组织者加入牌局")
+      ),
+      chipsCell: hostLeft ? (
+        <span className={cn(figureClass, "text-center text-muted")}>
+          {breakable(host.cashedOutChips.toLocaleString("zh-CN"))}
+        </span>
+      ) : host ? (
+        stack(host)
+      ) : (
+        dash("text-center")
+      ),
       ...(host && {
         netChips: host.netChips,
         base: chipsToCents(host.netChips, ratio),
@@ -415,7 +487,14 @@ export function LedgerPlayers({
           />
         ),
       }),
-      ...(showInsurance && { pinned: insuranceRow() }),
+      ...((showInsurance || showRake) && {
+        pinned: (
+          <>
+            {showInsurance && insuranceRow()}
+            {showRake && rakeRow()}
+          </>
+        ),
+      }),
       lines: organizerIncomeLines(game, live.charges),
       total: organizerTotal,
       collapsible: true,
@@ -454,7 +533,7 @@ export function LedgerPlayers({
     <>
       {showOrganizer && (
         <div className="mt-3 flex flex-col gap-2">
-          <ColumnTitles first="组织者" />
+          <ColumnTitles first="组织者" firstNote={host && !host.seated ? "(已下桌)" : undefined} />
           {organizerCard()}
         </div>
       )}
@@ -462,7 +541,19 @@ export function LedgerPlayers({
       {(seated.length > 0 || addPlayer) && (
         <section aria-label="桌上玩家" className="mt-3 flex flex-col gap-2">
           <div className="-mb-2 flex min-h-11 items-center justify-between gap-2">
-            <h2 className="font-semibold">桌上玩家（{seatedCount}）</h2>
+            <div className="flex items-center">
+              <h2 className="font-semibold">桌上玩家 ({seatedCount})</h2>
+              {editable && (
+                <button
+                  type="button"
+                  aria-label="玩家管理"
+                  onClick={() => setManaging(true)}
+                  className="grid size-11 place-items-center text-muted"
+                >
+                  <UserPen className="size-4" aria-hidden />
+                </button>
+              )}
+            </div>
             {seated.length > 0 && (
               <div className="flex items-center gap-3">
                 {hasFees && <MiniSwitch label="含费" checked={withFees} onChange={setWithFees} />}
@@ -477,12 +568,32 @@ export function LedgerPlayers({
               </div>
             )}
           </div>
-          {seated.length > 0 && <ColumnTitles first="玩家" />}
-          {seated.map(playerCard)}
-          {addPlayer && (
-            <div className="rounded-xl border border-dashed border-line">{addPlayer}</div>
+          {seated.length > 0 && (
+            <ColumnTitles
+              first="玩家"
+              sort={sort}
+              onSort={(column) => setSort(nextSort(sort, column))}
+            />
           )}
+          {seated.length > 0
+            ? sortResultCards(seated.map(cardOf), sort).map(personCard)
+            : addPlayer?.("invite")}
+          {seated.length > 0 && addPlayer?.("plus")}
         </section>
+      )}
+
+      {/* Removing, swapping and adding players: the screen is still being designed */}
+      {managing && (
+        <Modal title="玩家管理" onClose={() => setManaging(false)}>
+          <p className="text-sm text-muted">移除、替换和新增玩家的界面还在设计中。</p>
+          <button
+            type="button"
+            onClick={() => setManaging(false)}
+            className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
+          >
+            关闭
+          </button>
+        </Modal>
       )}
 
       {/* Folded into one quiet line to begin with, like the game record under it */}
@@ -496,7 +607,7 @@ export function LedgerPlayers({
                 onClick={() => setLeftOpen(!leftOpen)}
                 className="flex min-h-11 items-center gap-1 text-sm text-muted"
               >
-                已结算（{left.length}）
+                已结算 ({left.length})
                 <ChevronDown
                   className={cn("size-4 transition-transform", leftOpen && "rotate-180")}
                   aria-hidden
@@ -509,7 +620,7 @@ export function LedgerPlayers({
                 onClick={onReturnAll}
                 className="min-h-11 pl-2 text-xs text-highlight"
               >
-                一键回桌
+                全部回桌
               </button>
             )}
           </div>

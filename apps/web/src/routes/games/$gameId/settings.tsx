@@ -1,6 +1,7 @@
 import {
   type GameSettings,
   insuranceActive,
+  rakeChips,
   toGameSettingsForm,
   updateGameSettings,
 } from "@holdem-knight/core";
@@ -46,6 +47,8 @@ function GameSettingsPage() {
         lastTableFee={game.tableFee}
         initialWage={game.wage}
         lastWage={game.wage}
+        initialRake={game.rake}
+        rakeLocked={rakeChips(events) > 0}
         saving={saveGame.isPending}
         saveFailed={saveGame.isError}
         onSubmit={handleSubmit}

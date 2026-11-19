@@ -5,12 +5,13 @@ import {
   INSURANCE_PLAYER_ID,
   ledgerTotals,
   type PlayerLedger,
+  RAKE_PLAYER_ID,
   timerElapsedMs,
 } from "@holdem-knight/core";
+import { TextMenu } from "@/components/TextMenu";
 import { useSaveGame } from "@/data/games";
 import { BalanceTile, BuyInTile, GameHostLine, GameTiles, Tile } from "./GameTiles";
 import { formatElapsed } from "./GameTimer";
-import { PickerRow } from "./PickerRow";
 
 interface SettlementSummaryProps {
   game: Game;
@@ -29,7 +30,9 @@ export function SettlementSummary({ game, ledger, difference, onLocked }: Settle
   const saveGame = useSaveGame();
   const { timer } = game;
   const settled = game.status === "settled";
-  const people = ledger.filter((p) => p.playerId !== INSURANCE_PLAYER_ID);
+  const people = ledger.filter(
+    (p) => p.playerId !== INSURANCE_PLAYER_ID && p.playerId !== RAKE_PLAYER_ID,
+  );
   const { boughtChips } = ledgerTotals(people);
   const elapsed = timer && formatElapsed(timerElapsedMs(timer, game.settledAt ?? Date.now()));
   // Short enough to sit over the balance box; the box under it has the amount
@@ -39,24 +42,38 @@ export function SettlementSummary({ game, ledger, difference, onLocked }: Settle
     ["ignore", "不做处理"],
   ];
   const chosen = choices.find(([handling]) => handling === game.imbalanceHandling)?.[1];
+  // Small highlighted text at the end of the line; its 44px target reaches up from it
+  const lineClass = "-mt-8 min-h-11 items-end text-xs leading-none text-highlight";
 
   return (
     <section aria-label="牌局信息">
       <GameHostLine
         game={game}
         end={
-          difference !== 0 && (
-            <PickerRow
-              title="差额处理方案"
-              options={choices}
-              value={game.imbalanceHandling}
-              disabled={saveGame.isPending || settled}
-              onLocked={settled ? onLocked : undefined}
-              onChange={(handling) => saveGame.mutate(chooseImbalanceHandling(game, handling))}
+          difference !== 0 &&
+          (settled ? (
+            // Locked once settled: a tap points at the button that opens the results again
+            <button
+              type="button"
+              onClick={onLocked}
+              className={`flex max-w-[45%] min-w-0 shrink-0 ${lineClass}`}
             >
-              {chosen ?? "选择处理方案"}
-            </PickerRow>
-          )
+              <span className="truncate pb-px">{chosen ?? "选择处理方案"}</span>
+            </button>
+          ) : (
+            <div className="max-w-[45%] shrink-0">
+              <TextMenu
+                label="差额处理方案"
+                options={choices.map(([value, label]) => ({ value, label }))}
+                value={game.imbalanceHandling}
+                placeholder="选择处理方案"
+                align="right"
+                disabled={saveGame.isPending}
+                onChange={(handling) => saveGame.mutate(chooseImbalanceHandling(game, handling))}
+                className={lineClass}
+              />
+            </div>
+          ))
         }
       />
       <GameTiles>

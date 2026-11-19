@@ -8,6 +8,8 @@ import {
   type InsuranceSettleEvent,
   type LedgerEvent,
   type Player,
+  RAKE_PLAYER_ID,
+  type RakeEvent,
   type ReversalEvent,
 } from "../domain";
 import { RULE_30 } from "../insurance";
@@ -25,6 +27,8 @@ import {
   latestCashOut,
   ledgerTotals,
   nextBuyType,
+  rakeChips,
+  rakeRecords,
   recentPlayers,
   soleBuyIn,
   summarizeByPlayer,
@@ -45,6 +49,63 @@ const reversal = (id: string, reversedEventId: string): ReversalEvent => ({
   id,
   type: "reversal",
   reversedEventId,
+});
+
+const rake = (id: string, chips: number): RakeEvent => ({
+  ...base,
+  id,
+  type: "rake",
+  playerId: RAKE_PLAYER_ID,
+  chips,
+});
+
+describe("rake", () => {
+  it("adds up the rake still in effect", () => {
+    const events = [rake("1", 120), rake("2", 30), reversal("r", "2"), rake("3", 50)];
+    expect(rakeChips(events)).toBe(170);
+    expect(rakeRecords(events).map((e) => e.id)).toEqual(["1", "3"]);
+  });
+
+  it("is a seat that has left with the rake and bought nothing", () => {
+    const events = [chip("1", "buy_in", "a", 1000), rake("2", 100)];
+    expect(summarizeByPlayer(events)).toContainEqual({
+      playerId: RAKE_PLAYER_ID,
+      boughtChips: 0,
+      cashedOutChips: 100,
+      seated: false,
+      stackChips: 0,
+      netChips: 100,
+    });
+  });
+
+  it("balances the table once the players' stacks show it gone", () => {
+    const events: LedgerEvent[] = [
+      chip("1", "buy_in", "a", 1000),
+      chip("2", "buy_in", "b", 1000),
+      { ...rake("3", 100), occurredAt: 2 },
+      { ...base, occurredAt: 3, id: "4", type: "stack_set", playerId: "a", chips: 1900 },
+      { ...base, occurredAt: 3, id: "5", type: "stack_set", playerId: "b", chips: 0 },
+    ];
+    expect(ledgerTotals(summarizeByPlayer(events)).balanceChips).toBe(0);
+  });
+
+  it("takes a total typed lower as a change below 0", () => {
+    const events = [rake("1", 120), rake("2", -20)];
+    expect(rakeChips(events)).toBe(100);
+    expect(summarizeByPlayer(events)).toContainEqual(
+      expect.objectContaining({ playerId: RAKE_PLAYER_ID, netChips: 100 }),
+    );
+  });
+
+  it("leaves no seat once every rake is taken back", () => {
+    const events = [chip("1", "buy_in", "a", 1000), rake("2", 100), reversal("r", "2")];
+    expect(summarizeByPlayer(events).map((p) => p.playerId)).toEqual(["a"]);
+  });
+
+  it("never moves a player's stack", () => {
+    const events = [chip("1", "buy_in", "a", 1000), rake("2", 100)];
+    expect(summarizeByPlayer(events)[0]?.stackChips).toBe(1000);
+  });
 });
 
 describe("summarizeByPlayer", () => {
@@ -413,6 +474,11 @@ describe("gameRecord", () => {
   const at = (occurredAt: number, event: LedgerEvent): LedgerEvent => ({ ...event, occurredAt });
   const kinds = (events: readonly LedgerEvent[]) =>
     gameRecord(events).map(({ kind, chips }) => `${kind} ${chips}`);
+
+  it("lists rake and taking it back", () => {
+    const events = [at(1, rake("1", 120)), at(2, reversal("r", "1"))];
+    expect(kinds(events)).toEqual(["rake 120", "rake_undo 120"]);
+  });
 
   it("lists events oldest first", () => {
     const events = [
