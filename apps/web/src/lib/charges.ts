@@ -4,8 +4,9 @@ import {
   type Currency,
   cents,
   formatOdds,
-  formatRakePercent,
+  formatRakeNumber,
   type Game,
+  type RakeAmount,
   type RakeRounding,
   type RakeRule,
   type Timestamp,
@@ -86,15 +87,15 @@ export const RAKE_ROUNDING_NAMES: Record<RakeRounding, string> = {
  * had settings rounds down to whole chips.
  */
 export function rakeRuleParts(rule: RakeRule): string[] {
-  const { cap, roundTo } = rule;
+  const { cap, roundTo, rounding } = rule;
+  const amount = ({ unit, amount: value }: RakeAmount) =>
+    `${formatRakeNumber(value)}${unit === "chips" ? " 筹码" : " BB"}`;
   return [
-    `底池 ${formatRakePercent(rule.percent)}%`,
-    cap
-      ? `封顶 ${cap.amount.toLocaleString("zh-CN")}${cap.unit === "chips" ? " 筹码" : "BB"}`
-      : "不封顶",
-    roundTo === undefined
+    `底池 ${formatRakeNumber(rule.percent)}%`,
+    cap ? `封顶 ${amount(cap)}` : "不封顶",
+    rounding === undefined || roundTo === undefined
       ? "不足 1 筹码舍去"
-      : `按 ${roundTo} ${RAKE_ROUNDING_NAMES[rule.rounding ?? "down"]}`,
+      : `按 ${amount(roundTo)} ${RAKE_ROUNDING_NAMES[rounding]}`,
   ];
 }
 

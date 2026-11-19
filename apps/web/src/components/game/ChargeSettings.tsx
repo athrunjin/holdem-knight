@@ -6,6 +6,7 @@ import {
   DEFAULT_TABLE_FEE,
   DEFAULT_TIME_SEGMENT,
   DEFAULT_WAGE,
+  formatRakeNumber,
   MAX_WAGE_SEGMENTS,
   MAX_WAGE_SEGMENTS_IN_ALL,
   parseRake,
@@ -13,6 +14,7 @@ import {
   parseWage,
   RAKE_PERCENT_PICKS,
   RAKE_ROUNDINGS,
+  type RakeAmount,
   type RakeForm,
   type RakeIssues,
   type RakeRule,
@@ -23,6 +25,7 @@ import {
   toRakeForm,
   toTableFeeForm,
   toWageForm,
+  tryParseMoney,
   WAGE_ROUNDINGS,
   WAGE_UNITS,
   type WageAfterStartSegmentForm,
@@ -34,6 +37,8 @@ import {
 } from "@holdem-knight/core";
 import { ChevronDown, Plus, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { ChipStack } from "@/components/ChipStack";
+import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { InfoButton } from "@/components/InfoButton";
 import { ChoiceModal } from "@/components/insurance/ChoiceModal";
 import { MiniSwitch } from "@/components/MiniSwitch";
@@ -47,11 +52,12 @@ import {
   useRemoveChargeRule,
   useSaveChargeRule,
 } from "@/data/charge-rules";
-import { RAKE_ROUNDING_NAMES, ROUNDING_NAMES, UNIT_NAMES } from "@/lib/charges";
+import { RAKE_ROUNDING_NAMES, ROUNDING_NAMES } from "@/lib/charges";
 import { cn } from "@/lib/cn";
 import { CURRENCY_INFO } from "@/lib/currency";
 import { datedName } from "@/lib/dated-name";
 import { formatMoneyText, selectOnFocus } from "@/lib/number-input";
+import { chipsText, FigureInput, Join, Mark, pointsInputText, pointsText } from "./SetupFigures";
 
 const LAST_PRESET = "last";
 const DEFAULT_PRESET = "default";
@@ -277,7 +283,7 @@ function InlineNumber({
   prefix,
   suffix,
   wholeNumber = false,
-  widthClass = "w-16",
+  minChars = 5,
   format,
   onChange,
 }: {
@@ -289,7 +295,8 @@ function InlineNumber({
   suffix?: string;
   /** Only digits get through */
   wholeNumber?: boolean;
-  widthClass?: string;
+  /** The slot holds this many characters, 5 for an amount such as 25.00; a longer value widens it */
+  minChars?: number;
   /** Tidies the value once the field is left, such as 30 to 30.00 */
   format?: (value: string) => string;
   onChange: (value: string) => void;
@@ -314,10 +321,10 @@ function InlineNumber({
         onChange={(event) =>
           onChange(wholeNumber ? event.target.value.replace(/\D/g, "") : event.target.value)
         }
+        style={{ width: `${Math.max(minChars, value.length) + 1}ch` }}
         className={cn(
-          "min-h-11 border-b bg-transparent text-right font-semibold tabular-nums outline-none focus:border-highlight",
-          invalid ? "border-highlight" : "border-line",
-          widthClass,
+          "min-h-11 border-b bg-transparent text-center font-semibold tabular-nums outline-none focus:border-highlight",
+          invalid ? "border-highlight" : "border-transparent",
         )}
       />
       {suffix && <span className="text-sm text-muted">{suffix}</span>}
@@ -506,7 +513,18 @@ export function TableFeeSettings({
   );
 }
 
-const UNIT_OPTIONS = WAGE_UNITS.map((unit) => ({ value: String(unit), label: UNIT_NAMES[unit] }));
+/** How the unit reads after 精确到 at setup. */
+const SETUP_UNIT_NAMES: Record<WageUnitMinutes, string> = {
+  1: "每分钟",
+  15: "每15分",
+  30: "每30分",
+  60: "每小时",
+};
+
+const UNIT_OPTIONS = WAGE_UNITS.map((unit) => ({
+  value: String(unit),
+  label: SETUP_UNIT_NAMES[unit],
+}));
 
 const ROUNDING_OPTIONS = WAGE_ROUNDINGS.map((mode) => ({
   value: mode,
@@ -632,11 +650,11 @@ export function WageSettings({
         <>
           <div className="flex min-h-11 items-center justify-between gap-3">
             <label htmlFor="wage-hourly" className="font-medium">
-              基础时薪
+              基础薪资
             </label>
             <InlineNumber
               id="wage-hourly"
-              label="基础时薪"
+              label="基础薪资"
               value={form.hourly}
               invalid={shown.hourly !== undefined}
               prefix={symbol}
@@ -649,15 +667,16 @@ export function WageSettings({
 
           <div className="flex flex-wrap items-center justify-between gap-x-3 text-sm">
             <TextMenu
-              label="计费方式"
-              caption="计费方式"
+              label="精确到"
+              caption="精确到"
               options={UNIT_OPTIONS}
               value={String(form.unitMinutes)}
               onChange={(unit) => setForm({ unitMinutes: Number(unit) as WageUnitMinutes })}
               className="font-medium"
             />
             <span className="flex items-center">
-              <InfoButton title="取整方式" text={ROUNDING_INFO} />
+              <InfoButton title="超出部分" text={ROUNDING_INFO} />
+              <span className="mr-1 text-xs text-muted">超出部分</span>
               <TextMenu
                 label="取整方式"
                 options={ROUNDING_OPTIONS}
@@ -692,7 +711,7 @@ export function WageSettings({
               )}
 
               <Toggle
-                label="时段设置"
+                label="根据时间"
                 info="按开局所在地的时间。开局时已在时段内，从开局起就按该时段算；否则从下一次到达开始时间算起。"
                 checked={form.timeOn}
                 onChange={(on) => switchKind("time", on)}
@@ -771,7 +790,7 @@ export function WageSettings({
               )}
 
               <Toggle
-                label="开局时间设置"
+                label="根据时长"
                 info="按对局计时器的时间算，暂停不算"
                 checked={form.afterOn}
                 onChange={(on) => switchKind("after", on)}
@@ -789,7 +808,7 @@ export function WageSettings({
                           value={row.afterHours}
                           invalid={shown[`after-${i}-afterHours`] !== undefined}
                           wholeNumber
-                          widthClass="w-9"
+                          minChars={2}
                           onChange={(afterHours) => setAfter(i, { afterHours })}
                         />
                         <span className="text-muted">小时后</span>
@@ -866,41 +885,145 @@ const PERCENT_OPTIONS = RAKE_PERCENT_PICKS.map((percent) => ({
   chosen: <></>,
 }));
 
-const CAP_OPTIONS: { value: RakeForm["capUnit"]; label: string }[] = [
-  { value: "none", label: "不封顶" },
-  { value: "chips", label: "按筹码" },
-  { value: "bigBlinds", label: "按 BB" },
-];
-
 const RAKE_ROUNDING_OPTIONS = RAKE_ROUNDINGS.map((mode) => ({
   value: mode,
   label: RAKE_ROUNDING_NAMES[mode],
 }));
 
-const RAKE_ROUNDING_INFO = [
-  "抽水按场上最小面额的筹码取整，例如最小筹码是 5 时，抽水只会是 5 的倍数。",
-  "四舍五入：满半个面额进一个，否则舍去。",
-  "向下取整：不足一个面额的部分不抽。",
-  "向上取整：不足一个面额也按一个抽。",
-  "",
-  "有封顶时，取整后的抽水不超过封顶，封顶本身也按面额向下取整。",
-].join("\n");
+/** The game's big blind and chip ratio as typed, for showing rake amounts in chips and points. */
+export interface RakeStakes {
+  readonly bigBlindChips: number | null;
+  /** `amount` is in cents */
+  readonly ratio: { readonly chips: number; readonly amount: number } | null;
+}
+
+/**
+ * An amount for rake in big blinds ⇔ chips, as the Buy-in row reads: either can be typed and the
+ * other follows. A tap on the chip mark shows points instead. What was typed last is what is kept,
+ * so a cap typed in big blinds follows the blinds and one typed in chips does not.
+ */
+function RakeAmountFigures({
+  label,
+  unit,
+  amount,
+  invalid,
+  stakes,
+  currency,
+  onChange,
+}: {
+  label: string;
+  unit: RakeAmount["unit"];
+  amount: string;
+  invalid: boolean;
+  stakes: RakeStakes;
+  currency: Currency;
+  onChange: (unit: RakeAmount["unit"], amount: string) => void;
+}) {
+  const [inPoints, setInPoints] = useState(false);
+  // Points being typed, from which the chips are worked out
+  const [draft, setDraft] = useState<string | null>(null);
+  const { bigBlindChips, ratio } = stakes;
+  const typed = Number(amount);
+  const known = amount.trim() !== "" && Number.isFinite(typed);
+  const chips = !known
+    ? null
+    : unit === "chips"
+      ? typed
+      : bigBlindChips
+        ? typed * bigBlindChips
+        : null;
+  const bigBlinds = !known
+    ? null
+    : unit === "bigBlinds"
+      ? typed
+      : bigBlindChips && chips !== null
+        ? chips / bigBlindChips
+        : null;
+  const points = chips !== null && ratio ? Math.round((chips * ratio.amount) / ratio.chips) : null;
+  const right = inPoints
+    ? (draft ?? (points === null ? "" : pointsText(points)))
+    : unit === "chips"
+      ? amount
+      : chips === null
+        ? ""
+        : formatRakeNumber(chips);
+
+  function typeRight(text: string) {
+    if (!inPoints) {
+      onChange("chips", text);
+      return;
+    }
+    setDraft(text);
+    const cents = tryParseMoney(text);
+    if (cents !== null && cents > 0 && ratio) {
+      onChange("chips", String(Math.max(1, Math.round((cents * ratio.chips) / ratio.amount))));
+    }
+  }
+
+  return (
+    <span className="flex items-center font-medium">
+      <FigureInput
+        label={`${label}（BB）`}
+        value={
+          unit === "bigBlinds" ? amount : bigBlinds === null ? "" : formatRakeNumber(bigBlinds)
+        }
+        onChange={(text) => onChange("bigBlinds", text)}
+        invalid={invalid && unit === "bigBlinds"}
+      />
+      <Mark>BB</Mark>
+      <Join>
+        <span aria-hidden className="text-xl leading-none">
+          ⇔
+        </span>
+        <span className="sr-only">即</span>
+      </Join>
+      <FigureInput
+        label={`${label}（${inPoints ? "积分" : "筹码"}）`}
+        value={right}
+        onChange={typeRight}
+        onBlur={() => setDraft(null)}
+        tidy={inPoints ? pointsInputText : chipsText}
+        invalid={invalid && unit === "chips"}
+        wholeNumber={!inPoints}
+        wide
+      />
+      <button
+        type="button"
+        aria-label={`${label}显示${inPoints ? "积分" : "筹码"}，点击切换`}
+        onClick={() => {
+          setDraft(null);
+          setInPoints(!inPoints);
+        }}
+        className="-my-3 ml-1 grid h-11 w-5 shrink-0 place-items-center text-muted"
+      >
+        {inPoints ? (
+          <CurrencyIcon currency={currency} className="size-5" />
+        ) : (
+          <ChipStack ground="var(--surface)" className="size-5" />
+        )}
+      </button>
+    </span>
+  );
+}
 
 interface RakeSettingsProps extends ChargeSettingsProps<RakeRule, RakeForm, RakeIssues> {
   /** Once rake has been recorded in this game, it cannot be turned off */
   locked: boolean;
+  stakes: RakeStakes;
 }
 
 /**
- * Turns rake on for a game: a percentage of each pot, an optional cap in chips or big blinds, and
- * rounding to the smallest chip (ADR 0036). Rake only ever goes to the host.
+ * Turns rake on for a game: a percentage of each pot, a cap and rounding to the smallest chip, each
+ * switched on or off and set in big blinds or chips (ADR 0036). Rake only ever goes to the host.
  */
 export function RakeSettings({
   value,
   issues,
+  currency,
   lastRule,
   lastRuleLabel,
   locked,
+  stakes,
   onChange,
 }: RakeSettingsProps) {
   const { enabled, source, form } = value;
@@ -922,6 +1045,8 @@ export function RakeSettings({
   // Issues show as they are made, not only once the game is started
   const live = parseRake(form);
   const shown: RakeIssues = { ...(live.ok ? {} : live.issues), ...issues };
+  /** A switched-off setting reads faded and struck through. */
+  const titleClass = (on: boolean) => cn("font-medium", !on && "text-muted line-through");
 
   return (
     <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
@@ -956,7 +1081,13 @@ export function RakeSettings({
                 value={form.percent}
                 invalid={shown.percent !== undefined}
                 suffix="%"
-                widthClass="w-12"
+                minChars={2}
+                format={(text) => {
+                  const percent = Number(text);
+                  return text.trim() !== "" && Number.isFinite(percent)
+                    ? formatRakeNumber(percent)
+                    : text;
+                }}
                 onChange={(percent) => setForm({ percent })}
               />
               <TextMenu
@@ -970,58 +1101,59 @@ export function RakeSettings({
             </span>
           </div>
 
-          <div className="flex min-h-11 items-center justify-between gap-3">
-            <span className="font-medium">封顶</span>
-            <span className="flex items-center gap-1">
-              {form.capUnit !== "none" && (
-                <InlineNumber
-                  id="rake-cap"
-                  label="抽水封顶"
-                  value={form.capAmount}
-                  invalid={shown.capAmount !== undefined}
-                  suffix={form.capUnit === "chips" ? "筹码" : "BB"}
-                  wholeNumber
-                  widthClass="w-14"
-                  onChange={(capAmount) => setForm({ capAmount })}
-                />
-              )}
-              <TextMenu
-                label="封顶方式"
-                options={CAP_OPTIONS}
-                value={form.capUnit}
-                onChange={(capUnit) => setForm({ capUnit })}
-                align="right"
-                className="font-medium"
+          <div className="flex min-h-11 items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5">
+              <span className={titleClass(form.capOn)}>封顶</span>
+              <MiniSwitch
+                label="封顶"
+                hideLabel
+                checked={form.capOn}
+                onChange={(capOn) => setForm({ capOn })}
               />
             </span>
+            {form.capOn && (
+              <RakeAmountFigures
+                label="封顶"
+                unit={form.capUnit}
+                amount={form.capAmount}
+                invalid={shown.capAmount !== undefined}
+                stakes={stakes}
+                currency={currency}
+                onChange={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
+              />
+            )}
           </div>
 
-          <div className="flex min-h-11 items-center justify-between gap-3">
-            <span className="flex items-center font-medium">
-              取整
-              <InfoButton title="取整" text={RAKE_ROUNDING_INFO} />
+          <div className="flex min-h-11 items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5">
+              <span className={titleClass(form.roundOn)}>取整</span>
+              <MiniSwitch
+                label="取整"
+                hideLabel
+                checked={form.roundOn}
+                onChange={(roundOn) => setForm({ roundOn })}
+              />
+              {form.roundOn && (
+                <TextMenu
+                  label="取整方式"
+                  options={RAKE_ROUNDING_OPTIONS}
+                  value={form.rounding}
+                  onChange={(rounding) => setForm({ rounding })}
+                  className="text-sm font-medium"
+                />
+              )}
             </span>
-            <span className="flex items-center gap-1">
-              <InlineNumber
-                id="rake-round-to"
+            {form.roundOn && (
+              <RakeAmountFigures
                 label="最小面额"
-                value={form.roundTo}
-                invalid={shown.roundTo !== undefined}
-                prefix="最小面额"
-                suffix="筹码"
-                wholeNumber
-                widthClass="w-10"
-                onChange={(roundTo) => setForm({ roundTo })}
+                unit={form.roundUnit}
+                amount={form.roundAmount}
+                invalid={shown.roundAmount !== undefined}
+                stakes={stakes}
+                currency={currency}
+                onChange={(roundUnit, roundAmount) => setForm({ roundUnit, roundAmount })}
               />
-              <TextMenu
-                label="取整方式"
-                options={RAKE_ROUNDING_OPTIONS}
-                value={form.rounding}
-                onChange={(rounding) => setForm({ rounding })}
-                align="right"
-                className="font-medium"
-              />
-            </span>
+            )}
           </div>
 
           <div className="flex min-h-11 items-center justify-between gap-3">

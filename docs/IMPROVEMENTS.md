@@ -1376,15 +1376,18 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Problem: rake was fixed at 10% of the pot, rounded down, with no cap and no way to change it; only the total was kept; and 抽水计算 on the tools page was a placeholder.
 - Proposal:
   - Game setup has rake in the same style as the other options: its config on the switch row, 保存配置 for a valid new config, and last time's values carried over.
-  - 比例 takes decimals, with quick picks of 2.5%, 3%, 5% and 10%, default 5%.
-  - 封顶 is 不封顶, 按筹码 or 按 BB, with the amount beside it.
-  - 取整 rounds to the smallest chip in play, 最小面额, by 四舍五入 (default), 向下取整 or 向上取整.
+  - 比例 takes decimals, with quick picks of 2.5%, 3%, 5% and 10%, default 5%, shown without decimals it does not need.
+  - 封顶 has a switch, off by default, which fades and strikes through its title. On, it reads `2 BB ⇔ 4 [chip]`: either figure can be typed and the other follows, and a tap on the chip mark shows points.
+  - 取整 has a switch, on by default, then 四舍五入 (default), 向下取整 or 向上取整, and the smallest chip as `1 BB ⇔ chips` in the same way, lined up under the cap.
   - 保险报价先扣除抽水 is kept as a switch, off by default, marked 开发中.
   - The rake dialog keeps each rake with its time and, when worked out from a pot, the pot, and lists them under 记录.
   - 抽水计算 on the tools page opens the same dialog with the default rule, reading and saving nothing, under the icon the rake seat has on the game page.
 - Settled details:
   - No flop no drop, a minimum pot and rake per side pot are not done. Rake goes only to the host.
-  - The cap is rounded down to the smallest chip, and the rake after rounding never passes it. A cap in big blinds uses the game's big blind.
+  - The cap is rounded down to the smallest chip, and the rake after rounding never passes it. An amount in big blinds uses the game's big blind; the unit last typed is the one kept.
+  - The default cap of 2 BB follows live rooms, which cap at about $4–6, a couple of big blinds at $1/$2.
+  - With rounding off, the rake rounds down to whole chips.
+  - Wages at setup in the same round: 基础薪资 for 基础时薪, figures centered with no underline in a slot for 00.00, 精确到 每分钟 / 每15分 / 每30分 / 每小时, 超出部分 with its info mark before the rounding, and 根据时间 and 根据时长 for the two kinds of segment.
   - Games with the older rule keep 10% rounded down, and carry it over that way.
   - Online rooms take rake off the pot before pricing an all-in cash-out; nothing was found for live games, so the insurance switch waits for a decision.
   - Settlement is unchanged, apart from its rule line naming the new settings. Backups move to version 14.

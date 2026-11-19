@@ -169,10 +169,10 @@ export const RAKE_PLAYER_NAME = "抽水";
 /** How a pot's rake is rounded to the smallest chip in play. */
 export type RakeRounding = "nearest" | "down" | "up";
 
-/** The most rake one pot gives up: in chips, or in big blinds of the game. */
-export interface RakeCap {
+/** An amount for rake in chips, or in big blinds of the game. */
+export interface RakeAmount {
   readonly unit: "chips" | "bigBlinds";
-  /** A whole number above 0. */
+  /** Above 0: whole for chips, with at most two decimals for big blinds. */
   readonly amount: number;
 }
 
@@ -181,18 +181,24 @@ export interface RakeRule {
   /** Above 0 and below 100, with at most two decimals. */
   readonly percent: number;
   /**
-   * The smallest chip in play, which the rake is rounded to. Missing on rules from before rake had
-   * settings, which round down to whole chips and have no cap.
+   * How the rake is rounded to `roundTo`. Missing on rules from before rake had settings, which
+   * round down to whole chips and have no cap.
    */
-  readonly roundTo?: number;
   readonly rounding?: RakeRounding;
-  readonly cap?: RakeCap;
+  /** The smallest chip in play, which the rake is rounded to. Missing rounds down to whole chips. */
+  readonly roundTo?: RakeAmount;
+  /** The most rake one pot gives up. Missing means no cap. */
+  readonly cap?: RakeAmount;
   /** Whether insurance quotes take the rake out of the pot first. Kept, not in effect yet. */
   readonly insuranceAfterRake?: boolean;
 }
 
-/** 5% of the pot, rounded to the nearest chip, with no cap. */
-export const DEFAULT_RAKE_RULE: RakeRule = { percent: 5, roundTo: 1, rounding: "nearest" };
+/** 5% of the pot, rounded to the nearest big blind, with no cap. */
+export const DEFAULT_RAKE_RULE: RakeRule = {
+  percent: 5,
+  rounding: "nearest",
+  roundTo: { unit: "bigBlinds", amount: 1 },
+};
 
 /**
  * The organizer in a game. Playing, they have chips under this ID like the insurance seat, with no

@@ -16,9 +16,10 @@
 
 ## Decision
 
-- `RakeRule` gains `roundTo` (the smallest chip), `rounding` (`nearest`, `down` or `up`), an optional `cap` in chips or big blinds, and `insuranceAfterRake`. `percent` may have two decimals. New games default to 5%, rounded to the nearest chip, with no cap.
-- `rakeFromPot` works in whole numbers: the pot times the rate in hundredths of a percent, rounded to the smallest chip by the rule, then held to the cap. The cap is rounded down to the smallest chip, and a cap in big blinds uses the game's big blind.
-- A rule without `roundTo` is from before these settings: it rounds down to whole chips with no cap, so earlier games price as they did, and it carries over to a new game that way.
+- `RakeRule` gains `rounding` (`nearest`, `down` or `up`), an optional `roundTo` (the smallest chip) and an optional `cap`, each a `RakeAmount` in chips or in big blinds, and `insuranceAfterRake`. `percent` may have two decimals, and an amount in big blinds two decimals too. New games default to 5%, rounded to the nearest big blind, with no cap; a cap switched on starts at 2 big blinds, as live rooms cap at a couple of big blinds.
+- Setup shows each amount as big blinds ⇔ chips, or points, and keeps the unit last typed, so a cap typed in big blinds follows the blinds and one typed in chips does not. The cap and the rounding each have a switch; with rounding off the rake rounds down to whole chips.
+- `rakeFromPot` works in whole numbers: the pot times the rate in hundredths of a percent, rounded to the smallest chip by the rule, then held to the cap. The cap is rounded down to the smallest chip. Amounts in big blinds use the game's big blind, and are left out without one, as on the tools page.
+- A rule without `rounding` is from before these settings: it rounds down to whole chips with no cap, so earlier games price as they did, and it carries over to a new game that way.
 - `RakeEvent` keeps `potChips` when the rake came from a pot typed in the dialog. A rake typed by hand, or a total typed over, has none.
 - Rake configs are saved with the table fee and wage configs, as `SavedChargeRule` of kind `rake`.
 - `insuranceAfterRake` is kept and shown, off by default, but does not change insurance quotes yet.

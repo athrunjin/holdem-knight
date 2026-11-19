@@ -453,9 +453,9 @@ describe("backup file", () => {
     if (!game) throw new Error("Missing sample game");
     const rake = {
       percent: 2.5,
-      roundTo: 5,
       rounding: "nearest",
-      cap: { unit: "bigBlinds", amount: 3 },
+      roundTo: { unit: "chips", amount: 5 },
+      cap: { unit: "bigBlinds", amount: 2.5 },
     } as const;
     const full: BackupData = {
       ...data,

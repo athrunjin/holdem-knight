@@ -41,20 +41,23 @@ const insuranceRuleSchema = z.object({
 
 const tableFeeSchema = z.object({ amount: money, minMinutes: z.number().int().min(0) });
 
+/** At most two decimals, allowing for how they are stored. */
+const twoDecimals = (value: number) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
+
+/** Whole for chips, with at most two decimals for big blinds. */
+const rakeAmountSchema = z
+  .object({ unit: z.enum(["chips", "bigBlinds"]), amount: z.number().positive() })
+  .refine(({ unit, amount }) =>
+    unit === "chips" ? Number.isInteger(amount) : twoDecimals(amount),
+  );
+
 const rakeSchema = z.object({
   /** Whole percentages until version 14, which allows two decimals. */
-  percent: z
-    .number()
-    .positive()
-    .lt(100)
-    // At most two decimals, allowing for how they are stored
-    .refine((percent) => Math.abs(percent * 100 - Math.round(percent * 100)) < 1e-6),
-  /** Added in version 14, with the rounding and the cap. */
-  roundTo: z.number().int().positive().optional(),
+  percent: z.number().positive().lt(100).refine(twoDecimals),
+  /** Added in version 14, with the smallest chip and the cap. */
   rounding: z.enum(["nearest", "down", "up"]).optional(),
-  cap: z
-    .object({ unit: z.enum(["chips", "bigBlinds"]), amount: z.number().int().positive() })
-    .optional(),
+  roundTo: rakeAmountSchema.optional(),
+  cap: rakeAmountSchema.optional(),
   insuranceAfterRake: z.boolean().optional(),
 });
 
