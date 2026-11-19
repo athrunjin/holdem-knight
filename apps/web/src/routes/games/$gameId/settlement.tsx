@@ -9,6 +9,7 @@ import {
   chargesFrom,
   chipDifference,
   chooseCollector,
+  chooseRakeInSplit,
   collectorTransfers,
   type Game,
   INSURANCE_PLAYER_ID,
@@ -39,7 +40,9 @@ import { chargeLines, organizerIncomeLines } from "@/components/game/chargeLines
 import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
 import { GameRules, hasGameRules } from "@/components/game/GameRules";
 import {
+  columnsClass as cardColumnsClass,
   InsuranceRow,
+  labelClass,
   RakeRow,
   type ResultCard,
   ResultCards,
@@ -58,7 +61,7 @@ import { CHARGE_CLOCK_RULE, chargeClock, chargeRuleNotes, chargeRuleSections } f
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
-import { gameNameOf } from "@/lib/player-name";
+import { gameInitialsOf, gameNameOf } from "@/lib/player-name";
 import { renderSettlementImage } from "@/lib/settlement-image";
 import { shareFile } from "@/lib/share";
 
@@ -106,6 +109,7 @@ function SettlementPage() {
   const charges = chargesFrom(game, statuses);
   const ruleSections = chargeRuleSections(game, game.currency);
   const nameOf = gameNameOf(players, game);
+  const initialsOf = gameInitialsOf(players);
   const seated = ledger
     .filter((p) => p.seated && p.playerId !== INSURANCE_PLAYER_ID)
     .map((p) => nameOf(p.playerId));
@@ -174,12 +178,15 @@ function SettlementPage() {
           {difference === 0 || game.imbalanceHandling ? (
             <SettlementResult
               game={game}
-              outcome={settlementOutcome(ledger, game.chipRatio, game.imbalanceHandling)}
+              outcome={settlementOutcome(ledger, game.chipRatio, game.imbalanceHandling, {
+                rakeInSplit: game.rakeInSplit === true,
+              })}
               ledger={ledger}
               events={events}
               statuses={statuses}
               charges={charges}
               nameOf={nameOf}
+              initialsOf={initialsOf}
               nudge={nudge}
               onNudge={setNudge}
             />
@@ -220,6 +227,7 @@ interface SettlementResultProps {
   statuses: readonly PlayerChargeStatus[];
   charges: readonly Charge[];
   nameOf: (playerId: string) => string;
+  initialsOf: (playerId: string, name: string) => string;
   nudge: Nudge | undefined;
   onNudge: (nudge: Nudge | undefined) => void;
 }
@@ -232,6 +240,7 @@ function SettlementResult({
   statuses,
   charges,
   nameOf,
+  initialsOf,
   nudge,
   onNudge,
 }: SettlementResultProps) {
@@ -335,9 +344,11 @@ function SettlementResult({
                 group: "分摊",
               },
             ];
+      const name = nameOf(playerId);
       return {
         id: playerId,
-        name: nameOf(playerId),
+        name,
+        initials: initialsOf(playerId, name),
         hands: handChips === undefined ? "—" : String(player.boughtChips / handChips),
         chips: player.cashedOutChips.toLocaleString("zh-CN"),
         netChips: player.cashedOutChips - player.boughtChips,
@@ -352,8 +363,7 @@ function SettlementResult({
         total: netOf(nets, playerId),
         collapsible: true,
       };
-    })
-    .toSorted((a, b) => b.total - a.total);
+    });
 
   // What handling the difference adds to the organizer, beyond their own chips if they play
   const covered =
@@ -385,9 +395,54 @@ function SettlementResult({
       currency={currency}
     />
   );
-  // The rake seat sits under the insurance seat, as on the game page
+  // The rake seat sits under the insurance seat, as on the game page, with what it took before
+  // any split. Its share of a split by win or loss is its own line, and only when it is asked in
+  const rakeBefore = netOf(chipNets, RAKE_PLAYER_ID);
+  const rakeShare = cents(rakeNet - rakeBefore);
+  const splitting = game.imbalanceHandling === "split" && difference !== 0;
+  const rakeInSplit = game.rakeInSplit === true;
+  const shareChips = (rakeShare * game.chipRatio.chips) / game.chipRatio.amount;
   const rakeRow = rakeSeat && (
-    <RakeRow chips={rakeSeat.cashedOutChips} amount={rakeNet} currency={currency} />
+    <>
+      <RakeRow
+        chips={rakeSeat.cashedOutChips}
+        amount={rakeBefore}
+        currency={currency}
+        {...(splitting && {
+          buyIn: (
+            // Wider than the Buy-in column, so it reaches left into the room beside 抽水
+            <label className="flex min-h-11 cursor-pointer items-center gap-1 justify-self-end whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={rakeInSplit}
+                disabled={saveGame.isPending}
+                onChange={(event) =>
+                  settled
+                    ? point("revise")
+                    : saveGame.mutate(chooseRakeInSplit(game, event.target.checked))
+                }
+                className={cn("size-3.5 shrink-0 accent-[var(--accent)]", settled && "opacity-50")}
+              />
+              <span className={rakeInSplit ? "text-text" : "text-muted line-through"}>
+                参与均摊
+              </span>
+            </label>
+          ),
+        })}
+      />
+      {splitting && rakeInSplit && rakeShare !== 0 && (
+        <div className={cn(cardColumnsClass, "-mt-2 min-h-6 text-xs text-highlight")}>
+          <span className={cn(labelClass, "col-span-3 pl-8")}>均摊</span>
+          <span className="text-right whitespace-nowrap tabular-nums">
+            {shareChips > 0 ? "+" : "−"}
+            {Math.abs(shareChips).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}
+          </span>
+          <span className="text-right whitespace-nowrap">
+            {formatGameAmount(rakeShare, currency, "exceptZero")}
+          </span>
+        </div>
+      )}
+    </>
   );
   // What an organizer can receive besides insurance, always in this order
   const organizerLines: ResultLine[] = [
@@ -433,9 +488,10 @@ function SettlementResult({
     if (game.imbalanceHandling === "organizer") {
       return `${nameOf(ORGANIZER_COLLECTOR)} ${difference > 0 ? "补齐" : "收取"} ${size}`;
     }
-    const count = [...playerCards, ...organizerCard].filter(
-      (r) => (r.netChips ?? 0) * difference > 0,
-    ).length;
+    // The rake seat counts when it takes a share
+    const count =
+      [...playerCards, ...organizerCard].filter((r) => (r.netChips ?? 0) * difference > 0).length +
+      (rakeShare !== 0 ? 1 : 0);
     return difference > 0
       ? `水上多 ${size}，由 ${count} 位赢家按水上比例扣减`
       : `水下多 ${size}，由 ${count} 位输家按水下比例少付`;

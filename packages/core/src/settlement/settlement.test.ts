@@ -259,6 +259,28 @@ describe("settlementOutcome", () => {
     expect(netOf(nets, "c")).toBe(-380_000);
   });
 
+  it("leaves the rake out of a split unless it is asked in", () => {
+    // 200 too much: winners 3000, rake 1000
+    const players = [
+      ledger("a", 1000, 4000),
+      ledger(RAKE_PLAYER_ID, 0, 1000),
+      ledger("c", 3800, 0),
+    ];
+    const out = settlementOutcome(players, oneToOne, "split");
+    expect(netOf(out.nets, RAKE_PLAYER_ID)).toBe(100_000);
+    expect(netOf(out.nets, "a")).toBe(280_000);
+    const shared = settlementOutcome(players, oneToOne, "split", { rakeInSplit: true });
+    expect(netOf(shared.nets, RAKE_PLAYER_ID)).toBe(95_000);
+    expect(netOf(shared.nets, "a")).toBe(285_000);
+  });
+
+  it("splits with the rake when no one else is on its side", () => {
+    const players = [ledger(RAKE_PLAYER_ID, 0, 300), ledger("c", 1000, 800)];
+    const { nets, unresolved } = settlementOutcome(players, oneToOne, "split");
+    expect(unresolved).toBe(0);
+    expect(netOf(nets, RAKE_PLAYER_ID)).toBe(20_000);
+  });
+
   it("lets losers pay less in proportion when chips are left over", () => {
     const players = [ledger("a", 3000, 0), ledger("b", 1000, 0), ledger("c", 1000, 4800)];
     const { nets, difference } = settlementOutcome(players, oneToOne, "split");

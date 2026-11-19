@@ -34,6 +34,7 @@ export function HandsStepper({ value, inputRef, onChange }: HandsStepperProps) {
           issue={undefined}
           suffix="个"
           inputMode="numeric"
+          selectOnFocus
           {...(inputRef ? { inputRef } : {})}
           onChange={onChange}
         />

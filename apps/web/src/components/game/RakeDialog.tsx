@@ -1,7 +1,8 @@
-import { parseChips, type RakeRule, rakeFromPot } from "@holdem-knight/core";
+import { parseChips, potForRake, type RakeRule, rakeFromPot } from "@holdem-knight/core";
 import { Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { RollingNumber } from "@/components/RollingNumber";
 import { cn } from "@/lib/cn";
 import { selectOnFocus } from "@/lib/number-input";
 
@@ -25,9 +26,9 @@ interface RakeDialogProps {
   onClose: () => void;
 }
 
-/** A number field in the dialog: its figure centered, and its hint small enough for a narrow column. */
+/** A number field in the dialog, its figure centered. */
 const fieldClass =
-  "min-h-12 w-full min-w-0 rounded-xl border bg-surface px-1 text-center text-lg tabular-nums outline-none placeholder:text-xs placeholder:text-muted focus:border-highlight aria-invalid:border-highlight";
+  "min-h-12 w-full min-w-0 rounded-xl border bg-surface px-1 text-center text-lg tabular-nums outline-none placeholder:text-muted focus:border-highlight aria-invalid:border-highlight";
 
 /** A whole number of chips, or `null` for anything else. An empty field is 0 where `empty` says so. */
 function chipsOf(text: string, empty: number | null) {
@@ -59,6 +60,7 @@ export function RakeDialog({
   const [addText, setAddText] = useState("");
   // What is typed over the total so far. Missing until it is tapped, when it shows the total
   const [currentText, setCurrentText] = useState<string>();
+  const [editingCurrent, setEditingCurrent] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [armed, setArmed] = useState(false);
   const armedAt = useRef(0);
@@ -74,6 +76,13 @@ export function RakeDialog({
   const total = base === null || added === null ? null : base + added;
   const pending = total !== null && total !== currentChips;
   const typedOver = base !== null && base !== currentChips;
+  // A rake typed by hand shows, faintly, the smallest pot it could have come from
+  const potHint =
+    potText === "" && addText.trim() !== "" && added !== null && added > 0
+      ? potForRake(added, rule)
+      : undefined;
+  // Nothing typed: the totals show the saved rake, and roll when a save or 撤销 changes it
+  const untouched = currentText === undefined && addText.trim() === "";
 
   function disarm() {
     window.clearTimeout(armTimer.current);
@@ -189,10 +198,11 @@ export function RakeDialog({
           inputMode="numeric"
           autoComplete="off"
           value={potText}
+          placeholder={potHint?.toLocaleString("zh-CN")}
           aria-invalid={invalid(potText, null)}
           onChange={(event) => handlePot(event.target.value)}
           onFocus={(event) => selectOnFocus(event.currentTarget)}
-          className={cn(fieldClass, "col-start-3 border-line")}
+          className={cn(fieldClass, "col-start-3 border-line placeholder:opacity-60")}
         />
 
         {/* The pot gives the rake under it; the captions of the row of three share its line */}
@@ -202,24 +212,41 @@ export function RakeDialog({
         </span>
         <span className="col-start-5 mt-1 text-sm text-muted">更新后</span>
 
-        <input
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          aria-label="当前已有抽水，点击修改"
-          value={currentText ?? String(currentChips)}
-          aria-invalid={invalid(currentText ?? "", null)}
-          onChange={(event) => {
-            setCurrentText(event.target.value);
-            disarm();
-          }}
-          onFocus={(event) => selectOnFocus(event.currentTarget)}
-          className={cn(
-            fieldClass,
-            "col-start-1 border-transparent font-semibold",
-            typedOver && "text-highlight",
-          )}
-        />
+        {/* The saved rake rolls over the field until it is tapped to be typed over */}
+        <div className="relative col-start-1">
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            aria-label="当前已有抽水，点击修改"
+            value={currentText ?? String(currentChips)}
+            aria-invalid={invalid(currentText ?? "", null)}
+            onChange={(event) => {
+              setCurrentText(event.target.value);
+              disarm();
+            }}
+            onFocus={(event) => {
+              setEditingCurrent(true);
+              selectOnFocus(event.currentTarget);
+            }}
+            onBlur={() => setEditingCurrent(false)}
+            className={cn(
+              fieldClass,
+              "border-transparent font-semibold",
+              typedOver && "text-highlight",
+              !editingCurrent && currentText === undefined && "text-transparent",
+            )}
+          />
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-0 grid place-items-center text-lg font-semibold tabular-nums",
+              (editingCurrent || currentText !== undefined) && "invisible",
+            )}
+          >
+            <RollingNumber value={currentChips} />
+          </span>
+        </div>
         <span className="text-lg text-muted" aria-hidden>
           +
         </span>
@@ -233,7 +260,7 @@ export function RakeDialog({
           aria-invalid={invalid(addText, 0)}
           onChange={(event) => handleAdd(event.target.value)}
           onFocus={(event) => selectOnFocus(event.currentTarget)}
-          className={cn(fieldClass, "border-line")}
+          className={cn(fieldClass, "border-line placeholder:text-xs")}
         />
         <span className="text-lg text-muted" aria-hidden>
           =
@@ -245,7 +272,13 @@ export function RakeDialog({
             nudge,
           )}
         >
-          {total === null ? "—" : total.toLocaleString("zh-CN")}
+          {untouched ? (
+            <RollingNumber value={currentChips} />
+          ) : total === null ? (
+            "—"
+          ) : (
+            total.toLocaleString("zh-CN")
+          )}
         </p>
 
         <span className="col-start-1 self-start text-xs text-muted">点击修改</span>

@@ -297,7 +297,7 @@ describe("backup file", () => {
     const [game] = data.games;
     const full = {
       ...data,
-      games: game ? [{ ...game, rake: DEFAULT_RAKE_RULE }] : [],
+      games: game ? [{ ...game, rake: DEFAULT_RAKE_RULE, rakeInSplit: true as const }] : [],
       ledgerEvents: [...data.ledgerEvents, rake, undo],
       gameConfigs: [
         {

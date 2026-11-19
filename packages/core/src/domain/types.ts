@@ -366,6 +366,8 @@ export interface Game {
   readonly wage?: WageRule;
   /** This game's rake. Missing means none. Recorded in chips on the rake seat. */
   readonly rake?: RakeRule;
+  /** Set when the rake takes its share of a difference split by win or loss. Missing leaves it out. */
+  readonly rakeInSplit?: true;
   /** Charges let off at settlement. Missing means none. */
   readonly waivedCharges?: readonly ChargeWaiver[];
   /**

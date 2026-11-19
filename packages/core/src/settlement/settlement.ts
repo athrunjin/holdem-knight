@@ -79,10 +79,17 @@ export interface SettlementOutcome {
 /**
  * Takes the difference off the side that is too large, in proportion to each player's result.
  * With 200 too much, winners of 3000 and 1000 give up 150 and 50. With too little, losers pay less.
+ * The rake seat takes a share only when asked to, or when no one else is on its side.
  */
-function splitDifference(raw: readonly PlayerNet[], difference: Cents): PlayerNet[] {
+function splitDifference(
+  raw: readonly PlayerNet[],
+  difference: Cents,
+  rakeInSplit: boolean,
+): PlayerNet[] {
   const sign = Math.sign(difference);
-  const side = raw.filter((p) => p.net * sign > 0);
+  const onSide = raw.filter((p) => p.net * sign > 0);
+  const withoutRake = onSide.filter((p) => p.playerId !== RAKE_PLAYER_ID);
+  const side = rakeInSplit || withoutRake.length === 0 ? onSide : withoutRake;
   const shares = new Map<string, Cents>();
   allocate(
     cents(Math.abs(difference)),
@@ -97,18 +104,22 @@ function splitDifference(raw: readonly PlayerNet[], difference: Cents): PlayerNe
   }));
 }
 
-/** Works out results for any books. Unbalanced books with no handling chosen stay unhandled. */
+/**
+ * Works out results for any books. Unbalanced books with no handling chosen stay unhandled. A split
+ * leaves the rake seat out unless `rakeInSplit` is set.
+ */
 export function settlementOutcome(
   players: readonly PlayerLedger[],
   ratio: ChipRatio,
   handling: ImbalanceHandling | undefined,
+  { rakeInSplit = false }: { readonly rakeInSplit?: boolean } = {},
 ): SettlementOutcome {
   const raw = rawNetCents(players, ratio);
   const difference = sum(raw.map((p) => p.net));
   if (difference === 0) return { nets: raw, difference, unresolved: ZERO };
 
   if (handling === "split") {
-    return { nets: splitDifference(raw, difference), difference, unresolved: ZERO };
+    return { nets: splitDifference(raw, difference, rakeInSplit), difference, unresolved: ZERO };
   }
   if (handling === "organizer") {
     // An organizer who is playing keeps one row: their own result less the difference

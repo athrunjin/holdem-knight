@@ -116,6 +116,8 @@ const gameFields = {
   doneTransfers: z.array(z.object({ from: id, to: id, amount: money })).optional(),
   /** Added in version 13. */
   rake: rakeSchema.optional(),
+  /** Added in version 13. */
+  rakeInSplit: z.literal(true).optional(),
 };
 
 const gameSchema = z.object({

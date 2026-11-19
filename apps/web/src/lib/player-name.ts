@@ -22,6 +22,12 @@ export function gameNameOf(players: readonly Player[], game: Pick<Game, "organiz
   return (playerId: string) => names.get(playerId) ?? "未知玩家";
 }
 
+/** Initials for ordering everyone in a game by name: a player's own, or the name of a seat. */
+export function gameInitialsOf(players: readonly Player[]) {
+  const initials = new Map(players.map((player) => [player.id, player.initials]));
+  return (playerId: string, name: string) => initials.get(playerId) ?? name;
+}
+
 export const PLAYER_NAME_ISSUE_TEXT: Record<PlayerNameIssue, string> = {
   empty: "请输入名字",
   "too-long": `名字不能超过 ${MAX_PLAYER_NAME_LENGTH} 个字`,

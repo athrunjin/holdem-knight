@@ -56,7 +56,7 @@ export function LedgerLog({ events, nameOf }: LedgerLogProps) {
           onClick={() => setOpen(!open)}
           className="flex min-h-11 w-full items-center gap-1 text-sm text-muted"
         >
-          牌局记录（{entries.length}）
+          牌局记录 ({entries.length})
           <ChevronDown
             className={cn("size-4 transition-transform", open && "rotate-180")}
             aria-hidden

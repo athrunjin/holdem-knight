@@ -222,6 +222,12 @@ export function chooseInsuranceOwner(game: Game, insuranceOwner: string | undefi
   return insuranceOwner === undefined ? rest : { ...rest, insuranceOwner };
 }
 
+/** Saves whether the rake takes its share of a difference split by win or loss. */
+export function chooseRakeInSplit(game: Game, rakeInSplit: boolean): Game {
+  const { rakeInSplit: _, ...rest } = game;
+  return rakeInSplit ? { ...rest, rakeInSplit: true } : rest;
+}
+
 export function chooseImbalanceHandling(game: Game, imbalanceHandling: ImbalanceHandling): Game {
   return { ...game, imbalanceHandling };
 }

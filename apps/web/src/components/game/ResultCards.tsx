@@ -1,7 +1,9 @@
 import { type Cents, type Currency, cents } from "@holdem-knight/core";
-import { Calculator, ChevronRight, HandCoins } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Calculator, ChevronRight, HandCoins } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
+import { RollingNumber } from "@/components/RollingNumber";
+import { type CardSort, DEFAULT_SORT, nextSort, type SortKey, sortCards } from "@/lib/card-sort";
 import { breakable, formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
@@ -53,6 +55,8 @@ type SummaryGroup = (typeof SUMMARY_GROUPS)[number];
 export interface ResultCard {
   readonly id: string;
   readonly name: string;
+  /** Initials of the name, for ordering by name. Missing orders by the name itself */
+  readonly initials?: string;
   readonly hands: string;
   readonly chips: string;
   /** Missing for an organizer who is not playing, which shows a dash. */
@@ -117,17 +121,84 @@ export function TotalLine({
   );
 }
 
-/** The titles over a group of cards, in the cards' columns. */
-export function ColumnTitles({ first }: { first: string }) {
+/** A column title that orders the cards under it, with a small mark of how. */
+function SortTitle({
+  label,
+  column,
+  sort,
+  onSort,
+  className,
+}: {
+  label: string;
+  column: SortKey;
+  sort: CardSort;
+  onSort: (column: SortKey) => void;
+  className?: string;
+}) {
+  const active = sort.key === column;
+  const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
+  const order = active ? (sort.dir === "asc" ? "，正序" : "，倒序") : "";
+  return (
+    // The row is short, so the tap target reaches past it to 44px
+    <button
+      type="button"
+      aria-label={`按${label}排序${order}`}
+      onClick={() => onSort(column)}
+      className={cn(
+        "relative flex items-center gap-0.5 after:absolute after:-inset-x-1 after:-inset-y-3.5",
+        className,
+      )}
+    >
+      {label}
+      <Icon className={cn("size-3 shrink-0", active && "text-highlight")} aria-hidden />
+    </button>
+  );
+}
+
+/**
+ * The titles over a group of cards, in the cards' columns. Given an order, the name, the win or
+ * loss and the amount each take a tap to order the cards by them.
+ */
+export function ColumnTitles({
+  first,
+  sort,
+  onSort,
+}: {
+  first: string;
+  sort?: CardSort;
+  onSort?: (column: SortKey) => void;
+}) {
+  if (!sort || !onSort) {
+    return (
+      <div className={cn(columnsClass, "px-2 text-xs text-muted")}>
+        <span>{first}</span>
+        <span className="text-center">Buy-in</span>
+        <span className="text-center">筹码</span>
+        <span className="text-right">水上/下</span>
+        <span className="text-right">金额</span>
+      </div>
+    );
+  }
+  const by = { sort, onSort };
   return (
     <div className={cn(columnsClass, "px-2 text-xs text-muted")}>
-      <span>{first}</span>
+      <SortTitle label={first} column="name" {...by} />
       <span className="text-center">Buy-in</span>
       <span className="text-center">筹码</span>
-      <span className="text-right">水上/下</span>
-      <span className="text-right">金额</span>
+      <SortTitle label="水上/下" column="net" className="justify-self-end" {...by} />
+      <SortTitle label="金额" column="amount" className="justify-self-end" {...by} />
     </div>
   );
+}
+
+/** Cards in the order chosen above them. */
+export function sortResultCards(cards: readonly ResultCard[], sort: CardSort) {
+  return sortCards(cards, sort, (card) => ({
+    name: card.name,
+    initials: card.initials ?? card.name,
+    net: card.netChips,
+    amount: card.base,
+  }));
 }
 
 /**
@@ -203,16 +274,20 @@ export function RakeCells({
   chips,
   amount,
   currency,
+  buyIn,
 }: {
   chips: number;
   amount: Cents;
   currency: Currency;
+  /** In place of the Buy-in the seat does not have, such as whether it shares a difference */
+  buyIn?: ReactNode;
 }) {
   return (
     <>
-      <span aria-hidden />
+      {buyIn ?? <span aria-hidden />}
+      {/* Rolls when the rake changes, as it does in the rake dialog */}
       <span className={cn(figureClass, "text-center")}>
-        {breakable(chips.toLocaleString("zh-CN"))}
+        <RollingNumber value={chips} />
       </span>
       <span className={cn(figureClass, "text-right text-win")}>
         {breakable(formatSignedChips(chips))}
@@ -225,7 +300,12 @@ export function RakeCells({
 }
 
 /** The rake seat on the organizer's card, to read only, as the settlement page shows it. */
-export function RakeRow(props: { chips: number; amount: Cents; currency: Currency }) {
+export function RakeRow(props: {
+  chips: number;
+  amount: Cents;
+  currency: Currency;
+  buyIn?: ReactNode;
+}) {
   return (
     <div className={cn(columnsClass, "min-h-11 text-xs")}>
       <span className={rakeNameClass}>
@@ -468,6 +548,7 @@ export function ResultCards({
   currency: Currency;
 }) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const [sort, setSort] = useState<CardSort>(DEFAULT_SORT);
   const everyone = organizer ? [organizer, ...cards] : cards;
   // Every card that folds, as the card itself decides: one with lines or a Buy-in record
   const foldable = everyone.filter(
@@ -508,8 +589,8 @@ export function ResultCards({
           {card(organizer)}
         </>
       )}
-      <ColumnTitles first="玩家" />
-      {cards.map(card)}
+      <ColumnTitles first="玩家" sort={sort} onSort={(column) => setSort(nextSort(sort, column))} />
+      {sortResultCards(cards, sort).map(card)}
     </div>
   );
 }

@@ -12,9 +12,11 @@ import {
   RAKE_PLAYER_ID,
 } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, UserPen } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Modal } from "@/components/insurance/Modal";
 import { MiniSwitch } from "@/components/MiniSwitch";
+import { type CardSort, DEFAULT_SORT, nextSort } from "@/lib/card-sort";
 import { breakable, formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
@@ -32,7 +34,9 @@ import {
   RakeName,
   type ResultCard,
   rakeNameClass,
+  sortResultCards,
 } from "./ResultCards";
+import { StackField } from "./StackField";
 
 const actionClass = "min-h-11 shrink-0 rounded-lg border border-line px-2 text-sm font-medium";
 const listClass = "divide-y divide-line rounded-xl border border-line bg-surface px-2";
@@ -52,6 +56,8 @@ interface LedgerPlayersProps {
   organizerName: string;
   players: readonly PlayerLedger[];
   nameOf: (playerId: string) => string;
+  /** Initials for ordering by name */
+  initialsOf: (playerId: string, name: string) => string;
   /** Actions are hidden once the game is settled */
   editable: boolean;
   /** Everyone's time and charges so far, as of the moment the cards show */
@@ -61,19 +67,23 @@ interface LedgerPlayersProps {
   /** While a waiver is being saved */
   waiving: boolean;
   onEditHands: (playerId: string) => void;
-  onEditStack: (playerId: string) => void;
+  /** A stack typed over on the card */
+  onSetStack: (playerId: string, chips: number) => void;
   onRebuy: (playerId: string) => void;
   /** A first buy-in for the organizer, or for an insurance seat the game is missing */
   onJoin: (playerId: string) => void;
   onReturn: (playerId: string) => void;
-  /** Everyone who left comes back, after the organizer confirms */
+  /** Everyone who left comes back */
   onReturnAll: () => void;
   /** The player leaves with the chips on the page, at once */
   onLeave: (playerId: string) => void;
   /** Opens the rake: what has been taken so far, and adding to it */
   onRake: () => void;
-  /** Shown at the foot of the seated players */
-  addPlayer: ReactNode;
+  /**
+   * Adding a player: a row to invite the first one while no one is seated, then a small plus at
+   * the foot of the seated players. Missing once the game is settled.
+   */
+  addPlayer?: ((variant: "invite" | "plus") => ReactNode) | undefined;
   /** Whether the seated players' cards are open, on their record, charges and total */
   detailMode: boolean;
   onDetailModeChange: (on: boolean) => void;
@@ -124,12 +134,13 @@ export function LedgerPlayers({
   organizerName,
   players,
   nameOf,
+  initialsOf,
   editable,
   live,
   onWaive,
   waiving,
   onEditHands,
-  onEditStack,
+  onSetStack,
   onRebuy,
   onJoin,
   onReturn,
@@ -146,6 +157,8 @@ export function LedgerPlayers({
     game.tableFee !== undefined || game.wage !== undefined,
   );
   const [leftOpen, setLeftOpen] = useState(false);
+  const [sort, setSort] = useState<CardSort>(DEFAULT_SORT);
+  const [managing, setManaging] = useState(false);
   // Whether folded cards show what the players owe and their result after it. Games that charge
   // players outside their chips have the switch, on to begin with and apart from 详细模式
   const hasFees = game.tableFee !== undefined || game.wage !== undefined;
@@ -279,14 +292,12 @@ export function LedgerPlayers({
       );
     }
     return (
-      <button
-        type="button"
-        aria-label={`输入${nameOf(playerId)}的筹码，现在 ${stackChips}`}
-        onClick={() => onEditStack(playerId)}
-        className={cn(cellButtonClass, figureClass, flash(playerId))}
-      >
-        {breakable(stackChips.toLocaleString("zh-CN"))}
-      </button>
+      <StackField
+        chips={stackChips}
+        label={`${nameOf(playerId)}的筹码`}
+        className={flash(playerId)}
+        onCommit={(chips) => onSetStack(playerId, chips)}
+      />
     );
   }
 
@@ -313,12 +324,14 @@ export function LedgerPlayers({
    * charges so far. Folded, it is its first row, with the settlement page's line of charges and
    * total under it while 含费 is on.
    */
-  function playerCard(player: PlayerLedger) {
+  function cardOf(player: PlayerLedger): ResultCard {
     const { playerId, netChips, stackChips } = player;
     const cash = chipsToCents(netChips, ratio);
-    const card: ResultCard = {
+    const name = nameOf(playerId);
+    return {
       id: playerId,
-      name: nameOf(playerId),
+      name,
+      initials: initialsOf(playerId, name),
       hands: "—",
       chips: "—",
       handsCell: hands(player),
@@ -345,13 +358,16 @@ export function LedgerPlayers({
         <SettleButton armed={playerId === armedId} onClick={() => settle(playerId)} />
       ),
     };
+  }
+
+  function personCard(card: ResultCard) {
     return (
       <PersonCard
-        key={playerId}
+        key={card.id}
         card={card}
         currency={currency}
-        open={isOpen(playerId)}
-        onToggle={() => toggle(playerId)}
+        open={isOpen(card.id)}
+        onToggle={() => toggle(card.id)}
         summary={hasFees && withFees}
       />
     );
@@ -506,7 +522,19 @@ export function LedgerPlayers({
       {(seated.length > 0 || addPlayer) && (
         <section aria-label="桌上玩家" className="mt-3 flex flex-col gap-2">
           <div className="-mb-2 flex min-h-11 items-center justify-between gap-2">
-            <h2 className="font-semibold">桌上玩家（{seatedCount}）</h2>
+            <div className="flex items-center">
+              <h2 className="font-semibold">桌上玩家 ({seatedCount})</h2>
+              {editable && (
+                <button
+                  type="button"
+                  aria-label="玩家管理"
+                  onClick={() => setManaging(true)}
+                  className="grid size-11 place-items-center text-muted"
+                >
+                  <UserPen className="size-4" aria-hidden />
+                </button>
+              )}
+            </div>
             {seated.length > 0 && (
               <div className="flex items-center gap-3">
                 {hasFees && <MiniSwitch label="含费" checked={withFees} onChange={setWithFees} />}
@@ -521,12 +549,32 @@ export function LedgerPlayers({
               </div>
             )}
           </div>
-          {seated.length > 0 && <ColumnTitles first="玩家" />}
-          {seated.map(playerCard)}
-          {addPlayer && (
-            <div className="rounded-xl border border-dashed border-line">{addPlayer}</div>
+          {seated.length > 0 && (
+            <ColumnTitles
+              first="玩家"
+              sort={sort}
+              onSort={(column) => setSort(nextSort(sort, column))}
+            />
           )}
+          {seated.length > 0
+            ? sortResultCards(seated.map(cardOf), sort).map(personCard)
+            : addPlayer?.("invite")}
+          {seated.length > 0 && addPlayer?.("plus")}
         </section>
+      )}
+
+      {/* Removing, swapping and adding players: the screen is still being designed */}
+      {managing && (
+        <Modal title="玩家管理" onClose={() => setManaging(false)}>
+          <p className="text-sm text-muted">移除、替换和新增玩家的界面还在设计中。</p>
+          <button
+            type="button"
+            onClick={() => setManaging(false)}
+            className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
+          >
+            关闭
+          </button>
+        </Modal>
       )}
 
       {/* Folded into one quiet line to begin with, like the game record under it */}
@@ -540,7 +588,7 @@ export function LedgerPlayers({
                 onClick={() => setLeftOpen(!leftOpen)}
                 className="flex min-h-11 items-center gap-1 text-sm text-muted"
               >
-                已结算（{left.length}）
+                已结算 ({left.length})
                 <ChevronDown
                   className={cn("size-4 transition-transform", leftOpen && "rotate-180")}
                   aria-hidden
@@ -553,7 +601,7 @@ export function LedgerPlayers({
                 onClick={onReturnAll}
                 className="min-h-11 pl-2 text-xs text-highlight"
               >
-                一键回桌
+                全部回桌
               </button>
             )}
           </div>
