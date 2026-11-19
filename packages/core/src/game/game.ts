@@ -216,12 +216,6 @@ export function chooseCollector(game: Game, collectorId: string | undefined): Ga
   return { ...game, collectorId: collectorId ?? OPTIMAL_PLAN };
 }
 
-/** Saves who takes the insurance result. `undefined` goes back to the organizer. */
-export function chooseInsuranceOwner(game: Game, insuranceOwner: string | undefined): Game {
-  const { insuranceOwner: _, ...rest } = game;
-  return insuranceOwner === undefined ? rest : { ...rest, insuranceOwner };
-}
-
 /** Saves whether the rake takes its share of a difference split by win or loss. */
 export function chooseRakeInSplit(game: Game, rakeInSplit: boolean): Game {
   const { rakeInSplit: _, ...rest } = game;

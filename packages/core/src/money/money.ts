@@ -45,10 +45,6 @@ export function sum(values: readonly Cents[]): Cents {
   return cents(total);
 }
 
-export function isZero(a: Cents): boolean {
-  return a === 0;
-}
-
 export function compare(a: Cents, b: Cents): -1 | 0 | 1 {
   return a < b ? -1 : a > b ? 1 : 0;
 }

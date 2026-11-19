@@ -18,8 +18,3 @@ export function netColor(chips: number) {
   if (chips === 0) return "text-muted";
   return chips > 0 ? "text-win" : "text-loss";
 }
-
-/** A chip difference with its cash value, e.g. +200 筹码（¥200）. */
-export function formatDifference(chips: number, cash: string) {
-  return `${formatSignedChips(chips)} 筹码（${cash}）`;
-}
