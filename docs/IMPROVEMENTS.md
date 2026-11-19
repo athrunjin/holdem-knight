@@ -1368,6 +1368,29 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked at 360 and 393 wide in the browser preview, dark mode.
 - Tracking: PR #90
 
+### #I-068 Rake rules, records of each pot, and 抽水计算 on the tools page
+
+- Type: feature
+- Date: proposed and decided 2026-11-19
+- Source: discussion
+- Problem: rake was fixed at 10% of the pot, rounded down, with no cap and no way to change it; only the total was kept; and 抽水计算 on the tools page was a placeholder.
+- Proposal:
+  - Game setup has rake in the same style as the other options: its config on the switch row, 保存配置 for a valid new config, and last time's values carried over.
+  - 比例 takes decimals, with quick picks of 2.5%, 3%, 5% and 10%, default 5%.
+  - 封顶 is 不封顶, 按筹码 or 按 BB, with the amount beside it.
+  - 取整 rounds to the smallest chip in play, 最小面额, by 四舍五入 (default), 向下取整 or 向上取整.
+  - 保险报价先扣除抽水 is kept as a switch, off by default, marked 开发中.
+  - The rake dialog keeps each rake with its time and, when worked out from a pot, the pot, and lists them under 记录.
+  - 抽水计算 on the tools page opens the same dialog with the default rule, reading and saving nothing, under the icon the rake seat has on the game page.
+- Settled details:
+  - No flop no drop, a minimum pot and rake per side pot are not done. Rake goes only to the host.
+  - The cap is rounded down to the smallest chip, and the rake after rounding never passes it. A cap in big blinds uses the game's big blind.
+  - Games with the older rule keep 10% rounded down, and carry it over that way.
+  - Online rooms take rake off the pot before pricing an all-in cash-out; nothing was found for live games, so the insurance switch waits for a decision.
+  - Settlement is unchanged, apart from its rule line naming the new settings. Backups move to version 14.
+- Decision: do. Checked at 393 wide in the browser preview, dark mode.
+- Tracking: PR #90, ADR [0036](adr/0036-rake-rules-and-pot-records.md)
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

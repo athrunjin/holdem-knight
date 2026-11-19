@@ -48,6 +48,7 @@ function GameSettingsPage() {
         initialWage={game.wage}
         lastWage={game.wage}
         initialRake={game.rake}
+        lastRake={game.rake}
         rakeLocked={rakeChips(events) > 0}
         saving={saveGame.isPending}
         saveFailed={saveGame.isError}

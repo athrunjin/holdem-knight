@@ -13,7 +13,7 @@ import {
 import { z } from "zod";
 
 const FORMAT = "holdem-backup";
-const VERSION = 13;
+const VERSION = 14;
 
 const id = z.string().min(1);
 const money = z
@@ -41,7 +41,22 @@ const insuranceRuleSchema = z.object({
 
 const tableFeeSchema = z.object({ amount: money, minMinutes: z.number().int().min(0) });
 
-const rakeSchema = z.object({ percent: z.number().int().min(1).max(99) });
+const rakeSchema = z.object({
+  /** Whole percentages until version 14, which allows two decimals. */
+  percent: z
+    .number()
+    .positive()
+    .lt(100)
+    // At most two decimals, allowing for how they are stored
+    .refine((percent) => Math.abs(percent * 100 - Math.round(percent * 100)) < 1e-6),
+  /** Added in version 14, with the rounding and the cap. */
+  roundTo: z.number().int().positive().optional(),
+  rounding: z.enum(["nearest", "down", "up"]).optional(),
+  cap: z
+    .object({ unit: z.enum(["chips", "bigBlinds"]), amount: z.number().int().positive() })
+    .optional(),
+  insuranceAfterRake: z.boolean().optional(),
+});
 
 const hour = z.number().int().min(0).max(23);
 
@@ -186,6 +201,8 @@ const eventSchema = z.discriminatedUnion("type", [
       .number()
       .int()
       .refine((change) => change !== 0),
+    /** Added in version 14. */
+    potChips: chips.positive().optional(),
   }),
 ]);
 
@@ -258,6 +275,8 @@ const savedFields = { ...owned, name: z.string().min(1), createdAt: timestamp };
 const chargeRuleSchema = z.discriminatedUnion("kind", [
   z.object({ ...savedFields, kind: z.literal("table_fee"), rule: tableFeeSchema }),
   z.object({ ...savedFields, kind: z.literal("wage"), rule: wageSchema }),
+  /** Added in version 14. */
+  z.object({ ...savedFields, kind: z.literal("rake"), rule: rakeSchema }),
 ]);
 
 const collections = {

@@ -75,6 +75,7 @@ function NewGamePage() {
   const configRule = settings?.insurance;
   const configTableFee = settings?.tableFee;
   const configWage = settings?.wage;
+  const configRake = settings?.rake;
 
   return (
     <Page
@@ -118,6 +119,8 @@ function NewGamePage() {
             lastWage={configWage ?? games.data?.find((game) => game.wage)?.wage}
             lastWageLabel={configWage && applied.choice?.name}
             initialRake={start.rake}
+            lastRake={configRake ?? games.data?.find((game) => game.rake)?.rake}
+            lastRakeLabel={configRake && applied.choice?.name}
             submitLabel="下一步：选择玩家"
             saving={false}
             saveFailed={false}

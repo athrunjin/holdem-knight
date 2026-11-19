@@ -3,6 +3,7 @@ import { Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RollingNumber } from "@/components/RollingNumber";
+import { rakeRuleParts } from "@/lib/charges";
 import { cn } from "@/lib/cn";
 import { selectOnFocus } from "@/lib/number-input";
 
@@ -11,16 +12,30 @@ const ARMED_MS = 5000;
 /** A second tap this soon after the first is the same tap twice, not a confirmation. */
 const DOUBLE_TAP_MS = 350;
 
+/** One rake saved: when, the change in chips, and the pot it came from when one was typed. */
+export interface RakeEntry {
+  readonly id: string;
+  readonly occurredAt: number;
+  readonly chips: number;
+  readonly potChips?: number;
+}
+
+const ENTRY_TIME = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" });
+
 interface RakeDialogProps {
   /** The rake recorded so far, in chips */
   currentChips: number;
   rule: RakeRule;
+  /** The game's big blind, for a cap in big blinds. Missing outside a game */
+  bigBlindChips?: number | undefined;
+  /** What has been saved, oldest first */
+  entries: readonly RakeEntry[];
   /** The total 撤销 goes back to. Missing when there is nothing to take back */
   undoTo: number | undefined;
   saving: boolean;
   saveFailed: boolean;
-  /** Records the new total. Resolves once the page shows it */
-  onSave: (totalChips: number) => Promise<void>;
+  /** Records the new total, with the pot when it came from one. Resolves once the page shows it */
+  onSave: (totalChips: number, potChips: number | undefined) => Promise<void>;
   /** Takes back the latest rake recorded. Resolves once the page shows the total before it */
   onUndo: () => Promise<void>;
   onClose: () => void;
@@ -48,6 +63,8 @@ function chipsOf(text: string, empty: number | null) {
 export function RakeDialog({
   currentChips,
   rule,
+  bigBlindChips,
+  entries,
   undoTo,
   saving,
   saveFailed,
@@ -79,7 +96,7 @@ export function RakeDialog({
   // A rake typed by hand shows, faintly, the smallest pot it could have come from
   const potHint =
     potText === "" && addText.trim() !== "" && added !== null && added > 0
-      ? potForRake(added, rule)
+      ? potForRake(added, rule, bigBlindChips)
       : undefined;
   // Nothing typed: the totals show the saved rake, and roll when a save or 撤销 changes it
   const untouched = currentText === undefined && addText.trim() === "";
@@ -100,7 +117,7 @@ export function RakeDialog({
   function handlePot(text: string) {
     setPotText(text);
     const pot = parseChips(text);
-    setAddText(pot === null || pot === 0 ? "" : String(rakeFromPot(pot, rule)));
+    setAddText(pot === null || pot === 0 ? "" : String(rakeFromPot(pot, rule, bigBlindChips)));
     disarm();
   }
 
@@ -113,8 +130,17 @@ export function RakeDialog({
 
   async function handleUpdate() {
     if (!pending || saving) return;
+    // The pot is kept only when the rake added is the one it gave, with the total not typed over
+    const pot = parseChips(potText);
+    const fromPot =
+      pot !== null &&
+      pot > 0 &&
+      currentText === undefined &&
+      added === rakeFromPot(pot, rule, bigBlindChips)
+        ? pot
+        : undefined;
     try {
-      await onSave(total);
+      await onSave(total, fromPot);
       reset();
     } catch {
       // The failure shows from the mutation state, and what was typed stays
@@ -181,10 +207,10 @@ export function RakeDialog({
           <Settings className="size-5" aria-hidden />
         </button>
       </div>
-      {/* Rake has one rule for now. Its own settings come later */}
+      {/* The rule is set at game setup; here it is only shown */}
       {settingsOpen && (
         <p className="mt-1 rounded-xl border border-line px-3 py-2 text-xs text-muted">
-          抽水设置还在开发中，目前按底池 {rule.percent}% 计算，不足 1 筹码舍去。
+          {rakeRuleParts(rule).join("，")}。规则在开局设置里修改。
         </p>
       )}
 
@@ -302,6 +328,33 @@ export function RakeDialog({
         <p role="alert" className="mt-3 text-center text-sm text-highlight">
           保存失败，请重试。
         </p>
+      )}
+
+      {entries.length > 0 && (
+        <section className="mt-4">
+          <h3 className="text-sm text-muted">记录</h3>
+          <ol className="mt-1 max-h-36 divide-y divide-line overflow-y-auto rounded-xl border border-line text-sm tabular-nums">
+            {[...entries].reverse().map(({ id, occurredAt, chips, potChips }) => (
+              <li
+                key={id}
+                className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-3 py-1.5"
+              >
+                <span className="text-muted">{ENTRY_TIME.format(occurredAt)}</span>
+                <span className="text-muted">
+                  {potChips === undefined
+                    ? chips > 0
+                      ? "手动输入"
+                      : "修正"
+                    : `底池 ${potChips.toLocaleString("zh-CN")}`}
+                </span>
+                <span className={cn("font-medium", chips > 0 ? "text-win" : "text-text")}>
+                  {chips > 0 ? "+" : "−"}
+                  {Math.abs(chips).toLocaleString("zh-CN")}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
       )}
 
       <div className="mt-5 grid grid-cols-[auto_minmax(0,1fr)] gap-2">

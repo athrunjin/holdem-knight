@@ -59,7 +59,7 @@ These are the product defaults. Rules are configurable by design, so organizers 
 | Leaving       | 离桌 (leave table) confirms hands and chips. Settlement still needs everyone to leave    |
 | Corrections   | The game record is read-only. Fix mistakes with hand controls, stacks and 返回            |
 | Imbalance     | Settling is allowed: split by win/loss, organizer covers or collects, or leave unhandled |
-| Rake          | A percentage of the pot with a cap. For now 10% of the pot, rounded down, with no cap. The rake is a seat on the organizer's card with no Buy-in, and goes to the organizer (ADR 0034) |
+| Rake          | A percentage of each pot, two decimals allowed, default 5%. An optional cap per pot in chips or big blinds. Rounded to the smallest chip in play, to the nearest by default. Each rake keeps its time and, when typed, its pot. The rake is a seat on the organizer's card with no Buy-in, and goes only to the host (ADR 0034, ADR 0036) |
 | Wages (工资)  | Each player pays an hourly rate for their own time at the table. Default 25 an hour in the game's currency, by the minute; billing can be by 15, 30 or 60 minutes. A part unit is rounded to the nearest (default), up or down. A unit across two rates is charged at the one that covers more of it, or the higher on a tie. Rates by time of day and by game time can both be on, up to 3 of each and 4 in all; where both apply the higher rate wins (ADR 0025, ADR 0027) |
 | Time of day   | Each game keeps the time zone it was started in, and rates by time of day follow it on every device. A game that starts inside a time segment begins in it, and segments switch when the local clock shows their hours (ADR 0027) |
 | Table fee     | Once per player per game, after a minimum time at the table. Default 100 after 10 minutes |
@@ -84,7 +84,7 @@ These are the product defaults. Rules are configurable by design, so organizers 
 
 ## Open questions
 
-- The rake percentage, the cap, and whether there's "no flop, no drop" (M4)
+- Whether insurance quotes take the rake out of the pot first: the switch exists, off by default, with no effect yet (ADR 0036)
 - Trademark check and a permanent domain. Deployment uses a free `*.pages.dev` subdomain for now, see issue #9
 
 ## Known pitfalls

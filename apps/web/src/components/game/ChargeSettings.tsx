@@ -2,17 +2,25 @@ import {
   type ChargeIssue,
   type Currency,
   DEFAULT_AFTER_HOURS,
+  DEFAULT_RAKE_RULE,
   DEFAULT_TABLE_FEE,
   DEFAULT_TIME_SEGMENT,
   DEFAULT_WAGE,
   MAX_WAGE_SEGMENTS,
   MAX_WAGE_SEGMENTS_IN_ALL,
+  parseRake,
   parseTableFee,
   parseWage,
+  RAKE_PERCENT_PICKS,
+  RAKE_ROUNDINGS,
+  type RakeForm,
+  type RakeIssues,
+  type RakeRule,
   type SavedChargeRule,
   type TableFeeForm,
   type TableFeeIssues,
   type TableFeeRule,
+  toRakeForm,
   toTableFeeForm,
   toWageForm,
   WAGE_ROUNDINGS,
@@ -28,6 +36,7 @@ import { ChevronDown, Plus, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { InfoButton } from "@/components/InfoButton";
 import { ChoiceModal } from "@/components/insurance/ChoiceModal";
+import { MiniSwitch } from "@/components/MiniSwitch";
 import { SaveNameDialog } from "@/components/SaveNameDialog";
 import { TextField } from "@/components/TextField";
 import { TextMenu } from "@/components/TextMenu";
@@ -38,7 +47,7 @@ import {
   useRemoveChargeRule,
   useSaveChargeRule,
 } from "@/data/charge-rules";
-import { ROUNDING_NAMES, UNIT_NAMES } from "@/lib/charges";
+import { RAKE_ROUNDING_NAMES, ROUNDING_NAMES, UNIT_NAMES } from "@/lib/charges";
 import { cn } from "@/lib/cn";
 import { CURRENCY_INFO } from "@/lib/currency";
 import { datedName } from "@/lib/dated-name";
@@ -88,6 +97,9 @@ export const initialTableFeeChoice = (
 export const initialWageChoice = (current: WageRule | undefined, last: WageRule | undefined) =>
   initialChoice(current, last, DEFAULT_WAGE, toWageForm);
 
+export const initialRakeChoice = (current: RakeRule | undefined, last: RakeRule | undefined) =>
+  initialChoice(current, last, DEFAULT_RAKE_RULE, toRakeForm);
+
 interface Preset<Form> {
   readonly id: string;
   readonly name: string;
@@ -95,7 +107,7 @@ interface Preset<Form> {
   readonly removable?: boolean;
 }
 
-type ChargeKind = "table_fee" | "wage";
+type ChargeKind = SavedChargeRule["kind"];
 
 /**
  * Last time's values, the defaults and the saved configs of one kind. Last time goes by its saved
@@ -197,7 +209,7 @@ function SaveChargeConfig({
 }: {
   kind: ChargeKind;
   visible: boolean;
-  /** 台费 or 工资 */
+  /** 台费, 工资 or 抽水 */
   title: string;
   takenNames: readonly string[];
   /** The values as a rule, or null when some are invalid */
@@ -840,6 +852,201 @@ export function WageSettings({
             takenNames={saved.map((r) => r.name)}
             visible={isNew(form)}
             read={() => (live.ok ? live.rule : null)}
+            onSaved={(id) => onChange({ ...value, source: id })}
+          />
+        </>
+      )}
+    </section>
+  );
+}
+
+const PERCENT_OPTIONS = RAKE_PERCENT_PICKS.map((percent) => ({
+  value: percent,
+  label: `${percent}%`,
+  chosen: <></>,
+}));
+
+const CAP_OPTIONS: { value: RakeForm["capUnit"]; label: string }[] = [
+  { value: "none", label: "不封顶" },
+  { value: "chips", label: "按筹码" },
+  { value: "bigBlinds", label: "按 BB" },
+];
+
+const RAKE_ROUNDING_OPTIONS = RAKE_ROUNDINGS.map((mode) => ({
+  value: mode,
+  label: RAKE_ROUNDING_NAMES[mode],
+}));
+
+const RAKE_ROUNDING_INFO = [
+  "抽水按场上最小面额的筹码取整，例如最小筹码是 5 时，抽水只会是 5 的倍数。",
+  "四舍五入：满半个面额进一个，否则舍去。",
+  "向下取整：不足一个面额的部分不抽。",
+  "向上取整：不足一个面额也按一个抽。",
+  "",
+  "有封顶时，取整后的抽水不超过封顶，封顶本身也按面额向下取整。",
+].join("\n");
+
+interface RakeSettingsProps extends ChargeSettingsProps<RakeRule, RakeForm, RakeIssues> {
+  /** Once rake has been recorded in this game, it cannot be turned off */
+  locked: boolean;
+}
+
+/**
+ * Turns rake on for a game: a percentage of each pot, an optional cap in chips or big blinds, and
+ * rounding to the smallest chip (ADR 0036). Rake only ever goes to the host.
+ */
+export function RakeSettings({
+  value,
+  issues,
+  lastRule,
+  lastRuleLabel,
+  locked,
+  onChange,
+}: RakeSettingsProps) {
+  const { enabled, source, form } = value;
+  const setForm = (next: Partial<RakeForm>) =>
+    onChange({ ...value, source: CUSTOM_PRESET, form: { ...form, ...next } });
+  const toRule = (f: RakeForm) => {
+    const parsed = parseRake(f);
+    return parsed.ok ? parsed.rule : null;
+  };
+  const { choices, selectedId, saved, isNew } = useChargePresets(
+    "rake",
+    lastRule,
+    lastRuleLabel,
+    DEFAULT_RAKE_RULE,
+    toRakeForm,
+    toRule,
+    source,
+  );
+  // Issues show as they are made, not only once the game is started
+  const live = parseRake(form);
+  const shown: RakeIssues = { ...(live.ok ? {} : live.issues), ...issues };
+
+  return (
+    <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
+      <Toggle
+        label="抽水"
+        {...(locked && { detail: "这局已有抽水记录，不能关闭" })}
+        info="按每手底池的比例计算，抽水只计入组织者（Host）"
+        checked={enabled}
+        disabled={locked}
+        accessory={
+          enabled && (
+            <PresetPicker
+              title="抽水配置"
+              choices={choices}
+              source={selectedId}
+              onPick={(preset) => onChange({ ...value, source: preset.id, form: preset.form })}
+            />
+          )
+        }
+        onChange={(checked) => onChange({ ...value, enabled: checked })}
+      />
+      {enabled && (
+        <>
+          <div className="flex min-h-11 items-center justify-between gap-3">
+            <label htmlFor="rake-percent" className="font-medium">
+              比例
+            </label>
+            <span className="flex items-center">
+              <InlineNumber
+                id="rake-percent"
+                label="抽水比例"
+                value={form.percent}
+                invalid={shown.percent !== undefined}
+                suffix="%"
+                widthClass="w-12"
+                onChange={(percent) => setForm({ percent })}
+              />
+              <TextMenu
+                label="抽水比例快速选择"
+                options={PERCENT_OPTIONS}
+                value={PERCENT_OPTIONS.find((o) => Number(o.value) === Number(form.percent))?.value}
+                onChange={(percent) => setForm({ percent })}
+                align="right"
+                className="-mr-4 pr-4 pl-2"
+              />
+            </span>
+          </div>
+
+          <div className="flex min-h-11 items-center justify-between gap-3">
+            <span className="font-medium">封顶</span>
+            <span className="flex items-center gap-1">
+              {form.capUnit !== "none" && (
+                <InlineNumber
+                  id="rake-cap"
+                  label="抽水封顶"
+                  value={form.capAmount}
+                  invalid={shown.capAmount !== undefined}
+                  suffix={form.capUnit === "chips" ? "筹码" : "BB"}
+                  wholeNumber
+                  widthClass="w-14"
+                  onChange={(capAmount) => setForm({ capAmount })}
+                />
+              )}
+              <TextMenu
+                label="封顶方式"
+                options={CAP_OPTIONS}
+                value={form.capUnit}
+                onChange={(capUnit) => setForm({ capUnit })}
+                align="right"
+                className="font-medium"
+              />
+            </span>
+          </div>
+
+          <div className="flex min-h-11 items-center justify-between gap-3">
+            <span className="flex items-center font-medium">
+              取整
+              <InfoButton title="取整" text={RAKE_ROUNDING_INFO} />
+            </span>
+            <span className="flex items-center gap-1">
+              <InlineNumber
+                id="rake-round-to"
+                label="最小面额"
+                value={form.roundTo}
+                invalid={shown.roundTo !== undefined}
+                prefix="最小面额"
+                suffix="筹码"
+                wholeNumber
+                widthClass="w-10"
+                onChange={(roundTo) => setForm({ roundTo })}
+              />
+              <TextMenu
+                label="取整方式"
+                options={RAKE_ROUNDING_OPTIONS}
+                value={form.rounding}
+                onChange={(rounding) => setForm({ rounding })}
+                align="right"
+                className="font-medium"
+              />
+            </span>
+          </div>
+
+          <div className="flex min-h-11 items-center justify-between gap-3">
+            <span className="flex items-center text-sm text-muted">
+              保险报价先扣除抽水
+              <InfoButton
+                title="保险报价先扣除抽水"
+                text={
+                  "开启后，算保险时先从底池扣除这一手的抽水，再按剩下的底池报价。\n这项还在开发中，目前开关只记录选择，不影响保险报价。"
+                }
+              />
+            </span>
+            <MiniSwitch
+              label="开发中"
+              checked={form.insuranceAfterRake}
+              onChange={(insuranceAfterRake) => setForm({ insuranceAfterRake })}
+            />
+          </div>
+
+          <SaveChargeConfig
+            kind="rake"
+            title="抽水"
+            takenNames={saved.map((r) => r.name)}
+            visible={isNew(form)}
+            read={() => toRule(form)}
             onSaved={(id) => onChange({ ...value, source: id })}
           />
         </>

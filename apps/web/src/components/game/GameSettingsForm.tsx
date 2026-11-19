@@ -2,7 +2,6 @@ import {
   CURRENCIES,
   type Currency,
   chipsToCents,
-  DEFAULT_RAKE_RULE,
   type GameSettingsForm as FormValues,
   type GameSettings,
   type InsuranceRule,
@@ -10,8 +9,10 @@ import {
   parseChips,
   parseGameSettings,
   parseInsuranceRule,
+  parseRake,
   parseTableFee,
   parseWage,
+  type RakeIssues,
   type RakeRule,
   type TableFeeIssues,
   type TableFeeRule,
@@ -27,13 +28,14 @@ import {
   initialInsuranceChoice,
 } from "@/components/insurance/InsuranceSettings";
 import { TextMenu } from "@/components/TextMenu";
-import { Toggle } from "@/components/Toggle";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { selectOnFocus } from "@/lib/number-input";
 import {
+  initialRakeChoice,
   initialTableFeeChoice,
   initialWageChoice,
+  RakeSettings,
   TableFeeSettings,
   WageSettings,
 } from "./ChargeSettings";
@@ -207,36 +209,6 @@ function QuickRow<T extends string>({
   );
 }
 
-/**
- * Rake, last after insurance. It has one rule for now, a tenth of the pot, so it is only a switch.
- * Once rake is recorded in the game it stays on, as insurance does.
- */
-function RakeSettings({
-  enabled,
-  locked,
-  onChange,
-}: {
-  enabled: boolean;
-  locked: boolean;
-  onChange: (enabled: boolean) => void;
-}) {
-  return (
-    <section className="rounded-xl border border-line bg-surface px-4 py-2">
-      <Toggle
-        label="抽水"
-        {...(enabled && {
-          detail: locked
-            ? "这局已有抽水记录，不能关闭"
-            : `按底池 ${DEFAULT_RAKE_RULE.percent}% 计算，不足 1 筹码舍去`,
-        })}
-        checked={enabled}
-        disabled={locked}
-        onChange={onChange}
-      />
-    </section>
-  );
-}
-
 interface GameSettingsFormProps {
   initial: FormValues;
   submitLabel: string;
@@ -266,6 +238,9 @@ interface GameSettingsFormProps {
   lastWageLabel?: string | undefined;
   /** This game's rake. Missing means it is off. */
   initialRake?: RakeRule | undefined;
+  /** Offered as "last time", like the insurance rule */
+  lastRake?: RakeRule | undefined;
+  lastRakeLabel?: string | undefined;
   /** Once rake has been recorded in this game, it cannot be turned off */
   rakeLocked?: boolean;
   saving: boolean;
@@ -292,6 +267,8 @@ export function GameSettingsForm({
   lastWage,
   lastWageLabel = "上次配置",
   initialRake,
+  lastRake,
+  lastRakeLabel = "上次配置",
   rakeLocked = false,
   saving,
   saveFailed,
@@ -309,7 +286,8 @@ export function GameSettingsForm({
   const [tableFeeIssues, setTableFeeIssues] = useState<TableFeeIssues>({});
   const [wage, setWage] = useState(() => initialWageChoice(initialWage, lastWage));
   const [wageIssues, setWageIssues] = useState<WageIssues>({});
-  const [rake, setRake] = useState(initialRake !== undefined);
+  const [rake, setRake] = useState(() => initialRakeChoice(initialRake, lastRake));
+  const [rakeIssues, setRakeIssues] = useState<RakeIssues>({});
   const ratioAmount = tryParseMoney(values.ratioAmount);
   const ratioChips = parseChips(values.ratioChips);
   const smallBlind = parseChips(values.smallBlindChips);
@@ -362,10 +340,18 @@ export function GameSettingsForm({
     const rule = showInsurance && insurance.enabled ? parseInsuranceRule(insurance.form) : null;
     const fee = tableFee.enabled ? parseTableFee(tableFee.form) : null;
     const hourly = wage.enabled ? parseWage(wage.form) : null;
+    const raked = rake.enabled ? parseRake(rake.form) : null;
+    setRakeIssues(raked && !raked.ok ? raked.issues : {});
     setRuleIssues(rule && !rule.ok ? rule.issues : {});
     setTableFeeIssues(fee && !fee.ok ? fee.issues : {});
     setWageIssues(hourly && !hourly.ok ? hourly.issues : {});
-    if (!result.ok || (rule && !rule.ok) || (fee && !fee.ok) || (hourly && !hourly.ok)) {
+    if (
+      !result.ok ||
+      (rule && !rule.ok) ||
+      (fee && !fee.ok) ||
+      (hourly && !hourly.ok) ||
+      (raked && !raked.ok)
+    ) {
       return null;
     }
     return {
@@ -373,7 +359,7 @@ export function GameSettingsForm({
       ...(rule && { insurance: rule.rule }),
       ...(fee && { tableFee: fee.rule }),
       ...(hourly && { wage: hourly.rule }),
-      ...(rake && { rake: initialRake ?? DEFAULT_RAKE_RULE }),
+      ...(raked && { rake: raked.rule }),
     };
   }
 
@@ -570,7 +556,15 @@ export function GameSettingsForm({
           lastRuleLabel={lastTableFeeLabel}
           onChange={setTableFee}
         />
-        <RakeSettings enabled={rake} locked={rakeLocked} onChange={setRake} />
+        <RakeSettings
+          value={rake}
+          issues={rakeIssues}
+          currency={values.currency}
+          lastRule={lastRake}
+          lastRuleLabel={lastRakeLabel}
+          locked={rakeLocked}
+          onChange={setRake}
+        />
       </div>
 
       {saveFailed && (

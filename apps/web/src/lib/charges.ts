@@ -4,7 +4,10 @@ import {
   type Currency,
   cents,
   formatOdds,
+  formatRakePercent,
   type Game,
+  type RakeRounding,
+  type RakeRule,
   type Timestamp,
   type WagePart,
   type WageRounding,
@@ -71,6 +74,29 @@ export const UNIT_NAMES: Record<WageUnitMinutes, string> = {
   30: "精确到30分",
   60: "每小时",
 };
+
+export const RAKE_ROUNDING_NAMES: Record<RakeRounding, string> = {
+  nearest: "四舍五入",
+  down: "向下取整",
+  up: "向上取整",
+};
+
+/**
+ * A rake rule in short parts: the percentage, the cap, and the rounding. A rule from before rake
+ * had settings rounds down to whole chips.
+ */
+export function rakeRuleParts(rule: RakeRule): string[] {
+  const { cap, roundTo } = rule;
+  return [
+    `底池 ${formatRakePercent(rule.percent)}%`,
+    cap
+      ? `封顶 ${cap.amount.toLocaleString("zh-CN")}${cap.unit === "chips" ? " 筹码" : "BB"}`
+      : "不封顶",
+    roundTo === undefined
+      ? "不足 1 筹码舍去"
+      : `按 ${roundTo} ${RAKE_ROUNDING_NAMES[rule.rounding ?? "down"]}`,
+  ];
+}
 
 export const ROUNDING_NAMES: Record<WageRounding, string> = {
   nearest: "四舍五入",
@@ -163,7 +189,7 @@ export function gameRuleLines(
     const least = tableFee.minMinutes > 0 ? [`在桌满 ${tableFee.minMinutes} 分钟`] : [];
     lines.push({ label: "台费", rows: [[`${money(tableFee.amount)}/人`, ...least]] });
   }
-  if (rake) lines.push({ label: "抽水", rows: [[`底池 ${rake.percent}%`, "不足 1 筹码舍去"]] });
+  if (rake) lines.push({ label: "抽水", rows: [rakeRuleParts(rake)] });
   return lines;
 }
 

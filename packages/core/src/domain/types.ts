@@ -70,6 +70,7 @@ export type SavedChargeRule = {
 } & (
   | { readonly kind: "table_fee"; readonly rule: TableFeeRule }
   | { readonly kind: "wage"; readonly rule: WageRule }
+  | { readonly kind: "rake"; readonly rule: RakeRule }
 );
 
 /** Odds by outs kept under a name, to fill a rule's table quickly. */
@@ -165,14 +166,33 @@ export const RAKE_PLAYER_ID = "rake";
 /** Reserved: no player can take this name. */
 export const RAKE_PLAYER_NAME = "抽水";
 
-/** How rake is taken from a pot: a whole percentage of it, rounded down to whole chips. */
-export interface RakeRule {
-  /** 1–99. */
-  readonly percent: number;
+/** How a pot's rake is rounded to the smallest chip in play. */
+export type RakeRounding = "nearest" | "down" | "up";
+
+/** The most rake one pot gives up: in chips, or in big blinds of the game. */
+export interface RakeCap {
+  readonly unit: "chips" | "bigBlinds";
+  /** A whole number above 0. */
+  readonly amount: number;
 }
 
-/** The only rake rule for now, until rake has settings of its own. */
-export const DEFAULT_RAKE_RULE: RakeRule = { percent: 10 };
+/** How rake is taken from a pot (ADR 0036). */
+export interface RakeRule {
+  /** Above 0 and below 100, with at most two decimals. */
+  readonly percent: number;
+  /**
+   * The smallest chip in play, which the rake is rounded to. Missing on rules from before rake had
+   * settings, which round down to whole chips and have no cap.
+   */
+  readonly roundTo?: number;
+  readonly rounding?: RakeRounding;
+  readonly cap?: RakeCap;
+  /** Whether insurance quotes take the rake out of the pot first. Kept, not in effect yet. */
+  readonly insuranceAfterRake?: boolean;
+}
+
+/** 5% of the pot, rounded to the nearest chip, with no cap. */
+export const DEFAULT_RAKE_RULE: RakeRule = { percent: 5, roundTo: 1, rounding: "nearest" };
 
 /**
  * The organizer in a game. Playing, they have chips under this ID like the insurance seat, with no
@@ -464,6 +484,8 @@ export interface RakeEvent extends LedgerEventBase {
   readonly playerId: typeof RAKE_PLAYER_ID;
   /** The change in chips, never 0. */
   readonly chips: number;
+  /** The pot it was worked out from, when one was typed. Missing for a rake typed in by hand. */
+  readonly potChips?: number;
 }
 
 /** Ledger event. Append-only, never changed (ADR 0005). */
