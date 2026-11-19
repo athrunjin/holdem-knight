@@ -1398,6 +1398,21 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked at 393 wide in the browser preview, dark mode.
 - Tracking: PR #90, ADR [0036](adr/0036-rake-rules-and-pot-records.md)
 
+### #I-069 Insurance prices rounded to the smallest chip, and info on 超出部分
+
+- Type: feature
+- Date: proposed and decided 2026-11-20
+- Source: discussion
+- Problem: insurance priced in whole chips, so at a table whose smallest chip is 5 the organizer rounded premiums by hand. Rake's 超出部分 had no explanation.
+- Proposal:
+  - Insurance gets 取整 laid out as rake's: a switch, on by default, `最小筹码面值: 1 SB ⇔ chips`, and `超出部分: 四舍五入` with 向下取整 and 向上取整. It sits above the odds table at setup, and under the settings at the top of both insurance tools.
+  - The rounding takes the place of the whole-chip edges of ADR 0032: premium and payout both round by the mode, and the premium is at least one smallest chip.
+  - In the tools, with no small blind, the smallest chip is typed in chips, 1 by default, and its chevron in place of the chip mark offers 1, 5, 10 and 20.
+  - A saved insurance config keeps the mode and the number of small blinds, never the chips. Changing only the chips in the tools keeps the config's name.
+  - Rake's and insurance's 超出部分 each get an info mark before them explaining their rounding.
+- Decision: do. Checked at 393 and 360 wide in the browser preview, dark mode.
+- Tracking: PR #90, ADR [0037](adr/0037-insurance-prices-rounded-to-the-smallest-chip.md)
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

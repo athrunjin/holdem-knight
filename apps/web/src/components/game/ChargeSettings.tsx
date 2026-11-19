@@ -59,7 +59,18 @@ import { cn } from "@/lib/cn";
 import { CURRENCY_INFO } from "@/lib/currency";
 import { datedName } from "@/lib/dated-name";
 import { formatMoneyText, selectOnFocus } from "@/lib/number-input";
-import { chipsText, FigureInput, Join, Mark, pointsInputText, pointsText } from "./SetupFigures";
+import {
+  Caption,
+  chipsText,
+  FIGURE_GRID,
+  FIGURE_TITLE_CELL,
+  FigureInput,
+  figureTitleClass,
+  Join,
+  Mark,
+  pointsInputText,
+  pointsText,
+} from "./SetupFigures";
 
 const LAST_PRESET = "last";
 const DEFAULT_PRESET = "default";
@@ -891,6 +902,15 @@ const RAKE_ROUNDING_OPTIONS = RAKE_ROUNDINGS.map((mode) => ({
   label: RAKE_ROUNDING_NAMES[mode],
 }));
 
+const RAKE_ROUNDING_INFO = [
+  "每手抽水按比例算出后，不满一个最小筹码面值的零头：",
+  "· 四舍五入：满半个面值进一个，不满半个舍去",
+  "· 向下取整：零头舍去",
+  "· 向上取整：有零头就进一个",
+  "封顶也按最小筹码面值向下取整，所以取整后的抽水不会超过封顶。",
+  "关闭取整时，按整个筹码向下取整。",
+].join("\n");
+
 /** The game's blinds and chip ratio as typed, for showing rake amounts in chips and points. */
 export interface RakeStakes {
   readonly smallBlindChips: number | null;
@@ -1014,13 +1034,6 @@ function RakeAmountFigures({
   );
 }
 
-/** A caption in the rake grid, right-aligned so the colons of every row line up. */
-const Caption = ({ children }: { children: ReactNode }) => (
-  <span className="col-start-2 pr-1 text-right text-xs whitespace-nowrap text-muted">
-    {children}
-  </span>
-);
-
 /**
  * Under the cap: the pot whose rake, before rounding, is the cap, in chips whatever the cap shows.
  * Typing a pot sets the cap to that pot's rate, kept in the cap's unit, so the pot comes back as
@@ -1113,12 +1126,6 @@ export function RakeSettings({
   // Issues show as they are made, not only once the game is started
   const live = parseRake(form);
   const shown: RakeIssues = { ...(live.ok ? {} : live.issues), ...issues };
-  /** A title and its switch start a row of the rake grid, and have a line of their own when narrow. */
-  const titleCellClass =
-    "col-start-1 flex min-h-11 items-center gap-1.5 whitespace-nowrap @max-xs:col-span-full";
-  /** A switched-off setting reads faded and struck through. */
-  const titleClass = (on: boolean) => cn("font-medium", !on && "text-muted line-through");
-
   return (
     <section className="@container flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
@@ -1177,9 +1184,9 @@ export function RakeSettings({
             On a narrow card each title takes a line of its own, decided by the card's width,
             not by the numbers, so typing never moves anything between lines.
           */}
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto_auto_auto] items-center">
-            <span className={titleCellClass}>
-              <span className={titleClass(form.capOn)}>封顶</span>
+          <div className={FIGURE_GRID}>
+            <span className={FIGURE_TITLE_CELL}>
+              <span className={figureTitleClass(form.capOn)}>封顶</span>
               <MiniSwitch
                 label="封顶"
                 hideLabel
@@ -1208,8 +1215,8 @@ export function RakeSettings({
               </>
             )}
 
-            <span className={titleCellClass}>
-              <span className={titleClass(form.roundOn)}>取整</span>
+            <span className={FIGURE_TITLE_CELL}>
+              <span className={figureTitleClass(form.roundOn)}>取整</span>
               <MiniSwitch
                 label="取整"
                 hideLabel
@@ -1230,7 +1237,10 @@ export function RakeSettings({
                   currency={currency}
                   onChange={(roundUnit, roundAmount) => setForm({ roundUnit, roundAmount })}
                 />
-                <Caption>超出部分:</Caption>
+                <Caption>
+                  <InfoButton title="超出部分" text={RAKE_ROUNDING_INFO} inline />
+                  超出部分:
+                </Caption>
                 {/* Its chevron sits under the chip mark above */}
                 <span className="col-span-5 col-start-3 justify-self-end">
                   <TextMenu

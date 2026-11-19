@@ -30,6 +30,9 @@ const street = z.enum(["turn", "river"]);
 /** Rules before version 9 had premium caps instead, which are dropped and leave the full pot. */
 const coverLimit = z.union([z.literal("stake"), z.number().int().min(1).max(99)]);
 
+/** At most two decimals, allowing for how they are stored. */
+const twoDecimals = (value: number) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
+
 const insuranceRuleSchema = z.object({
   oddsHundredths: z.array(z.number().int().positive()).min(1),
   tieOuts: z.enum(["exclude", "include"]),
@@ -37,12 +40,16 @@ const insuranceRuleSchema = z.object({
   turnCoverLimit: coverLimit.optional(),
   riverCoverLimit: coverLimit.optional(),
   oddsTableId: id.optional(),
+  /** Added in version 14. The smallest chip is kept in small blinds, never in chips. */
+  rounding: z
+    .object({
+      mode: z.enum(["nearest", "down", "up"]),
+      smallBlinds: z.number().positive().refine(twoDecimals).optional(),
+    })
+    .optional(),
 });
 
 const tableFeeSchema = z.object({ amount: money, minMinutes: z.number().int().min(0) });
-
-/** At most two decimals, allowing for how they are stored. */
-const twoDecimals = (value: number) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
 
 /** Whole for chips, with at most two decimals for blinds. */
 const rakeAmountSchema = z

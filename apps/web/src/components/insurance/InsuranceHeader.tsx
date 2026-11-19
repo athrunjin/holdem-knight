@@ -3,6 +3,7 @@ import { ArrowLeftRight } from "lucide-react";
 import { TextMenu } from "@/components/TextMenu";
 import { cn } from "@/lib/cn";
 import type { InsuranceMode } from "./InsuranceCalculator";
+import type { RoundingStakes } from "./InsuranceRounding";
 import {
   CUSTOM_NAME,
   type InsuranceChoice,
@@ -64,6 +65,8 @@ export function ModeTitle({
 interface InsuranceSetupProps {
   /** The settings in use, and the set they came from */
   value: InsuranceChoice;
+  /** The game's small blind for the smallest chip, or undefined in the tools */
+  stakes: RoundingStakes;
   onChange: (value: InsuranceChoice) => void;
 }
 
@@ -72,7 +75,7 @@ interface InsuranceSetupProps {
  * at the left and the odds table at the right, each a name that opens a menu in the page, then
  * the configuration's settings on show. Whoever owns the settings decides where a change goes.
  */
-export function InsuranceSetup({ value, onChange }: InsuranceSetupProps) {
+export function InsuranceSetup({ value, stakes, onChange }: InsuranceSetupProps) {
   const { form } = value;
   const parsed = parseInsuranceRule(form);
   const configs = useInsuranceConfigs({
@@ -115,6 +118,7 @@ export function InsuranceSetup({ value, onChange }: InsuranceSetupProps) {
         lastRule={undefined}
         lastRuleLabel=""
         locked={false}
+        stakes={stakes}
         onChange={onChange}
       />
     </>

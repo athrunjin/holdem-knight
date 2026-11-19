@@ -107,3 +107,25 @@ export const Mark = ({ children }: { children: ReactNode }) => (
 export const Join = ({ children }: { children: ReactNode }) => (
   <span className="grid w-6 shrink-0 place-items-center font-normal text-muted">{children}</span>
 );
+
+/**
+ * A caption in a grid of setup rows, such as rake's cap and rounding, right-aligned in the grid's
+ * second column so the colons of every row line up. An info icon may come before its text.
+ */
+export const Caption = ({ children }: { children: ReactNode }) => (
+  <span className="col-start-2 flex items-center justify-end pr-1 text-xs whitespace-nowrap text-muted">
+    {children}
+  </span>
+);
+
+/** The columns of such a grid: titles, captions, then a figure, mark, join, figure and mark. */
+export const FIGURE_GRID =
+  "grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto_auto_auto] items-center";
+
+/** A title and its switch start a row of the grid, and have a line of their own when narrow. */
+export const FIGURE_TITLE_CELL =
+  "col-start-1 flex min-h-11 items-center gap-1.5 whitespace-nowrap @max-xs:col-span-full";
+
+/** A switched-off setting's title reads faded and struck through. */
+export const figureTitleClass = (on: boolean) =>
+  cn("font-medium", !on && "text-muted line-through");

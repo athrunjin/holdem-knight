@@ -41,6 +41,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0034](0034-rake-as-a-seat-with-no-buy-in.md) | Rake as a seat with no Buy-in | Accepted |
 | [0035](0035-seats-join-a-split-only-when-asked.md) | Seats join a split only when asked | Accepted |
 | [0036](0036-rake-rules-and-pot-records.md) | Rake rules with a cap and rounding, and the pot kept with each rake | Accepted |
+| [0037](0037-insurance-prices-rounded-to-the-smallest-chip.md) | Insurance prices rounded to the smallest chip | Accepted |
 
 ## Template
 

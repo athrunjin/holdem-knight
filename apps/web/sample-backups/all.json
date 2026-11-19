@@ -83,6 +83,10 @@
       "insurance": {
         "tieOuts": "include",
         "refundPremium": false,
+        "rounding": {
+          "mode": "nearest",
+          "smallBlinds": 1
+        },
         "oddsHundredths": [
           3000,
           1500,

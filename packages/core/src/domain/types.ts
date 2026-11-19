@@ -59,6 +59,23 @@ export interface InsuranceRule {
    * has the same odds, and counts only while that table still has these odds.
    */
   readonly oddsTableId?: string;
+  /**
+   * How premiums and payouts are rounded to the smallest chip in play (ADR 0037). Missing prices
+   * in whole chips as ADR 0032 does: 保本 and 半池 pay at least their target, 满池 at most the pot.
+   */
+  readonly rounding?: InsuranceRounding;
+}
+
+/**
+ * Insurance rounding: to a number of small blinds, so a rule follows the blinds of each game. A
+ * game or calculator resolves it to `chips` before pricing; a rule is never kept with chips.
+ */
+export interface InsuranceRounding {
+  readonly mode: RakeRounding;
+  /** Above 0 with at most two decimals. Missing means 1. */
+  readonly smallBlinds?: number;
+  /** The smallest chip itself, set where the rule is used. Without it, prices are in whole chips. */
+  readonly chips?: number;
 }
 
 /** A table fee or wage setup kept under a name, to fill a new game's settings quickly. */

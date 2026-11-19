@@ -440,6 +440,7 @@ export function GameSettingsForm({
             lastRule={lastInsurance}
             lastRuleLabel={lastInsuranceLabel}
             locked={insuranceLocked}
+            stakes={{ smallBlindChips: smallBlind }}
             onChange={setInsurance}
           />
         )}
