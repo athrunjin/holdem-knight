@@ -17,9 +17,9 @@ When the chips do not balance and the organizer splits the difference by win or 
 
 - `settlementOutcome` takes `SplitSeats`: `insuranceInSplit` and `rakeInSplit`, both off unless set. A seat that is off takes no share. If no player is on the side being split, the seats on it share anyway, so the difference never goes unhandled.
 - The game keeps each choice as `insuranceInSplit` and `rakeInSplit`, set by `chooseInsuranceInSplit` and `chooseRakeInSplit`. Backups carry them from version 13.
-- The organizer's card on the settlement page lists the shares under the charges, in this order: 差额分摊 (their own as a player, not switchable), 差额分摊 - 保险 and 差额分摊 - 抽水. A seat's line shows only while that seat is on the side being split. Off, the line is struck through and shows no figures. On, it shows the chips and the amount with their signs, in the highlight color.
+- The organizer's card on the settlement page lists the shares under the charges, in this order: 差额分摊 (their own as a player, not switchable), 差额分摊 - 保险 and 差额分摊 - 抽水. A seat's line shows only while that seat is on the side being split. Off, the line is struck through and shows no amount. On, it shows the signed amount in the highlight color.
 - The insurance and rake rows show their results before any split. When the insurance result goes to a player, or stays on its own row, that card has the 保险 switch instead.
-- Every 差额分摊 line shows its chips beside the amount, which can be part of a chip: −27.27. A folded card sums its shares into one 分摊 figure.
+- A share shows as an amount only. A folded card sums its shares into one 分摊 figure.
 
 ## Consequences
 

@@ -29,7 +29,9 @@ interface TextMenuProps<T extends string> {
   /** Shown before the choice */
   caption?: string;
   options: readonly TextMenuOption<T>[];
-  value: T;
+  /** Missing while nothing is chosen yet, when the line shows `placeholder` */
+  value: T | undefined;
+  placeholder?: ReactNode;
   /** Also called for the choice already in force */
   onChange: (value: T) => void;
   /** Which edge of the line the list hangs from */
@@ -54,6 +56,7 @@ export function TextMenu<T extends string>({
   caption,
   options,
   value,
+  placeholder,
   onChange,
   align = "left",
   footer,
@@ -75,7 +78,7 @@ export function TextMenu<T extends string>({
         disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`${label}：${current ? readerText(current) : ""}`}
+        aria-label={`${label}：${current ? readerText(current) : typeof placeholder === "string" ? placeholder : ""}`}
         onClick={() => setOpen(!open)}
         className={cn("flex min-h-11 max-w-full items-center gap-1 disabled:opacity-60", className)}
       >
@@ -85,7 +88,7 @@ export function TextMenu<T extends string>({
           </span>
         )}
         <span className="flex min-w-0 items-center truncate">
-          {current?.chosen ?? current?.label}
+          {current ? (current.chosen ?? current.label) : placeholder}
         </span>
         <ChevronDown
           className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")}

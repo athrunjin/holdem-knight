@@ -56,7 +56,7 @@ import {
   useReturnAll,
 } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
-import { formatGameMoney } from "@/lib/currency";
+import { formatGameAmount } from "@/lib/currency";
 import { gameInitialsOf, gameNameOf } from "@/lib/player-name";
 
 export const Route = createFileRoute("/games/$gameId/")({
@@ -382,7 +382,7 @@ function GameLedger({ game }: { game: Game }) {
           seatedCount={seatedCount}
           pendingInsurance={pendingInsurance}
           balanceChips={balanceChips}
-          cash={formatGameMoney(chipsToCents(Math.abs(balanceChips), chipRatio), currency)}
+          cash={formatGameAmount(chipsToCents(Math.abs(balanceChips), chipRatio), currency)}
           organizerName={nameOf(ORGANIZER_PLAYER_ID)}
           initialHandling={game.imbalanceHandling}
           saving={leaveAll.isPending || saveGame.isPending}

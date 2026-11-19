@@ -68,7 +68,7 @@ export function SettleDialog({
         ) : (
           <>
             <X className="size-4 shrink-0" aria-hidden />
-            筹码未配平，{balanceChips > 0 ? "多" : "少"} {chips} 筹码（{cash}）
+            筹码未配平，{balanceChips > 0 ? "多" : "少"} {chips} 筹码 / {cash}
           </>
         )}
       </p>

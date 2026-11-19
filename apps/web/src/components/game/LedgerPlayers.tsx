@@ -449,13 +449,32 @@ export function LedgerPlayers({
    * from the 详细模式 switch.
    */
   function organizerCard() {
+    // An organizer who played and left keeps their row, its name, Buy-in and chips in gray
+    const hostLeft = host !== undefined && !host.seated;
     const card: ResultCard = {
       id: ORGANIZER_PLAYER_ID,
       name: organizerName,
       hands: "—",
       chips: "—",
-      handsCell: host ? hands(host) : join(ORGANIZER_PLAYER_ID, "组织者加入牌局"),
-      chipsCell: host ? stack(host) : dash("text-center"),
+      dimmed: hostLeft,
+      handsCell: hostLeft ? (
+        <span className="text-center text-muted">
+          {handChips === undefined ? "—" : host.boughtChips / handChips}
+        </span>
+      ) : host ? (
+        hands(host)
+      ) : (
+        join(ORGANIZER_PLAYER_ID, "组织者加入牌局")
+      ),
+      chipsCell: hostLeft ? (
+        <span className={cn(figureClass, "text-center text-muted")}>
+          {breakable(host.cashedOutChips.toLocaleString("zh-CN"))}
+        </span>
+      ) : host ? (
+        stack(host)
+      ) : (
+        dash("text-center")
+      ),
       ...(host && {
         netChips: host.netChips,
         base: chipsToCents(host.netChips, ratio),
@@ -514,7 +533,7 @@ export function LedgerPlayers({
     <>
       {showOrganizer && (
         <div className="mt-3 flex flex-col gap-2">
-          <ColumnTitles first="组织者" />
+          <ColumnTitles first="组织者" firstNote={host && !host.seated ? "(已下桌)" : undefined} />
           {organizerCard()}
         </div>
       )}

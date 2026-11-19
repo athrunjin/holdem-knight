@@ -322,20 +322,17 @@ function SettlementResult({
   }
 
   const splitting = game.imbalanceHandling === "split" && difference !== 0;
-  /** A share of the difference in chips, which can be part of a chip. */
-  const shareChips = (share: number) => (share * game.chipRatio.chips) / game.chipRatio.amount;
-  /** Someone's share of a split, with its chips beside the amount. */
+  /** Someone's share of a split, as an amount. */
   const splitLine = (key: string, label: string, share: number): ResultLine => ({
     key,
     label,
     amount: cents(share),
-    chips: shareChips(share),
     tone: "adjustment",
     group: "分摊",
   });
   /**
    * A seat's share of a split, which the organizer switches on. Off, it is struck through with no
-   * figures, since the seat takes no share. Only a seat on the side being split has the line. A seat
+   * amount, since the seat takes no share. Only a seat on the side being split has the line. A seat
    * that has to share, with no player on its side, shows its share and cannot be switched off.
    */
   function seatSplitLine(

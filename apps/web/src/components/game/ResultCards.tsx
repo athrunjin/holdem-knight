@@ -32,8 +32,6 @@ export interface ResultLine {
   readonly label: string;
   /** Missing shows a dash, for a charge that does not apply, or nothing on a line switched off. */
   readonly amount?: Cents;
-  /** Chips beside the amount, in the win or loss column: a share of a difference. */
-  readonly chips?: number;
   /** Charges are muted, other adjustments use the highlight color. */
   readonly tone: "charge" | "adjustment";
   /** Lines in the same group add up to one item when the card is collapsed. */
@@ -61,6 +59,8 @@ export interface ResultCard {
   readonly initials?: string;
   readonly hands: string;
   readonly chips: string;
+  /** The name in gray, for an organizer who has left the table */
+  readonly dimmed?: boolean;
   /** Missing for an organizer who is not playing, which shows a dash. */
   readonly netChips?: number;
   /** The result from the chips, before the lines. Missing shows a dash. */
@@ -163,17 +163,23 @@ function SortTitle({
  */
 export function ColumnTitles({
   first,
+  firstNote,
   sort,
   onSort,
 }: {
   first: string;
+  /** Small text after the first title, such as (已下桌) */
+  firstNote?: string | undefined;
   sort?: CardSort;
   onSort?: (column: SortKey) => void;
 }) {
   if (!sort || !onSort) {
     return (
       <div className={cn(columnsClass, "px-2 text-xs text-muted")}>
-        <span>{first}</span>
+        <span className="leading-tight">
+          {first}
+          {firstNote && <span className="text-[0.625rem]"> {firstNote}</span>}
+        </span>
         <span className="text-center">Buy-in</span>
         <span className="text-center">筹码</span>
         <span className="text-right">水上/下</span>
@@ -312,7 +318,7 @@ export function RakeRow(props: { chips: number; amount: Cents; currency: Currenc
 
 /** One line under a card's row, with a box to waive it where it is a charge the organizer can drop. */
 export function Line({ line, currency }: { line: ResultLine; currency: Currency }) {
-  const { label, amount, chips, tone, waiver } = line;
+  const { label, amount, tone, waiver } = line;
   if (line.note) {
     return <p className="flex min-h-6 items-center pl-6 text-xs text-muted">{label}</p>;
   }
@@ -329,22 +335,12 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
         ? ""
         : "—"
       : formatGameAmount(amount, currency, amount === 0 ? "auto" : "exceptZero");
-  const figures = (
-    <>
-      {chips !== undefined && (
-        <span className={cn("text-right whitespace-nowrap tabular-nums", text)}>
-          {formatSignedChips(chips)}
-        </span>
-      )}
-      <span className={cn("text-right whitespace-nowrap", text)}>{value}</span>
-    </>
-  );
-  const labelSpan = cn(labelClass, chips !== undefined && "col-span-3");
+  const figures = <span className={cn("text-right whitespace-nowrap", text)}>{value}</span>;
 
   if (!waiver) {
     return (
       <div className={cn(columnsClass, "min-h-6 text-xs")}>
-        <span className={labelSpan}>
+        <span className={labelClass}>
           <span className="size-4 shrink-0" aria-hidden />
           <span className={cn("truncate", text)}>{label}</span>
         </span>
@@ -357,7 +353,7 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
     <label
       className={cn(columnsClass, "min-h-6 cursor-pointer text-xs has-disabled:cursor-default")}
     >
-      <span className={labelSpan}>
+      <span className={labelClass}>
         <input
           type="checkbox"
           checked={!off}
@@ -458,7 +454,7 @@ export function PersonCard({
           aria-hidden
         />
       )}
-      <span className={nameClass}>{name}</span>
+      <span className={cn(nameClass, card.dimmed && "text-muted")}>{name}</span>
     </>
   );
   const net = netChips === undefined ? "—" : breakable(formatSignedChips(netChips));
