@@ -1345,6 +1345,27 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 393px. In a game, Outs数速算: the pen and its notice, the button waiting for both offers, the pot closed after a purchase, the question with both kinds, and a hit settled in the records with the seat's chips. From the tools page, 选牌计算 with the reported hand and chips: the arcs as drawn, and a turn dealt in the picker with the title shut and the other cards closed. Not yet tried on a phone, where the sliver showed.
 - Tracking: PR #87
 
+### #I-067 Quick picks and lined-up figures in the basic setup rows
+
+- Type: feature
+- Date: proposed and decided 2026-11-19
+- Source: discussion
+- Problem: The ratio, blinds and Buy-in rows could only be changed through a dialog, though most games use a few common values, and their numbers sat at different places from row to row.
+- Proposal:
+  - The 积分 list names the two as 袋鼠分 and 熊猫分.
+  - 筹码 is renamed 比例 and reads `chips [chip mark] = points [points mark]`.
+  - 比例, 盲注 and Buy-in each end in a chevron listing common values, which fill the row at once: 1:1, 5:1, 10:1, 20:1; 1/1, 1/2, 5/5, 5/10, 10/10, 10/20; 50BB, 100BB, 200BB. A tap on the figures still opens the dialog, for any other value.
+  - 盲注 reads `small SB / big BB`, with each blind in points in small type above it.
+  - Buy-in reads `big blinds BB ⇔ chips [chip mark]`. A mark after its title switches the right-hand figure between chips, the default, and points.
+  - Options below run 保险, 工资, 台费, 抽水.
+- Settled details:
+  - Every figure is centered in a slot that holds 3 digits on the left and 4 on the right, so figures and marks line up across rows; a longer number widens only its own row. The last mark of each row sits under the 积分 mark.
+  - Points show no decimals when they have none: 1 for 1.00, 2.50 for 2.5.
+  - The Buy-in switch only changes what is shown and is not saved.
+  - The old line under Buy-in, 1 手 = … 筹码 = …, is gone, as the row now says it.
+- Decision: do. Checked at 360 and 393 wide in the browser preview, dark mode.
+- Tracking: PR #90
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

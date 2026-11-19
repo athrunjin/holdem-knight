@@ -104,7 +104,7 @@ export function ChipRatioDialog(props: SettingDialogProps) {
 
   return (
     <FormDialog
-      title="筹码"
+      title="比例"
       submitLabel="确定"
       saving={false}
       saveFailed={false}

@@ -1,10 +1,13 @@
 import {
   CURRENCIES,
+  type Currency,
+  chipsToCents,
   DEFAULT_RAKE_RULE,
   type GameSettingsForm as FormValues,
   type GameSettings,
   type InsuranceRule,
   type InsuranceRuleIssues,
+  parseChips,
   parseGameSettings,
   parseInsuranceRule,
   parseTableFee,
@@ -12,12 +15,12 @@ import {
   type RakeRule,
   type TableFeeIssues,
   type TableFeeRule,
-  toDecimalString,
   tryParseMoney,
   type WageIssues,
   type WageRule,
 } from "@holdem-knight/core";
 import { type FormEvent, type ReactNode, useState } from "react";
+import { ChipStack } from "@/components/ChipStack";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import {
   InsuranceSettings,
@@ -25,35 +28,141 @@ import {
 } from "@/components/insurance/InsuranceSettings";
 import { TextMenu } from "@/components/TextMenu";
 import { Toggle } from "@/components/Toggle";
-import { CURRENCY_INFO } from "@/lib/currency";
+import { cn } from "@/lib/cn";
+import { formatGameMoney } from "@/lib/currency";
 import {
   initialTableFeeChoice,
   initialWageChoice,
   TableFeeSettings,
   WageSettings,
 } from "./ChargeSettings";
-import {
-  BlindsDialog,
-  BuyInDialog,
-  ChipRatioDialog,
-  previewBlindCash,
-  previewHand,
-} from "./GameSettingDialogs";
+import { BlindsDialog, BuyInDialog, ChipRatioDialog } from "./GameSettingDialogs";
 
 type SettingDialog = "ratio" | "blinds" | "buyIn";
 
-/** A currency is listed as its mark and name, and shown as its mark alone once chosen. */
+/** What each currency is called as game points, after its mark. */
+const POINTS_NAMES: Record<Currency, string> = { AUD: "袋鼠分", CNY: "熊猫分" };
+
+/** A currency is listed as its mark and points name, and shown as its mark alone once chosen. */
 const CURRENCY_OPTIONS = CURRENCIES.map((currency) => ({
   value: currency,
   label: (
     <>
       <CurrencyIcon currency={currency} className="size-5" />
-      {CURRENCY_INFO[currency].label}
+      {POINTS_NAMES[currency]}
     </>
   ),
   chosen: <CurrencyIcon currency={currency} className="size-5" />,
-  name: CURRENCY_INFO[currency].label,
+  name: POINTS_NAMES[currency],
 }));
+
+/** Common ratios, blinds and buy-ins, picked from the chevron at the end of their rows. */
+const RATIO_PICKS = [1, 5, 10, 20].map((chips) => ({ chips, label: `${chips}:1` }));
+const BLIND_PICKS = [
+  [1, 1],
+  [1, 2],
+  [5, 5],
+  [5, 10],
+  [10, 10],
+  [10, 20],
+].map(([small, big]) => ({ small, big, label: `${small}/${big}` }));
+const BUY_IN_PICKS = [50, 100, 200].map((bigBlinds) => ({ bigBlinds, label: `${bigBlinds}BB` }));
+
+/**
+ * A number centered in a slot that holds 3 digits, or 4 when `wide`, so the rows' numbers and
+ * marks line up. A longer number widens its own row. `above` is small text over it, such as the
+ * blind in points.
+ */
+const Figure = ({
+  children,
+  wide = false,
+  above,
+}: {
+  children: ReactNode;
+  wide?: boolean;
+  above?: string | null | undefined;
+}) => (
+  <span
+    className={cn(
+      "flex shrink-0 flex-col items-center tabular-nums",
+      wide ? "min-w-[4ch]" : "min-w-[3ch]",
+    )}
+  >
+    {above && <span className="text-[0.625rem] leading-3 font-normal text-muted">{above}</span>}
+    <span>{children}</span>
+  </span>
+);
+
+/** Points without cents when there are none: 1 for 1.00, 2.50 for 2.5. */
+function pointsText(value: number) {
+  const whole = Math.trunc(value / 100).toLocaleString("zh-CN");
+  const fraction = Math.abs(value % 100);
+  return fraction === 0 ? whole : `${whole}.${String(fraction).padStart(2, "0")}`;
+}
+
+/** The mark after a number: an icon, or SB, BB in small type. */
+const Mark = ({ children }: { children: ReactNode }) => (
+  <span className="ml-1 grid w-5 shrink-0 place-items-center text-xs font-normal text-muted">
+    {children}
+  </span>
+);
+
+/** What joins two figures, such as = or /. */
+const Join = ({ children }: { children: ReactNode }) => (
+  <span className="grid w-6 shrink-0 place-items-center font-normal text-muted">{children}</span>
+);
+
+/**
+ * A row of two figures with their marks. The row opens a dialog to type them; the chevron at its
+ * end lists common values, which fill it at once. Its last mark sits where the 积分 row's mark does.
+ */
+function QuickRow<T extends string>({
+  label,
+  accessory,
+  disabled = false,
+  onOpen,
+  picks,
+  value,
+  onPick,
+  children,
+}: {
+  label: string;
+  /** Sits after the label, outside the part that opens the dialog */
+  accessory?: ReactNode;
+  disabled?: boolean;
+  onOpen: () => void;
+  picks: readonly { readonly value: T; readonly label: string }[];
+  /** The pick the row holds now, if any */
+  value: T | undefined;
+  onPick: (value: T) => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex min-h-14 items-center px-4 py-2">
+      <span className={cn("shrink-0 font-medium", disabled && "opacity-60")}>{label}</span>
+      {accessory}
+      <button
+        type="button"
+        aria-label={`${label}：手动输入`}
+        disabled={disabled}
+        onClick={onOpen}
+        className="flex min-h-11 min-w-0 flex-1 items-center justify-end pl-3 font-medium disabled:opacity-60"
+      >
+        {children}
+      </button>
+      {/* Wider than its chevron for a thumb, reaching into the row's padding */}
+      <TextMenu
+        label={`${label}快速选择`}
+        options={picks.map((pick) => ({ ...pick, chosen: <></> }))}
+        value={value}
+        onChange={onPick}
+        align="right"
+        disabled={disabled}
+        className="-mr-4 pr-4 -ml-3 pl-3"
+      />
+    </div>
+  );
+}
 
 /**
  * Rake, last after insurance. It has one rule for now, a tenth of the pot, so it is only a switch.
@@ -82,36 +191,6 @@ function RakeSettings({
         onChange={onChange}
       />
     </section>
-  );
-}
-
-function SettingRow({
-  label,
-  detail,
-  disabled = false,
-  onClick,
-  children,
-}: {
-  label: string;
-  /** Small text under the value */
-  detail?: string | null | undefined;
-  disabled?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="flex min-h-14 w-full items-center justify-between gap-3 px-4 py-2 text-left disabled:opacity-60"
-    >
-      <span className="font-medium">{label}</span>
-      <span className="min-w-0 text-right">
-        <span className="block font-medium">{children}</span>
-        {detail && <span className="block text-sm text-muted">{detail}</span>}
-      </span>
-    </button>
   );
 }
 
@@ -189,10 +268,27 @@ export function GameSettingsForm({
   const [wage, setWage] = useState(() => initialWageChoice(initialWage, lastWage));
   const [wageIssues, setWageIssues] = useState<WageIssues>({});
   const [rake, setRake] = useState(initialRake !== undefined);
-  const currencyIcon = (
-    <CurrencyIcon currency={values.currency} className="size-5 align-[-0.2em]" />
-  );
   const ratioAmount = tryParseMoney(values.ratioAmount);
+  const ratioChips = parseChips(values.ratioChips);
+  const smallBlind = parseChips(values.smallBlindChips);
+  const bigBlind = parseChips(values.bigBlindChips);
+  const buyIn = parseChips(values.buyInBigBlinds);
+  const handChips = bigBlind !== null && buyIn !== null ? bigBlind * buyIn : null;
+  const chips = (value: number | null, text: string) =>
+    value === null ? text : value.toLocaleString("zh-CN");
+  // Chips in points, once the ratio is complete
+  const inPoints = (value: number | null) =>
+    value !== null && ratioChips && ratioAmount
+      ? chipsToCents(value, { chips: ratioChips, amount: ratioAmount })
+      : null;
+  const blindPoints = (value: number | null) => {
+    const cents = inPoints(value);
+    return cents === null ? null : formatGameMoney(cents, values.currency);
+  };
+  const handPoints = inPoints(handChips);
+  const [buyInInPoints, setBuyInInPoints] = useState(false);
+  const chipMark = <ChipStack ground="var(--surface)" className="size-5" />;
+  const pointsMark = <CurrencyIcon currency={values.currency} className="size-5" />;
 
   function validate() {
     const result = parseGameSettings(values);
@@ -246,37 +342,109 @@ export function GameSettingsForm({
               className="min-h-14 w-full px-4 py-2 font-medium"
               captionClassName="mr-auto font-medium text-text"
             />
-            <SettingRow label="筹码" disabled={ratioLocked} onClick={() => setDialog("ratio")}>
-              {values.ratioChips} <small className="font-normal text-muted">筹码</small> :{" "}
-              {ratioAmount === null ? values.ratioAmount : toDecimalString(ratioAmount)}{" "}
-              <span className="text-muted">{currencyIcon}</span>
-            </SettingRow>
-            <SettingRow
-              label="盲注"
-              detail={previewBlindCash(values)}
-              onClick={() => setDialog("blinds")}
+            <QuickRow
+              label="比例"
+              disabled={ratioLocked}
+              onOpen={() => setDialog("ratio")}
+              picks={RATIO_PICKS.map(({ chips: n, label }) => ({ value: String(n), label }))}
+              value={ratioAmount === 100 && ratioChips !== null ? String(ratioChips) : undefined}
+              onPick={(n) => setValues({ ...values, ratioChips: n, ratioAmount: "1.00" })}
             >
-              {values.smallBlindChips}/{values.bigBlindChips}
-            </SettingRow>
+              <Figure>{chips(ratioChips, values.ratioChips)}</Figure>
+              <Mark>{chipMark}</Mark>
+              <Join>=</Join>
+              <Figure wide>
+                {ratioAmount === null ? values.ratioAmount : pointsText(ratioAmount)}
+              </Figure>
+              <Mark>{pointsMark}</Mark>
+            </QuickRow>
+            <QuickRow
+              label="盲注"
+              onOpen={() => setDialog("blinds")}
+              picks={BLIND_PICKS.map(({ label }) => ({ value: label, label }))}
+              value={
+                smallBlind !== null && bigBlind !== null ? `${smallBlind}/${bigBlind}` : undefined
+              }
+              onPick={(pick) => {
+                const [small = "", big = ""] = pick.split("/");
+                setValues({ ...values, smallBlindChips: small, bigBlindChips: big });
+              }}
+            >
+              <Figure above={blindPoints(smallBlind)}>
+                {chips(smallBlind, values.smallBlindChips)}
+              </Figure>
+              <Mark>SB</Mark>
+              <Join>/</Join>
+              <Figure wide above={blindPoints(bigBlind)}>
+                {chips(bigBlind, values.bigBlindChips)}
+              </Figure>
+              <Mark>BB</Mark>
+            </QuickRow>
             {showBuyIn && (
-              <SettingRow
+              <QuickRow
                 label="Buy-in"
-                detail={ratioLocked ? null : previewHand(values)}
+                accessory={
+                  <button
+                    type="button"
+                    aria-label={`右侧显示${buyInInPoints ? "积分" : "筹码"}，点击切换`}
+                    onClick={() => setBuyInInPoints(!buyInInPoints)}
+                    className="-my-1 ml-1 grid size-9 shrink-0 place-items-center text-muted"
+                  >
+                    {buyInInPoints ? (
+                      <CurrencyIcon currency={values.currency} className="size-4.5" />
+                    ) : (
+                      <ChipStack ground="var(--surface)" className="size-4.5" />
+                    )}
+                  </button>
+                }
                 disabled={ratioLocked}
-                onClick={() => setDialog("buyIn")}
+                onOpen={() => setDialog("buyIn")}
+                picks={BUY_IN_PICKS.map(({ bigBlinds, label }) => ({
+                  value: String(bigBlinds),
+                  label,
+                }))}
+                value={buyIn === null ? undefined : String(buyIn)}
+                onPick={(bigBlinds) => setValues({ ...values, buyInBigBlinds: bigBlinds })}
               >
-                {values.buyInBigBlinds}BB
-              </SettingRow>
+                <Figure>{chips(buyIn, values.buyInBigBlinds)}</Figure>
+                <Mark>BB</Mark>
+                <Join>
+                  <span aria-hidden className="text-xl leading-none">
+                    ⇔
+                  </span>
+                  <span className="sr-only">即</span>
+                </Join>
+                <Figure wide>
+                  {buyInInPoints
+                    ? handPoints === null
+                      ? "–"
+                      : pointsText(handPoints)
+                    : handChips === null
+                      ? "–"
+                      : handChips.toLocaleString("zh-CN")}
+                </Figure>
+                <Mark>{buyInInPoints ? pointsMark : chipMark}</Mark>
+              </QuickRow>
             )}
           </div>
           {ratioLocked && (
             <p className="mt-2 text-sm text-muted">
-              已有账本记录，积分、筹码和 Buy-in 不能再修改。
+              已有账本记录，积分、比例和 Buy-in 不能再修改。
             </p>
           )}
         </div>
 
         <div className="flex flex-col gap-3">
+          {showInsurance && (
+            <InsuranceSettings
+              value={insurance}
+              issues={ruleIssues}
+              lastRule={lastInsurance}
+              lastRuleLabel={lastInsuranceLabel}
+              locked={insuranceLocked}
+              onChange={setInsurance}
+            />
+          )}
           <WageSettings
             value={wage}
             issues={wageIssues}
@@ -293,16 +461,6 @@ export function GameSettingsForm({
             lastRuleLabel={lastTableFeeLabel}
             onChange={setTableFee}
           />
-          {showInsurance && (
-            <InsuranceSettings
-              value={insurance}
-              issues={ruleIssues}
-              lastRule={lastInsurance}
-              lastRuleLabel={lastInsuranceLabel}
-              locked={insuranceLocked}
-              onChange={setInsurance}
-            />
-          )}
           <RakeSettings enabled={rake} locked={rakeLocked} onChange={setRake} />
         </div>
 
