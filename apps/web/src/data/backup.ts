@@ -339,6 +339,21 @@ const collections = {
   chargeRules: z.array(chargeRuleSchema).default([]),
 };
 
+/**
+ * What one record of each kind may hold. A backup is read with these, and so is every record that
+ * goes to or comes from an account's storage (ADR 0044).
+ */
+export const recordSchemas = {
+  games: gameSchema,
+  players: playerSchema,
+  ledgerEvents: eventSchema,
+  insuranceRules: savedRuleSchema,
+  insuranceHands: insuranceHandSchema,
+  gameConfigs: gameConfigSchema,
+  oddsTables: oddsTableSchema,
+  chargeRules: chargeRuleSchema,
+};
+
 const backupSchema = z.object({ games: z.array(gameSchema), ...collections });
 const legacyBackupSchema = z.object({ games: z.array(legacyGameSchema), ...collections });
 

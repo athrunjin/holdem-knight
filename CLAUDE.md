@@ -41,6 +41,7 @@ pnpm test:local       # Tests through its sign-in and API; pnpm db:reset empties
 - Timers record timestamps and compute differences. They never rely on a running interval (ADR 0001).
 - The ledger is append-only events. To undo, append a reversal event; never change old records (ADR 0005).
 - Storage goes through the repository interface: guest mode is local Dexie, account mode is Supabase (ADR 0005).
+  Both pass one set of tests, `repository-contract.ts`; behavior a repository must have goes there (ADR 0045).
 - Calculations in `core` must have Vitest unit tests. Anything that conserves money also gets a fast-check property test.
 - TypeScript strict mode, no `any`. Touch targets are at least 44px.
 - Commit messages use Conventional Commits in English, for example `feat(core): compute minimal settlement transfers`.

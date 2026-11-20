@@ -213,6 +213,57 @@ describe("the ledger", () => {
   });
 });
 
+describe("restoring a backup", () => {
+  const books = (space: string) =>
+    JSON.stringify({
+      games: [JSON.parse(game(space, "r1").data), JSON.parse(game(space, "g1").data)],
+      ledgerEvents: [JSON.parse(event(space, "r-e1", "r1").data)],
+      oddsTables: [{ id: "r-t1", organizerId: space, name: "赔率表", createdAt: 1 }],
+    });
+  const restore = (space: string, payload: string) =>
+    db.query<{ added: number; skipped: number }>(
+      "select * from public.restore_books($1, $2::jsonb)",
+      [space, payload],
+    );
+
+  it("adds what the space lacks, leaves what it has, and says how many of each", async () => {
+    await asAccount(db, host, async () => {
+      const first = await restore(host.space, books(host.space));
+      expect(first.rows[0]).toEqual({ added: 3, skipped: 1 });
+      const again = await restore(host.space, books(host.space));
+      expect(again.rows[0]).toEqual({ added: 0, skipped: 4 });
+      const kept = await db.query<{ status: string }>(
+        "select status from public.games where id = 'g1'",
+      );
+      // The game that was there is as it was, not as the backup has it
+      expect(kept.rows[0]?.status).toBe("settled");
+    });
+  });
+
+  it("cannot be used to write into another account's space", async () => {
+    await asAccount(db, other, async () => {
+      await expect(restore(host.space, books(host.space))).rejects.toThrow(/row-level security/);
+    });
+  });
+
+  it("writes nothing when one record is not the space's own", async () => {
+    const mixed = JSON.stringify({
+      games: [JSON.parse(game(host.space, "r9").data), JSON.parse(game(other.space, "x").data)],
+    });
+    await asAccount(db, host, async () => {
+      await expect(restore(host.space, mixed)).rejects.toThrow(/check constraint/);
+      const made = await db.query("select 1 from public.games where id = 'r9'");
+      expect(made.rows).toEqual([]);
+    });
+  });
+
+  it("is not open to a visitor", async () => {
+    await asAccount(db, null, async () => {
+      await expect(restore(host.space, books(host.space))).rejects.toThrow(/permission denied/);
+    });
+  });
+});
+
 describe("a record", () => {
   it("has to carry the ID and the space it is kept under", async () => {
     await asAccount(db, host, async () => {
