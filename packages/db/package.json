@@ -16,7 +16,8 @@
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
-    "db:status": "supabase status"
+    "db:status": "supabase status",
+    "db:env": "node scripts/write-env.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.17",

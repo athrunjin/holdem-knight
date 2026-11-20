@@ -12,6 +12,8 @@ interface Stack {
   readonly publicKey: string;
   /** For the tests' own setup only: it passes row-level security */
   readonly secretKey: string;
+  /** The mail catcher, which keeps every email the stack sends */
+  readonly mailUrl: string;
 }
 
 const PACKAGE = join(import.meta.dirname, "../..");
@@ -36,6 +38,7 @@ export function localStack(): Stack {
     url: pick(status, ["API_URL"]),
     publicKey: pick(status, ["PUBLISHABLE_KEY", "ANON_KEY"]),
     secretKey: pick(status, ["SECRET_KEY", "SERVICE_ROLE_KEY"]),
+    mailUrl: pick(status, ["MAILPIT_URL", "INBUCKET_URL"]),
   };
 }
 

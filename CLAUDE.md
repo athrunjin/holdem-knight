@@ -20,6 +20,7 @@ pnpm typecheck        # Type check
 pnpm lint             # Biome check; pnpm format fixes issues
 pnpm check            # Full pre-commit check: lint + typecheck + test + build
 pnpm db:start         # Start the local Supabase and apply the migrations (needs Docker)
+pnpm db:env           # Point the dev server at it; without it the app has no sign-in and runs as a guest only
 pnpm test:local       # Tests through its sign-in and API; pnpm db:reset empties it, pnpm db:stop stops it
 ```
 

@@ -12,7 +12,13 @@ interface TextFieldProps {
   prefix?: string;
   suffix?: string;
   placeholder?: string;
-  inputMode: "numeric" | "decimal" | "text";
+  inputMode: "numeric" | "decimal" | "text" | "email";
+  /** What the field holds, for the keyboard and for hiding a password. Text unless said otherwise. */
+  type?: "text" | "email" | "password";
+  /** What a browser or password manager may fill in. Nothing unless said. */
+  autoComplete?: string;
+  /** Sits at the end of the field, such as a button that shows a password */
+  trailing?: ReactNode;
   inputRef?: Ref<HTMLInputElement>;
   /** A tap selects what the field holds, so typing replaces it */
   selectOnFocus?: boolean;
@@ -31,6 +37,9 @@ export function TextField({
   suffix,
   placeholder,
   inputMode,
+  type = "text",
+  autoComplete = "off",
+  trailing,
   inputRef,
   selectOnFocus = false,
   onChange,
@@ -62,9 +71,11 @@ export function TextField({
         <input
           ref={inputRef}
           id={id}
-          type="text"
+          type={type}
           inputMode={inputMode}
-          autoComplete="off"
+          autoComplete={autoComplete}
+          autoCapitalize={type === "text" ? undefined : "none"}
+          spellCheck={type === "text" ? undefined : false}
           value={value}
           placeholder={placeholder}
           aria-invalid={issue ? true : undefined}
@@ -78,6 +89,7 @@ export function TextField({
           className="min-h-11 w-full min-w-0 bg-transparent text-lg outline-none"
         />
         {suffix && <span className="shrink-0 text-sm text-muted">{suffix}</span>}
+        {trailing}
       </div>
       {issue && (
         <p id={issueId} className="mt-1 text-sm text-highlight">

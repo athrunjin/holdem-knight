@@ -14,11 +14,34 @@ language sql volatile
 set search_path = ''
 as $$ select upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)) $$;
 
+/**
+ * Whether a name may be shown for an account: 1 to 30 characters with single spaces inside and
+ * none at the ends; none of the marks code and markup are written with, all but `-`, `.` and `_`;
+ * nothing that shows nothing or steers the text around it; and not what a seat or the host is
+ * called in a game. The app checks the same in `parseDisplayName`; this holds whoever asks.
+ */
+create function public.valid_display_name(name text) returns boolean
+language sql immutable
+set search_path = ''
+as $$
+  select char_length(name) between 1 and 30
+    and name = btrim(name)
+    and name !~ '  '
+    and name !~ '[\u0021-\u002c\u002f\u003a-\u0040\u005b-\u005e\u0060\u007b-\u007e]'
+    and name !~ '[\u0001-\u001f\u007f-\u00a0\u00ad\u115f\u1160\u1680\u17b4\u17b5\u180b-\u180f\u2000-\u200f\u2028-\u202f\u205f-\u206f\u2800\u3000\u3164\ue000-\uf8ff\ufeff\uffa0\ufff9-\ufffb]'
+    and name !~ '[\U000E0000-\U000E0FFF\U000F0000-\U0010FFFF]'
+    and lower(replace(name, ' ', '')) not in ('保险', '抽水', '组织者')
+$$;
+
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   -- Need not be unique: an account is known by its ID, and shown with its code
-  display_name text not null check (char_length(btrim(display_name)) between 1 and 30),
+  display_name text not null check (public.valid_display_name(display_name)),
   code text not null unique default public.new_code(),
+  -- When the account said it was 18 and agreed to the terms, and which text of them it saw
+  -- (ADR 0041). Missing on an account that was not made through the app's own sign-up.
+  agreed_at timestamptz,
+  agreed_version text check (char_length(agreed_version) between 1 and 20),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -67,21 +90,31 @@ as $$
   )
 $$;
 
-/** A new account gets its profile, its space and its place in it as owner, all or none. */
+/**
+ * A new account gets its profile, its space and its place in it as owner, all or none. It shows
+ * the name it gave if that is a name an account may show; otherwise what its address starts with,
+ * as far as that makes one; otherwise 玩家. A name that is refused never stops a sign-up.
+ */
 create function public.handle_new_user() returns trigger
 language plpgsql security definer
 set search_path = ''
 as $$
 declare
-  shown text := coalesce(
-    nullif(btrim(new.raw_user_meta_data ->> 'display_name'), ''),
-    nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
-    '玩家'
+  given text := new.raw_user_meta_data ->> 'display_name';
+  address text := left(
+    regexp_replace(split_part(coalesce(new.email, ''), '@', 1), '[^A-Za-z0-9_.-]', '', 'g'), 30
   );
+  shown text;
+  version text := nullif(left(btrim(new.raw_user_meta_data ->> 'terms_version'), 20), '');
   space uuid;
 begin
-  shown := left(shown, 30);
-  insert into public.profiles (id, display_name) values (new.id, shown);
+  shown := case
+    when public.valid_display_name(given) then given
+    when public.valid_display_name(address) then address
+    else '玩家'
+  end;
+  insert into public.profiles (id, display_name, agreed_at, agreed_version)
+  values (new.id, shown, case when version is not null then now() end, version);
   insert into public.organizers (owner_id, name) values (new.id, shown) returning id into space;
   insert into public.organizer_members (organizer_id, user_id, role) values (space, new.id, 'owner');
   return new;
