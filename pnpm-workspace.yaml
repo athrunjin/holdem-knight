@@ -1,3 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# The Supabase CLI fetches its own binary when it is installed
+onlyBuiltDependencies:
+  - supabase

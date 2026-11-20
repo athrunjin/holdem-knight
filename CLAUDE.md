@@ -19,12 +19,17 @@ pnpm test             # All unit tests
 pnpm typecheck        # Type check
 pnpm lint             # Biome check; pnpm format fixes issues
 pnpm check            # Full pre-commit check: lint + typecheck + test + build
+pnpm db:start         # Start the local Supabase and apply the migrations (needs Docker)
+pnpm test:local       # Tests through its sign-in and API; pnpm db:reset empties it, pnpm db:stop stops it
 ```
 
 ## Structure and layers
 
 - `packages/core`: pure business logic (money, settlement, insurance, rake, timing). Pure functions and types only,
   with no network, database or DOM access and no dependency on other packages. All money rules live here.
+- `packages/db`: the Supabase database. SQL migrations in `supabase/migrations`, the local Supabase's configuration,
+  and tests of its row-level security: all of them in an in-process Postgres with no Docker, the main ones again against
+  the local Supabase (ADR 0044). A migration that has been applied to a project is never edited.
 - `apps/web`: React 19 + Vite + TanStack Router (file routes in `src/routes/`;
   `routeTree.gen.ts` is generated and must be committed) + Tailwind v4. Display and interaction only.
 - Dependencies point from `apps` to `packages`, never the other way.

@@ -1,0 +1,25 @@
+{
+  "name": "@holdem-knight/db",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Supabase database: SQL migrations, and tests of its row-level security.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:local": "vitest run --config vitest.local.config.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:status": "supabase status"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.17",
+    "@supabase/supabase-js": "^2.119.2",
+    "@types/node": "^24.19.2",
+    "supabase": "^3.2.0",
+    "vitest": "5.0.5"
+  }
+}

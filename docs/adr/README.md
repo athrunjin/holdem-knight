@@ -48,6 +48,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0041](0041-sign-in-by-email-and-password-with-codes.md) | Sign-in by email and password, confirmed with codes | Accepted |
 | [0042](0042-linked-players-and-claiming-records.md) | Linked players read their own results and what a game was played under, and claim their records by invitation | Accepted |
 | [0043](0043-namesakes-in-a-space.md) | Players may share a name, told apart in a game and by number | Accepted |
+| [0044](0044-books-in-postgres-as-documents.md) | The books in Postgres as the app's documents, with their security tested in process | Accepted |
 
 ## Template
 

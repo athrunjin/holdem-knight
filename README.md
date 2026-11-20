@@ -39,6 +39,7 @@ apps/
   web/                # PWA front end: UI, routing, interaction
 packages/
   core/               # Business core: money, settlement, insurance, rake, timing (pure functions, no UI or database)
+  db/                 # Supabase database: SQL migrations and tests of its row-level security
 docs/
   ROADMAP.md          # Roadmap and milestones
   adr/                # Architecture decision records

@@ -38,3 +38,30 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  database:
+    name: Database · Local Supabase
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start Supabase and apply the migrations
+        run: pnpm db:start
+
+      - name: Tests through sign-in and the API
+        run: pnpm test:local
+
+      - name: Stop Supabase
+        if: always()
+        run: pnpm db:stop

@@ -13,10 +13,14 @@
     "dev": "pnpm --filter @holdem-knight/web dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "test:local": "pnpm --filter @holdem-knight/db test:local",
     "typecheck": "pnpm -r typecheck",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:start": "pnpm --filter @holdem-knight/db db:start",
+    "db:stop": "pnpm --filter @holdem-knight/db db:stop",
+    "db:reset": "pnpm --filter @holdem-knight/db db:reset"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
