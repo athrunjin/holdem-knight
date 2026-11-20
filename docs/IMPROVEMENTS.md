@@ -1444,6 +1444,18 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked at 393 wide in the browser preview, dark mode, on an isolated preview origin.
 - Tracking: PR #90
 
+### #I-072 Pages that would not open after a release
+
+- Type: bug
+- Date: found and fixed 2026-11-20
+- Source: the organizer, after #91 went live: 开局设置 and 工具 showed 「Something went wrong!」 with `Failed to fetch dynamically imported module` for their own files, on desktop Chrome
+- Problem: the files were on the host and the host was fine. Cloudflare Pages answers a file it does not have with the app's page and status 200, as single-page apps need, and the offline cache keeps whatever it gets. A file not there while the offline cache filled in a new version was kept as that page under the script's name, so the page failed on every visit, and refreshing did not help. The same broken entry was made in the preview by hiding a file, and a refresh after putting it back still failed.
+- Proposal:
+  - When a page's files cannot be loaded, the app drops scripts and styles the offline cache holds as HTML, fetches them again and keeps them where the host has them, then reloads once. A second failure within 10 seconds is left to show, so the page never reloads without end. Only the offline cache is touched; games and players live in IndexedDB.
+  - A page that fails shows 页面没能打开 with a 刷新 button that does the same repair, in place of the router's English message.
+- Decision: do. Checked on a production build in the preview: with the setup page's file held as HTML in the offline cache, tapping 开局 reloaded once and opened the page, with the real file back in the offline cache; with the file missing, it reloaded once and then showed the new page. Not tried on the device where it happened.
+- Tracking: fix PR after #91
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
