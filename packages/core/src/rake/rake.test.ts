@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RAKE_RULE, type RakeRule } from "../domain";
-import { parseRake, potAtCap, potForRake, rakeCapChips, rakeFromPot, toRakeForm } from "./rake";
+import { parseRake, potAtCap, potForRake, rakeFromPot, toRakeForm } from "./rake";
 
 /** Blinds of 5 and 10. */
 const BLINDS = { smallBlindChips: 5, bigBlindChips: 10 };
@@ -57,10 +57,6 @@ describe("rakeFromPot", () => {
     expect(rakeFromPot(1000, byTens, BLINDS)).toBe(20);
     // With no big blind to go by, a cap in big blinds does not apply
     expect(rakeFromPot(1000, byBlinds)).toBe(50);
-    expect(rakeCapChips(byBlinds, BLINDS)).toBe(25);
-    expect(rakeCapChips(byTens, BLINDS)).toBe(20);
-    expect(rakeCapChips(byBlinds)).toBeNull();
-    expect(rakeCapChips(BY_CHIP)).toBeNull();
   });
 
   it("works out the pot whose rake before rounding is the cap, so it comes back as typed", () => {

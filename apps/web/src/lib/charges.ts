@@ -86,7 +86,7 @@ export const RAKE_ROUNDING_NAMES: Record<RakeRounding, string> = {
  * A rake rule in short parts: the percentage, the cap, and the rounding. A rule from before rake
  * had settings rounds down to whole chips.
  */
-export function rakeRuleParts(rule: RakeRule): string[] {
+function rakeRuleParts(rule: RakeRule): string[] {
   const { cap, roundTo, rounding } = rule;
   const amount = ({ unit, amount: value }: RakeAmount) =>
     `${formatRakeNumber(value)}${unit === "chips" ? " 筹码" : unit === "smallBlinds" ? " SB" : " BB"}`;

@@ -5,7 +5,7 @@
 
 ## Context
 
-Insurance priced in whole chips. [ADR 0032](0032-insurance-covers-are-priced-by-what-they-pay.md) settled the edges that whole chips leave: 保本 and 半池 take the smallest whole premium that pays at least their target, and 满池 the largest whose payout stays within the pot share. At a table whose smallest chip is 5, a premium of 286 cannot be paid, and the organizer rounds it by hand. Rake already rounds to the smallest chip ([ADR 0036](0036-rake-rules-and-pot-records.md)), and the organizer asked for insurance to do the same, set the same way.
+Insurance priced in whole chips. [ADR 0032](0032-insurance-covers-priced-by-payout.md) settled the edges that whole chips leave: 保本 and 半池 take the smallest whole premium that pays at least their target, and 满池 the largest whose payout stays within the pot share. At a table whose smallest chip is 5, a premium of 286 cannot be paid, and the organizer rounds it by hand. Rake already rounds to the smallest chip ([ADR 0036](0036-rake-rules-and-pot-records.md)), and the organizer asked for insurance to do the same, set the same way.
 
 ## Options considered
 

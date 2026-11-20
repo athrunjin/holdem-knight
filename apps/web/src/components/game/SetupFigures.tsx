@@ -121,6 +121,13 @@ export const Caption = ({ children }: { children: ReactNode }) => (
   </span>
 );
 
+/** Common smallest chips, picked from a chevron where there are no blinds to go by, as in the tools. */
+export const SMALLEST_CHIP_PICKS = ["1", "5", "10", "20"].map((chips) => ({
+  value: chips,
+  label: chips,
+  chosen: <></>,
+}));
+
 /** The columns of such a grid: titles, captions, then a figure, mark, join, figure and mark. */
 export const FIGURE_GRID =
   "grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto_auto_auto] items-center";

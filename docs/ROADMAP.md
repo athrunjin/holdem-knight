@@ -14,7 +14,7 @@ Each milestone maps to a GitHub Milestone, and each feature in it maps to an iss
 
 ## M1 Core ledger (MVP: usable at a real game)
 
-- Game setup: blinds, chip-to-cash ratio, currency
+- Game setup: blinds, chip-to-cash ratio, currency, in one 基础设置 card with configs of its own
 - Player list (stored locally in guest mode): add, search (name / pinyin initials)
 - Ledger: buy-ins, rebuys and cash-outs in an append-only ledger, with undo
 - Buying in by hands: one buy-in = xx big blinds, one row per seated player, quick hand adjustments
@@ -47,6 +47,7 @@ Each milestone maps to a GitHub Milestone, and each feature in it maps to an iss
 - [x] Outs given up or sold as two covers, managed card by card
 - [x] One card picker for the whole hand, kept as it is tapped, and the card dealt recorded in both ways of working
 - [x] Odds tables made, renamed, edited and deleted from the calculator and from a game's settings
+- [x] Premiums and payouts rounded to the smallest chip, by default the nearest small blind; the tools take it in chips ([ADR 0037](adr/0037-insurance-prices-rounded-to-the-smallest-chip.md))
 
 A preflop all-in is not covered yet, see #I-019 in the [improvement log](IMPROVEMENTS.md).
 
@@ -55,6 +56,7 @@ A preflop all-in is not covered yet, see #I-019 in the [improvement log](IMPROVE
 - [x] A rake seat on the organizer's card, with a dialog that works out a pot's rake and adds it, and undo ([ADR 0034](adr/0034-rake-as-a-seat-with-no-buy-in.md)). The rule is fixed at 10% of the pot for now
 - [x] Rake rules: a percentage with decimals, a cap in chips or big blinds, and rounding to the smallest chip, saved and carried over like the other options ([ADR 0036](adr/0036-rake-rules-and-pot-records.md)). No flop no drop was left out
 - [x] Each rake recorded with its time and pot, listed in the dialog; 抽水计算 on the tools page
+- [x] 抽水计算 shows and changes the rule: in a game, asked about before it applies; in the tools, in chips alone. Its record lists each rake's input, pot, change and running total
 - Insurance quotes after rake: a switch kept, off, to be decided
 
 ## M5 Player reports
