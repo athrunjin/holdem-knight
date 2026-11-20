@@ -84,15 +84,40 @@ export type BasicSettings = Pick<
   "currency" | "smallBlindChips" | "bigBlindChips" | "chipRatio"
 > & { readonly buyInBigBlinds: number };
 
+/**
+ * The saved configs a game's or a game config's settings are taken from, by section: the ID of a
+ * basic settings, insurance, table fee, wage or rake config. One counts only while that config is
+ * still there; a section with none holds values of its own (ADR 0038).
+ */
+export interface SettingsSources {
+  readonly basics?: string;
+  readonly insurance?: string;
+  readonly tableFee?: string;
+  readonly wage?: string;
+  readonly rake?: string;
+}
+
 /** A table fee, wage, rake or basic settings setup kept under a name, to fill a new game's settings quickly. */
 export type SavedChargeRule = {
   readonly id: string;
   readonly organizerId: OrganizerId;
   readonly name: string;
   readonly createdAt: Timestamp;
+  /** When it was last saved. Missing on configs from before this was kept. */
+  readonly updatedAt?: Timestamp;
 } & (
-  | { readonly kind: "table_fee"; readonly rule: TableFeeRule }
-  | { readonly kind: "wage"; readonly rule: WageRule }
+  | {
+      readonly kind: "table_fee";
+      readonly rule: TableFeeRule;
+      /** The currency its amount was set in. Missing on configs from before this was kept. */
+      readonly currency?: Currency;
+    }
+  | {
+      readonly kind: "wage";
+      readonly rule: WageRule;
+      /** The currency its rates were set in. Missing on configs from before this was kept. */
+      readonly currency?: Currency;
+    }
   | { readonly kind: "rake"; readonly rule: RakeRule }
   | { readonly kind: "basics"; readonly rule: BasicSettings }
 );
@@ -104,6 +129,8 @@ export interface SavedOddsTable {
   readonly name: string;
   readonly oddsHundredths: readonly number[];
   readonly createdAt: Timestamp;
+  /** When it was last saved. Missing on tables from before this was kept. */
+  readonly updatedAt?: Timestamp;
 }
 
 /** A named rule kept for quick use in later games. */
@@ -113,15 +140,23 @@ export interface SavedInsuranceRule {
   readonly name: string;
   readonly rule: InsuranceRule;
   readonly createdAt: Timestamp;
+  /** When it was last saved. Missing on rules from before this was kept. */
+  readonly updatedAt?: Timestamp;
 }
 
-/** A game's setup kept under a name. Using one only fills the form, so games never point to it. */
+/**
+ * A game's whole setup kept under a name. Using one only fills the form, so games never point to
+ * it. A section in `settings.sources` follows its saved config: using the game config takes that
+ * config's values as they are then, and the values kept here only once it is gone (ADR 0038).
+ */
 export interface SavedGameConfig {
   readonly id: string;
   readonly organizerId: OrganizerId;
   readonly name: string;
   readonly settings: GameSettings;
   readonly createdAt: Timestamp;
+  /** When it was last saved. Missing on configs from before this was kept. */
+  readonly updatedAt?: Timestamp;
 }
 
 export interface InsuranceHandPlayer {
@@ -351,6 +386,8 @@ export type GameSettings = Pick<
   readonly wage?: WageRule;
   /** Missing means no rake. */
   readonly rake?: RakeRule;
+  /** The saved configs these were taken from. Missing means none. */
+  readonly sources?: SettingsSources;
 };
 
 /** One stretch of the game clock running, from start to pause. */
@@ -432,6 +469,11 @@ export interface Game {
    * follow it on every device. Missing on earlier games, which use the viewing device's zone.
    */
   readonly timeZone?: string;
+  /**
+   * The saved configs the settings were taken from, which name them at the next game's setup. The
+   * game keeps its own copy of every value, so a config changed later changes nothing here.
+   */
+  readonly sources?: SettingsSources;
 }
 
 export interface Player {

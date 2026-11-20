@@ -11,6 +11,7 @@ import {
   type ImbalanceHandling,
   OPTIMAL_PLAN,
   type OrganizerId,
+  type SettingsSources,
   type Timestamp,
 } from "../domain";
 import { type Cents, cents, toDecimalString, tryParseMoney } from "../money";
@@ -148,9 +149,29 @@ function optionsOf({ insurance, tableFee, wage, rake }: GameOptions) {
   };
 }
 
+/** Only the sources that are set, or nothing, so a game never stores an empty record of them. */
+function sourcesOf({ sources }: { readonly sources?: SettingsSources | undefined }) {
+  const set = Object.fromEntries(
+    Object.entries(sources ?? {}).filter(([, id]) => id !== undefined),
+  );
+  return Object.keys(set).length > 0 ? { sources: set as SettingsSources } : {};
+}
+
 function withHandChips(settings: GameSettings) {
-  const { insurance: _, tableFee: _fee, wage: _wage, rake: _rake, ...basics } = settings;
-  return { ...basics, handChips: handChipsFor(settings), ...optionsOf(settings) };
+  const {
+    insurance: _,
+    tableFee: _fee,
+    wage: _wage,
+    rake: _rake,
+    sources: _sources,
+    ...basics
+  } = settings;
+  return {
+    ...basics,
+    handChips: handChipsFor(settings),
+    ...optionsOf(settings),
+    ...sourcesOf(settings),
+  };
 }
 
 export function createGame(meta: NewGameMeta, settings: GameSettings): Game {
@@ -237,18 +258,37 @@ export function chooseImbalanceHandling(game: Game, imbalanceHandling: Imbalance
  * so the currency and chip ratio cannot change once events exist, or existing amounts would change too.
  * Chips per hand are fixed too, or "3 hands" would mean different things within a game.
  * Options can always change: table fees and wages are only worked out at settlement.
+ * The saved configs the settings were taken from are replaced with the new settings' own.
  */
 export function updateGameSettings(
   game: Game,
   settings: GameSettings,
   { hasLedgerEvents }: { readonly hasLedgerEvents: boolean },
 ): Game {
-  const { insurance: _, tableFee: _fee, wage: _wage, rake: _rake, ...rest } = game;
+  const {
+    insurance: _,
+    tableFee: _fee,
+    wage: _wage,
+    rake: _rake,
+    sources: _sources,
+    ...rest
+  } = game;
   const { smallBlindChips, bigBlindChips } = settings;
-  const updated = hasLedgerEvents
-    ? { ...rest, smallBlindChips, bigBlindChips }
-    : { ...rest, ...withHandChips(settings) };
-  return { ...updated, ...optionsOf(settings) };
+  if (!hasLedgerEvents) return { ...rest, ...withHandChips(settings) };
+  // The locked settings stay the game's own, so a basic settings config holds only where they agree
+  const basicsHold =
+    game.currency === settings.currency &&
+    game.chipRatio.chips === settings.chipRatio.chips &&
+    game.chipRatio.amount === settings.chipRatio.amount &&
+    game.buyInBigBlinds === settings.buyInBigBlinds;
+  const { basics: _basics, ...otherSources } = settings.sources ?? {};
+  return {
+    ...rest,
+    smallBlindChips,
+    bigBlindChips,
+    ...optionsOf(settings),
+    ...sourcesOf({ sources: basicsHold ? settings.sources : otherSources }),
+  };
 }
 
 /** A game saved before blinds moved to chips (ADR 0011). */

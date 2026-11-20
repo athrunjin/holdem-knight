@@ -1,16 +1,11 @@
 import { parseInsuranceRule, withOdds } from "@holdem-knight/core";
 import { ArrowLeftRight } from "lucide-react";
-import { TextMenu } from "@/components/TextMenu";
+import { ConfigMenu } from "@/components/ConfigMenu";
 import { cn } from "@/lib/cn";
 import { useSettledChange } from "@/lib/settled-change";
 import type { InsuranceMode } from "./InsuranceCalculator";
 import type { RoundingStakes } from "./InsuranceRounding";
-import {
-  CUSTOM_NAME,
-  type InsuranceChoice,
-  InsuranceSettings,
-  useInsuranceConfigs,
-} from "./InsuranceSettings";
+import { type InsuranceChoice, InsuranceSettings, useInsuranceConfigs } from "./InsuranceSettings";
 import { OddsTableMenu } from "./OddsTableMenu";
 
 const MODES = [
@@ -99,22 +94,16 @@ export function InsuranceSetup({
     lastRuleLabel: "",
     onChange,
   });
-  const options = [
-    ...configs.rules.map(({ id, name }) => ({ value: id, label: name })),
-    // Settings changed by hand belong to no set, and show as such until one is picked
-    ...(configs.rules.some(({ id }) => id === configs.selectedId)
-      ? []
-      : [{ value: configs.selectedId, label: CUSTOM_NAME }]),
-  ];
 
   return (
     <div className="contents" {...(settleTyping && settled.containerProps)}>
       <div className="flex items-center justify-between gap-4">
-        <TextMenu
-          label="保险配置"
-          options={options}
-          value={configs.selectedId}
-          onChange={configs.choose}
+        <ConfigMenu
+          label="保险设置"
+          choices={configs.rules.map(({ id, name }) => ({ id, name }))}
+          selectedId={configs.selectedId}
+          modified={configs.modified}
+          onPick={configs.choose}
           className="text-sm font-medium"
         />
         <OddsTableMenu

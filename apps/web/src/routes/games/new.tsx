@@ -2,6 +2,8 @@ import {
   createGame,
   DEFAULT_GAME_SETTINGS,
   type GameSettings,
+  resolveSettings,
+  sameGameSettings,
   toGameSettingsForm,
   toggleTimer,
 } from "@holdem-knight/core";
@@ -9,7 +11,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import {
-  type GameConfigChoice,
+  DEFAULT_CONFIG,
+  DEFAULT_CONFIG_NAME,
   GameConfigPicker,
   LAST_CONFIG,
 } from "@/components/game/GameConfigPicker";
@@ -18,6 +21,8 @@ import { PlayerPicker } from "@/components/game/PlayerPicker";
 import { SaveGameConfigDialog } from "@/components/game/SaveGameConfigDialog";
 import { Page } from "@/components/Page";
 import { GUEST_ORGANIZER_ID } from "@/data";
+import { useConfigLibrary } from "@/data/config-library";
+import { useGameConfigs } from "@/data/game-configs";
 import { useGames, useStartGame } from "@/data/games";
 import { deviceTimeZone } from "@/lib/charges";
 
@@ -25,21 +30,24 @@ export const Route = createFileRoute("/games/new")({
   component: NewGamePage,
 });
 
+type Option = "insurance" | "tableFee" | "wage" | "rake";
+
 function NewGamePage() {
   const navigate = Route.useNavigate();
   const games = useGames();
+  const { data: configs = [] } = useGameConfigs();
+  const library = useConfigLibrary();
   const startGame = useStartGame();
-  const [selected, setSelected] = useState<string | null>(LAST_CONFIG);
-  // A new choice remounts the form, which starts again from its initial values
-  const [applied, setApplied] = useState<{ key: number; choice?: GameConfigChoice }>({ key: 0 });
+  // The config that filled the form, or null once it has been deleted. A new choice remounts the
+  // form, which starts again from its initial values
+  const [applied, setApplied] = useState<{ key: number; id: string | null }>({
+    key: 0,
+    id: LAST_CONFIG,
+  });
+  const [modified, setModified] = useState(false);
   const [saving, setSaving] = useState<GameSettings | null>(null);
   // Settings confirmed on the first step, waiting for the players
   const [picking, setPicking] = useState<GameSettings | null>(null);
-
-  function handleApply(choice: GameConfigChoice) {
-    setSelected(choice.id);
-    setApplied({ key: applied.key + 1, choice });
-  }
 
   function showStep(settings: GameSettings | null) {
     setPicking(settings);
@@ -69,13 +77,37 @@ function NewGamePage() {
   }
 
   const latest = games.data?.[0];
-  const settings = applied.choice?.settings;
+  // A game config's settings as the saved configs it follows have them now (ADR 0038)
+  const resolved = (saved: GameSettings) => (library ? resolveSettings(saved, library) : saved);
+  // Last time's setup goes by the saved game config it equals, or by the default, and is listed
+  // as last time's only when it is neither
+  const lastConfig =
+    latest && configs.find((saved) => sameGameSettings(resolved(saved.settings), latest));
+  const lastIsDefault = !latest || sameGameSettings(DEFAULT_GAME_SETTINGS, latest);
+  const lastShown = !lastConfig && !lastIsDefault;
+  const selected =
+    applied.id === LAST_CONFIG
+      ? (lastConfig?.id ?? (lastShown ? LAST_CONFIG : DEFAULT_CONFIG))
+      : applied.id;
+  const config = configs.find((saved) => saved.id === selected);
+  const settings =
+    selected === DEFAULT_CONFIG ? DEFAULT_GAME_SETTINGS : config && resolved(config.settings);
+  const configName = selected === DEFAULT_CONFIG ? DEFAULT_CONFIG_NAME : config?.name;
   // Carry over the latest game's settings by default
   const start = settings ?? latest ?? DEFAULT_GAME_SETTINGS;
-  const configRule = settings?.insurance;
-  const configTableFee = settings?.tableFee;
-  const configWage = settings?.wage;
-  const configRake = settings?.rake;
+  /** Offered as "last time": a picked game config's option, or else the latest game's that had one. */
+  const lastOf = <K extends Option>(option: K) => {
+    const from = settings?.[option] ? settings : games.data?.find((game) => game[option]);
+    return {
+      rule: from?.[option],
+      source: from?.sources?.[option],
+      label: settings?.[option] && configName,
+    };
+  };
+  const insurance = lastOf("insurance");
+  const tableFee = lastOf("tableFee");
+  const wage = lastOf("wage");
+  const rake = lastOf("rake");
 
   return (
     <Page
@@ -92,7 +124,13 @@ function NewGamePage() {
             设置
           </button>
         ) : (
-          <GameConfigPicker selected={selected} onSelect={setSelected} onApply={handleApply} />
+          <GameConfigPicker
+            selected={selected}
+            modified={modified}
+            lastShown={lastShown}
+            onSelect={(id) => setApplied({ ...applied, id })}
+            onApply={(id) => setApplied({ key: applied.key + 1, id })}
+          />
         )
       }
     >
@@ -110,33 +148,43 @@ function NewGamePage() {
             key={applied.key}
             initial={toGameSettingsForm(start)}
             initialInsurance={start.insurance}
-            lastInsurance={configRule ?? games.data?.find((game) => game.insurance)?.insurance}
-            lastInsuranceLabel={configRule && applied.choice?.name}
+            lastInsurance={insurance.rule}
+            lastInsuranceLabel={insurance.label}
             initialTableFee={start.tableFee}
-            lastTableFee={configTableFee ?? games.data?.find((game) => game.tableFee)?.tableFee}
-            lastTableFeeLabel={configTableFee && applied.choice?.name}
+            lastTableFee={tableFee.rule}
+            lastTableFeeLabel={tableFee.label}
             initialWage={start.wage}
-            lastWage={configWage ?? games.data?.find((game) => game.wage)?.wage}
-            lastWageLabel={configWage && applied.choice?.name}
+            lastWage={wage.rule}
+            lastWageLabel={wage.label}
             initialRake={start.rake}
-            lastRake={configRake ?? games.data?.find((game) => game.rake)?.rake}
-            lastRakeLabel={configRake && applied.choice?.name}
+            lastRake={rake.rule}
+            lastRakeLabel={rake.label}
             // A picked game config's basics, or else the latest game's
             lastBasics={settings ?? latest}
-            lastBasicsLabel={settings && applied.choice?.name}
+            lastBasicsLabel={settings && configName}
+            lastSources={{
+              basics: (settings ?? latest)?.sources?.basics,
+              insurance: insurance.source,
+              tableFee: tableFee.source,
+              wage: wage.source,
+              rake: rake.source,
+            }}
             submitLabel="下一步：选择玩家"
             saving={false}
             saveFailed={false}
             onSubmit={showStep}
             onSaveConfig={setSaving}
+            onModifiedChange={setModified}
           />
         </div>
       )}
       {saving && (
         <SaveGameConfigDialog
           settings={saving}
+          currentName={config?.name}
           onSaved={(id) => {
-            setSelected(id);
+            // The form keeps what was typed, and now reads as this config unchanged
+            setApplied({ ...applied, id });
             setSaving(null);
           }}
           onClose={() => setSaving(null)}

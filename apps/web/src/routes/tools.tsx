@@ -1,8 +1,14 @@
-import { DEFAULT_RAKE_RULE, parseRake, type RakeForm, toRakeForm } from "@holdem-knight/core";
+import {
+  DEFAULT_RAKE_RULE,
+  parseRake,
+  type RakeForm,
+  rakeFormInChips,
+  toRakeForm,
+} from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Calculator, HandCoins, type LucideIcon, Timer } from "lucide-react";
 import { useState } from "react";
-import { inChipsOnly, NO_STAKES, RakeSettingsPanel } from "@/components/game/ChargeSettings";
+import { NO_STAKES, RakeSettingsPanel } from "@/components/game/ChargeSettings";
 import { RakeDialog, type RakeEntry } from "@/components/game/RakeDialog";
 import { Page } from "@/components/Page";
 import { useStoredState } from "@/lib/stored-state";
@@ -27,7 +33,7 @@ interface RakeToolSettings {
 /** The default rule in chips alone, as there are no blinds here. */
 const DEFAULT_RAKE_SETTINGS: RakeToolSettings = {
   source: "default",
-  form: inChipsOnly(toRakeForm(DEFAULT_RAKE_RULE)),
+  form: rakeFormInChips(toRakeForm(DEFAULT_RAKE_RULE)),
 };
 
 function parseRakeSettings(stored: unknown): RakeToolSettings | undefined {
@@ -35,13 +41,14 @@ function parseRakeSettings(stored: unknown): RakeToolSettings | undefined {
   const { source, form } = stored as Partial<RakeToolSettings>;
   if (typeof source !== "string" || typeof form !== "object" || form === null) return undefined;
   const kept = { ...DEFAULT_RAKE_SETTINGS.form, ...form };
-  return parseRake(kept).ok ? { source, form: inChipsOnly(kept) } : undefined;
+  return parseRake(kept).ok ? { source, form: rakeFormInChips(kept) } : undefined;
 }
 
 /**
  * 抽水计算 on its own: the dialog a game opens, with nothing read from or saved to a game. Its
- * settings are open, in chips alone, and kept in this browser. What is added stays while the page
- * is open.
+ * settings are open, in chips alone, and kept in this browser: the chips typed here are never part
+ * of a saved config, whose amounts are in blinds (ADR 0039). What is added stays while the page is
+ * open.
  */
 function RakeTool({ onClose }: { onClose: () => void }) {
   const [entries, setEntries] = useState<RakeEntry[]>([]);

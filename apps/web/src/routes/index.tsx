@@ -201,8 +201,8 @@ function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
       </div>
       {/* Every option starts on. Switching one off leaves out the games that have it */}
       {/* biome-ignore lint/a11y/useSemanticElements: a fieldset does not lay its legend out in a line */}
-      <div role="group" aria-label="对局配置" className="flex min-h-11 items-center">
-        <span className="w-14 shrink-0 text-muted">对局配置</span>
+      <div role="group" aria-label="对局设置" className="flex min-h-11 items-center">
+        <span className="w-14 shrink-0 text-muted">对局设置</span>
         {GAME_OPTIONS.map((option) => {
           const on = view.options.includes(option);
           const { label, className } = OPTION_MARKS[option];
@@ -228,7 +228,7 @@ function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
         <button
           type="button"
           aria-pressed={allOptions}
-          aria-label={allOptions ? "关闭全部配置" : "开启全部配置"}
+          aria-label={allOptions ? "关闭全部设置" : "开启全部设置"}
           onClick={() => onChange({ options: allOptions ? [] : GAME_OPTIONS })}
           className={cn(optionSwitch, "-mr-2 ml-auto", allOptions ? "text-text" : "text-muted")}
         >

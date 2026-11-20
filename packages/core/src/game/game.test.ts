@@ -283,6 +283,29 @@ describe("updateGameSettings", () => {
     });
   });
 
+  it("replaces the saved configs the settings were taken from", () => {
+    const from = createGame(meta, { ...DEFAULT_GAME_SETTINGS, sources: { wage: "w1" } });
+    expect(from.sources).toEqual({ wage: "w1" });
+    const renamed = { ...next, sources: { basics: "b1", rake: "r1" } };
+    expect(updateGameSettings(from, renamed, { hasLedgerEvents: false }).sources).toEqual({
+      basics: "b1",
+      rake: "r1",
+    });
+    expect("sources" in updateGameSettings(from, next, { hasLedgerEvents: false })).toBe(false);
+  });
+
+  it("names no basic settings config once the ledger keeps settings the config would change", () => {
+    const renamed = { ...next, sources: { basics: "b1", rake: "r1" } };
+    expect(updateGameSettings(game, renamed, { hasLedgerEvents: true }).sources).toEqual({
+      rake: "r1",
+    });
+    // Only the blinds differ, which the ledger does not lock
+    const blinds = { ...DEFAULT_GAME_SETTINGS, bigBlindChips: 4, sources: { basics: "b1" } };
+    expect(updateGameSettings(game, blinds, { hasLedgerEvents: true }).sources).toEqual({
+      basics: "b1",
+    });
+  });
+
   it("turns the table fee and wages on and off at any time", () => {
     const tableFee = { amount: cents(10_000), minMinutes: 30 };
     const wage = { hourly: cents(2500) };

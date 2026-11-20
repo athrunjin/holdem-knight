@@ -1,7 +1,19 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RAKE_RULE, type RakeRule } from "../domain";
-import { parseRake, potAtCap, potForRake, rakeFromPot, toRakeForm } from "./rake";
+import {
+  parseRake,
+  potAtCap,
+  potForRake,
+  rakeBlindsToChips,
+  rakeChipsToBlinds,
+  rakeFormForTools,
+  rakeFormInBlinds,
+  rakeFormInChips,
+  rakeFromPot,
+  rakeRuleFromTools,
+  toRakeForm,
+} from "./rake";
 
 /** Blinds of 5 and 10. */
 const BLINDS = { smallBlindChips: 5, bigBlindChips: 10 };
@@ -182,3 +194,148 @@ describe("parseRake", () => {
     expect(parseRake({ ...form, capAmount: "x" }).ok).toBe(true);
   });
 });
+
+describe("rakeChipsToBlinds", () => {
+  it("gives the blinds that come to the chips", () => {
+    expect(rakeChipsToBlinds(30, 10, "cap")).toEqual({ amount: 3, exact: true });
+    expect(rakeChipsToBlinds(25, 10, "cap")).toEqual({ amount: 2.5, exact: true });
+    expect(rakeChipsToBlinds(5, 5, "smallestChip")).toEqual({ amount: 1, exact: true });
+    expect(rakeChipsToBlinds(1, 5, "smallestChip")).toEqual({ amount: 0.2, exact: true });
+  });
+
+  it("picks two decimals that a cap rounds down to the chips typed", () => {
+    // 7 chips at a big blind of 3 is 2.33…, and 2.33 big blinds would round down to 6
+    const { amount, exact } = rakeChipsToBlinds(7, 3, "cap");
+    expect(exact).toBe(true);
+    expect(rakeBlindsToChips(amount, 3, "cap")).toBe(7);
+  });
+
+  it("says when two decimals cannot come to the chips, at a blind of 100 or more", () => {
+    expect(rakeChipsToBlinds(333, 1000, "cap")).toEqual({ amount: 0.33, exact: false });
+    expect(rakeChipsToBlinds(250, 200, "cap")).toEqual({ amount: 1.25, exact: true });
+  });
+
+  it("comes back to any chips at any blind under 100", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 1_000_000 }),
+        fc.integer({ min: 1, max: 99 }),
+        fc.constantFrom("cap" as const, "smallestChip" as const),
+        (chips, blindChips, use) => {
+          const { amount, exact } = rakeChipsToBlinds(chips, blindChips, use);
+          expect(exact).toBe(true);
+          expect(Math.round(amount * 100)).toBeCloseTo(amount * 100, 6);
+          expect(rakeBlindsToChips(amount, blindChips, use)).toBe(chips);
+        },
+      ),
+    );
+  });
+});
+
+describe("rakeFormInBlinds", () => {
+  const inChips = {
+    ...toRakeForm(DEFAULT_RAKE_RULE),
+    capOn: true,
+    capUnit: "chips" as const,
+    capAmount: "30",
+    roundUnit: "chips" as const,
+    roundAmount: "5",
+  };
+
+  it("turns a cap in chips into big blinds and a smallest chip into small blinds", () => {
+    expect(rakeFormInBlinds(inChips, BLINDS)).toEqual({
+      ...inChips,
+      capUnit: "bigBlinds",
+      capAmount: "3",
+      roundUnit: "smallBlinds",
+      roundAmount: "1",
+    });
+  });
+
+  it("charges the same after as before", () => {
+    const before = parseRake(inChips);
+    const after = parseRake(rakeFormInBlinds(inChips, BLINDS));
+    if (!before.ok || !after.ok) throw new Error("Expected valid forms");
+    for (const pot of [40, 99, 250, 599, 600, 601, 5000]) {
+      expect(rakeFromPot(pot, after.rule, BLINDS)).toBe(rakeFromPot(pot, before.rule, BLINDS));
+    }
+  });
+
+  it("leaves amounts already in blinds, and those with no blind to go by", () => {
+    const form = toRakeForm(DEFAULT_RAKE_RULE);
+    expect(rakeFormInBlinds(form, BLINDS)).toEqual(form);
+    expect(rakeFormInBlinds(inChips, {})).toEqual(inChips);
+  });
+
+  it("leaves in chips an amount that blinds cannot come back to", () => {
+    const odd = { ...inChips, capAmount: "333" };
+    const result = rakeFormInBlinds(odd, { smallBlindChips: 500, bigBlindChips: 1000 });
+    expect(result).toMatchObject({ capUnit: "chips", capAmount: "333" });
+    expect(result).toMatchObject({ roundUnit: "smallBlinds", roundAmount: "0.01" });
+  });
+});
+
+describe("the tools' rake settings", () => {
+  const config = toRakeForm({
+    percent: 3,
+    rounding: "up",
+    roundTo: { unit: "smallBlinds", amount: 2 },
+    cap: { unit: "bigBlinds", amount: 3 },
+  });
+  const tools = {
+    ...rakeFormInChips(toRakeForm(DEFAULT_RAKE_RULE)),
+    roundAmount: "5",
+    capOn: true,
+    capAmount: "30",
+  };
+
+  it("shows a rule with no blinds in chips alone", () => {
+    expect(rakeFormInChips(config)).toMatchObject({
+      roundUnit: "chips",
+      roundAmount: "1",
+      capOn: false,
+      capUnit: "chips",
+    });
+  });
+
+  it("takes a config's rate and rounding and keeps the chips typed there", () => {
+    expect(rakeFormForTools(config, tools)).toEqual({ ...tools, percent: "3", rounding: "up" });
+  });
+
+  it("takes the chips of a config kept in chips, from before amounts were in blinds", () => {
+    const older = { ...config, roundUnit: "chips" as const, roundAmount: "10" };
+    expect(rakeFormForTools(older, tools)).toMatchObject({ roundAmount: "10", capAmount: "30" });
+    const capped = { ...config, capUnit: "chips" as const, capAmount: "50" };
+    expect(rakeFormForTools(capped, { ...tools, capOn: false })).toMatchObject({
+      capOn: true,
+      capAmount: "50",
+    });
+  });
+
+  it("keeps the rate and rounding with the amounts of the config they were taken from", () => {
+    const changed = { ...rakeFormForTools(config, tools), percent: "4", rounding: "down" as const };
+    expect(rakeRuleFromTools(changed, parseRuleOf(config))).toEqual({
+      percent: 4,
+      rounding: "down",
+      roundTo: { unit: "smallBlinds", amount: 2 },
+      cap: { unit: "bigBlinds", amount: 3 },
+    });
+  });
+
+  it("keeps the default's amounts when taken from no config, and never the tools' chips", () => {
+    expect(rakeRuleFromTools({ ...tools, percent: "2.5" }, undefined)).toEqual({
+      ...DEFAULT_RAKE_RULE,
+      percent: 2.5,
+    });
+  });
+
+  it("keeps nothing while the settings are invalid", () => {
+    expect(rakeRuleFromTools({ ...tools, percent: "0" }, undefined)).toBeNull();
+  });
+});
+
+function parseRuleOf(form: ReturnType<typeof toRakeForm>): RakeRule {
+  const parsed = parseRake(form);
+  if (!parsed.ok) throw new Error("Expected a valid form");
+  return parsed.rule;
+}

@@ -7,12 +7,14 @@ import {
 } from "@holdem-knight/core";
 import { PenLine, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useConfigFollowers } from "@/data/game-configs";
 import {
   newOddsTable,
   useOddsTables,
   useRemoveOddsTable,
   useSaveOddsTable,
 } from "@/data/insurance";
+import { removalQuestion, updateQuestion } from "@/lib/config-text";
 import { datedName } from "@/lib/dated-name";
 import { formatOddsText, selectOnFocus } from "@/lib/number-input";
 import { Modal } from "./Modal";
@@ -44,6 +46,7 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
   const { data: saved = [] } = useOddsTables();
   const saveTable = useSaveOddsTable();
   const removeTable = useRemoveOddsTable();
+  const followers = useConfigFollowers();
   const table = subject.kind === "edit" ? subject.table : undefined;
   const readOnly = subject.kind === "view";
   const base =
@@ -71,6 +74,9 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
 
   function save() {
     const oddsHundredths = parsed.flatMap((value) => value ?? []);
+    // Game configs whose odds follow this table take its new odds, so that is asked about first
+    const using = table && !sameOdds(parsed, base) ? followers({ oddsTableId: table.id }) : 0;
+    if (table && using > 0 && !window.confirm(updateQuestion(table.name, using))) return;
     const next = table
       ? { ...table, name: name.trim(), oddsHundredths }
       : newOddsTable(name.trim(), oddsHundredths);
@@ -96,7 +102,8 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
   }
 
   function handleRemove() {
-    if (table && window.confirm(`删除赔率表「${table.name}」？`)) {
+    const using = table ? followers({ oddsTableId: table.id }) : 0;
+    if (table && window.confirm(removalQuestion("赔率表", table.name, using))) {
       removeTable.mutate(table.id, { onSuccess: onClose });
     }
   }

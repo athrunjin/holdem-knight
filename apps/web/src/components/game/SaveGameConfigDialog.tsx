@@ -6,48 +6,69 @@ import { FormDialog } from "./FormDialog";
 
 interface SaveGameConfigDialogProps {
   settings: GameSettings;
+  /** The config that filled the form, whose name is offered so that saving updates it */
+  currentName?: string | undefined;
   onSaved: (id: string) => void;
   onClose: () => void;
 }
 
-export function SaveGameConfigDialog({ settings, onSaved, onClose }: SaveGameConfigDialogProps) {
+/**
+ * Keeps the whole setup under a name. The name of the config in use is filled in, so 保存 updates
+ * it and another name keeps a new one. It then opens on 取消, so a phone keyboard stays down. A
+ * name already in use says under the field that saving replaces that one, with nothing to confirm.
+ */
+export function SaveGameConfigDialog({
+  settings,
+  currentName,
+  onSaved,
+  onClose,
+}: SaveGameConfigDialogProps) {
   const { data: saved = [] } = useGameConfigs();
   const saveConfig = useSaveGameConfig();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(currentName ?? "");
   const [issue, setIssue] = useState<string>();
+
+  const trimmed = name.trim();
+  // Saving under a name in use replaces that game config, which is said and not asked about
+  const taken = saved.find((config) => config.name === trimmed);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const trimmed = name.trim();
     if (trimmed === "") {
-      setIssue("请输入配置名称");
+      setIssue("请输入名称");
       return;
     }
-    const existing = saved.find((config) => config.name === trimmed);
-    const config = existing ? { ...existing, settings } : newGameConfig(trimmed, settings);
+    const config = taken ? { ...taken, settings } : newGameConfig(trimmed, settings);
     saveConfig.mutate(config, { onSuccess: () => onSaved(config.id) });
   }
 
   return (
     <FormDialog
-      title="保存当前配置"
+      title="保存全局设置"
       submitLabel="保存"
       saving={saveConfig.isPending}
       saveFailed={saveConfig.isError}
+      focusCancel={currentName !== undefined}
       onSubmit={handleSubmit}
       onClose={onClose}
     >
       <TextField
         id="config-name"
-        label="配置名称，同名会覆盖"
+        label="全局设置名称"
         value={name}
         issue={issue}
         inputMode="text"
+        selectOnFocus
         onChange={(next) => {
           setName(next);
           setIssue(undefined);
         }}
       />
+      {taken && !issue && (
+        <p role="status" className="mt-1 text-sm text-highlight">
+          已有同名的全局设置，保存会覆盖它。
+        </p>
+      )}
     </FormDialog>
   );
 }

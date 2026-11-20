@@ -1,5 +1,5 @@
 /** Rake: what a pot gives up under a game's rule, and parsing the rule's form. */
-import type { RakeAmount, RakeRounding, RakeRule } from "../domain";
+import { DEFAULT_RAKE_RULE, type RakeAmount, type RakeRounding, type RakeRule } from "../domain";
 
 export const RAKE_ROUNDINGS: readonly RakeRounding[] = ["nearest", "down", "up"];
 
@@ -165,4 +165,109 @@ export function parseRake(form: RakeForm): ParsedRake {
       ...(form.insuranceAfterRake && { insuranceAfterRake: true }),
     },
   };
+}
+
+/** How a rule turns an amount in blinds into whole chips: a cap rounds down, a smallest chip to the nearest and at least 1. */
+export type RakeAmountUse = "cap" | "smallestChip";
+
+/** The whole chips an amount in blinds comes to at a blind, as the rule uses it. */
+export function rakeBlindsToChips(blinds: number, blindChips: number, use: RakeAmountUse): number {
+  const chips = blinds * blindChips;
+  return use === "cap" ? Math.floor(chips) : Math.max(1, Math.round(chips));
+}
+
+/**
+ * Chips as an amount in blinds, with at most two decimals, so the amount follows the game's blinds
+ * (ADR 0039). `exact` says whether the blinds come back to these chips at this blind: with two
+ * decimals they always can while the blind is under 100 chips, and may not above that.
+ */
+export function rakeChipsToBlinds(
+  chips: number,
+  blindChips: number,
+  use: RakeAmountUse,
+): { readonly amount: number; readonly exact: boolean } {
+  const twoDecimals = (value: number) => Math.round(value * 100) / 100;
+  const nearest = Math.max(0.01, twoDecimals(chips / blindChips));
+  const exact = [nearest, twoDecimals(nearest + 0.01), twoDecimals(nearest - 0.01)].find(
+    (blinds) => blinds > 0 && rakeBlindsToChips(blinds, blindChips, use) === chips,
+  );
+  return exact === undefined ? { amount: nearest, exact: false } : { amount: exact, exact: true };
+}
+
+/**
+ * The form with its amounts in blinds, as a config keeps them: a cap in chips becomes big blinds
+ * and a smallest chip in chips small blinds, at the game's blinds. Only an amount that comes back
+ * to the same chips is changed, so nothing the form charges changes with it; one that cannot, or
+ * with no blind to go by, stays in chips.
+ */
+export function rakeFormInBlinds(form: RakeForm, blinds: RakeBlinds): RakeForm {
+  const inBlinds = (text: string, blindChips: number | undefined, use: RakeAmountUse) => {
+    const chips = Number(text.trim());
+    if (!/^\d+$/.test(text.trim()) || chips <= 0 || !blindChips) return null;
+    const { amount, exact } = rakeChipsToBlinds(chips, blindChips, use);
+    return exact ? formatRakeNumber(amount) : null;
+  };
+  const cap =
+    form.capUnit === "chips" ? inBlinds(form.capAmount, blinds.bigBlindChips, "cap") : null;
+  const round =
+    form.roundUnit === "chips"
+      ? inBlinds(form.roundAmount, blinds.smallBlindChips, "smallestChip")
+      : null;
+  return {
+    ...form,
+    ...(cap !== null && { capUnit: "bigBlinds" as const, capAmount: cap }),
+    ...(round !== null && { roundUnit: "smallBlinds" as const, roundAmount: round }),
+  };
+}
+
+/**
+ * The form with amounts in chips alone, where there are no blinds, as in the tools: a smallest
+ * chip in blinds becomes 1 chip and a cap in blinds is switched off, as the rule prices without
+ * blinds. Chips typed there are the tools' own, and never kept in a config (ADR 0039).
+ */
+export function rakeFormInChips(form: RakeForm): RakeForm {
+  return {
+    ...form,
+    ...(form.roundUnit !== "chips" && { roundUnit: "chips", roundAmount: "1" }),
+    ...(form.capUnit !== "chips" && { capOn: false, capUnit: "chips", capAmount: "" }),
+  };
+}
+
+/**
+ * The tools' settings once a config is picked there: the config's rate, rounding and switches, with
+ * the chips typed in the tools left as they are, since a config's amounts are in blinds. A config
+ * from before that, with an amount in chips, brings that amount.
+ */
+export function rakeFormForTools(config: RakeForm, current: RakeForm): RakeForm {
+  const tools = rakeFormInChips(current);
+  return {
+    ...tools,
+    percent: config.percent,
+    rounding: config.rounding,
+    roundOn: config.roundOn,
+    insuranceAfterRake: config.insuranceAfterRake,
+    ...(config.roundUnit === "chips" && { roundAmount: config.roundAmount }),
+    ...(config.capUnit === "chips" && config.capOn && { capOn: true, capAmount: config.capAmount }),
+  };
+}
+
+/**
+ * The rule the tools' settings are kept as, in a config: the rate, the rounding and its switch,
+ * and the insurance switch from the tools, and the cap and the smallest chip of the config they
+ * were taken from, or of the default with none. The tools' own chips are never kept. Null while
+ * the settings are invalid.
+ */
+export function rakeRuleFromTools(
+  form: RakeForm,
+  takenFrom: RakeRule | undefined,
+): RakeRule | null {
+  const kept: RakeForm = {
+    ...toRakeForm(takenFrom ?? DEFAULT_RAKE_RULE),
+    percent: form.percent,
+    rounding: form.rounding,
+    roundOn: form.roundOn,
+    insuranceAfterRake: form.insuranceAfterRake,
+  };
+  const parsed = parseRake(kept);
+  return parsed.ok ? parsed.rule : null;
 }
