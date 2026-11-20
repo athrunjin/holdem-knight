@@ -34,7 +34,20 @@ Records discussions of feature and process improvements: what was proposed, how 
 
 ## Decided, waiting for development
 
-(none)
+### #I-076 Accounts, players who take up their records, and namesakes
+
+- Type: feature
+- Date: proposed and decided 2026-11-20
+- Source: the organizer, planning sign-in and how users' data is managed
+- Problem: everything lives on one device under one guest organizer. A player is only a name in the host's list, which may not repeat, and has no way to see their own history or to be told from a namesake.
+- Proposal:
+  - Accounts, host spaces and player records are three things with IDs of their own. One account serves a person as host and as player; it owns one space for now. The books belong to the space ([ADR 0040](adr/0040-accounts-host-spaces-and-player-records.md)).
+  - Sign-in by email and password, confirmed and reset with a code typed into the app; a second factor later ([ADR 0041](adr/0041-sign-in-by-email-and-password-with-codes.md)).
+  - A player takes up a record by the host's invitation, or by a request the host places. A linked player reads their own results in the games they played in, what each game was played under, and whether its books balanced and how a difference was handled; no other player's result, and changes nothing ([ADR 0042](adr/0042-linked-players-and-claiming-records.md)).
+  - Players may share a name: a game adds `_1`, `_2` to the later ones, each record has a number, and an avatar opens the player's page ([ADR 0043](adr/0043-namesakes-in-a-space.md)).
+  - A host's deleted account keeps its space for 30 days.
+- Decision: do, in the order the [roadmap](ROADMAP.md) gives for M6, with the namesakes first as they need no account. The organizer chose one space per account, the suffix in a game, and the 30 days, and, after first allowing a whole result, that a player reads only their own with the game's settings and its balance.
+- Tracking: PR #94 for the plan, ADR 0040 to 0043
 
 ## Done
 
