@@ -1,6 +1,12 @@
 import { formatRakeNumber, type InsuranceRuleForm, RAKE_ROUNDINGS } from "@holdem-knight/core";
 import { useState } from "react";
-import { chipsText, FigureInput, figureTitleClass, Mark } from "@/components/game/SetupFigures";
+import {
+  chipsText,
+  FigureInput,
+  figureTitleClass,
+  Mark,
+  SMALLEST_CHIP_PICKS,
+} from "@/components/game/SetupFigures";
 import { InfoButton } from "@/components/InfoButton";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { TextMenu } from "@/components/TextMenu";
@@ -10,13 +16,6 @@ import { cn } from "@/lib/cn";
 const ROUNDING_OPTIONS = RAKE_ROUNDINGS.map((mode) => ({
   value: mode,
   label: RAKE_ROUNDING_NAMES[mode],
-}));
-
-/** Common smallest chips, picked from the chevron where there are no blinds to go by. */
-const CHIP_PICKS = ["1", "5", "10", "20"].map((chips) => ({
-  value: chips,
-  label: chips,
-  chosen: <></>,
 }));
 
 const ROUNDING_INFO = [
@@ -78,8 +77,8 @@ function ChipFigure({ form, invalid, onChange }: Omit<RoundingProps, "stakes">) 
       />
       <TextMenu
         label="最小筹码面值快速选择"
-        options={CHIP_PICKS}
-        value={CHIP_PICKS.find((pick) => pick.value === form.roundChips?.trim())?.value}
+        options={SMALLEST_CHIP_PICKS}
+        value={SMALLEST_CHIP_PICKS.find((pick) => pick.value === form.roundChips?.trim())?.value}
         onChange={(roundChips) => onChange({ roundChips })}
         align="right"
         className="pr-0.5 text-sm"

@@ -71,6 +71,7 @@ import {
   Mark,
   pointsInputText,
   pointsText,
+  SMALLEST_CHIP_PICKS,
 } from "./SetupFigures";
 
 export const LAST_PRESET = "last";
@@ -1097,13 +1098,6 @@ interface RakeSettingsProps extends ChargeSettingsProps<RakeRule, RakeForm, Rake
 /** No blinds and no ratio, as in the tools. */
 export const NO_STAKES: RakeStakes = { smallBlindChips: null, bigBlindChips: null, ratio: null };
 
-/** Common smallest chips, picked from the chevron where there are no blinds to go by. */
-const CHIP_PICKS = ["1", "5", "10", "20"].map((chips) => ({
-  value: chips,
-  label: chips,
-  chosen: <></>,
-}));
-
 /**
  * The rule of a choice, its presets and whether its values make a new one: what both the setup
  * card and 抽水计算 show the rule by.
@@ -1297,8 +1291,11 @@ function RakeFields({
                 <span className="justify-self-end">
                   <TextMenu
                     label="最小筹码面值快速选择"
-                    options={CHIP_PICKS}
-                    value={CHIP_PICKS.find((pick) => pick.value === form.roundAmount.trim())?.value}
+                    options={SMALLEST_CHIP_PICKS}
+                    value={
+                      SMALLEST_CHIP_PICKS.find((pick) => pick.value === form.roundAmount.trim())
+                        ?.value
+                    }
                     onChange={(roundAmount) => setForm({ roundUnit: "chips", roundAmount })}
                     align="right"
                     className="pr-0.5 text-sm"
