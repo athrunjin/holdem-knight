@@ -29,6 +29,7 @@ import { useEffect, useRef, useState } from "react";
 import { AddPlayerToGame } from "@/components/game/AddPlayerToGame";
 import { ChipAmountDialog } from "@/components/game/ChipAmountDialog";
 import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
+import { GameRakeSettings } from "@/components/game/GameRakeSettings";
 import {
   BalanceTile,
   BuyInTile,
@@ -398,6 +399,7 @@ function GameLedger({ game }: { game: Game }) {
           currentChips={rakeTotal}
           rule={game.rake ?? DEFAULT_RAKE_RULE}
           blinds={{ smallBlindChips: game.smallBlindChips, bigBlindChips: game.bigBlindChips }}
+          settings={<GameRakeSettings game={game} />}
           entries={rakeRecords(events)}
           undoTo={latestRake && rakeTotal - latestRake.chips}
           saving={appendEvent.isPending}

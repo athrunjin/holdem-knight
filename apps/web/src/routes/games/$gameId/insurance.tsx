@@ -97,10 +97,11 @@ function GameInsurance({ game }: { game: Game }) {
     const terms = ({ oddsTableId: _, ...rest }: InsuranceRuleForm) => JSON.stringify(rest);
     const repriced = choice === undefined || terms(next.form) !== terms(choice.form);
     if (repriced && !window.confirm("这个修改会应用到本局，之后的保险都按新设置计算。继续？")) {
-      return;
+      return false;
     }
     setEdited({ source: next.source, form: next.form });
     if (changed && parsed.ok) saveGame.mutate({ ...game, insurance: parsed.rule });
+    return true;
   }
 
   const nameOf = gameNameOf(players, game);
@@ -207,6 +208,7 @@ function GameInsurance({ game }: { game: Game }) {
             value={choice}
             stakes={{ smallBlindChips: game.smallBlindChips }}
             onChange={setChoice}
+            settleTyping
           />
         )}
 

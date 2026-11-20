@@ -38,7 +38,7 @@ import {
   type WageTimeSegmentForm,
   type WageUnitMinutes,
 } from "@holdem-knight/core";
-import { ChevronDown, Plus, X } from "lucide-react";
+import { ChevronDown, Plus, Settings, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { ChipStack } from "@/components/ChipStack";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
@@ -59,6 +59,7 @@ import { cn } from "@/lib/cn";
 import { CURRENCY_INFO } from "@/lib/currency";
 import { datedName } from "@/lib/dated-name";
 import { formatMoneyText, selectOnFocus } from "@/lib/number-input";
+import { useSettledChange } from "@/lib/settled-change";
 import {
   Caption,
   chipsText,
@@ -1093,6 +1094,277 @@ interface RakeSettingsProps extends ChargeSettingsProps<RakeRule, RakeForm, Rake
   stakes: RakeStakes;
 }
 
+/** No blinds and no ratio, as in the tools. */
+export const NO_STAKES: RakeStakes = { smallBlindChips: null, bigBlindChips: null, ratio: null };
+
+/** Common smallest chips, picked from the chevron where there are no blinds to go by. */
+const CHIP_PICKS = ["1", "5", "10", "20"].map((chips) => ({
+  value: chips,
+  label: chips,
+  chosen: <></>,
+}));
+
+/**
+ * The rule of a choice, its presets and whether its values make a new one: what both the setup
+ * card and 抽水计算 show the rule by.
+ */
+function useRakePresets(
+  value: ChargeChoice<RakeForm>,
+  lastRule: RakeRule | undefined,
+  lastRuleLabel: string,
+  /** How a preset shows when picked, such as in chips alone in the tools */
+  shownAs: (form: RakeForm) => RakeForm = (form) => form,
+) {
+  const toRule = (f: RakeForm) => {
+    const parsed = parseRake(f);
+    return parsed.ok ? parsed.rule : null;
+  };
+  const presets = useChargePresets(
+    "rake",
+    lastRule,
+    lastRuleLabel,
+    DEFAULT_RAKE_RULE,
+    toRakeForm,
+    toRule,
+    value.source,
+  );
+  // A preset counts as it would show, so the tools' default in chips is not offered as new
+  const isNew = (form: RakeForm) => {
+    const rule = toRule(form);
+    if (!rule) return false;
+    const text = JSON.stringify(rule);
+    return !presets.choices.some((c) => JSON.stringify(toRule(shownAs(c.form))) === text);
+  };
+  return { ...presets, isNew, toRule };
+}
+
+/**
+ * The rake rule's fields: 比例, then 封顶 and 取整 in one grid so their colons, figures and marks
+ * line up, 保险报价先扣除抽水 and 保存配置. With `chipsOnly`, as in the tools with no blinds, the cap
+ * and the smallest chip are in chips alone, and the smallest chip has common ones a tap away.
+ */
+function RakeFields({
+  value,
+  issues,
+  currency,
+  stakes,
+  chipsOnly = false,
+  stacked = false,
+  presets,
+  onChange,
+}: {
+  value: ChargeChoice<RakeForm>;
+  issues: RakeIssues;
+  currency: Currency;
+  stakes: RakeStakes;
+  chipsOnly?: boolean;
+  /** Each title on a line of its own, where the box is narrower than a setup card, as in a dialog */
+  stacked?: boolean;
+  presets: ReturnType<typeof useRakePresets>;
+  onChange: (value: ChargeChoice<RakeForm>) => void;
+}) {
+  const { form } = value;
+  const setForm = (next: Partial<RakeForm>) =>
+    onChange({ ...value, source: CUSTOM_PRESET, form: { ...form, ...next } });
+  // Issues show as they are made, not only once the game is started
+  const live = parseRake(form);
+  const shown: RakeIssues = { ...(live.ok ? {} : live.issues), ...issues };
+  const titleCell = cn(FIGURE_TITLE_CELL, stacked && "col-span-full");
+
+  /** A figure in chips alone, under the chips of the rows with blinds, then what follows it. */
+  const chipsFigure = (
+    label: string,
+    amount: string,
+    invalid: boolean,
+    onAmount: (amount: string) => void,
+    after: ReactNode,
+  ) => (
+    <span className="contents font-medium">
+      <span className="col-start-6">
+        <FigureInput
+          label={`${label}（筹码）`}
+          value={amount}
+          onChange={onAmount}
+          tidy={chipsText}
+          invalid={invalid}
+          wholeNumber
+          wide
+        />
+      </span>
+      {after}
+    </span>
+  );
+
+  return (
+    <>
+      <div className="flex min-h-11 items-center justify-between gap-3">
+        <label htmlFor="rake-percent" className="font-medium">
+          比例
+        </label>
+        <span className="flex items-center">
+          <InlineNumber
+            id="rake-percent"
+            label="抽水比例"
+            value={form.percent}
+            invalid={shown.percent !== undefined}
+            suffix="%"
+            minChars={2}
+            format={(text) => {
+              const percent = Number(text);
+              return text.trim() !== "" && Number.isFinite(percent)
+                ? formatRakeNumber(percent)
+                : text;
+            }}
+            onChange={(percent) => setForm({ percent })}
+          />
+          <TextMenu
+            label="抽水比例快速选择"
+            options={PERCENT_OPTIONS}
+            value={PERCENT_OPTIONS.find((o) => Number(o.value) === Number(form.percent))?.value}
+            onChange={(percent) => setForm({ percent })}
+            align="right"
+            className="-mr-4 pr-4 pl-2"
+          />
+        </span>
+      </div>
+
+      {/*
+        One grid for the cap and the rounding, so their colons, figures and marks line up.
+        On a narrow card each title takes a line of its own, decided by the screen's width,
+        not by the numbers, so typing never moves anything between lines.
+      */}
+      <div className={FIGURE_GRID}>
+        <span className={titleCell}>
+          <span className={figureTitleClass(form.capOn)}>封顶</span>
+          <MiniSwitch
+            label="封顶"
+            hideLabel
+            checked={form.capOn}
+            onChange={(capOn) => setForm({ capOn })}
+          />
+        </span>
+        {form.capOn && (
+          <>
+            <Caption>单笔最多收:</Caption>
+            {chipsOnly ? (
+              chipsFigure(
+                "封顶",
+                form.capAmount,
+                shown.capAmount !== undefined,
+                (capAmount) => setForm({ capUnit: "chips", capAmount }),
+                <Mark>
+                  <ChipStack ground="var(--surface)" className="size-5" />
+                </Mark>,
+              )
+            ) : (
+              <RakeAmountFigures
+                label="封顶"
+                blind="bigBlinds"
+                unit={form.capUnit}
+                amount={form.capAmount}
+                invalid={shown.capAmount !== undefined}
+                stakes={stakes}
+                currency={currency}
+                onChange={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
+              />
+            )}
+            <MaxPotLine
+              form={form}
+              stakes={stakes}
+              onCap={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
+            />
+          </>
+        )}
+
+        <span className={titleCell}>
+          <span className={figureTitleClass(form.roundOn)}>取整</span>
+          <MiniSwitch
+            label="取整"
+            hideLabel
+            checked={form.roundOn}
+            onChange={(roundOn) => setForm({ roundOn })}
+          />
+        </span>
+        {form.roundOn && (
+          <>
+            <Caption>最小筹码面值:</Caption>
+            {chipsOnly ? (
+              chipsFigure(
+                "最小筹码面值",
+                form.roundAmount,
+                shown.roundAmount !== undefined,
+                (roundAmount) => setForm({ roundUnit: "chips", roundAmount }),
+                <span className="justify-self-end">
+                  <TextMenu
+                    label="最小筹码面值快速选择"
+                    options={CHIP_PICKS}
+                    value={CHIP_PICKS.find((pick) => pick.value === form.roundAmount.trim())?.value}
+                    onChange={(roundAmount) => setForm({ roundUnit: "chips", roundAmount })}
+                    align="right"
+                    className="pr-0.5 text-sm"
+                  />
+                </span>,
+              )
+            ) : (
+              <RakeAmountFigures
+                label="最小筹码面值"
+                blind="smallBlinds"
+                unit={form.roundUnit}
+                amount={form.roundAmount}
+                invalid={shown.roundAmount !== undefined}
+                stakes={stakes}
+                currency={currency}
+                onChange={(roundUnit, roundAmount) => setForm({ roundUnit, roundAmount })}
+              />
+            )}
+            <Caption>
+              <InfoButton title="超出部分" text={RAKE_ROUNDING_INFO} inline />
+              超出部分:
+            </Caption>
+            {/* Its chevron sits under the chip mark above */}
+            <span className="col-span-5 col-start-3 justify-self-end">
+              <TextMenu
+                label="超出部分"
+                options={RAKE_ROUNDING_OPTIONS}
+                value={form.rounding}
+                onChange={(rounding) => setForm({ rounding })}
+                align="right"
+                className="pr-0.5 text-sm font-medium"
+              />
+            </span>
+          </>
+        )}
+      </div>
+
+      <div className="flex min-h-11 items-center justify-between gap-3">
+        <span className="flex items-center text-sm text-muted">
+          保险报价先扣除抽水
+          <InfoButton
+            title="保险报价先扣除抽水"
+            text={
+              "开启后，算保险时先从底池扣除这一手的抽水，再按剩下的底池报价。\n这项还在开发中，目前开关只记录选择，不影响保险报价。"
+            }
+          />
+        </span>
+        <MiniSwitch
+          label="开发中"
+          checked={form.insuranceAfterRake}
+          onChange={(insuranceAfterRake) => setForm({ insuranceAfterRake })}
+        />
+      </div>
+
+      <SaveChargeConfig
+        kind="rake"
+        title="抽水"
+        takenNames={presets.saved.map((r) => r.name)}
+        visible={presets.isNew(form)}
+        read={() => presets.toRule(form)}
+        onSaved={(id) => onChange({ ...value, source: id })}
+      />
+    </>
+  );
+}
+
 /**
  * Turns rake on for a game: a percentage of each pot, a cap and rounding to the smallest chip, each
  * switched on or off and set in big blinds or chips (ADR 0036). Rake only ever goes to the host.
@@ -1107,25 +1379,9 @@ export function RakeSettings({
   stakes,
   onChange,
 }: RakeSettingsProps) {
-  const { enabled, source, form } = value;
-  const setForm = (next: Partial<RakeForm>) =>
-    onChange({ ...value, source: CUSTOM_PRESET, form: { ...form, ...next } });
-  const toRule = (f: RakeForm) => {
-    const parsed = parseRake(f);
-    return parsed.ok ? parsed.rule : null;
-  };
-  const { choices, selectedId, saved, isNew } = useChargePresets(
-    "rake",
-    lastRule,
-    lastRuleLabel,
-    DEFAULT_RAKE_RULE,
-    toRakeForm,
-    toRule,
-    source,
-  );
-  // Issues show as they are made, not only once the game is started
-  const live = parseRake(form);
-  const shown: RakeIssues = { ...(live.ok ? {} : live.issues), ...issues };
+  const { enabled } = value;
+  const presets = useRakePresets(value, lastRule, lastRuleLabel);
+
   return (
     <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
@@ -1138,8 +1394,8 @@ export function RakeSettings({
           enabled && (
             <PresetPicker
               title="抽水配置"
-              choices={choices}
-              source={selectedId}
+              choices={presets.choices}
+              source={presets.selectedId}
               onPick={(preset) => onChange({ ...value, source: preset.id, form: preset.form })}
             />
           )
@@ -1147,142 +1403,108 @@ export function RakeSettings({
         onChange={(checked) => onChange({ ...value, enabled: checked })}
       />
       {enabled && (
-        <>
-          <div className="flex min-h-11 items-center justify-between gap-3">
-            <label htmlFor="rake-percent" className="font-medium">
-              比例
-            </label>
-            <span className="flex items-center">
-              <InlineNumber
-                id="rake-percent"
-                label="抽水比例"
-                value={form.percent}
-                invalid={shown.percent !== undefined}
-                suffix="%"
-                minChars={2}
-                format={(text) => {
-                  const percent = Number(text);
-                  return text.trim() !== "" && Number.isFinite(percent)
-                    ? formatRakeNumber(percent)
-                    : text;
-                }}
-                onChange={(percent) => setForm({ percent })}
-              />
-              <TextMenu
-                label="抽水比例快速选择"
-                options={PERCENT_OPTIONS}
-                value={PERCENT_OPTIONS.find((o) => Number(o.value) === Number(form.percent))?.value}
-                onChange={(percent) => setForm({ percent })}
-                align="right"
-                className="-mr-4 pr-4 pl-2"
-              />
-            </span>
-          </div>
-
-          {/*
-            One grid for the cap and the rounding, so their colons, figures and marks line up.
-            On a narrow card each title takes a line of its own, decided by the screen's width,
-            not by the numbers, so typing never moves anything between lines.
-          */}
-          <div className={FIGURE_GRID}>
-            <span className={FIGURE_TITLE_CELL}>
-              <span className={figureTitleClass(form.capOn)}>封顶</span>
-              <MiniSwitch
-                label="封顶"
-                hideLabel
-                checked={form.capOn}
-                onChange={(capOn) => setForm({ capOn })}
-              />
-            </span>
-            {form.capOn && (
-              <>
-                <Caption>单笔最多收:</Caption>
-                <RakeAmountFigures
-                  label="封顶"
-                  blind="bigBlinds"
-                  unit={form.capUnit}
-                  amount={form.capAmount}
-                  invalid={shown.capAmount !== undefined}
-                  stakes={stakes}
-                  currency={currency}
-                  onChange={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
-                />
-                <MaxPotLine
-                  form={form}
-                  stakes={stakes}
-                  onCap={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
-                />
-              </>
-            )}
-
-            <span className={FIGURE_TITLE_CELL}>
-              <span className={figureTitleClass(form.roundOn)}>取整</span>
-              <MiniSwitch
-                label="取整"
-                hideLabel
-                checked={form.roundOn}
-                onChange={(roundOn) => setForm({ roundOn })}
-              />
-            </span>
-            {form.roundOn && (
-              <>
-                <Caption>最小筹码面值:</Caption>
-                <RakeAmountFigures
-                  label="最小筹码面值"
-                  blind="smallBlinds"
-                  unit={form.roundUnit}
-                  amount={form.roundAmount}
-                  invalid={shown.roundAmount !== undefined}
-                  stakes={stakes}
-                  currency={currency}
-                  onChange={(roundUnit, roundAmount) => setForm({ roundUnit, roundAmount })}
-                />
-                <Caption>
-                  <InfoButton title="超出部分" text={RAKE_ROUNDING_INFO} inline />
-                  超出部分:
-                </Caption>
-                {/* Its chevron sits under the chip mark above */}
-                <span className="col-span-5 col-start-3 justify-self-end">
-                  <TextMenu
-                    label="超出部分"
-                    options={RAKE_ROUNDING_OPTIONS}
-                    value={form.rounding}
-                    onChange={(rounding) => setForm({ rounding })}
-                    align="right"
-                    className="pr-0.5 text-sm font-medium"
-                  />
-                </span>
-              </>
-            )}
-          </div>
-
-          <div className="flex min-h-11 items-center justify-between gap-3">
-            <span className="flex items-center text-sm text-muted">
-              保险报价先扣除抽水
-              <InfoButton
-                title="保险报价先扣除抽水"
-                text={
-                  "开启后，算保险时先从底池扣除这一手的抽水，再按剩下的底池报价。\n这项还在开发中，目前开关只记录选择，不影响保险报价。"
-                }
-              />
-            </span>
-            <MiniSwitch
-              label="开发中"
-              checked={form.insuranceAfterRake}
-              onChange={(insuranceAfterRake) => setForm({ insuranceAfterRake })}
-            />
-          </div>
-
-          <SaveChargeConfig
-            kind="rake"
-            title="抽水"
-            takenNames={saved.map((r) => r.name)}
-            visible={isNew(form)}
-            read={() => toRule(form)}
-            onSaved={(id) => onChange({ ...value, source: id })}
-          />
-        </>
+        <RakeFields
+          value={value}
+          issues={issues}
+          currency={currency}
+          stakes={stakes}
+          presets={presets}
+          onChange={onChange}
+        />
       )}
     </section>
+  );
+}
+
+/**
+ * The form with amounts in chips alone, for the tools with no blinds: a smallest chip in blinds
+ * becomes 1 chip and a cap in blinds is switched off, as the rule prices without blinds.
+ */
+export function inChipsOnly(form: RakeForm): RakeForm {
+  return {
+    ...form,
+    ...(form.roundUnit !== "chips" && { roundUnit: "chips", roundAmount: "1" }),
+    ...(form.capUnit !== "chips" && { capOn: false, capUnit: "chips", capAmount: "" }),
+  };
+}
+
+interface RakeSettingsPanelProps {
+  /** The settings in use, and the preset they came from */
+  value: ChargeChoice<RakeForm>;
+  currency: Currency;
+  stakes: RakeStakes;
+  /** In the tools, with no blinds: amounts in chips alone */
+  chipsOnly?: boolean;
+  /** Offered as "last time", such as this game's own rule */
+  lastRule?: RakeRule | undefined;
+  lastRuleLabel?: string;
+  /** Open at first, as in the tools; a game's start closed */
+  defaultOpen: boolean;
+  /**
+   * A change. Returns false to turn it down, when it shows the settings as they were. While a
+   * number is being typed, the change comes once the field is left, so it is asked about once.
+   */
+  onChange: (value: ChargeChoice<RakeForm>) => boolean | undefined;
+}
+
+/**
+ * 抽水计算's settings, under its title: the preset in use at the left, and at the right a mark that
+ * opens the same fields as game setup.
+ */
+export function RakeSettingsPanel({
+  value,
+  currency,
+  stakes,
+  chipsOnly = false,
+  lastRule,
+  lastRuleLabel = "上次配置",
+  defaultOpen,
+  onChange,
+}: RakeSettingsPanelProps) {
+  const [open, setOpen] = useState(defaultOpen);
+  const settled = useSettledChange(value, onChange);
+  const shown = settled.value;
+  const toShown = (form: RakeForm) => (chipsOnly ? inChipsOnly(form) : form);
+  const presets = useRakePresets(shown, lastRule, lastRuleLabel, toShown);
+
+  return (
+    <div className="flex flex-col gap-1" {...settled.containerProps}>
+      <div className="flex items-center justify-between gap-2">
+        <PresetPicker
+          title="抽水配置"
+          choices={presets.choices}
+          source={presets.selectedId}
+          onPick={(preset) =>
+            settled.change({ ...shown, source: preset.id, form: toShown(preset.form) })
+          }
+        />
+        <button
+          type="button"
+          aria-label="抽水设置"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          className={cn(
+            "-mr-3 grid size-11 place-items-center text-muted",
+            open && "text-highlight",
+          )}
+        >
+          <Settings className="size-5" aria-hidden />
+        </button>
+      </div>
+      {open && (
+        <div className="flex flex-col gap-1 rounded-xl border border-line px-3 py-1">
+          <RakeFields
+            value={shown}
+            issues={{}}
+            currency={currency}
+            stakes={stakes}
+            chipsOnly={chipsOnly}
+            stacked
+            presets={presets}
+            onChange={settled.change}
+          />
+        </div>
+      )}
+    </div>
   );
 }

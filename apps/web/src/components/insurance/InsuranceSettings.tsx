@@ -24,12 +24,7 @@ import { cn } from "@/lib/cn";
 import { datedName } from "@/lib/dated-name";
 import { ChoiceModal } from "./ChoiceModal";
 import { CoverLimitPicker } from "./CoverLimitPicker";
-import {
-  InsuranceRounding,
-  InsuranceRoundingLine,
-  type RoundingStakes,
-  RoundingSwitch,
-} from "./InsuranceRounding";
+import { InsuranceRoundingLine, type RoundingStakes, RoundingSwitch } from "./InsuranceRounding";
 import { OddsTableEditor } from "./OddsTableEditor";
 
 const LAST_RULE = "last";
@@ -262,8 +257,8 @@ export function InsuranceSettings({
               value={form.riverLimit}
               onChange={(riverLimit) => setForm({ riverLimit })}
             />
-            {/* On an insurance page, rounding's switch ends this line, wrapping when it is too narrow */}
-            {bare && <RoundingSwitch form={form} onChange={setForm} className="ml-auto" />}
+            {/* Rounding's switch ends this line, wrapping when it is too narrow */}
+            <RoundingSwitch form={form} onChange={setForm} className="ml-auto" />
           </div>
           {(issues.turnLimit || issues.riverLimit || issues.odds) && (
             <p role="alert" className="text-sm text-highlight">
@@ -271,21 +266,12 @@ export function InsuranceSettings({
             </p>
           )}
 
-          {bare ? (
-            <InsuranceRoundingLine
-              form={form}
-              stakes={stakes}
-              invalid={roundingInvalid}
-              onChange={setForm}
-            />
-          ) : (
-            <InsuranceRounding
-              form={form}
-              stakes={stakes}
-              invalid={roundingInvalid}
-              onChange={setForm}
-            />
-          )}
+          <InsuranceRoundingLine
+            form={form}
+            stakes={stakes}
+            invalid={roundingInvalid}
+            onChange={setForm}
+          />
 
           {savable && (
             <button

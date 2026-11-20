@@ -5,11 +5,9 @@ import {
   type RakeRule,
   rakeFromPot,
 } from "@holdem-knight/core";
-import { Settings } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RollingNumber } from "@/components/RollingNumber";
-import { rakeRuleParts } from "@/lib/charges";
 import { cn } from "@/lib/cn";
 import { selectOnFocus } from "@/lib/number-input";
 
@@ -34,6 +32,8 @@ interface RakeDialogProps {
   rule: RakeRule;
   /** The game's blinds, for amounts set in blinds. Missing outside a game */
   blinds?: RakeBlinds | undefined;
+  /** The rule's settings, shown under the title */
+  settings: ReactNode;
   /** What has been saved, oldest first */
   entries: readonly RakeEntry[];
   /** The total 撤销 goes back to. Missing when there is nothing to take back */
@@ -70,6 +70,7 @@ export function RakeDialog({
   currentChips,
   rule,
   blinds,
+  settings,
   entries,
   undoTo,
   saving,
@@ -84,7 +85,6 @@ export function RakeDialog({
   // What is typed over the total so far. Missing until it is tapped, when it shows the total
   const [currentText, setCurrentText] = useState<string>();
   const [editingCurrent, setEditingCurrent] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [armed, setArmed] = useState(false);
   const armedAt = useRef(0);
   const armTimer = useRef<number>(undefined);
@@ -198,27 +198,8 @@ export function RakeDialog({
       }}
       className="m-auto w-[calc(100%-2rem)] max-w-sm overflow-y-auto rounded-2xl border border-line bg-surface p-5 text-text backdrop:bg-black/60"
     >
-      <div className="-mt-2 -mr-3 flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">抽水计算</h2>
-        <button
-          type="button"
-          aria-label="抽水设置"
-          aria-expanded={settingsOpen}
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          className={cn(
-            "grid size-11 place-items-center text-muted",
-            settingsOpen && "text-highlight",
-          )}
-        >
-          <Settings className="size-5" aria-hidden />
-        </button>
-      </div>
-      {/* The rule is set at game setup; here it is only shown */}
-      {settingsOpen && (
-        <p className="mt-1 rounded-xl border border-line px-3 py-2 text-xs text-muted">
-          {rakeRuleParts(rule).join("，")}。规则在开局设置里修改。
-        </p>
-      )}
+      <h2 className="text-lg font-semibold">抽水计算</h2>
+      {settings}
 
       <div className="mt-3 grid grid-cols-[minmax(0,5fr)_auto_minmax(0,6fr)_auto_minmax(0,5fr)] items-center gap-x-1 gap-y-1 text-center">
         <label htmlFor="rake-pot" className="col-span-5 text-sm text-muted">

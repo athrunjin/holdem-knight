@@ -89,7 +89,10 @@ function InsuranceToolPage() {
   );
 
   const choice: InsuranceChoice = { enabled: true, ...settings };
-  const setChoice = ({ source, form }: InsuranceChoice) => setSettings({ source, form });
+  const setChoice = ({ source, form }: InsuranceChoice) => {
+    setSettings({ source, form });
+    return true;
+  };
   const { form } = settings;
   const parsed = useMemo(() => parseInsuranceRule(form), [form]);
   return (

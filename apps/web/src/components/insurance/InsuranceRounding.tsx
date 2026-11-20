@@ -1,16 +1,6 @@
 import { formatRakeNumber, type InsuranceRuleForm, RAKE_ROUNDINGS } from "@holdem-knight/core";
 import { useState } from "react";
-import { ChipStack } from "@/components/ChipStack";
-import {
-  Caption,
-  chipsText,
-  FIGURE_GRID,
-  FIGURE_TITLE_CELL,
-  FigureInput,
-  figureTitleClass,
-  Join,
-  Mark,
-} from "@/components/game/SetupFigures";
+import { chipsText, FigureInput, figureTitleClass, Mark } from "@/components/game/SetupFigures";
 import { InfoButton } from "@/components/InfoButton";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { TextMenu } from "@/components/TextMenu";
@@ -117,51 +107,17 @@ const modeCaption = (
 );
 
 /**
- * Rounding insurance prices to the smallest chip (ADR 0037), laid out at game setup as rake's
- * rounding is: a title with its switch, the smallest chip, and how what is left over rounds, in a
- * grid whose colons and marks line up. At a game the smallest chip is kept in small blinds and
- * shown in chips too, and typing chips sets the small blinds.
- */
-export function InsuranceRounding({ form, stakes, invalid, onChange }: RoundingProps) {
-  return (
-    <div className={FIGURE_GRID}>
-      <RoundingSwitch form={form} onChange={onChange} className={FIGURE_TITLE_CELL} />
-      {form.roundOn && (
-        <>
-          <Caption>最小筹码面值:</Caption>
-          {stakes ? (
-            <BlindFigures
-              smallBlinds={form.roundSmallBlinds}
-              smallBlindChips={stakes.smallBlindChips}
-              invalid={invalid}
-              onChange={(roundSmallBlinds) => onChange({ roundSmallBlinds })}
-            />
-          ) : (
-            <span className="col-span-2 col-start-6 flex items-center justify-end font-medium">
-              <ChipFigure form={form} invalid={invalid} onChange={onChange} />
-            </span>
-          )}
-          <Caption>{modeCaption}</Caption>
-          {/* Its chevron sits under the mark above */}
-          <span className="col-span-5 col-start-3 justify-self-end">
-            {modeMenu({ form, onChange })}
-          </span>
-        </>
-      )}
-    </div>
-  );
-}
-
-/**
- * The same settings on an insurance page, where they take less room: the switch goes at the end
- * of the cover limits line, and this line holds the smallest chip and how what is left over rounds,
- * wrapping only where the screen is too narrow for both.
+ * Rounding insurance prices to the smallest chip (ADR 0037), in little room: `RoundingSwitch` ends
+ * the cover limits line, and this line holds the smallest chip and how what is left over rounds,
+ * wrapping only where the screen is too narrow for both. At a game the smallest chip is kept in
+ * small blinds and shown in chips too, and typing chips sets the small blinds. In the tools it is
+ * in chips, with common ones a tap away.
  */
 export function InsuranceRoundingLine({ form, stakes, invalid, onChange }: RoundingProps) {
   if (!form.roundOn) return null;
   const caption = "mr-1 flex items-center text-xs whitespace-nowrap text-muted";
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-2">
+    <div className="flex flex-wrap items-center justify-between gap-x-1">
       <span className="flex items-center font-medium">
         <span className={caption}>最小筹码面值:</span>
         {stakes ? (
@@ -170,7 +126,6 @@ export function InsuranceRoundingLine({ form, stakes, invalid, onChange }: Round
             smallBlindChips={stakes.smallBlindChips}
             invalid={invalid}
             onChange={(roundSmallBlinds) => onChange({ roundSmallBlinds })}
-            narrow
           />
         ) : (
           <ChipFigure form={form} invalid={invalid} onChange={onChange} />
@@ -185,22 +140,20 @@ export function InsuranceRoundingLine({ form, stakes, invalid, onChange }: Round
 }
 
 /**
- * The smallest chip at a game: small blinds ⇔ chips, as rake's rows read. The small blinds are
- * kept; chips typed are turned into small blinds, so the smallest chip follows the blinds.
+ * The smallest chip at a game: small blinds ⇔ chips, as rake's rows read, each figure only as wide
+ * as its digits so the line fits a phone's card. The chips need no mark after the ⇔. The small
+ * blinds are kept; chips typed are turned into small blinds, so the smallest chip follows the blinds.
  */
 function BlindFigures({
   smallBlinds,
   smallBlindChips,
   invalid,
   onChange,
-  narrow = false,
 }: {
   smallBlinds: string;
   smallBlindChips: number | null;
   invalid: boolean;
   onChange: (smallBlinds: string) => void;
-  /** Each figure only as wide as its digits, where room is short */
-  narrow?: boolean;
 }) {
   // Chips being typed, from which the small blinds are worked out
   const [draft, setDraft] = useState<string | null>(null);
@@ -218,23 +171,22 @@ function BlindFigures({
     }
   }
 
-  // Five cells of the grid: small blinds, their mark, ⇔, chips, and the chip mark
   return (
     <span className="contents font-medium">
       <FigureInput
         label="最小筹码面值（SB）"
         value={smallBlinds}
-        {...(narrow && { minChars: 1 })}
+        minChars={1}
         onChange={onChange}
         invalid={invalid}
       />
       <Mark>SB</Mark>
-      <Join>
+      <span className="grid w-5 shrink-0 place-items-center font-normal text-muted">
         <span aria-hidden className="text-xl leading-none">
           ⇔
         </span>
         <span className="sr-only">即</span>
-      </Join>
+      </span>
       <FigureInput
         label="最小筹码面值（筹码）"
         value={draft ?? chips}
@@ -243,11 +195,8 @@ function BlindFigures({
         tidy={chipsText}
         disabled={!smallBlindChips}
         wholeNumber
-        {...(narrow ? { minChars: 1 } : { wide: true })}
+        minChars={1}
       />
-      <Mark>
-        <ChipStack ground="var(--surface)" className="size-5" />
-      </Mark>
     </span>
   );
 }

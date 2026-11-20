@@ -1415,6 +1415,20 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked at 393 and 360 wide in the browser preview, dark mode.
 - Tracking: PR #90, ADR [0037](adr/0037-insurance-prices-rounded-to-the-smallest-chip.md)
 
+### #I-070 抽水计算 shows and changes the rake settings, and the insurance rounding line at setup
+
+- Type: feature
+- Date: proposed and decided 2026-11-20
+- Source: discussion
+- Problem: 抽水计算 showed the rule only as text behind a gear, to be changed in 开局设置, and the tools' copy always used the default. At setup, insurance's rounding was still laid out in rake's grid, unlike the insurance pages.
+- Proposal:
+  - At setup, insurance's 取整 switch ends the 保费上限 line too, with the smallest chip and 超出部分 on the line under it, as on the insurance pages. To fit a phone's card, the chips after ⇔ have no mark and each figure is only as wide as its digits.
+  - 抽水计算 has, under its title, the preset in use and a mark at the right that opens the same fields as 开局设置 (比例, 封顶, 取整, 保险报价先扣除抽水, 保存配置). The fields' titles take lines of their own there, as the dialog is narrower than a setup card.
+  - From a game it starts closed, and its settings are the game's own: a change asks 「这个修改会应用到本局，之后的抽水都按新设置计算。继续？」, is saved with the game, and goes back if turned down. A number being typed asks once, when its field is left; taps on switches and lists ask at once. The game's insurance page now asks the same way, where it asked at every key of the smallest chip.
+  - From the tools it starts open, in chips alone: the cap and the smallest chip have no blinds to go by, the smallest chip has 1, 5, 10 and 20 under a chevron, and the settings are kept in this browser. A preset in blinds is shown as the tool prices it: a smallest chip in blinds as 1 chip, and a cap in blinds switched off.
+- Decision: do. Checked at 393 wide in the browser preview, dark mode, with a test game on an isolated preview origin.
+- Tracking: PR #90
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
