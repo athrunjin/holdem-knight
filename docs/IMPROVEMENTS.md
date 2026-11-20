@@ -47,7 +47,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - Players may share a name: a game adds `_1`, `_2` to the later ones, each record has a number, and an avatar opens the player's page ([ADR 0043](adr/0043-namesakes-in-a-space.md)).
   - A host's deleted account keeps its space for 30 days.
 - Decision: do, in the order the [roadmap](ROADMAP.md) gives for M6, with the namesakes first as they need no account. The organizer chose one space per account, the suffix in a game, and the 30 days, and, after first allowing a whole result, that a player reads only their own with the game's settings and its balance.
-- Tracking: ADR 0040 to 0043
+- Tracking: PR #94 for the plan, ADR 0040 to 0043
 
 ## Done
 
