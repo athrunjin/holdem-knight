@@ -32,7 +32,7 @@ interface RakeDialogProps {
   rule: RakeRule;
   /** The game's blinds, for amounts set in blinds. Missing outside a game */
   blinds?: RakeBlinds | undefined;
-  /** The rule's settings, shown under the title */
+  /** The title line, with the rule's settings, which names the dialog 抽水计算 */
   settings: ReactNode;
   /** What has been saved, oldest first */
   entries: readonly RakeEntry[];
@@ -198,7 +198,6 @@ export function RakeDialog({
       }}
       className="m-auto w-[calc(100%-2rem)] max-w-sm overflow-y-auto rounded-2xl border border-line bg-surface p-5 text-text backdrop:bg-black/60"
     >
-      <h2 className="text-lg font-semibold">抽水计算</h2>
       {settings}
 
       <div className="mt-3 grid grid-cols-[minmax(0,5fr)_auto_minmax(0,6fr)_auto_minmax(0,5fr)] items-center gap-x-1 gap-y-1 text-center">

@@ -38,7 +38,7 @@ import {
   type WageTimeSegmentForm,
   type WageUnitMinutes,
 } from "@holdem-knight/core";
-import { ChevronDown, Plus, Settings, X } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, Plus, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { ChipStack } from "@/components/ChipStack";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
@@ -1448,8 +1448,9 @@ interface RakeSettingsPanelProps {
 }
 
 /**
- * 抽水计算's settings, under its title: the preset in use at the left, and at the right a mark that
- * opens the same fields as game setup.
+ * 抽水计算's title line and settings: `抽水计算 · preset ⇅`, where a tap on the preset lists the
+ * others in the page and one more switches to it, and at the end of the line a chevron that opens
+ * the same fields as game setup. Switching preset opens them, to show what it set.
  */
 export function RakeSettingsPanel({
   value,
@@ -1466,29 +1467,47 @@ export function RakeSettingsPanel({
   const shown = settled.value;
   const toShown = (form: RakeForm) => (chipsOnly ? inChipsOnly(form) : form);
   const presets = useRakePresets(shown, lastRule, lastRuleLabel, toShown);
+  const options = [
+    ...presets.choices.map(({ id, name }) => ({ value: id, label: name })),
+    // Values changed by hand belong to no preset, and show as such until one is picked
+    ...(presets.choices.some(({ id }) => id === presets.selectedId)
+      ? []
+      : [{ value: presets.selectedId, label: "自定义" }]),
+  ];
+
+  function pick(id: string) {
+    const preset = presets.choices.find((choice) => choice.id === id);
+    if (!preset) return;
+    settled.change({ ...shown, source: preset.id, form: toShown(preset.form) });
+    setOpen(true);
+  }
 
   return (
     <div className="flex flex-col gap-1" {...settled.containerProps}>
-      <div className="flex items-center justify-between gap-2">
-        <PresetPicker
-          title="抽水配置"
-          choices={presets.choices}
-          source={presets.selectedId}
-          onPick={(preset) =>
-            settled.change({ ...shown, source: preset.id, form: toShown(preset.form) })
-          }
+      <div className="-mt-2 -mr-3 flex items-center gap-1.5">
+        <h2 className="shrink-0 text-lg font-semibold">抽水计算</h2>
+        <span aria-hidden className="text-muted">
+          ·
+        </span>
+        <TextMenu
+          label="抽水配置"
+          options={options}
+          value={presets.selectedId}
+          onChange={pick}
+          icon={<ChevronsUpDown className="size-4 shrink-0 text-muted" aria-hidden />}
+          className="font-medium"
         />
         <button
           type="button"
           aria-label="抽水设置"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
-          className={cn(
-            "-mr-3 grid size-11 place-items-center text-muted",
-            open && "text-highlight",
-          )}
+          className="ml-auto grid size-11 shrink-0 place-items-center text-muted"
         >
-          <Settings className="size-5" aria-hidden />
+          <ChevronDown
+            className={cn("size-5 transition-transform", open && "rotate-180")}
+            aria-hidden
+          />
         </button>
       </div>
       {open && (
