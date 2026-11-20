@@ -22,6 +22,7 @@ export function FigureInput({
   tidy,
   invalid = false,
   wide = false,
+  minChars,
   wholeNumber = false,
   disabled = false,
   above,
@@ -33,6 +34,8 @@ export function FigureInput({
   tidy?: (value: string) => string;
   invalid?: boolean;
   wide?: boolean;
+  /** The digits its slot holds, in place of 3 or 4, where room is short */
+  minChars?: number;
   /** Only digits get through */
   wholeNumber?: boolean;
   disabled?: boolean;
@@ -66,7 +69,7 @@ export function FigureInput({
         }
         // As wide as the value both tidied and as typed, so a tap never changes its width
         style={{
-          width: `${Math.max(wide ? 4 : 3, value.length, (tidy?.(value) ?? value).length) + 1}ch`,
+          width: `${Math.max(minChars ?? (wide ? 4 : 3), value.length, (tidy?.(value) ?? value).length) + 1}ch`,
         }}
         className={cn(
           "min-h-9 border-b bg-transparent text-center font-medium tabular-nums outline-none focus:border-highlight disabled:opacity-60",
@@ -122,9 +125,14 @@ export const Caption = ({ children }: { children: ReactNode }) => (
 export const FIGURE_GRID =
   "grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto_auto_auto] items-center";
 
-/** A title and its switch start a row of the grid, and have a line of their own when narrow. */
+/**
+ * A title and its switch start a row of the grid, and have a line of their own when narrow: on a
+ * screen under 386px, where a card's content is under 320px. It goes by the screen, not by the
+ * card as a container query would, since a container shuts in the lists that open from it, and a
+ * list then shows under the next card. Either way, typing never moves anything between lines.
+ */
 export const FIGURE_TITLE_CELL =
-  "col-start-1 flex min-h-11 items-center gap-1.5 whitespace-nowrap @max-xs:col-span-full";
+  "col-start-1 flex min-h-11 items-center gap-1.5 whitespace-nowrap max-[386px]:col-span-full";
 
 /** A switched-off setting's title reads faded and struck through. */
 export const figureTitleClass = (on: boolean) =>

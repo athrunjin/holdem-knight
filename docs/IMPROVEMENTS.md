@@ -1378,7 +1378,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - Game setup has rake in the same style as the other options: its config on the switch row, 保存配置 for a valid new config, and last time's values carried over.
   - 比例 takes decimals, with quick picks of 2.5%, 3%, 5% and 10%, default 5%, shown without decimals it does not need.
   - 封顶 has a switch, off by default, which fades and strikes through its title. On, it reads `单笔最多收：2 BB ⇔ 4 [chip]`: either figure can be typed and the other follows, and a tap on the chip mark shows points. A line under it reads `等值最大底池：400 [chip]`, the cap over the rate, always in chips with its mark under the one above; typing a pot sets the cap to that pot's rate in the cap's unit, so the pot comes back as typed.
-  - On a narrow card (under 320px) the cap and rounding rows put their figures on a line of their own, decided by the card's width so typing never moves them between lines. A figure keeps one width whether it is being typed or not.
+  - On a narrow card (under 320px) the cap and rounding rows put their figures on a line of their own, decided by the width so typing never moves them between lines (by the screen's width since #I-069). A figure keeps one width whether it is being typed or not.
   - Fixed from trying the preview: two fields tapped in quick succession took focus back from each other without end, as the delayed select-all also focuses a field; it now selects only a field that still has focus. The max pot no longer drops below what was typed: it was the pot where the rounded rake first reached the cap.
   - 取整 has a switch, on by default, then 四舍五入 (default), 向下取整 or 向上取整, and the smallest chip as `最小筹码面值: 1 SB ⇔ chips` in the same way, lined up under the cap, with `超出部分: 四舍五入` on the line under it. The default is 1 SB.
   - The cap and rounding share one grid: the colons of 单笔最多收, 等值最大底池, 最小筹码面值 and 超出部分 line up, as do the figures, and the rounding chevron sits under the chip marks above.
@@ -1410,6 +1410,8 @@ Records discussions of feature and process improvements: what was proposed, how 
   - In the tools, with no small blind, the smallest chip is typed in chips, 1 by default, and its chevron in place of the chip mark offers 1, 5, 10 and 20.
   - A saved insurance config keeps the mode and the number of small blinds, never the chips. Changing only the chips in the tools keeps the config's name.
   - Rake's and insurance's 超出部分 each get an info mark before them explaining their rounding.
+  - On the insurance pages the 取整 switch ends the 保费上限 line, and when on, the smallest chip and 超出部分 share the line under it, each figure only as wide as its digits; under 386px they wrap. 保存配置 moves under the rounding, at setup and on the pages.
+  - Fixed from trying the preview: a list opened in the insurance or rake card at setup showed under the next card, and taps beside it went through to that card. The cards were containers for the narrow layout, which shuts in what opens from them; the narrow layout now goes by the screen's width instead (under 386px, where a card's content is under 320px). Every list at setup and on the insurance tool was checked to be on top.
 - Decision: do. Checked at 393 and 360 wide in the browser preview, dark mode.
 - Tracking: PR #90, ADR [0037](adr/0037-insurance-prices-rounded-to-the-smallest-chip.md)
 

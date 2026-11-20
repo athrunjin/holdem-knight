@@ -1127,7 +1127,7 @@ export function RakeSettings({
   const live = parseRake(form);
   const shown: RakeIssues = { ...(live.ok ? {} : live.issues), ...issues };
   return (
-    <section className="@container flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
+    <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
         label="抽水"
         {...(locked && { detail: "这局已有抽水记录，不能关闭" })}
@@ -1181,7 +1181,7 @@ export function RakeSettings({
 
           {/*
             One grid for the cap and the rounding, so their colons, figures and marks line up.
-            On a narrow card each title takes a line of its own, decided by the card's width,
+            On a narrow card each title takes a line of its own, decided by the screen's width,
             not by the numbers, so typing never moves anything between lines.
           */}
           <div className={FIGURE_GRID}>

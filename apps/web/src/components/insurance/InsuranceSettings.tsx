@@ -24,7 +24,12 @@ import { cn } from "@/lib/cn";
 import { datedName } from "@/lib/dated-name";
 import { ChoiceModal } from "./ChoiceModal";
 import { CoverLimitPicker } from "./CoverLimitPicker";
-import { InsuranceRounding, type RoundingStakes } from "./InsuranceRounding";
+import {
+  InsuranceRounding,
+  InsuranceRoundingLine,
+  type RoundingStakes,
+  RoundingSwitch,
+} from "./InsuranceRounding";
 import { OddsTableEditor } from "./OddsTableEditor";
 
 const LAST_RULE = "last";
@@ -168,6 +173,8 @@ export function InsuranceSettings({
       (rule) => JSON.stringify(settingsOf(toInsuranceRuleForm(rule))) === settingsText,
     );
 
+  const roundingInvalid = issues.roundSmallBlinds !== undefined || issues.roundChips !== undefined;
+
   const configButton = (
     <button
       type="button"
@@ -212,7 +219,7 @@ export function InsuranceSettings({
   return (
     <section
       className={cn(
-        "@container flex flex-col",
+        "flex flex-col",
         !bare && "gap-1 rounded-xl border border-line bg-surface px-4 py-2",
       )}
     >
@@ -255,15 +262,8 @@ export function InsuranceSettings({
               value={form.riverLimit}
               onChange={(riverLimit) => setForm({ riverLimit })}
             />
-            {savable && (
-              <button
-                type="button"
-                onClick={() => setNaming(true)}
-                className="ml-auto min-h-11 font-medium text-highlight"
-              >
-                保存配置
-              </button>
-            )}
+            {/* On an insurance page, rounding's switch ends this line, wrapping when it is too narrow */}
+            {bare && <RoundingSwitch form={form} onChange={setForm} className="ml-auto" />}
           </div>
           {(issues.turnLimit || issues.riverLimit || issues.odds) && (
             <p role="alert" className="text-sm text-highlight">
@@ -271,12 +271,31 @@ export function InsuranceSettings({
             </p>
           )}
 
-          <InsuranceRounding
-            form={form}
-            stakes={stakes}
-            invalid={issues.roundSmallBlinds !== undefined || issues.roundChips !== undefined}
-            onChange={setForm}
-          />
+          {bare ? (
+            <InsuranceRoundingLine
+              form={form}
+              stakes={stakes}
+              invalid={roundingInvalid}
+              onChange={setForm}
+            />
+          ) : (
+            <InsuranceRounding
+              form={form}
+              stakes={stakes}
+              invalid={roundingInvalid}
+              onChange={setForm}
+            />
+          )}
+
+          {savable && (
+            <button
+              type="button"
+              onClick={() => setNaming(true)}
+              className="min-h-11 self-end text-sm font-medium text-highlight"
+            >
+              保存配置
+            </button>
+          )}
 
           {!bare && (
             <OddsTableEditor

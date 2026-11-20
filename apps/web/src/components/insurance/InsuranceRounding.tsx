@@ -15,6 +15,7 @@ import { InfoButton } from "@/components/InfoButton";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { TextMenu } from "@/components/TextMenu";
 import { RAKE_ROUNDING_NAMES } from "@/lib/charges";
+import { cn } from "@/lib/cn";
 
 const ROUNDING_OPTIONS = RAKE_ROUNDINGS.map((mode) => ({
   value: mode,
@@ -47,34 +48,84 @@ export type RoundingStakes =
 /** A small blind count with a decimal or two, as it is kept. */
 const blindText = (value: number) => formatRakeNumber(Math.round(value * 100) / 100);
 
-/**
- * Rounding insurance prices to the smallest chip (ADR 0037), laid out as rake's rounding is: a
- * title with its switch, the smallest chip, and how what is left over rounds. At a game the
- * smallest chip is kept in small blinds and shown in chips too, and typing chips sets the small
- * blinds. In the tools it is in chips, with common ones a tap away.
- */
-export function InsuranceRounding({
-  form,
-  stakes,
-  invalid,
-  onChange,
-}: {
+interface RoundingProps {
   form: InsuranceRuleForm;
   stakes: RoundingStakes;
   invalid: boolean;
   onChange: (next: Partial<InsuranceRuleForm>) => void;
-}) {
+}
+
+/** 取整 with its switch, faded and struck through while off. */
+export function RoundingSwitch({
+  form,
+  onChange,
+  className,
+}: Pick<RoundingProps, "form" | "onChange"> & { className?: string }) {
+  return (
+    <span className={cn("flex min-h-11 items-center gap-1.5 whitespace-nowrap", className)}>
+      <span className={figureTitleClass(form.roundOn)}>取整</span>
+      <MiniSwitch
+        label="取整"
+        hideLabel
+        checked={form.roundOn}
+        onChange={(roundOn) => onChange({ roundOn })}
+      />
+    </span>
+  );
+}
+
+/** The smallest chip in chips, with common ones under the chevron after it, for the tools. */
+function ChipFigure({ form, invalid, onChange }: Omit<RoundingProps, "stakes">) {
+  return (
+    <>
+      <FigureInput
+        label="最小筹码面值（筹码）"
+        value={form.roundChips ?? ""}
+        onChange={(roundChips) => onChange({ roundChips })}
+        tidy={chipsText}
+        invalid={invalid}
+        wholeNumber
+      />
+      <TextMenu
+        label="最小筹码面值快速选择"
+        options={CHIP_PICKS}
+        value={CHIP_PICKS.find((pick) => pick.value === form.roundChips?.trim())?.value}
+        onChange={(roundChips) => onChange({ roundChips })}
+        align="right"
+        className="pr-0.5 text-sm"
+      />
+    </>
+  );
+}
+
+const modeMenu = ({ form, onChange }: Pick<RoundingProps, "form" | "onChange">) => (
+  <TextMenu
+    label="超出部分"
+    options={ROUNDING_OPTIONS}
+    value={form.roundMode}
+    onChange={(roundMode) => onChange({ roundMode })}
+    align="right"
+    className="pr-0.5 text-sm font-medium"
+  />
+);
+
+const modeCaption = (
+  <>
+    <InfoButton title="超出部分" text={ROUNDING_INFO} inline />
+    超出部分:
+  </>
+);
+
+/**
+ * Rounding insurance prices to the smallest chip (ADR 0037), laid out at game setup as rake's
+ * rounding is: a title with its switch, the smallest chip, and how what is left over rounds, in a
+ * grid whose colons and marks line up. At a game the smallest chip is kept in small blinds and
+ * shown in chips too, and typing chips sets the small blinds.
+ */
+export function InsuranceRounding({ form, stakes, invalid, onChange }: RoundingProps) {
   return (
     <div className={FIGURE_GRID}>
-      <span className={FIGURE_TITLE_CELL}>
-        <span className={figureTitleClass(form.roundOn)}>取整</span>
-        <MiniSwitch
-          label="取整"
-          hideLabel
-          checked={form.roundOn}
-          onChange={(roundOn) => onChange({ roundOn })}
-        />
-      </span>
+      <RoundingSwitch form={form} onChange={onChange} className={FIGURE_TITLE_CELL} />
       {form.roundOn && (
         <>
           <Caption>最小筹码面值:</Caption>
@@ -86,47 +137,49 @@ export function InsuranceRounding({
               onChange={(roundSmallBlinds) => onChange({ roundSmallBlinds })}
             />
           ) : (
-            <span className="contents font-medium">
-              <span className="col-start-6">
-                <FigureInput
-                  label="最小筹码面值（筹码）"
-                  value={form.roundChips ?? ""}
-                  onChange={(roundChips) => onChange({ roundChips })}
-                  tidy={chipsText}
-                  invalid={invalid}
-                  wholeNumber
-                  wide
-                />
-              </span>
-              <span className="justify-self-end">
-                <TextMenu
-                  label="最小筹码面值快速选择"
-                  options={CHIP_PICKS}
-                  value={CHIP_PICKS.find((pick) => pick.value === form.roundChips?.trim())?.value}
-                  onChange={(roundChips) => onChange({ roundChips })}
-                  align="right"
-                  className="pr-0.5 text-sm"
-                />
-              </span>
+            <span className="col-span-2 col-start-6 flex items-center justify-end font-medium">
+              <ChipFigure form={form} invalid={invalid} onChange={onChange} />
             </span>
           )}
-          <Caption>
-            <InfoButton title="超出部分" text={ROUNDING_INFO} inline />
-            超出部分:
-          </Caption>
+          <Caption>{modeCaption}</Caption>
           {/* Its chevron sits under the mark above */}
           <span className="col-span-5 col-start-3 justify-self-end">
-            <TextMenu
-              label="超出部分"
-              options={ROUNDING_OPTIONS}
-              value={form.roundMode}
-              onChange={(roundMode) => onChange({ roundMode })}
-              align="right"
-              className="pr-0.5 text-sm font-medium"
-            />
+            {modeMenu({ form, onChange })}
           </span>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * The same settings on an insurance page, where they take less room: the switch goes at the end
+ * of the cover limits line, and this line holds the smallest chip and how what is left over rounds,
+ * wrapping only where the screen is too narrow for both.
+ */
+export function InsuranceRoundingLine({ form, stakes, invalid, onChange }: RoundingProps) {
+  if (!form.roundOn) return null;
+  const caption = "mr-1 flex items-center text-xs whitespace-nowrap text-muted";
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-2">
+      <span className="flex items-center font-medium">
+        <span className={caption}>最小筹码面值:</span>
+        {stakes ? (
+          <BlindFigures
+            smallBlinds={form.roundSmallBlinds}
+            smallBlindChips={stakes.smallBlindChips}
+            invalid={invalid}
+            onChange={(roundSmallBlinds) => onChange({ roundSmallBlinds })}
+            narrow
+          />
+        ) : (
+          <ChipFigure form={form} invalid={invalid} onChange={onChange} />
+        )}
+      </span>
+      <span className="ml-auto flex items-center">
+        <span className={caption}>{modeCaption}</span>
+        {modeMenu({ form, onChange })}
+      </span>
     </div>
   );
 }
@@ -140,11 +193,14 @@ function BlindFigures({
   smallBlindChips,
   invalid,
   onChange,
+  narrow = false,
 }: {
   smallBlinds: string;
   smallBlindChips: number | null;
   invalid: boolean;
   onChange: (smallBlinds: string) => void;
+  /** Each figure only as wide as its digits, where room is short */
+  narrow?: boolean;
 }) {
   // Chips being typed, from which the small blinds are worked out
   const [draft, setDraft] = useState<string | null>(null);
@@ -168,6 +224,7 @@ function BlindFigures({
       <FigureInput
         label="最小筹码面值（SB）"
         value={smallBlinds}
+        {...(narrow && { minChars: 1 })}
         onChange={onChange}
         invalid={invalid}
       />
@@ -186,7 +243,7 @@ function BlindFigures({
         tidy={chipsText}
         disabled={!smallBlindChips}
         wholeNumber
-        wide
+        {...(narrow ? { minChars: 1 } : { wide: true })}
       />
       <Mark>
         <ChipStack ground="var(--surface)" className="size-5" />
