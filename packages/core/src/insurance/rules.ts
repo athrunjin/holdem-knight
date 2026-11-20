@@ -1,7 +1,20 @@
 /** Insurance rules: the built-in tables, and parsing the rule form. */
-import type { CoverLimit, InsuranceRule, TieOuts } from "../domain";
+import type {
+  CoverLimit,
+  InsuranceRounding,
+  InsuranceRule,
+  RakeRounding,
+  TieOuts,
+} from "../domain";
 
-const BASE_RULE = { tieOuts: "include", refundPremium: false } as const;
+/** Rounded to the nearest small blind. */
+const DEFAULT_ROUNDING: InsuranceRounding = { mode: "nearest", smallBlinds: 1 };
+
+const BASE_RULE = {
+  tieOuts: "include",
+  refundPremium: false,
+  rounding: DEFAULT_ROUNDING,
+} as const satisfies Partial<InsuranceRule>;
 
 /** Odds common at live games: one out pays 30. The default for a new game. */
 export const RULE_30: InsuranceRule = {
@@ -42,6 +55,13 @@ export interface InsuranceRuleForm {
   readonly riverLimit: string;
   /** The odds table the odds were taken from. See `InsuranceRule.oddsTableId`. */
   readonly oddsTableId?: string;
+  /** Rounding to the smallest chip. Kept while switched off, so switching back loses nothing. */
+  readonly roundOn: boolean;
+  readonly roundMode: RakeRounding;
+  /** The smallest chip in small blinds, which a rule keeps */
+  readonly roundSmallBlinds: string;
+  /** The smallest chip itself, where there are no blinds to go by, as in the tools. Never kept in a rule saved for later. */
+  readonly roundChips?: string;
 }
 
 /** The form value for a cover limit: 100 is the full pot share. */
@@ -59,7 +79,34 @@ export function toInsuranceRuleForm(rule: InsuranceRule): InsuranceRuleForm {
     turnLimit: toLimitForm(rule.turnCoverLimit),
     riverLimit: toLimitForm(rule.riverCoverLimit),
     ...(rule.oddsTableId !== undefined && { oddsTableId: rule.oddsTableId }),
+    // A rule from before rounding carries over as it priced, in whole chips
+    roundOn: rule.rounding !== undefined,
+    roundMode: rule.rounding?.mode ?? DEFAULT_ROUNDING.mode,
+    roundSmallBlinds: String(Number((rule.rounding?.smallBlinds ?? 1).toFixed(2))),
+    ...(rule.rounding?.chips !== undefined && { roundChips: String(rule.rounding.chips) }),
   };
+}
+
+/** A rule as it is kept for later: the smallest chip in small blinds, never in chips. */
+export function ruleToKeep(rule: InsuranceRule): InsuranceRule {
+  if (!rule.rounding || rule.rounding.chips === undefined) return rule;
+  const { chips: _, ...rounding } = rule.rounding;
+  return { ...rule, rounding };
+}
+
+/**
+ * The rule priced at a game's stakes: its smallest chip, kept in small blinds, worked out in chips
+ * from the game's small blind, and at least 1. A rule with no rounding, or no blind to go by, is
+ * left as it is, and prices in whole chips.
+ */
+export function ruleAtStakes(
+  rule: InsuranceRule,
+  smallBlindChips: number | undefined,
+): InsuranceRule {
+  const { rounding } = rule;
+  if (!rounding || !smallBlindChips || smallBlindChips <= 0) return rule;
+  const chips = Math.max(1, Math.round((rounding.smallBlinds ?? 1) * smallBlindChips));
+  return { ...rule, rounding: { ...rounding, chips } };
 }
 
 /**
@@ -104,6 +151,8 @@ export type InsuranceRuleIssues = {
   readonly odds?: readonly number[];
   readonly turnLimit?: true;
   readonly riverLimit?: true;
+  readonly roundSmallBlinds?: true;
+  readonly roundChips?: true;
 };
 
 export type ParsedInsuranceRule =
@@ -125,14 +174,26 @@ export function parseInsuranceRule(form: InsuranceRuleForm): ParsedInsuranceRule
   const turnCoverLimit = parseCoverLimit(form.turnLimit);
   const riverCoverLimit = parseCoverLimit(form.riverLimit);
 
+  const blindsText = form.roundSmallBlinds.trim();
+  const smallBlinds = /^\d+(\.\d{1,2})?$/.test(blindsText) ? Number(blindsText) : null;
+  const chipsText = form.roundChips?.trim();
+  const chips =
+    chipsText === undefined ? undefined : /^\d+$/.test(chipsText) ? Number(chipsText) : null;
+
   const issues: {
     odds?: number[];
     turnLimit?: true;
     riverLimit?: true;
+    roundSmallBlinds?: true;
+    roundChips?: true;
   } = {};
   if (badOuts.length > 0 || form.odds.length === 0) issues.odds = badOuts;
   if (turnCoverLimit === null) issues.turnLimit = true;
   if (riverCoverLimit === null) issues.riverLimit = true;
+  if (form.roundOn && (smallBlinds === null || smallBlinds <= 0)) issues.roundSmallBlinds = true;
+  if (form.roundOn && chips !== undefined && (chips === null || chips <= 0)) {
+    issues.roundChips = true;
+  }
   if (Object.keys(issues).length > 0) return { ok: false, issues };
 
   return {
@@ -144,6 +205,14 @@ export function parseInsuranceRule(form: InsuranceRuleForm): ParsedInsuranceRule
       ...(turnCoverLimit != null && { turnCoverLimit }),
       ...(riverCoverLimit != null && { riverCoverLimit }),
       ...(form.oddsTableId !== undefined && { oddsTableId: form.oddsTableId }),
+      ...(form.roundOn &&
+        smallBlinds !== null && {
+          rounding: {
+            mode: form.roundMode,
+            smallBlinds,
+            ...(chips != null && { chips }),
+          },
+        }),
     },
   };
 }

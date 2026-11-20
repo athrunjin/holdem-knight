@@ -10,6 +10,7 @@ import {
   priceOption,
   type QuoteInput,
   quoteInsurance,
+  roundToChip,
   unseenCards,
 } from "./quote";
 import {
@@ -18,6 +19,8 @@ import {
   parseOdds,
   RULE_30,
   RULE_32,
+  ruleAtStakes,
+  ruleToKeep,
   toInsuranceRuleForm,
 } from "./rules";
 
@@ -355,6 +358,120 @@ describe("rule tables", () => {
       ok: false,
       issues: { odds: [2], turnLimit: true },
     });
+  });
+});
+
+describe("quoteInsurance with rounding to the smallest chip", () => {
+  // A pot of 3,000, all the buyer's, with 1,000 of it theirs, at 8 outs: 3.5 on 1 赔 30
+  const priced = (mode: "nearest" | "down" | "up", chips = 5) => {
+    const rule: InsuranceRule = { ...RULE_30, rounding: { mode, smallBlinds: 1, chips } };
+    const quote = quoteInsurance({
+      rule,
+      street: "river",
+      potChips: 3000,
+      shareChips: 3000,
+      stakeChips: 1000,
+      outs: 8,
+    });
+    if (!quote.ok) throw new Error("Expected a quote");
+    return quote;
+  };
+
+  it("rounds each premium and payout to the nearest smallest chip", () => {
+    const quote = priced("nearest");
+    // 1,000 ÷ 3.5 is 285.71, so 285, which pays 997.5, so 1,000
+    expect(quote.stake).toMatchObject({ premiumChips: 285, payoutChips: 1000 });
+    expect(quote.halfPot).toMatchObject({ premiumChips: 430, payoutChips: 1505 });
+    expect(quote.fullPot).toMatchObject({ premiumChips: 855, payoutChips: 2995 });
+  });
+
+  it("rounds down, or up, when the rule says so", () => {
+    expect(priced("down").stake).toMatchObject({ premiumChips: 285, payoutChips: 995 });
+    expect(priced("down").fullPot).toMatchObject({ premiumChips: 855, payoutChips: 2990 });
+    expect(priced("up").stake).toMatchObject({ premiumChips: 290, payoutChips: 1015 });
+    // Rounding up can pay a little over the pot share: the rule's rounding has the last word
+    expect(priced("up").fullPot).toMatchObject({ premiumChips: 860, payoutChips: 3010 });
+  });
+
+  it("prices in whole chips as before until the smallest chip is known", () => {
+    const { rounding: _, ...wholeChips } = RULE_30;
+    const input = {
+      street: "river",
+      potChips: 3000,
+      shareChips: 3000,
+      stakeChips: 1000,
+      outs: 8,
+    } as const;
+    const quote = quoteInsurance({ ...input, rule: RULE_30 });
+    expect(quote).toEqual(quoteInsurance({ ...input, rule: wholeChips }));
+    expect(quote.ok && quote.stake.premiumChips).toBe(286);
+  });
+
+  it("keeps every premium and payout a whole number of smallest chips", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 100, max: 100_000 }),
+        fc.integer({ min: 1, max: 15 }),
+        fc.constantFrom(1, 5, 25),
+        fc.constantFrom("nearest", "down", "up"),
+        (share, outs, chips, mode) => {
+          const rule: InsuranceRule = { ...RULE_30, rounding: { mode, smallBlinds: 1, chips } };
+          const quote = quoteInsurance({
+            rule,
+            street: "river",
+            potChips: share,
+            shareChips: share,
+            stakeChips: Math.ceil(share / 3),
+            outs,
+          });
+          if (!quote.ok) return;
+          for (const option of [
+            quote.stake,
+            quote.fullPot,
+            ...(quote.halfPot ? [quote.halfPot] : []),
+          ]) {
+            expect(option.premiumChips % chips).toBe(0);
+            expect(option.payoutChips % chips).toBe(0);
+            expect(option.premiumChips).toBeGreaterThanOrEqual(chips);
+          }
+        },
+      ),
+    );
+  });
+
+  it("rounds halves up, and takes exact multiples as they are", () => {
+    expect(roundToChip(12.5, 5, "nearest")).toBe(15);
+    expect(roundToChip(12.4, 5, "nearest")).toBe(10);
+    expect(roundToChip(15, 5, "up")).toBe(15);
+    expect(roundToChip(14.99, 5, "down")).toBe(10);
+  });
+
+  it("carries a rule from before rounding over as it priced, and keeps rules without chips", () => {
+    const { rounding: _, ...withoutRounding } = RULE_30;
+    expect(toInsuranceRuleForm(withoutRounding)).toMatchObject({
+      roundOn: false,
+      roundMode: "nearest",
+    });
+    expect(parseInsuranceRule(toInsuranceRuleForm(withoutRounding))).toEqual({
+      ok: true,
+      rule: withoutRounding,
+    });
+    const used: InsuranceRule = { ...RULE_30, rounding: { mode: "up", smallBlinds: 2, chips: 10 } };
+    expect(ruleToKeep(used).rounding).toEqual({ mode: "up", smallBlinds: 2 });
+  });
+
+  it("works the smallest chip out from the game's small blind", () => {
+    expect(ruleAtStakes(RULE_30, 5).rounding).toEqual({
+      mode: "nearest",
+      smallBlinds: 1,
+      chips: 5,
+    });
+    const half: InsuranceRule = { ...RULE_30, rounding: { mode: "down", smallBlinds: 0.5 } };
+    expect(ruleAtStakes(half, 25).rounding?.chips).toBe(13);
+    expect(ruleAtStakes(half, 1).rounding?.chips).toBe(1);
+    expect(ruleAtStakes(RULE_30, undefined)).toBe(RULE_30);
+    const { rounding: _, ...wholeChips } = RULE_30;
+    expect(ruleAtStakes(wholeChips, 5)).toBe(wholeChips);
   });
 });
 

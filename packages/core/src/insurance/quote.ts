@@ -4,7 +4,7 @@
  * premium is the smallest that does. Nothing pays more than the pot share it insures, so a full
  * pot's premium is the largest whose payout stays within it.
  */
-import type { InsuranceRule } from "../domain";
+import type { InsuranceRule, RakeRounding } from "../domain";
 import type { InsuranceStreet } from "./analysis";
 
 /** What `premiumChips` pays on a hit, including any refunded premium. */
@@ -116,6 +116,37 @@ export type InsuranceQuote =
       readonly fullPot: QuoteOption;
     };
 
+/** An amount rounded to a whole number of `unit` chips. Exact halves round up for `nearest`. */
+export function roundToChip(value: number, unit: number, mode: RakeRounding): number {
+  // A small allowance, so an exact multiple worked out in floating point stays exact
+  const units = value / unit;
+  const whole =
+    mode === "down"
+      ? Math.floor(units + 1e-9)
+      : mode === "up"
+        ? Math.ceil(units - 1e-9)
+        : Math.floor(units + 0.5 + 1e-9);
+  return whole * unit;
+}
+
+/** The rule's rounding where the smallest chip is known, or undefined to price in whole chips. */
+function chipRounding({ rounding }: InsuranceRule) {
+  return rounding?.chips && rounding.chips > 0
+    ? { unit: rounding.chips, mode: rounding.mode }
+    : undefined;
+}
+
+/**
+ * What `premiumChips` pays on a hit under the rule. With rounding, the payout is rounded to the
+ * smallest chip as the premium is; any refunded premium is a whole number of them already.
+ */
+function payoutUnder(rule: InsuranceRule, premiumChips: number, oddsHundredths: number) {
+  const rounding = chipRounding(rule);
+  if (!rounding) return payoutFor(premiumChips, oddsHundredths, rule.refundPremium);
+  const payout = roundToChip((premiumChips * oddsHundredths) / 100, rounding.unit, rounding.mode);
+  return rule.refundPremium ? payout + premiumChips : payout;
+}
+
 /** Prices any premium for a quote, for the amount the organizer actually sells. */
 export function priceOption(
   input: Pick<QuoteInput, "rule" | "shareChips" | "keptChips">,
@@ -123,7 +154,7 @@ export function priceOption(
   premiumChips: number,
   capped = false,
 ): QuoteOption {
-  const payoutChips = payoutFor(premiumChips, oddsHundredths, input.rule.refundPremium);
+  const payoutChips = payoutUnder(input.rule, premiumChips, oddsHundredths);
   return {
     premiumChips,
     payoutChips,
@@ -152,9 +183,11 @@ export function quoteInsurance(input: QuoteInput): InsuranceQuote {
   if (oddsHundredths === undefined) return { ok: false, block: "too-many-outs" };
 
   const { refundPremium } = rule;
+  const ceilingChips = Math.min(shareChips, input.capChips ?? shareChips);
+  const rounding = chipRounding(rule);
+  if (rounding) return roundedQuote(input, oddsHundredths, ceilingChips, rounding);
   // Nothing pays more than the pot share, or than the cap on these cards, and one chip of premium
   // is the least there is to sell
-  const ceilingChips = Math.min(shareChips, input.capChips ?? shareChips);
   const potPremiumChips = premiumWithin(ceilingChips, oddsHundredths, refundPremium);
   if (potPremiumChips < 1) return { ok: false, block: "pot-too-small" };
   // A cover below the full pot pays at least what it is named for, and its premium is the
@@ -177,6 +210,45 @@ export function quoteInsurance(input: QuoteInput): InsuranceQuote {
     stake: option(Math.min(stakeChips, shareChips)),
     halfPot: halfChips === stakeChips ? null : option(halfChips),
     // Held under the pot share only by the rule's own limit
+    fullPot: priceOption(input, oddsHundredths, maxPremiumChips, maxPremiumChips < potPremiumChips),
+  };
+}
+
+/**
+ * A quote with the rule's rounding (ADR 0037), in place of the whole-chip edges of ADR 0032: each
+ * cover's premium is what pays its target exactly, rounded to the smallest chip by the rule, and
+ * its payout is rounded the same way. A premium is at least one smallest chip. A pot share whose
+ * premium rounds to nothing has no insurance.
+ */
+function roundedQuote(
+  input: QuoteInput,
+  oddsHundredths: number,
+  ceilingChips: number,
+  { unit, mode }: { unit: number; mode: RakeRounding },
+): InsuranceQuote {
+  const { rule, shareChips, stakeChips } = input;
+  // A chip of premium pays the odds, and the premium itself back where the rule refunds it
+  const perChip = rule.refundPremium ? oddsHundredths + 100 : oddsHundredths;
+  const premiumPaying = (payoutChips: number) =>
+    roundToChip((payoutChips * 100) / perChip, unit, mode);
+  const potPremiumChips = premiumPaying(ceilingChips);
+  if (potPremiumChips < unit) return { ok: false, block: "pot-too-small" };
+  const reaching = (payoutChips: number) => Math.max(unit, premiumPaying(payoutChips));
+  const limitChips = coverLimitChips(input);
+  const maxPremiumChips =
+    limitChips === undefined ? potPremiumChips : Math.min(reaching(limitChips), potPremiumChips);
+  const halfChips = Math.ceil(shareChips / 2);
+  const option = (payoutChips: number) => {
+    const target = reaching(payoutChips);
+    const premium = Math.min(target, maxPremiumChips);
+    return priceOption(input, oddsHundredths, premium, premium < target);
+  };
+  return {
+    ok: true,
+    oddsHundredths,
+    maxPremiumChips,
+    stake: option(Math.min(stakeChips, shareChips)),
+    halfPot: halfChips === stakeChips ? null : option(halfChips),
     fullPot: priceOption(input, oddsHundredths, maxPremiumChips, maxPremiumChips < potPremiumChips),
   };
 }

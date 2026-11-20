@@ -1,7 +1,14 @@
-import { parseChips, potForRake, type RakeRule, rakeFromPot } from "@holdem-knight/core";
-import { Settings } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  parseChips,
+  potForRake,
+  type RakeBlinds,
+  type RakeRule,
+  rakeFromPot,
+} from "@holdem-knight/core";
+import { ScrollText } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Modal } from "@/components/insurance/Modal";
 import { RollingNumber } from "@/components/RollingNumber";
 import { cn } from "@/lib/cn";
 import { selectOnFocus } from "@/lib/number-input";
@@ -11,16 +18,51 @@ const ARMED_MS = 5000;
 /** A second tap this soon after the first is the same tap twice, not a confirmation. */
 const DOUBLE_TAP_MS = 350;
 
+/**
+ * One rake saved: when, the change in chips, the pot it came from when one was typed, and whether
+ * the total was typed over instead.
+ */
+export interface RakeEntry {
+  readonly id: string;
+  readonly occurredAt: number;
+  readonly chips: number;
+  readonly potChips?: number;
+  readonly typedOver?: true;
+}
+
+/** The records shown under the buttons; the rest are a tap on 记录 away. */
+const RECENT_ENTRIES = 3;
+
+/** How a rake was put in: from a pot, added by hand, or the total typed over. */
+type EntryInput = "pot" | "added" | "set";
+
+const INPUT_NAMES: Record<EntryInput, string> = { pot: "底池", added: "增量", set: "修改" };
+
+/** Rakes from before `typedOver` was kept count a fall as typed over, as nothing else lowers it. */
+const inputOf = ({ potChips, typedOver, chips }: RakeEntry): EntryInput =>
+  potChips !== undefined ? "pot" : typedOver || chips < 0 ? "set" : "added";
+
+const ENTRY_TIME = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" });
+
 interface RakeDialogProps {
   /** The rake recorded so far, in chips */
   currentChips: number;
   rule: RakeRule;
+  /** The game's blinds, for amounts set in blinds. Missing outside a game */
+  blinds?: RakeBlinds | undefined;
+  /** The title line, with the rule's settings, which names the dialog 抽水计算 */
+  settings: ReactNode;
+  /** What has been saved, oldest first */
+  entries: readonly RakeEntry[];
   /** The total 撤销 goes back to. Missing when there is nothing to take back */
   undoTo: number | undefined;
   saving: boolean;
   saveFailed: boolean;
-  /** Records the new total. Resolves once the page shows it */
-  onSave: (totalChips: number) => Promise<void>;
+  /**
+   * Records the new total, with the pot when it came from one, and whether the total so far was
+   * typed over. Resolves once the page shows it
+   */
+  onSave: (totalChips: number, potChips: number | undefined, typedOver: boolean) => Promise<void>;
   /** Takes back the latest rake recorded. Resolves once the page shows the total before it */
   onUndo: () => Promise<void>;
   onClose: () => void;
@@ -48,6 +90,9 @@ function chipsOf(text: string, empty: number | null) {
 export function RakeDialog({
   currentChips,
   rule,
+  blinds,
+  settings,
+  entries,
   undoTo,
   saving,
   saveFailed,
@@ -61,7 +106,6 @@ export function RakeDialog({
   // What is typed over the total so far. Missing until it is tapped, when it shows the total
   const [currentText, setCurrentText] = useState<string>();
   const [editingCurrent, setEditingCurrent] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [armed, setArmed] = useState(false);
   const armedAt = useRef(0);
   const armTimer = useRef<number>(undefined);
@@ -79,7 +123,7 @@ export function RakeDialog({
   // A rake typed by hand shows, faintly, the smallest pot it could have come from
   const potHint =
     potText === "" && addText.trim() !== "" && added !== null && added > 0
-      ? potForRake(added, rule)
+      ? potForRake(added, rule, blinds)
       : undefined;
   // Nothing typed: the totals show the saved rake, and roll when a save or 撤销 changes it
   const untouched = currentText === undefined && addText.trim() === "";
@@ -100,7 +144,7 @@ export function RakeDialog({
   function handlePot(text: string) {
     setPotText(text);
     const pot = parseChips(text);
-    setAddText(pot === null || pot === 0 ? "" : String(rakeFromPot(pot, rule)));
+    setAddText(pot === null || pot === 0 ? "" : String(rakeFromPot(pot, rule, blinds)));
     disarm();
   }
 
@@ -113,8 +157,17 @@ export function RakeDialog({
 
   async function handleUpdate() {
     if (!pending || saving) return;
+    // The pot is kept only when the rake added is the one it gave, with the total not typed over
+    const pot = parseChips(potText);
+    const fromPot =
+      pot !== null &&
+      pot > 0 &&
+      currentText === undefined &&
+      added === rakeFromPot(pot, rule, blinds)
+        ? pot
+        : undefined;
     try {
-      await onSave(total);
+      await onSave(total, fromPot, typedOver);
       reset();
     } catch {
       // The failure shows from the mutation state, and what was typed stays
@@ -158,35 +211,20 @@ export function RakeDialog({
   return createPortal(
     <dialog
       ref={ref}
-      onClose={onClose}
+      // React passes a dialog opened from this one, such as all the records, its close and
+      // Escape on to this one, which leaves them to it
+      onClose={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
       onCancel={(event) => {
+        if (event.target !== event.currentTarget) return;
         // Escape leaves the way 返回 does, so a change is never lost to it at once
         event.preventDefault();
         handleBack();
       }}
       className="m-auto w-[calc(100%-2rem)] max-w-sm overflow-y-auto rounded-2xl border border-line bg-surface p-5 text-text backdrop:bg-black/60"
     >
-      <div className="-mt-2 -mr-3 flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">抽水计算</h2>
-        <button
-          type="button"
-          aria-label="抽水设置"
-          aria-expanded={settingsOpen}
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          className={cn(
-            "grid size-11 place-items-center text-muted",
-            settingsOpen && "text-highlight",
-          )}
-        >
-          <Settings className="size-5" aria-hidden />
-        </button>
-      </div>
-      {/* Rake has one rule for now. Its own settings come later */}
-      {settingsOpen && (
-        <p className="mt-1 rounded-xl border border-line px-3 py-2 text-xs text-muted">
-          抽水设置还在开发中，目前按底池 {rule.percent}% 计算，不足 1 筹码舍去。
-        </p>
-      )}
+      {settings}
 
       <div className="mt-3 grid grid-cols-[minmax(0,5fr)_auto_minmax(0,6fr)_auto_minmax(0,5fr)] items-center gap-x-1 gap-y-1 text-center">
         <label htmlFor="rake-pot" className="col-span-5 text-sm text-muted">
@@ -318,6 +356,8 @@ export function RakeDialog({
         </button>
         <BackButton armed={armed} onClick={handleBack} />
       </div>
+
+      <RakeRecords entries={entries} rule={rule} blinds={blinds} />
     </dialog>,
     document.body,
   );
@@ -350,5 +390,108 @@ function BackButton({ armed, onClick }: { armed: boolean; onClick: () => void })
         </span>
       )}
     </button>
+  );
+}
+
+interface RecordsProps {
+  entries: readonly RakeEntry[];
+  rule: RakeRule;
+  blinds: RakeBlinds | undefined;
+}
+
+/**
+ * 记录 under the buttons: the latest 3 rakes, with the line and the table's head kept even before
+ * there are any. The 记录 line, in gold, opens every record in a dialog of its own.
+ */
+function RakeRecords({ entries, rule, blinds }: RecordsProps) {
+  const [showingAll, setShowingAll] = useState(false);
+  const title = `记录 (${entries.length})`;
+  return (
+    <section className="mt-4">
+      <button
+        type="button"
+        onClick={() => setShowingAll(true)}
+        aria-label={`${title}，点击查看全部`}
+        className="flex min-h-11 items-center gap-1.5 text-sm font-medium text-highlight"
+      >
+        <ScrollText className="size-4" aria-hidden />
+        {title}
+      </button>
+      <RecordsTable entries={entries} rule={rule} blinds={blinds} limit={RECENT_ENTRIES} />
+      {showingAll && (
+        <Modal title={`抽水${title}`} onClose={() => setShowingAll(false)}>
+          <RecordsTable entries={entries} rule={rule} blinds={blinds} />
+          <form method="dialog">
+            <button
+              type="submit"
+              className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
+            >
+              返回
+            </button>
+          </form>
+        </Modal>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Each rake with its time, how it was put in, its pot, its change and the total after it, latest
+ * first, up to `limit`. A rake added by hand shows, faintly, the smallest pot it could have come
+ * from under the rule in use now.
+ */
+function RecordsTable({ entries, rule, blinds, limit }: RecordsProps & { limit?: number }) {
+  let running = 0;
+  const rows = entries.map((entry) => {
+    running += entry.chips;
+    return { entry, input: inputOf(entry), total: running };
+  });
+  const latestFirst = rows.reverse();
+  const shown = limit === undefined ? latestFirst : latestFirst.slice(0, limit);
+  const head = "px-1 py-1 text-xs font-normal text-muted";
+
+  function potCell({ entry, input }: (typeof rows)[number]) {
+    if (input === "set") return <span className="text-muted">N/A</span>;
+    if (entry.potChips !== undefined) return entry.potChips.toLocaleString("zh-CN");
+    const pot = potForRake(entry.chips, rule, blinds);
+    return (
+      <span className="text-muted opacity-60">{pot > 0 ? pot.toLocaleString("zh-CN") : "—"}</span>
+    );
+  }
+
+  return (
+    <table className="w-full table-fixed text-sm tabular-nums">
+      <thead>
+        <tr className="border-b border-line">
+          <th className={cn(head, "w-[18%] text-left")}>时间</th>
+          <th className={cn(head, "w-[16%] text-left")}>输入</th>
+          <th className={cn(head, "text-right")}>底池</th>
+          <th className={cn(head, "text-right")}>变化</th>
+          <th className={cn(head, "text-right")}>总抽水</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-line">
+        {shown.map((row) => {
+          const { entry, input, total } = row;
+          return (
+            <tr key={entry.id}>
+              <td className="px-1 py-1.5 text-muted">{ENTRY_TIME.format(entry.occurredAt)}</td>
+              <td className="px-1 py-1.5 text-muted">{INPUT_NAMES[input]}</td>
+              <td className="px-1 py-1.5 text-right">{potCell(row)}</td>
+              <td
+                className={cn(
+                  "px-1 py-1.5 text-right font-medium",
+                  entry.chips > 0 ? "text-win" : "text-loss",
+                )}
+              >
+                {entry.chips > 0 ? "+" : "−"}
+                {Math.abs(entry.chips).toLocaleString("zh-CN")}
+              </td>
+              <td className="px-1 py-1.5 text-right">{total.toLocaleString("zh-CN")}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

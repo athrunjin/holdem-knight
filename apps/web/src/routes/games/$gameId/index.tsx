@@ -29,6 +29,7 @@ import { useEffect, useRef, useState } from "react";
 import { AddPlayerToGame } from "@/components/game/AddPlayerToGame";
 import { ChipAmountDialog } from "@/components/game/ChipAmountDialog";
 import { GameBlindsCash, GameOptionLine, GameTitle } from "@/components/game/GameOptions";
+import { GameRakeSettings } from "@/components/game/GameRakeSettings";
 import {
   BalanceTile,
   BuyInTile,
@@ -218,8 +219,8 @@ function GameLedger({ game }: { game: Game }) {
   const rakeTotal = rakeChips(events);
   const latestRake = rakeRecords(events).at(-1);
 
-  /** A new rake total, saved as the change from the one before. */
-  async function saveRake(totalChips: number) {
+  /** A new rake total, saved as the change from the one before, with the pot it came from. */
+  async function saveRake(totalChips: number, potChips: number | undefined, typedOver: boolean) {
     const chips = totalChips - rakeTotal;
     if (chips === 0) return;
     await appendEvent.mutateAsync({
@@ -227,6 +228,8 @@ function GameLedger({ game }: { game: Game }) {
       type: "rake",
       playerId: RAKE_PLAYER_ID,
       chips,
+      ...(potChips !== undefined && { potChips }),
+      ...(typedOver && { typedOver: true }),
     });
   }
 
@@ -396,6 +399,9 @@ function GameLedger({ game }: { game: Game }) {
         <RakeDialog
           currentChips={rakeTotal}
           rule={game.rake ?? DEFAULT_RAKE_RULE}
+          blinds={{ smallBlindChips: game.smallBlindChips, bigBlindChips: game.bigBlindChips }}
+          settings={<GameRakeSettings game={game} />}
+          entries={rakeRecords(events)}
           undoTo={latestRake && rakeTotal - latestRake.chips}
           saving={appendEvent.isPending}
           saveFailed={appendEvent.isError}

@@ -1,6 +1,6 @@
 # 0034. Rake as a seat with no Buy-in
 
-- Status: Accepted
+- Status: Superseded in part by [0036](0036-rake-rules-and-pot-records.md)
 - Date: 2026-11-19
 
 ## Context

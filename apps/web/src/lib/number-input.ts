@@ -17,7 +17,13 @@ export function formatOddsText(text: string) {
     : `${whole}.${String(fraction).padStart(2, "0")}`;
 }
 
-/** Selects what a tapped field holds, once the tap has placed the cursor, so typing replaces it. */
+/**
+ * Selects what a tapped field holds, once the tap has placed the cursor, so typing replaces it.
+ * Only while the field still has focus: select() also focuses a field, so two fields tapped in
+ * quick succession would otherwise take focus back from each other without end.
+ */
 export function selectOnFocus(input: HTMLInputElement) {
-  setTimeout(() => input.select());
+  setTimeout(() => {
+    if (document.activeElement === input) input.select();
+  });
 }

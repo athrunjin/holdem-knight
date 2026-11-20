@@ -11,10 +11,18 @@ interface InfoButtonProps {
   children?: ReactNode;
   /** Sized to sit beside small text. */
   small?: boolean;
+  /** The size of the text it sits right before, with no gap after it */
+  inline?: boolean;
 }
 
 /** A small info icon that explains something when tapped. */
-export function InfoButton({ title, text, children, small = false }: InfoButtonProps) {
+export function InfoButton({
+  title,
+  text,
+  children,
+  small = false,
+  inline = false,
+}: InfoButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -25,10 +33,10 @@ export function InfoButton({ title, text, children, small = false }: InfoButtonP
         onClick={() => setOpen(true)}
         className={cn(
           "grid shrink-0 place-items-center text-muted",
-          small ? "-mx-1 size-6" : "-my-2 size-9",
+          inline ? "-my-3 h-11 w-4 justify-items-start" : small ? "-mx-1 size-6" : "-my-2 size-9",
         )}
       >
-        <Info className={small ? "size-3.5" : "size-4"} aria-hidden />
+        <Info className={inline ? "size-[1em]" : small ? "size-3.5" : "size-4"} aria-hidden />
       </button>
       {open && (
         <Modal title={title} onClose={() => setOpen(false)}>

@@ -38,13 +38,19 @@ interface ToolSettings {
   readonly form: InsuranceRuleForm;
 }
 
-const DEFAULT_SETTINGS: ToolSettings = { source: "default", form: toInsuranceRuleForm(RULE_30) };
+/** With no game to go by, the smallest chip is in chips, and starts at 1. */
+const DEFAULT_FORM: InsuranceRuleForm = { ...toInsuranceRuleForm(RULE_30), roundChips: "1" };
+
+const DEFAULT_SETTINGS: ToolSettings = { source: "default", form: DEFAULT_FORM };
+
+const ROUND_MODES: readonly unknown[] = ["nearest", "down", "up"];
 
 function parseSettings(stored: unknown): ToolSettings | undefined {
   if (typeof stored !== "object" || stored === null) return undefined;
   const { source, form } = stored as Partial<ToolSettings>;
   if (typeof source !== "string" || typeof form !== "object" || form === null) return undefined;
   const { odds, tieOuts, refundPremium, turnLimit, riverLimit, oddsTableId } = form;
+  const { roundOn, roundMode, roundSmallBlinds, roundChips } = form;
   if (
     !Array.isArray(odds) ||
     !odds.every((value) => typeof value === "string") ||
@@ -63,6 +69,12 @@ function parseSettings(stored: unknown): ToolSettings | undefined {
     riverLimit,
     // The table the odds are from, so one of two tables with the same odds keeps its name
     ...(typeof oddsTableId === "string" && { oddsTableId }),
+    // Settings kept from before rounding start with the default rounding
+    roundOn: typeof roundOn === "boolean" ? roundOn : DEFAULT_FORM.roundOn,
+    roundMode: ROUND_MODES.includes(roundMode) && roundMode ? roundMode : DEFAULT_FORM.roundMode,
+    roundSmallBlinds:
+      typeof roundSmallBlinds === "string" ? roundSmallBlinds : DEFAULT_FORM.roundSmallBlinds,
+    roundChips: typeof roundChips === "string" ? roundChips : "1",
   };
   return parseInsuranceRule(kept).ok ? { source, form: kept } : undefined;
 }
@@ -77,7 +89,10 @@ function InsuranceToolPage() {
   );
 
   const choice: InsuranceChoice = { enabled: true, ...settings };
-  const setChoice = ({ source, form }: InsuranceChoice) => setSettings({ source, form });
+  const setChoice = ({ source, form }: InsuranceChoice) => {
+    setSettings({ source, form });
+    return true;
+  };
   const { form } = settings;
   const parsed = useMemo(() => parseInsuranceRule(form), [form]);
   return (
@@ -93,7 +108,7 @@ function InsuranceToolPage() {
         </Link>
       }
     >
-      <InsuranceSetup value={choice} onChange={setChoice} />
+      <InsuranceSetup value={choice} stakes={undefined} onChange={setChoice} />
       <InsuranceCalculator
         mode={mode}
         rule={parsed.ok ? parsed.rule : RULE_30}

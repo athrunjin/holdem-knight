@@ -1345,6 +1345,105 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked in the browser preview in dark mode at 393px. In a game, Outs数速算: the pen and its notice, the button waiting for both offers, the pot closed after a purchase, the question with both kinds, and a hit settled in the records with the seat's chips. From the tools page, 选牌计算 with the reported hand and chips: the arcs as drawn, and a turn dealt in the picker with the title shut and the other cards closed. Not yet tried on a phone, where the sliver showed.
 - Tracking: PR #87
 
+### #I-067 Quick picks and lined-up figures in the basic setup rows
+
+- Type: feature
+- Date: proposed and decided 2026-11-19
+- Source: discussion
+- Problem: The ratio, blinds and Buy-in rows could only be changed through a dialog, though most games use a few common values, and their numbers sat at different places from row to row.
+- Proposal:
+  - The 积分 list names the two as 袋鼠分 and 熊猫分.
+  - 筹码 is renamed 比例 and reads `chips [chip mark] = points [points mark]`.
+  - 比例, 盲注 and Buy-in each end in a chevron listing common values, which fill the row at once: 1:1, 5:1, 10:1, 20:1; 1/1, 1/2, 5/5, 5/10, 10/10, 10/20; 50BB, 100BB, 200BB.
+  - Every figure is typed in place: a tap selects it and typing replaces it, with no dialog. The ratio, blind and Buy-in dialogs are gone.
+  - 盲注 reads `small SB / big BB`, with each blind in points in small type above it, updated as it is typed.
+  - Buy-in reads `big blinds BB ⇔ chips [chip mark]`. A mark after its title switches the right-hand figure between chips, the default, and points.
+  - Options below run 保险, 工资, 台费, 抽水.
+- Settled details:
+  - Every figure is centered in a slot that holds 3 digits on the left and 4 on the right, so figures and marks line up across rows; a longer number widens only its own row. The last mark of each row sits under the 积分 mark.
+  - Points show no decimals when they have none: 1 for 1.00, 2.50 for 2.5.
+  - The Buy-in switch only changes what is shown and is not saved.
+  - Buy-in works both ways: typing the hand's chips, or its points, sets the big blinds per buy-in whenever it comes to a whole number of them, and the nearest on leaving the field. The ratio and the blinds never change from it.
+  - The old line under Buy-in, 1 手 = … 筹码 = …, is gone, as the row now says it.
+- Decision: do. Checked at 360 and 393 wide in the browser preview, dark mode.
+- Tracking: PR #90
+
+### #I-068 Rake rules, records of each pot, and 抽水计算 on the tools page
+
+- Type: feature
+- Date: proposed and decided 2026-11-19
+- Source: discussion
+- Problem: rake was fixed at 10% of the pot, rounded down, with no cap and no way to change it; only the total was kept; and 抽水计算 on the tools page was a placeholder.
+- Proposal:
+  - Game setup has rake in the same style as the other options: its config on the switch row, 保存配置 for a valid new config, and last time's values carried over.
+  - 比例 takes decimals, with quick picks of 2.5%, 3%, 5% and 10%, default 5%, shown without decimals it does not need.
+  - 封顶 has a switch, off by default, which fades and strikes through its title. On, it reads `单笔最多收：2 BB ⇔ 4 [chip]`: either figure can be typed and the other follows, and a tap on the chip mark shows points. A line under it reads `等值最大底池：400 [chip]`, the cap over the rate, always in chips with its mark under the one above; typing a pot sets the cap to that pot's rate in the cap's unit, so the pot comes back as typed.
+  - On a narrow card (under 320px) the cap and rounding rows put their figures on a line of their own, decided by the width so typing never moves them between lines (by the screen's width since #I-069). A figure keeps one width whether it is being typed or not.
+  - Fixed from trying the preview: two fields tapped in quick succession took focus back from each other without end, as the delayed select-all also focuses a field; it now selects only a field that still has focus. The max pot no longer drops below what was typed: it was the pot where the rounded rake first reached the cap.
+  - 取整 has a switch, on by default, then 四舍五入 (default), 向下取整 or 向上取整, and the smallest chip as `最小筹码面值: 1 SB ⇔ chips` in the same way, lined up under the cap, with `超出部分: 四舍五入` on the line under it. The default is 1 SB.
+  - The cap and rounding share one grid: the colons of 单笔最多收, 等值最大底池, 最小筹码面值 and 超出部分 line up, as do the figures, and the rounding chevron sits under the chip marks above.
+  - 保险报价先扣除抽水 is kept as a switch, off by default, marked 开发中.
+  - The rake dialog keeps each rake with its time and, when worked out from a pot, the pot, and lists them under 记录.
+  - 抽水计算 on the tools page opens the same dialog with the default rule, reading and saving nothing, under the icon the rake seat has on the game page.
+- Settled details:
+  - No flop no drop, a minimum pot and rake per side pot are not done. Rake goes only to the host.
+  - The cap is rounded down to the smallest chip, and the rake after rounding never passes it. An amount in big blinds uses the game's big blind; the unit last typed is the one kept.
+  - The default cap of 2 BB follows live rooms, which cap at about $4–6, a couple of big blinds at $1/$2.
+  - With rounding off, the rake rounds down to whole chips.
+  - Wages at setup in the same round: 基础薪资 for 基础时薪, figures centered with no underline in a slot for 00.00, 精确到 每分钟 / 每15分 / 每30分 / 每小时, 超出部分 with its info mark before the rounding, and 根据时间 and 根据时长 for the two kinds of segment. The 精确到 row sits closer under 基础薪资, and the info mark before 超出部分 is the size of that text and explains only the rounding and the stretches of time.
+  - The table fee in the same style: 基础台费 with its amount at the right as `¥ 100.00 /人/台`, centered in a slot for 000.00, and 在桌满 5 分钟收 as a switch at the right, on by default, with 防止误添加玩家产生台费 under it. The minutes are fixed at 5; a game set up with another time keeps it while the switch is on. With the switch off, 上桌就收 shows in small gold type after 基础台费, and the amount reads `/ 人 / 台`.
+  - Games with the older rule keep 10% rounded down, and carry it over that way.
+  - Online rooms take rake off the pot before pricing an all-in cash-out; nothing was found for live games, so the insurance switch waits for a decision.
+  - Settlement is unchanged, apart from its rule line naming the new settings. Backups move to version 14.
+- Decision: do. Checked at 393 wide in the browser preview, dark mode.
+- Tracking: PR #90, ADR [0036](adr/0036-rake-rules-and-pot-records.md)
+
+### #I-069 Insurance prices rounded to the smallest chip, and info on 超出部分
+
+- Type: feature
+- Date: proposed and decided 2026-11-20
+- Source: discussion
+- Problem: insurance priced in whole chips, so at a table whose smallest chip is 5 the organizer rounded premiums by hand. Rake's 超出部分 had no explanation.
+- Proposal:
+  - Insurance gets 取整 laid out as rake's: a switch, on by default, `最小筹码面值: 1 SB ⇔ chips`, and `超出部分: 四舍五入` with 向下取整 and 向上取整. It sits above the odds table at setup, and under the settings at the top of both insurance tools.
+  - The rounding takes the place of the whole-chip edges of ADR 0032: premium and payout both round by the mode, and the premium is at least one smallest chip.
+  - In the tools, with no small blind, the smallest chip is typed in chips, 1 by default, and its chevron in place of the chip mark offers 1, 5, 10 and 20.
+  - A saved insurance config keeps the mode and the number of small blinds, never the chips. Changing only the chips in the tools keeps the config's name.
+  - Rake's and insurance's 超出部分 each get an info mark before them explaining their rounding.
+  - On the insurance pages the 取整 switch ends the 保费上限 line, and when on, the smallest chip and 超出部分 share the line under it, each figure only as wide as its digits; under 386px they wrap. 保存配置 moves under the rounding, at setup and on the pages.
+  - Fixed from trying the preview: a list opened in the insurance or rake card at setup showed under the next card, and taps beside it went through to that card. The cards were containers for the narrow layout, which shuts in what opens from them; the narrow layout now goes by the screen's width instead (under 386px, where a card's content is under 320px). Every list at setup and on the insurance tool was checked to be on top.
+- Decision: do. Checked at 393 and 360 wide in the browser preview, dark mode.
+- Tracking: PR #90, ADR [0037](adr/0037-insurance-prices-rounded-to-the-smallest-chip.md)
+
+### #I-070 抽水计算 shows and changes the rake settings, and the insurance rounding line at setup
+
+- Type: feature
+- Date: proposed and decided 2026-11-20
+- Source: discussion
+- Problem: 抽水计算 showed the rule only as text behind a gear, to be changed in 开局设置, and the tools' copy always used the default. At setup, insurance's rounding was still laid out in rake's grid, unlike the insurance pages.
+- Proposal:
+  - At setup, insurance's 取整 switch ends the 保费上限 line too, with the smallest chip and 超出部分 on the line under it, as on the insurance pages. To fit a phone's card, the chips after ⇔ have no mark and each figure is only as wide as its digits.
+  - 抽水计算's title reads `抽水计算 · preset ⇅`: a tap on the preset lists the others in the dialog, with no dialog of its own, and one more switches to it. A chevron at the end of the line opens the same fields as 开局设置 (比例, 封顶, 取整, 保险报价先扣除抽水, 保存配置), and switching preset opens them. The fields' titles take lines of their own there, as the dialog is narrower than a setup card.
+  - From a game it starts closed, and its settings are the game's own: a change asks 「这个修改会应用到本局，之后的抽水都按新设置计算。继续？」, is saved with the game, and goes back if turned down. A number being typed asks once, when its field is left; taps on switches and lists ask at once. The game's insurance page now asks the same way, where it asked at every key of the smallest chip.
+  - From the tools it starts open, in chips alone: the cap and the smallest chip have no blinds to go by, the smallest chip has 1, 5, 10 and 20 under a chevron, and the settings are kept in this browser. A preset in blinds is shown as the tool prices it: a smallest chip in blinds as 1 chip, and a cap in blinds switched off.
+- Decision: do. Checked at 393 wide in the browser preview, dark mode, with a test game on an isolated preview origin.
+- Tracking: PR #90
+
+### #I-071 基础设置 as a card with its own configs, and a fuller 抽水计算 record
+
+- Type: feature
+- Date: proposed and decided 2026-11-20
+- Source: discussion
+- Problem: the four basic rows at setup had no title and no configs of their own, unlike the options under them. 抽水计算's record named only the pot or 手动输入, with no running total.
+- Proposal:
+  - The 积分, 比例, 盲注 and Buy-in rows sit in one card titled 基础设置, always open, with no switch and no lines between the rows, so they read as one, like the cards under it. Its config sits at the right of the title, where the other cards have theirs: 上次配置 (本局配置 in a game's settings), 默认配置 and saved ones. 保存配置 shows under the rows for a valid change that matches none of them. Configs are kept with the table fee, wage and rake configs, as `SavedChargeRule` of kind `basics`. With ledger records, a config picked in a game's settings changes only the blinds, as the rest is locked.
+  - 抽水计算's 记录 is a table of 时间, 输入 (底池, 增量 or 修改), 底池, 变化 and 总抽水, latest first. The pot of an 增量 is the smallest pot that gives it under the rule now in use, shown faintly; a 修改 has N/A. 变化 is green for a rise and red for a fall, and 总抽水 is the total after it.
+  - The record sits under 撤销 and 返回, with the latest 3. Its line reads `记录 (N)` with the total count, after a record mark, in gold, and stays with the table's head before there are any records. A tap on it opens every record in a dialog of its own; there is no scrolling window.
+  - Fixed on the way: closing a dialog opened from 抽水计算, such as all the records, 保存配置 or an info mark, closed 抽水计算 too, as React passes a dialog's close on to the one it was opened from. 抽水计算 and the shared modal now act only on their own.
+  - A rake event keeps `typedOver` when the total so far was typed over. Rakes from before count a fall as 修改. Backups stay at version 14.
+- Decision: do. Checked at 393 wide in the browser preview, dark mode, on an isolated preview origin.
+- Tracking: PR #90
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

@@ -1,6 +1,6 @@
 {
   "format": "holdem-backup",
-  "version": 13,
+  "version": 14,
   "exportedAt": 1767830400000,
   "games": [
     {
@@ -12,6 +12,10 @@
       "insurance": {
         "tieOuts": "include",
         "refundPremium": false,
+        "rounding": {
+          "mode": "nearest",
+          "smallBlinds": 1
+        },
         "oddsHundredths": [
           3000,
           1500,

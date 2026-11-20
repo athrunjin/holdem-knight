@@ -4,6 +4,7 @@ import {
   type InsuranceRuleIssues,
   parseInsuranceRule,
   RULE_30,
+  ruleToKeep,
   type SavedInsuranceRule,
   toInsuranceRuleForm,
   withOdds,
@@ -23,6 +24,7 @@ import { cn } from "@/lib/cn";
 import { datedName } from "@/lib/dated-name";
 import { ChoiceModal } from "./ChoiceModal";
 import { CoverLimitPicker } from "./CoverLimitPicker";
+import { InsuranceRoundingLine, type RoundingStakes, RoundingSwitch } from "./InsuranceRounding";
 import { OddsTableEditor } from "./OddsTableEditor";
 
 const LAST_RULE = "last";
@@ -30,9 +32,12 @@ const DEFAULT_RULE = "default";
 const CUSTOM_RULE = "custom";
 export const CUSTOM_NAME = "自定义";
 
-/** Everything in a rule but its odds and the table they are from, which the odds table sets on its own. */
+/**
+ * Everything in a rule but its odds and the table they are from, which the odds table sets on its
+ * own, and the smallest chip in chips, which is set where the rule is used and never kept.
+ */
 function settingsOf(form: InsuranceRuleForm) {
-  const { odds: _, oddsTableId: __, ...settings } = form;
+  const { odds: _, oddsTableId: __, roundChips: ___, ...settings } = form;
   return settings;
 }
 
@@ -93,10 +98,15 @@ export function useInsuranceConfigs({ value, lastRule, lastRuleLabel, onChange }
 
   function choose(id: string) {
     const rule = rules.find((r) => r.id === id)?.rule;
-    // The odds stay as they are, with the table they came from
+    // The odds stay as they are, with the table they came from, and so does a smallest chip in chips
     if (rule) {
-      const next = withOdds(toInsuranceRuleForm(rule), form.odds, form.oddsTableId);
-      onChange({ ...value, source: id, form: next });
+      const next = withOdds(toInsuranceRuleForm(ruleToKeep(rule)), form.odds, form.oddsTableId);
+      const roundChips = form.roundChips;
+      onChange({
+        ...value,
+        source: id,
+        form: { ...next, ...(roundChips !== undefined && { roundChips }) },
+      });
     }
   }
 
@@ -107,6 +117,8 @@ interface InsuranceSettingsProps extends ConfigList {
   issues: InsuranceRuleIssues;
   /** Once insurance has been sold in this game, it cannot be turned off */
   locked: boolean;
+  /** The game's small blind for the smallest chip, or undefined in the tools */
+  stakes: RoundingStakes;
   /**
    * For the calculator on its own, which has no insurance to switch on and shows the configuration
    * and the odds table itself: only the settings between them, on show, with no frame.
@@ -124,6 +136,7 @@ export function InsuranceSettings({
   lastRule,
   lastRuleLabel,
   locked,
+  stakes,
   bare = false,
   onChange,
 }: InsuranceSettingsProps) {
@@ -140,8 +153,12 @@ export function InsuranceSettings({
   const [picking, setPicking] = useState(false);
   const [naming, setNaming] = useState(false);
 
-  const setForm = (next: Partial<InsuranceRuleForm>) =>
-    onChange({ ...value, source: CUSTOM_RULE, form: { ...form, ...next } });
+  // The smallest chip in chips is not part of a set, so changing it keeps the set's name
+  const setForm = (next: Partial<InsuranceRuleForm>) => {
+    const changed = { ...form, ...next };
+    const same = JSON.stringify(settingsOf(changed)) === JSON.stringify(settingsOf(form));
+    onChange({ ...value, source: same ? value.source : CUSTOM_RULE, form: changed });
+  };
 
   // Worth saving only once the settings are valid and differ from every set already on offer
   const settingsText = JSON.stringify(settingsOf(form));
@@ -150,6 +167,8 @@ export function InsuranceSettings({
     ![...rules.map((r) => r.rule), ...(lastRule ? [lastRule] : [])].some(
       (rule) => JSON.stringify(settingsOf(toInsuranceRuleForm(rule))) === settingsText,
     );
+
+  const roundingInvalid = issues.roundSmallBlinds !== undefined || issues.roundChips !== undefined;
 
   const configButton = (
     <button
@@ -169,7 +188,9 @@ export function InsuranceSettings({
     const parsed = parseInsuranceRule(form);
     if (!parsed.ok) return "规则里有无效的数值";
     const existing = saved.find((rule) => rule.name === name);
-    const rule = existing ? { ...existing, rule: parsed.rule } : newSavedRule(name, parsed.rule);
+    // Kept with the smallest chip in small blinds only, to be worked out at the game it is used in
+    const kept = ruleToKeep(parsed.rule);
+    const rule = existing ? { ...existing, rule: kept } : newSavedRule(name, kept);
     saveRule.mutate(rule, {
       onSuccess: () => {
         onChange({ ...value, source: rule.id });
@@ -236,20 +257,30 @@ export function InsuranceSettings({
               value={form.riverLimit}
               onChange={(riverLimit) => setForm({ riverLimit })}
             />
-            {savable && (
-              <button
-                type="button"
-                onClick={() => setNaming(true)}
-                className="ml-auto min-h-11 font-medium text-highlight"
-              >
-                保存配置
-              </button>
-            )}
+            {/* Rounding's switch ends this line, wrapping when it is too narrow */}
+            <RoundingSwitch form={form} onChange={setForm} className="ml-auto" />
           </div>
           {(issues.turnLimit || issues.riverLimit || issues.odds) && (
             <p role="alert" className="text-sm text-highlight">
               规则里有无效的数值，请重新选择。
             </p>
+          )}
+
+          <InsuranceRoundingLine
+            form={form}
+            stakes={stakes}
+            invalid={roundingInvalid}
+            onChange={setForm}
+          />
+
+          {savable && (
+            <button
+              type="button"
+              onClick={() => setNaming(true)}
+              className="min-h-11 self-end text-sm font-medium text-highlight"
+            >
+              保存配置
+            </button>
           )}
 
           {!bare && (

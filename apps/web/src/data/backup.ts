@@ -13,7 +13,7 @@ import {
 import { z } from "zod";
 
 const FORMAT = "holdem-backup";
-const VERSION = 13;
+const VERSION = 14;
 
 const id = z.string().min(1);
 const money = z
@@ -30,6 +30,9 @@ const street = z.enum(["turn", "river"]);
 /** Rules before version 9 had premium caps instead, which are dropped and leave the full pot. */
 const coverLimit = z.union([z.literal("stake"), z.number().int().min(1).max(99)]);
 
+/** At most two decimals, allowing for how they are stored. */
+const twoDecimals = (value: number) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
+
 const insuranceRuleSchema = z.object({
   oddsHundredths: z.array(z.number().int().positive()).min(1),
   tieOuts: z.enum(["exclude", "include"]),
@@ -37,11 +40,33 @@ const insuranceRuleSchema = z.object({
   turnCoverLimit: coverLimit.optional(),
   riverCoverLimit: coverLimit.optional(),
   oddsTableId: id.optional(),
+  /** Added in version 14. The smallest chip is kept in small blinds, never in chips. */
+  rounding: z
+    .object({
+      mode: z.enum(["nearest", "down", "up"]),
+      smallBlinds: z.number().positive().refine(twoDecimals).optional(),
+    })
+    .optional(),
 });
 
 const tableFeeSchema = z.object({ amount: money, minMinutes: z.number().int().min(0) });
 
-const rakeSchema = z.object({ percent: z.number().int().min(1).max(99) });
+/** Whole for chips, with at most two decimals for blinds. */
+const rakeAmountSchema = z
+  .object({ unit: z.enum(["chips", "smallBlinds", "bigBlinds"]), amount: z.number().positive() })
+  .refine(({ unit, amount }) =>
+    unit === "chips" ? Number.isInteger(amount) : twoDecimals(amount),
+  );
+
+const rakeSchema = z.object({
+  /** Whole percentages until version 14, which allows two decimals. */
+  percent: z.number().positive().lt(100).refine(twoDecimals),
+  /** Added in version 14, with the smallest chip and the cap. */
+  rounding: z.enum(["nearest", "down", "up"]).optional(),
+  roundTo: rakeAmountSchema.optional(),
+  cap: rakeAmountSchema.optional(),
+  insuranceAfterRake: z.boolean().optional(),
+});
 
 const hour = z.number().int().min(0).max(23);
 
@@ -186,6 +211,10 @@ const eventSchema = z.discriminatedUnion("type", [
       .number()
       .int()
       .refine((change) => change !== 0),
+    /** Added in version 14. */
+    potChips: chips.positive().optional(),
+    /** Added in version 14. */
+    typedOver: z.literal(true).optional(),
   }),
 ]);
 
@@ -258,6 +287,20 @@ const savedFields = { ...owned, name: z.string().min(1), createdAt: timestamp };
 const chargeRuleSchema = z.discriminatedUnion("kind", [
   z.object({ ...savedFields, kind: z.literal("table_fee"), rule: tableFeeSchema }),
   z.object({ ...savedFields, kind: z.literal("wage"), rule: wageSchema }),
+  /** Added in version 14. */
+  z.object({ ...savedFields, kind: z.literal("rake"), rule: rakeSchema }),
+  /** Added in version 14. */
+  z.object({
+    ...savedFields,
+    kind: z.literal("basics"),
+    rule: z.object({
+      currency: gameFields.currency,
+      smallBlindChips: chips.positive(),
+      bigBlindChips: chips.positive(),
+      chipRatio: gameFields.chipRatio,
+      buyInBigBlinds: chips.positive(),
+    }),
+  }),
 ]);
 
 const collections = {

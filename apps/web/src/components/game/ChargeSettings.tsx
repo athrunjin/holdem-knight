@@ -2,19 +2,33 @@ import {
   type ChargeIssue,
   type Currency,
   DEFAULT_AFTER_HOURS,
+  DEFAULT_RAKE_RULE,
   DEFAULT_TABLE_FEE,
   DEFAULT_TIME_SEGMENT,
   DEFAULT_WAGE,
+  formatRakeNumber,
   MAX_WAGE_SEGMENTS,
   MAX_WAGE_SEGMENTS_IN_ALL,
+  parseChips,
+  parseRake,
   parseTableFee,
   parseWage,
+  potAtCap,
+  RAKE_PERCENT_PICKS,
+  RAKE_ROUNDINGS,
+  type RakeAmount,
+  type RakeForm,
+  type RakeIssues,
+  type RakeRule,
+  rakeAmountChips,
   type SavedChargeRule,
   type TableFeeForm,
   type TableFeeIssues,
   type TableFeeRule,
+  toRakeForm,
   toTableFeeForm,
   toWageForm,
+  tryParseMoney,
   WAGE_ROUNDINGS,
   WAGE_UNITS,
   type WageAfterStartSegmentForm,
@@ -24,12 +38,14 @@ import {
   type WageTimeSegmentForm,
   type WageUnitMinutes,
 } from "@holdem-knight/core";
-import { ChevronDown, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, Plus, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { ChipStack } from "@/components/ChipStack";
+import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { InfoButton } from "@/components/InfoButton";
 import { ChoiceModal } from "@/components/insurance/ChoiceModal";
+import { MiniSwitch } from "@/components/MiniSwitch";
 import { SaveNameDialog } from "@/components/SaveNameDialog";
-import { TextField } from "@/components/TextField";
 import { TextMenu } from "@/components/TextMenu";
 import { Toggle } from "@/components/Toggle";
 import {
@@ -38,15 +54,28 @@ import {
   useRemoveChargeRule,
   useSaveChargeRule,
 } from "@/data/charge-rules";
-import { ROUNDING_NAMES, UNIT_NAMES } from "@/lib/charges";
+import { RAKE_ROUNDING_NAMES, ROUNDING_NAMES } from "@/lib/charges";
 import { cn } from "@/lib/cn";
 import { CURRENCY_INFO } from "@/lib/currency";
 import { datedName } from "@/lib/dated-name";
 import { formatMoneyText, selectOnFocus } from "@/lib/number-input";
+import { useSettledChange } from "@/lib/settled-change";
+import {
+  Caption,
+  chipsText,
+  FIGURE_GRID,
+  FIGURE_TITLE_CELL,
+  FigureInput,
+  figureTitleClass,
+  Join,
+  Mark,
+  pointsInputText,
+  pointsText,
+} from "./SetupFigures";
 
-const LAST_PRESET = "last";
-const DEFAULT_PRESET = "default";
-const CUSTOM_PRESET = "custom";
+export const LAST_PRESET = "last";
+export const DEFAULT_PRESET = "default";
+export const CUSTOM_PRESET = "custom";
 
 const ISSUE_TEXT: Record<ChargeIssue, string> = {
   invalid: "请输入有效的数字",
@@ -88,6 +117,9 @@ export const initialTableFeeChoice = (
 export const initialWageChoice = (current: WageRule | undefined, last: WageRule | undefined) =>
   initialChoice(current, last, DEFAULT_WAGE, toWageForm);
 
+export const initialRakeChoice = (current: RakeRule | undefined, last: RakeRule | undefined) =>
+  initialChoice(current, last, DEFAULT_RAKE_RULE, toRakeForm);
+
 interface Preset<Form> {
   readonly id: string;
   readonly name: string;
@@ -95,13 +127,13 @@ interface Preset<Form> {
   readonly removable?: boolean;
 }
 
-type ChargeKind = "table_fee" | "wage";
+type ChargeKind = SavedChargeRule["kind"];
 
 /**
  * Last time's values, the defaults and the saved configs of one kind. Last time goes by its saved
  * name when it was a saved config, as insurance does.
  */
-function useChargePresets<Rule, Form>(
+export function useChargePresets<Rule, Form>(
   kind: ChargeKind,
   last: Rule | undefined,
   lastLabel: string,
@@ -135,7 +167,7 @@ function useChargePresets<Rule, Form>(
 }
 
 /** Where the values came from, beside the switch like insurance's, and a way to switch preset. */
-function PresetPicker<Form>({
+export function PresetPicker<Form>({
   title,
   choices,
   source,
@@ -187,7 +219,7 @@ function PresetPicker<Form>({
  * 保存配置 at the foot of an option: names its values and keeps them for later games. Shown only
  * for a valid change, one that matches no preset already on offer.
  */
-function SaveChargeConfig({
+export function SaveChargeConfig({
   kind,
   title,
   takenNames,
@@ -197,7 +229,7 @@ function SaveChargeConfig({
 }: {
   kind: ChargeKind;
   visible: boolean;
-  /** 台费 or 工资 */
+  /** 台费, 工资, 抽水 or 基础设置 */
   title: string;
   takenNames: readonly string[];
   /** The values as a rule, or null when some are invalid */
@@ -265,7 +297,7 @@ function InlineNumber({
   prefix,
   suffix,
   wholeNumber = false,
-  widthClass = "w-16",
+  minChars = 5,
   format,
   onChange,
 }: {
@@ -277,7 +309,8 @@ function InlineNumber({
   suffix?: string;
   /** Only digits get through */
   wholeNumber?: boolean;
-  widthClass?: string;
+  /** The slot holds this many characters, 5 for an amount such as 25.00; a longer value widens it */
+  minChars?: number;
   /** Tidies the value once the field is left, such as 30 to 30.00 */
   format?: (value: string) => string;
   onChange: (value: string) => void;
@@ -302,10 +335,10 @@ function InlineNumber({
         onChange={(event) =>
           onChange(wholeNumber ? event.target.value.replace(/\D/g, "") : event.target.value)
         }
+        style={{ width: `${Math.max(minChars, value.length) + 1}ch` }}
         className={cn(
-          "min-h-11 border-b bg-transparent text-right font-semibold tabular-nums outline-none focus:border-highlight",
-          invalid ? "border-highlight" : "border-line",
-          widthClass,
+          "min-h-11 border-b bg-transparent text-center font-semibold tabular-nums outline-none focus:border-highlight",
+          invalid ? "border-highlight" : "border-transparent",
         )}
       />
       {suffix && <span className="text-sm text-muted">{suffix}</span>}
@@ -412,6 +445,10 @@ export function TableFeeSettings({
   const { enabled, source, form } = value;
   const setForm = (next: Partial<TableFeeForm>) =>
     onChange({ ...value, source: CUSTOM_PRESET, form: { ...form, ...next } });
+  const minutes = Number(form.minMinutes) || 0;
+  // Issues show as they are made, not only once the game is started
+  const live = parseTableFee(form);
+  const shown: TableFeeIssues = { ...(live.ok ? {} : live.issues), ...issues };
   const { choices, selectedId, saved, isNew } = useChargePresets(
     "table_fee",
     lastRule,
@@ -426,7 +463,7 @@ export function TableFeeSettings({
   );
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-4 py-2">
+    <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
         label="台费"
         info="每位玩家每局收一次，只计对局计时器运行时的在桌时间，结算时计入组织者"
@@ -445,38 +482,35 @@ export function TableFeeSettings({
       />
       {enabled && (
         <>
-          <div className="grid grid-cols-2 items-start gap-2">
-            <TextField
+          <div className="flex min-h-11 items-center justify-between gap-3">
+            <span className="flex items-center gap-2">
+              <label htmlFor="table-fee-amount" className="font-medium">
+                基础台费
+              </label>
+              {minutes === 0 && <span className="text-xs text-highlight">上桌就收</span>}
+            </span>
+            <InlineNumber
               id="table-fee-amount"
-              label="每人台费"
+              label="基础台费"
               value={form.amount}
-              issue={issueText(issues.amount)}
+              invalid={shown.amount !== undefined}
               prefix={CURRENCY_INFO[currency].symbol}
-              inputMode="decimal"
-              selectOnFocus
-              onBlur={() => {
-                const amount = formatMoneyText(form.amount);
-                if (amount !== form.amount) setForm({ amount });
-              }}
+              suffix="/ 人 / 台"
+              minChars={6}
+              format={formatMoneyText}
               onChange={(amount) => setForm({ amount })}
             />
-            <TextField
-              id="table-fee-minutes"
-              label="在桌满"
-              labelAccessory={
-                <InfoButton
-                  title="在桌满"
-                  text={"建议保留一定时长，防止误添加玩家产生台费。\n0 表示上桌就收。"}
-                />
-              }
-              value={form.minMinutes}
-              issue={issueText(issues.minMinutes)}
-              suffix="分钟才收"
-              inputMode="numeric"
-              selectOnFocus
-              onChange={(minMinutes) => setForm({ minMinutes })}
-            />
           </div>
+          {shown.amount && <p className="text-sm text-highlight">{issueText(shown.amount)}</p>}
+          {/* Fixed at 5 minutes; a game set up with another time keeps it */}
+          <Toggle
+            label={`在桌满 ${minutes > 0 ? minutes : DEFAULT_TABLE_FEE.minMinutes} 分钟收`}
+            detail="防止误添加玩家产生台费"
+            checked={minutes > 0}
+            onChange={(on) =>
+              setForm({ minMinutes: on ? String(DEFAULT_TABLE_FEE.minMinutes) : "0" })
+            }
+          />
           <SaveChargeConfig
             kind="table_fee"
             title="台费"
@@ -494,7 +528,18 @@ export function TableFeeSettings({
   );
 }
 
-const UNIT_OPTIONS = WAGE_UNITS.map((unit) => ({ value: String(unit), label: UNIT_NAMES[unit] }));
+/** How the unit reads after 精确到 at setup. */
+const SETUP_UNIT_NAMES: Record<WageUnitMinutes, string> = {
+  1: "每分钟",
+  15: "每15分",
+  30: "每30分",
+  60: "每小时",
+};
+
+const UNIT_OPTIONS = WAGE_UNITS.map((unit) => ({
+  value: String(unit),
+  label: SETUP_UNIT_NAMES[unit],
+}));
 
 const ROUNDING_OPTIONS = WAGE_ROUNDINGS.map((mode) => ({
   value: mode,
@@ -502,14 +547,10 @@ const ROUNDING_OPTIONS = WAGE_ROUNDINGS.map((mode) => ({
 }));
 
 const ROUNDING_INFO = [
-  "每位玩家的在桌时间，从坐下起按计费单位切成一段一段。最后不满一段的部分：",
+  "每位玩家的在桌时间，从坐下起按「精确到」的时长切成一段一段，只计对局计时器运行的时间。最后不满一段的超出部分：",
   "四舍五入：满半段算一段，不满半段不收。",
   "向上取整：不满一段也算一段。",
   "向下取整：不满一段不收。",
-  "",
-  "一段时间跨两种时薪时，按占时较长的时薪收；一样长时按较高的收。算作一段的不满部分，顺延到离桌之后再比较。",
-  "",
-  "例如零点前 ¥20、零点后 ¥30，按 30 分钟计费、向上取整，23:16 坐到 0:13：23:16–23:46 按 ¥20；余下 27 分钟算一段（23:46–0:16），零点后占 16 分钟，按 ¥30。",
 ].join("\n");
 
 /**
@@ -620,11 +661,11 @@ export function WageSettings({
         <>
           <div className="flex min-h-11 items-center justify-between gap-3">
             <label htmlFor="wage-hourly" className="font-medium">
-              基础时薪
+              基础薪资
             </label>
             <InlineNumber
               id="wage-hourly"
-              label="基础时薪"
+              label="基础薪资"
               value={form.hourly}
               invalid={shown.hourly !== undefined}
               prefix={symbol}
@@ -635,17 +676,20 @@ export function WageSettings({
           </div>
           {shown.hourly && <p className="text-sm text-highlight">{issueText(shown.hourly)}</p>}
 
-          <div className="flex flex-wrap items-center justify-between gap-x-3 text-sm">
+          <div className="-mt-2 flex flex-wrap items-center justify-between gap-x-3 text-sm">
             <TextMenu
-              label="计费方式"
-              caption="计费方式"
+              label="精确到"
+              caption="精确到"
               options={UNIT_OPTIONS}
               value={String(form.unitMinutes)}
               onChange={(unit) => setForm({ unitMinutes: Number(unit) as WageUnitMinutes })}
               className="font-medium"
             />
             <span className="flex items-center">
-              <InfoButton title="取整方式" text={ROUNDING_INFO} />
+              <span className="mr-1 flex items-center text-xs text-muted">
+                <InfoButton title="超出部分" text={ROUNDING_INFO} inline />
+                超出部分
+              </span>
               <TextMenu
                 label="取整方式"
                 options={ROUNDING_OPTIONS}
@@ -680,7 +724,7 @@ export function WageSettings({
               )}
 
               <Toggle
-                label="时段设置"
+                label="根据时间"
                 info="按开局所在地的时间。开局时已在时段内，从开局起就按该时段算；否则从下一次到达开始时间算起。"
                 checked={form.timeOn}
                 onChange={(on) => switchKind("time", on)}
@@ -759,7 +803,7 @@ export function WageSettings({
               )}
 
               <Toggle
-                label="开局时间设置"
+                label="根据时长"
                 info="按对局计时器的时间算，暂停不算"
                 checked={form.afterOn}
                 onChange={(on) => switchKind("after", on)}
@@ -777,7 +821,7 @@ export function WageSettings({
                           value={row.afterHours}
                           invalid={shown[`after-${i}-afterHours`] !== undefined}
                           wholeNumber
-                          widthClass="w-9"
+                          minChars={2}
                           onChange={(afterHours) => setAfter(i, { afterHours })}
                         />
                         <span className="text-muted">小时后</span>
@@ -845,5 +889,641 @@ export function WageSettings({
         </>
       )}
     </section>
+  );
+}
+
+const PERCENT_OPTIONS = RAKE_PERCENT_PICKS.map((percent) => ({
+  value: percent,
+  label: `${percent}%`,
+  chosen: <></>,
+}));
+
+const RAKE_ROUNDING_OPTIONS = RAKE_ROUNDINGS.map((mode) => ({
+  value: mode,
+  label: RAKE_ROUNDING_NAMES[mode],
+}));
+
+const RAKE_ROUNDING_INFO = [
+  "每手抽水按比例算出后，不满一个最小筹码面值的零头：",
+  "· 四舍五入：满半个面值进一个，不满半个舍去",
+  "· 向下取整：零头舍去",
+  "· 向上取整：有零头就进一个",
+  "封顶也按最小筹码面值向下取整，所以取整后的抽水不会超过封顶。",
+  "关闭取整时，按整个筹码向下取整。",
+].join("\n");
+
+/** The game's blinds and chip ratio as typed, for showing rake amounts in chips and points. */
+export interface RakeStakes {
+  readonly smallBlindChips: number | null;
+  readonly bigBlindChips: number | null;
+  /** `amount` is in cents */
+  readonly ratio: { readonly chips: number; readonly amount: number } | null;
+}
+
+const blindsOf = ({ smallBlindChips, bigBlindChips }: RakeStakes) => ({
+  smallBlindChips: smallBlindChips ?? undefined,
+  bigBlindChips: bigBlindChips ?? undefined,
+});
+
+/** A blind with a decimal or two, as it is kept. */
+const blindText = (value: number) => formatRakeNumber(Math.round(value * 100) / 100);
+
+/**
+ * An amount for rake in blinds ⇔ chips, as the Buy-in row reads: either can be typed and the other
+ * follows. A tap on the chip mark shows points instead. What was typed last is what is kept, so an
+ * amount typed in blinds follows the blinds and one typed in chips does not.
+ */
+function RakeAmountFigures({
+  label,
+  blind,
+  unit,
+  amount,
+  invalid,
+  stakes,
+  currency,
+  onChange,
+}: {
+  label: string;
+  /** The blind the left figure counts in */
+  blind: Exclude<RakeAmount["unit"], "chips">;
+  unit: RakeAmount["unit"];
+  amount: string;
+  invalid: boolean;
+  stakes: RakeStakes;
+  currency: Currency;
+  onChange: (unit: RakeAmount["unit"], amount: string) => void;
+}) {
+  const [inPoints, setInPoints] = useState(false);
+  // Points being typed, from which the chips are worked out
+  const [draft, setDraft] = useState<string | null>(null);
+  const { ratio } = stakes;
+  const typed = Number(amount);
+  const known = amount.trim() !== "" && Number.isFinite(typed);
+  const chips = known ? (rakeAmountChips({ unit, amount: typed }, blindsOf(stakes)) ?? null) : null;
+  const blindChips = blind === "smallBlinds" ? stakes.smallBlindChips : stakes.bigBlindChips;
+  const blinds = !known
+    ? null
+    : unit === blind
+      ? typed
+      : blindChips && chips !== null
+        ? chips / blindChips
+        : null;
+  const points = chips !== null && ratio ? Math.round((chips * ratio.amount) / ratio.chips) : null;
+  const right = inPoints
+    ? (draft ?? (points === null ? "" : pointsText(points)))
+    : unit === "chips"
+      ? amount
+      : chips === null
+        ? ""
+        : formatRakeNumber(chips);
+  const mark = blind === "smallBlinds" ? "SB" : "BB";
+
+  function typeRight(text: string) {
+    if (!inPoints) {
+      onChange("chips", text);
+      return;
+    }
+    setDraft(text);
+    const cents = tryParseMoney(text);
+    if (cents !== null && cents > 0 && ratio) {
+      onChange("chips", String(Math.max(1, Math.round((cents * ratio.chips) / ratio.amount))));
+    }
+  }
+
+  // Five cells of the rake grid: blinds, their mark, ⇔, chips or points, and the switching mark
+  return (
+    <span className="contents font-medium">
+      <FigureInput
+        label={`${label}（${mark}）`}
+        value={unit === blind ? amount : blinds === null ? "" : blindText(blinds)}
+        onChange={(text) => onChange(blind, text)}
+        invalid={invalid && unit === blind}
+      />
+      <Mark>{mark}</Mark>
+      <Join>
+        <span aria-hidden className="text-xl leading-none">
+          ⇔
+        </span>
+        <span className="sr-only">即</span>
+      </Join>
+      <FigureInput
+        label={`${label}（${inPoints ? "积分" : "筹码"}）`}
+        value={right}
+        onChange={typeRight}
+        onBlur={() => setDraft(null)}
+        tidy={inPoints ? pointsInputText : chipsText}
+        invalid={invalid && unit === "chips"}
+        wholeNumber={!inPoints}
+        wide
+      />
+      <button
+        type="button"
+        aria-label={`${label}显示${inPoints ? "积分" : "筹码"}，点击切换`}
+        onClick={() => {
+          setDraft(null);
+          setInPoints(!inPoints);
+        }}
+        className="-my-3 ml-1 grid h-11 w-5 shrink-0 place-items-center text-muted"
+      >
+        {inPoints ? (
+          <CurrencyIcon currency={currency} className="size-5" />
+        ) : (
+          <ChipStack ground="var(--surface)" className="size-5" />
+        )}
+      </button>
+    </span>
+  );
+}
+
+/**
+ * Under the cap: the pot whose rake, before rounding, is the cap, in chips whatever the cap shows.
+ * Typing a pot sets the cap to that pot's rate, kept in the cap's unit, so the pot comes back as
+ * typed. Rounding can make the rake reach the cap a little sooner.
+ */
+function MaxPotLine({
+  form,
+  stakes,
+  onCap,
+}: {
+  form: RakeForm;
+  stakes: RakeStakes;
+  onCap: (unit: RakeAmount["unit"], amount: string) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const blinds = blindsOf(stakes);
+  const parsed = parseRake(form);
+  const rule = parsed.ok ? parsed.rule : null;
+  const maxPot = rule && potAtCap(rule, blinds);
+
+  function typePot(text: string) {
+    setDraft(text);
+    const pot = parseChips(text);
+    const percent = rule?.percent;
+    if (!percent || pot === null || pot <= 0) return;
+    const chips = (pot * percent) / 100;
+    const blind = rakeAmountChips({ unit: form.capUnit, amount: 1 }, blinds);
+    if (form.capUnit === "chips" || !blind) onCap("chips", String(Math.max(1, Math.round(chips))));
+    else onCap(form.capUnit, blindText(chips / blind));
+  }
+
+  // A row of the rake grid: its caption, then the pot under the chips above it
+  return (
+    <span className="contents font-medium">
+      <Caption>等值最大底池:</Caption>
+      <span className="col-start-6">
+        <FigureInput
+          label="等值最大底池（筹码）"
+          value={draft ?? (maxPot ? String(maxPot) : "")}
+          onChange={typePot}
+          onBlur={() => setDraft(null)}
+          tidy={chipsText}
+          wholeNumber
+          wide
+        />
+      </span>
+      <Mark>
+        <ChipStack ground="var(--surface)" className="size-5" />
+      </Mark>
+    </span>
+  );
+}
+
+interface RakeSettingsProps extends ChargeSettingsProps<RakeRule, RakeForm, RakeIssues> {
+  /** Once rake has been recorded in this game, it cannot be turned off */
+  locked: boolean;
+  stakes: RakeStakes;
+}
+
+/** No blinds and no ratio, as in the tools. */
+export const NO_STAKES: RakeStakes = { smallBlindChips: null, bigBlindChips: null, ratio: null };
+
+/** Common smallest chips, picked from the chevron where there are no blinds to go by. */
+const CHIP_PICKS = ["1", "5", "10", "20"].map((chips) => ({
+  value: chips,
+  label: chips,
+  chosen: <></>,
+}));
+
+/**
+ * The rule of a choice, its presets and whether its values make a new one: what both the setup
+ * card and 抽水计算 show the rule by.
+ */
+function useRakePresets(
+  value: ChargeChoice<RakeForm>,
+  lastRule: RakeRule | undefined,
+  lastRuleLabel: string,
+  /** How a preset shows when picked, such as in chips alone in the tools */
+  shownAs: (form: RakeForm) => RakeForm = (form) => form,
+) {
+  const toRule = (f: RakeForm) => {
+    const parsed = parseRake(f);
+    return parsed.ok ? parsed.rule : null;
+  };
+  const presets = useChargePresets(
+    "rake",
+    lastRule,
+    lastRuleLabel,
+    DEFAULT_RAKE_RULE,
+    toRakeForm,
+    toRule,
+    value.source,
+  );
+  // A preset counts as it would show, so the tools' default in chips is not offered as new
+  const isNew = (form: RakeForm) => {
+    const rule = toRule(form);
+    if (!rule) return false;
+    const text = JSON.stringify(rule);
+    return !presets.choices.some((c) => JSON.stringify(toRule(shownAs(c.form))) === text);
+  };
+  return { ...presets, isNew, toRule };
+}
+
+/**
+ * The rake rule's fields: 比例, then 封顶 and 取整 in one grid so their colons, figures and marks
+ * line up, 保险报价先扣除抽水 and 保存配置. With `chipsOnly`, as in the tools with no blinds, the cap
+ * and the smallest chip are in chips alone, and the smallest chip has common ones a tap away.
+ */
+function RakeFields({
+  value,
+  issues,
+  currency,
+  stakes,
+  chipsOnly = false,
+  stacked = false,
+  presets,
+  onChange,
+}: {
+  value: ChargeChoice<RakeForm>;
+  issues: RakeIssues;
+  currency: Currency;
+  stakes: RakeStakes;
+  chipsOnly?: boolean;
+  /** Each title on a line of its own, where the box is narrower than a setup card, as in a dialog */
+  stacked?: boolean;
+  presets: ReturnType<typeof useRakePresets>;
+  onChange: (value: ChargeChoice<RakeForm>) => void;
+}) {
+  const { form } = value;
+  const setForm = (next: Partial<RakeForm>) =>
+    onChange({ ...value, source: CUSTOM_PRESET, form: { ...form, ...next } });
+  // Issues show as they are made, not only once the game is started
+  const live = parseRake(form);
+  const shown: RakeIssues = { ...(live.ok ? {} : live.issues), ...issues };
+  const titleCell = cn(FIGURE_TITLE_CELL, stacked && "col-span-full");
+
+  /** A figure in chips alone, under the chips of the rows with blinds, then what follows it. */
+  const chipsFigure = (
+    label: string,
+    amount: string,
+    invalid: boolean,
+    onAmount: (amount: string) => void,
+    after: ReactNode,
+  ) => (
+    <span className="contents font-medium">
+      <span className="col-start-6">
+        <FigureInput
+          label={`${label}（筹码）`}
+          value={amount}
+          onChange={onAmount}
+          tidy={chipsText}
+          invalid={invalid}
+          wholeNumber
+          wide
+        />
+      </span>
+      {after}
+    </span>
+  );
+
+  return (
+    <>
+      <div className="flex min-h-11 items-center justify-between gap-3">
+        <label htmlFor="rake-percent" className="font-medium">
+          比例
+        </label>
+        <span className="flex items-center">
+          <InlineNumber
+            id="rake-percent"
+            label="抽水比例"
+            value={form.percent}
+            invalid={shown.percent !== undefined}
+            suffix="%"
+            minChars={2}
+            format={(text) => {
+              const percent = Number(text);
+              return text.trim() !== "" && Number.isFinite(percent)
+                ? formatRakeNumber(percent)
+                : text;
+            }}
+            onChange={(percent) => setForm({ percent })}
+          />
+          <TextMenu
+            label="抽水比例快速选择"
+            options={PERCENT_OPTIONS}
+            value={PERCENT_OPTIONS.find((o) => Number(o.value) === Number(form.percent))?.value}
+            onChange={(percent) => setForm({ percent })}
+            align="right"
+            className="-mr-4 pr-4 pl-2"
+          />
+        </span>
+      </div>
+
+      {/*
+        One grid for the cap and the rounding, so their colons, figures and marks line up.
+        On a narrow card each title takes a line of its own, decided by the screen's width,
+        not by the numbers, so typing never moves anything between lines.
+      */}
+      <div className={FIGURE_GRID}>
+        <span className={titleCell}>
+          <span className={figureTitleClass(form.capOn)}>封顶</span>
+          <MiniSwitch
+            label="封顶"
+            hideLabel
+            checked={form.capOn}
+            onChange={(capOn) => setForm({ capOn })}
+          />
+        </span>
+        {form.capOn && (
+          <>
+            <Caption>单笔最多收:</Caption>
+            {chipsOnly ? (
+              chipsFigure(
+                "封顶",
+                form.capAmount,
+                shown.capAmount !== undefined,
+                (capAmount) => setForm({ capUnit: "chips", capAmount }),
+                <Mark>
+                  <ChipStack ground="var(--surface)" className="size-5" />
+                </Mark>,
+              )
+            ) : (
+              <RakeAmountFigures
+                label="封顶"
+                blind="bigBlinds"
+                unit={form.capUnit}
+                amount={form.capAmount}
+                invalid={shown.capAmount !== undefined}
+                stakes={stakes}
+                currency={currency}
+                onChange={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
+              />
+            )}
+            <MaxPotLine
+              form={form}
+              stakes={stakes}
+              onCap={(capUnit, capAmount) => setForm({ capUnit, capAmount })}
+            />
+          </>
+        )}
+
+        <span className={titleCell}>
+          <span className={figureTitleClass(form.roundOn)}>取整</span>
+          <MiniSwitch
+            label="取整"
+            hideLabel
+            checked={form.roundOn}
+            onChange={(roundOn) => setForm({ roundOn })}
+          />
+        </span>
+        {form.roundOn && (
+          <>
+            <Caption>最小筹码面值:</Caption>
+            {chipsOnly ? (
+              chipsFigure(
+                "最小筹码面值",
+                form.roundAmount,
+                shown.roundAmount !== undefined,
+                (roundAmount) => setForm({ roundUnit: "chips", roundAmount }),
+                <span className="justify-self-end">
+                  <TextMenu
+                    label="最小筹码面值快速选择"
+                    options={CHIP_PICKS}
+                    value={CHIP_PICKS.find((pick) => pick.value === form.roundAmount.trim())?.value}
+                    onChange={(roundAmount) => setForm({ roundUnit: "chips", roundAmount })}
+                    align="right"
+                    className="pr-0.5 text-sm"
+                  />
+                </span>,
+              )
+            ) : (
+              <RakeAmountFigures
+                label="最小筹码面值"
+                blind="smallBlinds"
+                unit={form.roundUnit}
+                amount={form.roundAmount}
+                invalid={shown.roundAmount !== undefined}
+                stakes={stakes}
+                currency={currency}
+                onChange={(roundUnit, roundAmount) => setForm({ roundUnit, roundAmount })}
+              />
+            )}
+            <Caption>
+              <InfoButton title="超出部分" text={RAKE_ROUNDING_INFO} inline />
+              超出部分:
+            </Caption>
+            {/* Its chevron sits under the chip mark above */}
+            <span className="col-span-5 col-start-3 justify-self-end">
+              <TextMenu
+                label="超出部分"
+                options={RAKE_ROUNDING_OPTIONS}
+                value={form.rounding}
+                onChange={(rounding) => setForm({ rounding })}
+                align="right"
+                className="pr-0.5 text-sm font-medium"
+              />
+            </span>
+          </>
+        )}
+      </div>
+
+      <div className="flex min-h-11 items-center justify-between gap-3">
+        <span className="flex items-center text-sm text-muted">
+          保险报价先扣除抽水
+          <InfoButton
+            title="保险报价先扣除抽水"
+            text={
+              "开启后，算保险时先从底池扣除这一手的抽水，再按剩下的底池报价。\n这项还在开发中，目前开关只记录选择，不影响保险报价。"
+            }
+          />
+        </span>
+        <MiniSwitch
+          label="开发中"
+          checked={form.insuranceAfterRake}
+          onChange={(insuranceAfterRake) => setForm({ insuranceAfterRake })}
+        />
+      </div>
+
+      <SaveChargeConfig
+        kind="rake"
+        title="抽水"
+        takenNames={presets.saved.map((r) => r.name)}
+        visible={presets.isNew(form)}
+        read={() => presets.toRule(form)}
+        onSaved={(id) => onChange({ ...value, source: id })}
+      />
+    </>
+  );
+}
+
+/**
+ * Turns rake on for a game: a percentage of each pot, a cap and rounding to the smallest chip, each
+ * switched on or off and set in big blinds or chips (ADR 0036). Rake only ever goes to the host.
+ */
+export function RakeSettings({
+  value,
+  issues,
+  currency,
+  lastRule,
+  lastRuleLabel,
+  locked,
+  stakes,
+  onChange,
+}: RakeSettingsProps) {
+  const { enabled } = value;
+  const presets = useRakePresets(value, lastRule, lastRuleLabel);
+
+  return (
+    <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
+      <Toggle
+        label="抽水"
+        {...(locked && { detail: "这局已有抽水记录，不能关闭" })}
+        info="按每手底池的比例计算，抽水只计入组织者（Host）"
+        checked={enabled}
+        disabled={locked}
+        accessory={
+          enabled && (
+            <PresetPicker
+              title="抽水配置"
+              choices={presets.choices}
+              source={presets.selectedId}
+              onPick={(preset) => onChange({ ...value, source: preset.id, form: preset.form })}
+            />
+          )
+        }
+        onChange={(checked) => onChange({ ...value, enabled: checked })}
+      />
+      {enabled && (
+        <RakeFields
+          value={value}
+          issues={issues}
+          currency={currency}
+          stakes={stakes}
+          presets={presets}
+          onChange={onChange}
+        />
+      )}
+    </section>
+  );
+}
+
+/**
+ * The form with amounts in chips alone, for the tools with no blinds: a smallest chip in blinds
+ * becomes 1 chip and a cap in blinds is switched off, as the rule prices without blinds.
+ */
+export function inChipsOnly(form: RakeForm): RakeForm {
+  return {
+    ...form,
+    ...(form.roundUnit !== "chips" && { roundUnit: "chips", roundAmount: "1" }),
+    ...(form.capUnit !== "chips" && { capOn: false, capUnit: "chips", capAmount: "" }),
+  };
+}
+
+interface RakeSettingsPanelProps {
+  /** The settings in use, and the preset they came from */
+  value: ChargeChoice<RakeForm>;
+  currency: Currency;
+  stakes: RakeStakes;
+  /** In the tools, with no blinds: amounts in chips alone */
+  chipsOnly?: boolean;
+  /** Offered as "last time", such as this game's own rule */
+  lastRule?: RakeRule | undefined;
+  lastRuleLabel?: string;
+  /** Open at first, as in the tools; a game's start closed */
+  defaultOpen: boolean;
+  /**
+   * A change. Returns false to turn it down, when it shows the settings as they were. While a
+   * number is being typed, the change comes once the field is left, so it is asked about once.
+   */
+  onChange: (value: ChargeChoice<RakeForm>) => boolean | undefined;
+}
+
+/**
+ * 抽水计算's title line and settings: `抽水计算 · preset ⇅`, where a tap on the preset lists the
+ * others in the page and one more switches to it, and at the end of the line a chevron that opens
+ * the same fields as game setup. Switching preset opens them, to show what it set.
+ */
+export function RakeSettingsPanel({
+  value,
+  currency,
+  stakes,
+  chipsOnly = false,
+  lastRule,
+  lastRuleLabel = "上次配置",
+  defaultOpen,
+  onChange,
+}: RakeSettingsPanelProps) {
+  const [open, setOpen] = useState(defaultOpen);
+  const settled = useSettledChange(value, onChange);
+  const shown = settled.value;
+  const toShown = (form: RakeForm) => (chipsOnly ? inChipsOnly(form) : form);
+  const presets = useRakePresets(shown, lastRule, lastRuleLabel, toShown);
+  const options = [
+    ...presets.choices.map(({ id, name }) => ({ value: id, label: name })),
+    // Values changed by hand belong to no preset, and show as such until one is picked
+    ...(presets.choices.some(({ id }) => id === presets.selectedId)
+      ? []
+      : [{ value: presets.selectedId, label: "自定义" }]),
+  ];
+
+  function pick(id: string) {
+    const preset = presets.choices.find((choice) => choice.id === id);
+    if (!preset) return;
+    settled.change({ ...shown, source: preset.id, form: toShown(preset.form) });
+    setOpen(true);
+  }
+
+  return (
+    <div className="flex flex-col gap-1" {...settled.containerProps}>
+      <div className="-mt-2 -mr-3 flex items-center gap-1.5">
+        <h2 className="shrink-0 text-lg font-semibold">抽水计算</h2>
+        <span aria-hidden className="text-muted">
+          ·
+        </span>
+        <TextMenu
+          label="抽水配置"
+          options={options}
+          value={presets.selectedId}
+          onChange={pick}
+          icon={<ChevronsUpDown className="size-4 shrink-0 text-muted" aria-hidden />}
+          className="font-medium"
+        />
+        <button
+          type="button"
+          aria-label="抽水设置"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          className="ml-auto grid size-11 shrink-0 place-items-center text-muted"
+        >
+          <ChevronDown
+            className={cn("size-5 transition-transform", open && "rotate-180")}
+            aria-hidden
+          />
+        </button>
+      </div>
+      {open && (
+        <div className="flex flex-col gap-1 rounded-xl border border-line px-3 py-1">
+          <RakeFields
+            value={shown}
+            issues={{}}
+            currency={currency}
+            stakes={stakes}
+            chipsOnly={chipsOnly}
+            stacked
+            presets={presets}
+            onChange={settled.change}
+          />
+        </div>
+      )}
+    </div>
   );
 }

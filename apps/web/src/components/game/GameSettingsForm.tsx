@@ -1,117 +1,123 @@
 import {
+  type BasicSettings,
   CURRENCIES,
-  DEFAULT_RAKE_RULE,
+  type Currency,
+  chipsToCents,
+  DEFAULT_GAME_SETTINGS,
   type GameSettingsForm as FormValues,
   type GameSettings,
   type InsuranceRule,
   type InsuranceRuleIssues,
+  parseChips,
   parseGameSettings,
   parseInsuranceRule,
+  parseRake,
   parseTableFee,
   parseWage,
+  type RakeIssues,
   type RakeRule,
   type TableFeeIssues,
   type TableFeeRule,
-  toDecimalString,
+  toGameSettingsForm,
   tryParseMoney,
   type WageIssues,
   type WageRule,
 } from "@holdem-knight/core";
 import { type FormEvent, type ReactNode, useState } from "react";
+import { ChipStack } from "@/components/ChipStack";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import {
   InsuranceSettings,
   initialInsuranceChoice,
 } from "@/components/insurance/InsuranceSettings";
 import { TextMenu } from "@/components/TextMenu";
-import { Toggle } from "@/components/Toggle";
-import { CURRENCY_INFO } from "@/lib/currency";
+import { cn } from "@/lib/cn";
+import { formatGameMoney } from "@/lib/currency";
 import {
+  CUSTOM_PRESET,
+  DEFAULT_PRESET,
+  initialRakeChoice,
   initialTableFeeChoice,
   initialWageChoice,
+  LAST_PRESET,
+  PresetPicker,
+  RakeSettings,
+  SaveChargeConfig,
   TableFeeSettings,
+  useChargePresets,
   WageSettings,
 } from "./ChargeSettings";
-import {
-  BlindsDialog,
-  BuyInDialog,
-  ChipRatioDialog,
-  previewBlindCash,
-  previewHand,
-} from "./GameSettingDialogs";
+import { chipsText, FigureInput, Join, Mark, pointsInputText, pointsText } from "./SetupFigures";
 
-type SettingDialog = "ratio" | "blinds" | "buyIn";
+/** What each currency is called as game points, after its mark. */
+const POINTS_NAMES: Record<Currency, string> = { AUD: "袋鼠分", CNY: "熊猫分" };
 
-/** A currency is listed as its mark and name, and shown as its mark alone once chosen. */
+/** A currency is listed as its mark and points name, and shown as its mark alone once chosen. */
 const CURRENCY_OPTIONS = CURRENCIES.map((currency) => ({
   value: currency,
   label: (
     <>
       <CurrencyIcon currency={currency} className="size-5" />
-      {CURRENCY_INFO[currency].label}
+      {POINTS_NAMES[currency]}
     </>
   ),
   chosen: <CurrencyIcon currency={currency} className="size-5" />,
-  name: CURRENCY_INFO[currency].label,
+  name: POINTS_NAMES[currency],
 }));
 
-/**
- * Rake, last after insurance. It has one rule for now, a tenth of the pot, so it is only a switch.
- * Once rake is recorded in the game it stays on, as insurance does.
- */
-function RakeSettings({
-  enabled,
-  locked,
-  onChange,
-}: {
-  enabled: boolean;
-  locked: boolean;
-  onChange: (enabled: boolean) => void;
-}) {
-  return (
-    <section className="rounded-xl border border-line bg-surface px-4 py-2">
-      <Toggle
-        label="抽水"
-        {...(enabled && {
-          detail: locked
-            ? "这局已有抽水记录，不能关闭"
-            : `按底池 ${DEFAULT_RAKE_RULE.percent}% 计算，不足 1 筹码舍去`,
-        })}
-        checked={enabled}
-        disabled={locked}
-        onChange={onChange}
-      />
-    </section>
-  );
-}
+/** Common ratios, blinds and buy-ins, picked from the chevron at the end of their rows. */
+const RATIO_PICKS = [1, 5, 10, 20].map((chips) => ({ chips, label: `${chips}:1` }));
+const BLIND_PICKS = [
+  [1, 1],
+  [1, 2],
+  [5, 5],
+  [5, 10],
+  [10, 10],
+  [10, 20],
+].map(([small, big]) => ({ small, big, label: `${small}/${big}` }));
+const BUY_IN_PICKS = [50, 100, 200].map((bigBlinds) => ({ bigBlinds, label: `${bigBlinds}BB` }));
 
-function SettingRow({
+/**
+ * A row of two figures with their marks, each typed in place. The chevron at its end lists common
+ * values, which fill it at once. Its last mark sits where the 积分 row's mark does.
+ */
+function QuickRow<T extends string>({
   label,
-  detail,
+  accessory,
   disabled = false,
-  onClick,
+  picks,
+  value,
+  onPick,
   children,
 }: {
   label: string;
-  /** Small text under the value */
-  detail?: string | null | undefined;
+  /** Sits after the label */
+  accessory?: ReactNode;
   disabled?: boolean;
-  onClick: () => void;
+  picks: readonly { readonly value: T; readonly label: string }[];
+  /** The pick the row holds now, if any */
+  value: T | undefined;
+  onPick: (value: T) => void;
   children: ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="flex min-h-14 w-full items-center justify-between gap-3 px-4 py-2 text-left disabled:opacity-60"
-    >
-      <span className="font-medium">{label}</span>
-      <span className="min-w-0 text-right">
-        <span className="block font-medium">{children}</span>
-        {detail && <span className="block text-sm text-muted">{detail}</span>}
-      </span>
-    </button>
+    <div className="flex min-h-12 items-center px-4 py-1">
+      <span className={cn("shrink-0 font-medium", disabled && "opacity-60")}>{label}</span>
+      {accessory}
+      <div className="flex min-h-11 min-w-0 flex-1 items-center justify-end pl-3 font-medium">
+        {children}
+      </div>
+      {/* Wider than its chevron for a thumb, reaching into the row's padding */}
+      <TextMenu
+        label={`${label}快速选择`}
+        options={picks.map((pick) => ({ ...pick, chosen: <></> }))}
+        value={value}
+        onChange={onPick}
+        align="right"
+        disabled={disabled}
+        className="-mr-4 pr-4 -ml-3 pl-3"
+      />
+    </div>
   );
 }
 
@@ -144,6 +150,9 @@ interface GameSettingsFormProps {
   lastWageLabel?: string | undefined;
   /** This game's rake. Missing means it is off. */
   initialRake?: RakeRule | undefined;
+  /** Offered as "last time", like the insurance rule */
+  lastRake?: RakeRule | undefined;
+  lastRakeLabel?: string | undefined;
   /** Once rake has been recorded in this game, it cannot be turned off */
   rakeLocked?: boolean;
   saving: boolean;
@@ -151,6 +160,41 @@ interface GameSettingsFormProps {
   onSubmit: (settings: GameSettings) => void;
   /** Offers saving the entered settings, beside the submit button */
   onSaveConfig?: (settings: GameSettings) => void;
+  /** Offered as "last time" for the basic settings, like the insurance rule. Older games may have no Buy-in */
+  lastBasics?: LastBasics | undefined;
+  lastBasicsLabel?: string | undefined;
+}
+
+/** The basic settings of a new game with nothing to carry over. */
+const DEFAULT_BASICS: BasicSettings = {
+  currency: DEFAULT_GAME_SETTINGS.currency,
+  smallBlindChips: DEFAULT_GAME_SETTINGS.smallBlindChips,
+  bigBlindChips: DEFAULT_GAME_SETTINGS.bigBlindChips,
+  chipRatio: DEFAULT_GAME_SETTINGS.chipRatio,
+  buyInBigBlinds: DEFAULT_GAME_SETTINGS.buyInBigBlinds,
+};
+
+type LastBasics = Omit<BasicSettings, "buyInBigBlinds"> & {
+  readonly buyInBigBlinds?: number | undefined;
+};
+
+/** Only the basic settings of a game or config, with the default Buy-in where it has none. */
+const basicsFrom = (last: LastBasics): BasicSettings => ({
+  currency: last.currency,
+  smallBlindChips: last.smallBlindChips,
+  bigBlindChips: last.bigBlindChips,
+  chipRatio: last.chipRatio,
+  buyInBigBlinds: last.buyInBigBlinds ?? DEFAULT_GAME_SETTINGS.buyInBigBlinds,
+});
+
+const toBasicsForm = (basics: BasicSettings): FormValues => toGameSettingsForm(basics);
+
+/** The basic settings as typed, or null while some are invalid. */
+function basicsOf(form: FormValues): BasicSettings | null {
+  const parsed = parseGameSettings(form);
+  if (!parsed.ok) return null;
+  const { currency, smallBlindChips, bigBlindChips, chipRatio, buyInBigBlinds } = parsed.settings;
+  return { currency, smallBlindChips, bigBlindChips, chipRatio, buyInBigBlinds };
 }
 
 export function GameSettingsForm({
@@ -170,14 +214,41 @@ export function GameSettingsForm({
   lastWage,
   lastWageLabel = "上次配置",
   initialRake,
+  lastRake,
+  lastRakeLabel = "上次配置",
   rakeLocked = false,
+  lastBasics,
+  lastBasicsLabel = "上次配置",
   saving,
   saveFailed,
   onSubmit,
   onSaveConfig,
 }: GameSettingsFormProps) {
   const [values, setValues] = useState(initial);
-  const [dialog, setDialog] = useState<SettingDialog | null>(null);
+  const [basicsSource, setBasicsSource] = useState(lastBasics ? LAST_PRESET : DEFAULT_PRESET);
+  const basicsPresets = useChargePresets(
+    "basics",
+    lastBasics && basicsFrom(lastBasics),
+    lastBasicsLabel,
+    DEFAULT_BASICS,
+    toBasicsForm,
+    basicsOf,
+    basicsSource,
+  );
+  /** Values changed by hand belong to no preset any more. */
+  const editValues = (next: FormValues) => {
+    setValues(next);
+    setBasicsSource(CUSTOM_PRESET);
+  };
+  /** A preset's values, apart from those the ledger has locked. */
+  function pickBasics(id: string, form: FormValues) {
+    setBasicsSource(id);
+    setValues(
+      ratioLocked
+        ? { ...values, smallBlindChips: form.smallBlindChips, bigBlindChips: form.bigBlindChips }
+        : form,
+    );
+  }
   const [insurance, setInsurance] = useState(() =>
     initialInsuranceChoice(initialInsurance, lastInsurance),
   );
@@ -188,21 +259,72 @@ export function GameSettingsForm({
   const [tableFeeIssues, setTableFeeIssues] = useState<TableFeeIssues>({});
   const [wage, setWage] = useState(() => initialWageChoice(initialWage, lastWage));
   const [wageIssues, setWageIssues] = useState<WageIssues>({});
-  const [rake, setRake] = useState(initialRake !== undefined);
-  const currencyIcon = (
-    <CurrencyIcon currency={values.currency} className="size-5 align-[-0.2em]" />
-  );
+  const [rake, setRake] = useState(() => initialRakeChoice(initialRake, lastRake));
+  const [rakeIssues, setRakeIssues] = useState<RakeIssues>({});
   const ratioAmount = tryParseMoney(values.ratioAmount);
+  const ratioChips = parseChips(values.ratioChips);
+  const smallBlind = parseChips(values.smallBlindChips);
+  const bigBlind = parseChips(values.bigBlindChips);
+  const buyIn = parseChips(values.buyInBigBlinds);
+  const handChips = bigBlind !== null && buyIn !== null ? bigBlind * buyIn : null;
+  // Chips in points, once the ratio is complete
+  const inPoints = (value: number | null) =>
+    value !== null && ratioChips && ratioAmount
+      ? chipsToCents(value, { chips: ratioChips, amount: ratioAmount })
+      : null;
+  const blindPoints = (value: number | null) => {
+    const cents = inPoints(value);
+    return cents === null ? null : formatGameMoney(cents, values.currency);
+  };
+  const handPoints = inPoints(handChips);
+  const [buyInInPoints, setBuyInInPoints] = useState(false);
+  // What is typed into the hand's chips or points, from which the big blinds are worked out
+  const [handDraft, setHandDraft] = useState<string | null>(null);
+  const setValue = (field: keyof FormValues) => (text: string) =>
+    editValues({ ...values, [field]: text });
+  const positive = (value: number | null) => value === null || value <= 0;
+
+  /** The chips a typed hand comes to, from chips or from points by the ratio. */
+  function handChipsFrom(text: string) {
+    if (!buyInInPoints) return parseChips(text);
+    const cents = tryParseMoney(text);
+    return cents !== null && ratioChips && ratioAmount ? (cents * ratioChips) / ratioAmount : null;
+  }
+
+  /**
+   * A typed hand sets the big blinds whenever it comes to a whole number of them, and on leaving,
+   * the nearest. Nothing else changes.
+   */
+  function typeHand(text: string, settle: boolean) {
+    const typed = handChipsFrom(text);
+    if (typed === null || !bigBlind) return;
+    const bigBlinds = typed / bigBlind;
+    if (Number.isInteger(bigBlinds) && bigBlinds > 0) {
+      editValues({ ...values, buyInBigBlinds: String(bigBlinds) });
+    } else if (settle) {
+      editValues({ ...values, buyInBigBlinds: String(Math.max(1, Math.round(bigBlinds))) });
+    }
+  }
+  const chipMark = <ChipStack ground="var(--surface)" className="size-5" />;
+  const pointsMark = <CurrencyIcon currency={values.currency} className="size-5" />;
 
   function validate() {
     const result = parseGameSettings(values);
     const rule = showInsurance && insurance.enabled ? parseInsuranceRule(insurance.form) : null;
     const fee = tableFee.enabled ? parseTableFee(tableFee.form) : null;
     const hourly = wage.enabled ? parseWage(wage.form) : null;
+    const raked = rake.enabled ? parseRake(rake.form) : null;
+    setRakeIssues(raked && !raked.ok ? raked.issues : {});
     setRuleIssues(rule && !rule.ok ? rule.issues : {});
     setTableFeeIssues(fee && !fee.ok ? fee.issues : {});
     setWageIssues(hourly && !hourly.ok ? hourly.issues : {});
-    if (!result.ok || (rule && !rule.ok) || (fee && !fee.ok) || (hourly && !hourly.ok)) {
+    if (
+      !result.ok ||
+      (rule && !rule.ok) ||
+      (fee && !fee.ok) ||
+      (hourly && !hourly.ok) ||
+      (raked && !raked.ok)
+    ) {
       return null;
     }
     return {
@@ -210,7 +332,7 @@ export function GameSettingsForm({
       ...(rule && { insurance: rule.rule }),
       ...(fee && { tableFee: fee.rule }),
       ...(hourly && { wage: hourly.rule }),
-      ...(rake && { rake: initialRake ?? DEFAULT_RAKE_RULE }),
+      ...(raked && { rake: raked.rule }),
     };
   }
 
@@ -220,125 +342,259 @@ export function GameSettingsForm({
     if (settings) onSubmit(settings);
   }
 
-  const dialogProps = {
-    values,
-    onConfirm: (next: FormValues) => {
-      setValues(next);
-      setDialog(null);
-    },
-    onClose: () => setDialog(null),
-  };
-
   return (
-    <>
-      <form onSubmit={handleSubmit} noValidate className="flex max-w-md flex-col gap-6 pb-8">
-        <div>
-          <div className="divide-y divide-line rounded-xl border border-line bg-surface">
+    <form onSubmit={handleSubmit} noValidate className="flex max-w-md flex-col gap-6 pb-8">
+      <div>
+        <div className="rounded-xl border border-line bg-surface">
+          {/* Always open, so with no switch; its preset sits where the others' do */}
+          <div className="flex min-h-12 items-center justify-between gap-3 px-4 pt-1">
+            <span className="font-medium">基础设置</span>
+            <PresetPicker
+              title="基础设置配置"
+              choices={basicsPresets.choices}
+              source={basicsPresets.selectedId}
+              onPick={(preset) => pickBasics(preset.id, preset.form)}
+            />
+          </div>
+          <div>
             {/* The whole row opens the list, which hangs under the mark at its right */}
             <TextMenu
               label="积分"
               caption="积分"
               options={CURRENCY_OPTIONS}
               value={values.currency}
-              onChange={(currency) => setValues({ ...values, currency })}
+              onChange={(currency) => editValues({ ...values, currency })}
               align="right"
               disabled={ratioLocked}
-              className="min-h-14 w-full px-4 py-2 font-medium"
+              className="min-h-12 w-full px-4 py-1 font-medium"
               captionClassName="mr-auto font-medium text-text"
             />
-            <SettingRow label="筹码" disabled={ratioLocked} onClick={() => setDialog("ratio")}>
-              {values.ratioChips} <small className="font-normal text-muted">筹码</small> :{" "}
-              {ratioAmount === null ? values.ratioAmount : toDecimalString(ratioAmount)}{" "}
-              <span className="text-muted">{currencyIcon}</span>
-            </SettingRow>
-            <SettingRow
-              label="盲注"
-              detail={previewBlindCash(values)}
-              onClick={() => setDialog("blinds")}
+            <QuickRow
+              label="比例"
+              disabled={ratioLocked}
+              picks={RATIO_PICKS.map(({ chips: n, label }) => ({ value: String(n), label }))}
+              value={ratioAmount === 100 && ratioChips !== null ? String(ratioChips) : undefined}
+              onPick={(n) => editValues({ ...values, ratioChips: n, ratioAmount: "1.00" })}
             >
-              {values.smallBlindChips}/{values.bigBlindChips}
-            </SettingRow>
-            {showBuyIn && (
-              <SettingRow
-                label="Buy-in"
-                detail={ratioLocked ? null : previewHand(values)}
+              <FigureInput
+                label="比例筹码"
+                value={values.ratioChips}
+                onChange={setValue("ratioChips")}
+                tidy={chipsText}
+                invalid={positive(ratioChips)}
+                wholeNumber
                 disabled={ratioLocked}
-                onClick={() => setDialog("buyIn")}
+              />
+              <Mark>{chipMark}</Mark>
+              <Join>=</Join>
+              <FigureInput
+                label="比例积分"
+                value={values.ratioAmount}
+                onChange={setValue("ratioAmount")}
+                tidy={pointsInputText}
+                invalid={positive(ratioAmount)}
+                wide
+                disabled={ratioLocked}
+              />
+              <Mark>{pointsMark}</Mark>
+            </QuickRow>
+            <QuickRow
+              label="盲注"
+              picks={BLIND_PICKS.map(({ label }) => ({ value: label, label }))}
+              value={
+                smallBlind !== null && bigBlind !== null ? `${smallBlind}/${bigBlind}` : undefined
+              }
+              onPick={(pick) => {
+                const [small = "", big = ""] = pick.split("/");
+                editValues({ ...values, smallBlindChips: small, bigBlindChips: big });
+              }}
+            >
+              <FigureInput
+                label="小盲"
+                value={values.smallBlindChips}
+                onChange={setValue("smallBlindChips")}
+                tidy={chipsText}
+                invalid={positive(smallBlind)}
+                wholeNumber
+                above={blindPoints(smallBlind)}
+              />
+              <Mark>SB</Mark>
+              <Join>/</Join>
+              <FigureInput
+                label="大盲"
+                value={values.bigBlindChips}
+                onChange={setValue("bigBlindChips")}
+                tidy={chipsText}
+                invalid={
+                  positive(bigBlind) ||
+                  (smallBlind !== null && bigBlind !== null && bigBlind < smallBlind)
+                }
+                wide
+                wholeNumber
+                above={blindPoints(bigBlind)}
+              />
+              <Mark>BB</Mark>
+            </QuickRow>
+            {showBuyIn && (
+              <QuickRow
+                label="Buy-in"
+                accessory={
+                  <button
+                    type="button"
+                    aria-label={`右侧显示${buyInInPoints ? "积分" : "筹码"}，点击切换`}
+                    onClick={() => {
+                      setHandDraft(null);
+                      setBuyInInPoints(!buyInInPoints);
+                    }}
+                    className="-my-1 ml-1 grid size-9 shrink-0 place-items-center text-muted"
+                  >
+                    {buyInInPoints ? (
+                      <CurrencyIcon currency={values.currency} className="size-4.5" />
+                    ) : (
+                      <ChipStack ground="var(--surface)" className="size-4.5" />
+                    )}
+                  </button>
+                }
+                disabled={ratioLocked}
+                picks={BUY_IN_PICKS.map(({ bigBlinds, label }) => ({
+                  value: String(bigBlinds),
+                  label,
+                }))}
+                value={buyIn === null ? undefined : String(buyIn)}
+                onPick={(bigBlinds) => editValues({ ...values, buyInBigBlinds: bigBlinds })}
               >
-                {values.buyInBigBlinds}BB
-              </SettingRow>
+                <FigureInput
+                  label="一个买入的大盲数"
+                  value={values.buyInBigBlinds}
+                  onChange={setValue("buyInBigBlinds")}
+                  tidy={chipsText}
+                  invalid={positive(buyIn)}
+                  wholeNumber
+                  disabled={ratioLocked}
+                />
+                <Mark>BB</Mark>
+                <Join>
+                  <span aria-hidden className="text-xl leading-none">
+                    ⇔
+                  </span>
+                  <span className="sr-only">即</span>
+                </Join>
+                <FigureInput
+                  label={buyInInPoints ? "一个买入的积分" : "一个买入的筹码"}
+                  value={
+                    handDraft ??
+                    (buyInInPoints
+                      ? handPoints === null
+                        ? ""
+                        : pointsText(handPoints)
+                      : handChips === null
+                        ? ""
+                        : String(handChips))
+                  }
+                  onChange={(text) => {
+                    setHandDraft(text);
+                    typeHand(text, false);
+                  }}
+                  onBlur={() => {
+                    if (handDraft !== null) typeHand(handDraft, true);
+                    setHandDraft(null);
+                  }}
+                  tidy={buyInInPoints ? pointsInputText : chipsText}
+                  wide
+                  wholeNumber={!buyInInPoints}
+                  disabled={ratioLocked}
+                />
+                <Mark>{buyInInPoints ? pointsMark : chipMark}</Mark>
+              </QuickRow>
             )}
           </div>
-          {ratioLocked && (
-            <p className="mt-2 text-sm text-muted">
-              已有账本记录，积分、筹码和 Buy-in 不能再修改。
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <WageSettings
-            value={wage}
-            issues={wageIssues}
-            currency={values.currency}
-            lastRule={lastWage}
-            lastRuleLabel={lastWageLabel}
-            onChange={setWage}
-          />
-          <TableFeeSettings
-            value={tableFee}
-            issues={tableFeeIssues}
-            currency={values.currency}
-            lastRule={lastTableFee}
-            lastRuleLabel={lastTableFeeLabel}
-            onChange={setTableFee}
-          />
-          {showInsurance && (
-            <InsuranceSettings
-              value={insurance}
-              issues={ruleIssues}
-              lastRule={lastInsurance}
-              lastRuleLabel={lastInsuranceLabel}
-              locked={insuranceLocked}
-              onChange={setInsurance}
+          <div className="px-4">
+            <SaveChargeConfig
+              kind="basics"
+              title="基础设置"
+              takenNames={basicsPresets.saved.map((r) => r.name)}
+              visible={basicsPresets.isNew(values)}
+              read={() => basicsOf(values)}
+              onSaved={setBasicsSource}
             />
-          )}
-          <RakeSettings enabled={rake} locked={rakeLocked} onChange={setRake} />
+          </div>
         </div>
-
-        {saveFailed && (
-          <p role="alert" className="text-sm text-highlight">
-            保存失败，请重试。
-          </p>
+        {ratioLocked && (
+          <p className="mt-2 text-sm text-muted">已有账本记录，积分、比例和 Buy-in 不能再修改。</p>
         )}
+      </div>
 
-        <div className={onSaveConfig ? "grid grid-cols-[1fr_2fr] gap-2" : "grid"}>
-          {onSaveConfig && (
-            <button
-              type="button"
-              onClick={() => {
-                const settings = validate();
-                if (settings) onSaveConfig(settings);
-              }}
-              className="min-h-12 rounded-xl border border-line px-2 text-sm font-medium text-highlight"
-            >
-              保存当前配置
-            </button>
-          )}
+      <div className="flex flex-col gap-3">
+        {showInsurance && (
+          <InsuranceSettings
+            value={insurance}
+            issues={ruleIssues}
+            lastRule={lastInsurance}
+            lastRuleLabel={lastInsuranceLabel}
+            locked={insuranceLocked}
+            stakes={{ smallBlindChips: smallBlind }}
+            onChange={setInsurance}
+          />
+        )}
+        <WageSettings
+          value={wage}
+          issues={wageIssues}
+          currency={values.currency}
+          lastRule={lastWage}
+          lastRuleLabel={lastWageLabel}
+          onChange={setWage}
+        />
+        <TableFeeSettings
+          value={tableFee}
+          issues={tableFeeIssues}
+          currency={values.currency}
+          lastRule={lastTableFee}
+          lastRuleLabel={lastTableFeeLabel}
+          onChange={setTableFee}
+        />
+        <RakeSettings
+          value={rake}
+          issues={rakeIssues}
+          currency={values.currency}
+          lastRule={lastRake}
+          lastRuleLabel={lastRakeLabel}
+          locked={rakeLocked}
+          stakes={{
+            smallBlindChips: smallBlind,
+            bigBlindChips: bigBlind,
+            ratio: ratioChips && ratioAmount ? { chips: ratioChips, amount: ratioAmount } : null,
+          }}
+          onChange={setRake}
+        />
+      </div>
+
+      {saveFailed && (
+        <p role="alert" className="text-sm text-highlight">
+          保存失败，请重试。
+        </p>
+      )}
+
+      <div className={onSaveConfig ? "grid grid-cols-[1fr_2fr] gap-2" : "grid"}>
+        {onSaveConfig && (
           <button
-            type="submit"
-            disabled={saving}
-            className="min-h-12 rounded-xl bg-accent px-6 font-semibold text-accent-text disabled:opacity-60"
+            type="button"
+            onClick={() => {
+              const settings = validate();
+              if (settings) onSaveConfig(settings);
+            }}
+            className="min-h-12 rounded-xl border border-line px-2 text-sm font-medium text-highlight"
           >
-            {submitLabel}
+            保存当前配置
           </button>
-        </div>
-      </form>
-
-      {/* Outside the form: a dialog's own form must not nest in it or submit it */}
-      {dialog === "ratio" && <ChipRatioDialog {...dialogProps} />}
-      {dialog === "blinds" && <BlindsDialog {...dialogProps} />}
-      {dialog === "buyIn" && <BuyInDialog {...dialogProps} />}
-    </>
+        )}
+        <button
+          type="submit"
+          disabled={saving}
+          className="min-h-12 rounded-xl bg-accent px-6 font-semibold text-accent-text disabled:opacity-60"
+        >
+          {submitLabel}
+        </button>
+      </div>
+    </form>
   );
 }

@@ -2,7 +2,9 @@ import { parseInsuranceRule, withOdds } from "@holdem-knight/core";
 import { ArrowLeftRight } from "lucide-react";
 import { TextMenu } from "@/components/TextMenu";
 import { cn } from "@/lib/cn";
+import { useSettledChange } from "@/lib/settled-change";
 import type { InsuranceMode } from "./InsuranceCalculator";
+import type { RoundingStakes } from "./InsuranceRounding";
 import {
   CUSTOM_NAME,
   type InsuranceChoice,
@@ -64,7 +66,15 @@ export function ModeTitle({
 interface InsuranceSetupProps {
   /** The settings in use, and the set they came from */
   value: InsuranceChoice;
-  onChange: (value: InsuranceChoice) => void;
+  /** The game's small blind for the smallest chip, or undefined in the tools */
+  stakes: RoundingStakes;
+  /**
+   * A change. Where it is asked about first, as a game's own settings are, it returns false when
+   * turned down, and a number being typed comes through once its field is left.
+   */
+  onChange: (value: InsuranceChoice) => boolean | undefined;
+  /** Hold what is being typed until its field is left, so a change is asked about once */
+  settleTyping?: boolean;
 }
 
 /**
@@ -72,7 +82,15 @@ interface InsuranceSetupProps {
  * at the left and the odds table at the right, each a name that opens a menu in the page, then
  * the configuration's settings on show. Whoever owns the settings decides where a change goes.
  */
-export function InsuranceSetup({ value, onChange }: InsuranceSetupProps) {
+export function InsuranceSetup({
+  value: saved,
+  stakes,
+  onChange: save,
+  settleTyping = false,
+}: InsuranceSetupProps) {
+  const settled = useSettledChange(saved, save);
+  const value = settleTyping ? settled.value : saved;
+  const onChange = settleTyping ? settled.change : save;
   const { form } = value;
   const parsed = parseInsuranceRule(form);
   const configs = useInsuranceConfigs({
@@ -90,7 +108,7 @@ export function InsuranceSetup({ value, onChange }: InsuranceSetupProps) {
   ];
 
   return (
-    <>
+    <div className="contents" {...(settleTyping && settled.containerProps)}>
       <div className="flex items-center justify-between gap-4">
         <TextMenu
           label="保险配置"
@@ -115,8 +133,9 @@ export function InsuranceSetup({ value, onChange }: InsuranceSetupProps) {
         lastRule={undefined}
         lastRuleLabel=""
         locked={false}
+        stakes={stakes}
         onChange={onChange}
       />
-    </>
+    </div>
   );
 }

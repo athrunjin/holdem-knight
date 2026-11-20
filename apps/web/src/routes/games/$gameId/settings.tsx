@@ -48,6 +48,9 @@ function GameSettingsPage() {
         initialWage={game.wage}
         lastWage={game.wage}
         initialRake={game.rake}
+        lastRake={game.rake}
+        lastBasics={game}
+        lastBasicsLabel="本局配置"
         rakeLocked={rakeChips(events) > 0}
         saving={saveGame.isPending}
         saveFailed={saveGame.isError}

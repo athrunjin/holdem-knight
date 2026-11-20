@@ -59,9 +59,32 @@ export interface InsuranceRule {
    * has the same odds, and counts only while that table still has these odds.
    */
   readonly oddsTableId?: string;
+  /**
+   * How premiums and payouts are rounded to the smallest chip in play (ADR 0037). Missing prices
+   * in whole chips as ADR 0032 does: 保本 and 半池 pay at least their target, 满池 at most the pot.
+   */
+  readonly rounding?: InsuranceRounding;
 }
 
-/** A table fee or wage setup kept under a name, to fill a new game's settings quickly. */
+/**
+ * Insurance rounding: to a number of small blinds, so a rule follows the blinds of each game. A
+ * game or calculator resolves it to `chips` before pricing; a rule is never kept with chips.
+ */
+export interface InsuranceRounding {
+  readonly mode: RakeRounding;
+  /** Above 0 with at most two decimals. Missing means 1. */
+  readonly smallBlinds?: number;
+  /** The smallest chip itself, set where the rule is used. Without it, prices are in whole chips. */
+  readonly chips?: number;
+}
+
+/** A game's basic settings: the points, the ratio, the blinds and the Buy-in. */
+export type BasicSettings = Pick<
+  Game,
+  "currency" | "smallBlindChips" | "bigBlindChips" | "chipRatio"
+> & { readonly buyInBigBlinds: number };
+
+/** A table fee, wage, rake or basic settings setup kept under a name, to fill a new game's settings quickly. */
 export type SavedChargeRule = {
   readonly id: string;
   readonly organizerId: OrganizerId;
@@ -70,6 +93,8 @@ export type SavedChargeRule = {
 } & (
   | { readonly kind: "table_fee"; readonly rule: TableFeeRule }
   | { readonly kind: "wage"; readonly rule: WageRule }
+  | { readonly kind: "rake"; readonly rule: RakeRule }
+  | { readonly kind: "basics"; readonly rule: BasicSettings }
 );
 
 /** Odds by outs kept under a name, to fill a rule's table quickly. */
@@ -165,14 +190,39 @@ export const RAKE_PLAYER_ID = "rake";
 /** Reserved: no player can take this name. */
 export const RAKE_PLAYER_NAME = "抽水";
 
-/** How rake is taken from a pot: a whole percentage of it, rounded down to whole chips. */
-export interface RakeRule {
-  /** 1–99. */
-  readonly percent: number;
+/** How a pot's rake is rounded to the smallest chip in play. */
+export type RakeRounding = "nearest" | "down" | "up";
+
+/** An amount for rake in chips, or in small or big blinds of the game. */
+export interface RakeAmount {
+  readonly unit: "chips" | "smallBlinds" | "bigBlinds";
+  /** Above 0: whole for chips, with at most two decimals for blinds. */
+  readonly amount: number;
 }
 
-/** The only rake rule for now, until rake has settings of its own. */
-export const DEFAULT_RAKE_RULE: RakeRule = { percent: 10 };
+/** How rake is taken from a pot (ADR 0036). */
+export interface RakeRule {
+  /** Above 0 and below 100, with at most two decimals. */
+  readonly percent: number;
+  /**
+   * How the rake is rounded to `roundTo`. Missing on rules from before rake had settings, which
+   * round down to whole chips and have no cap.
+   */
+  readonly rounding?: RakeRounding;
+  /** The smallest chip in play, which the rake is rounded to. Missing rounds down to whole chips. */
+  readonly roundTo?: RakeAmount;
+  /** The most rake one pot gives up. Missing means no cap. */
+  readonly cap?: RakeAmount;
+  /** Whether insurance quotes take the rake out of the pot first. Kept, not in effect yet. */
+  readonly insuranceAfterRake?: boolean;
+}
+
+/** 5% of the pot, rounded to the nearest small blind, with no cap. */
+export const DEFAULT_RAKE_RULE: RakeRule = {
+  percent: 5,
+  rounding: "nearest",
+  roundTo: { unit: "smallBlinds", amount: 1 },
+};
 
 /**
  * The organizer in a game. Playing, they have chips under this ID like the insurance seat, with no
@@ -464,6 +514,10 @@ export interface RakeEvent extends LedgerEventBase {
   readonly playerId: typeof RAKE_PLAYER_ID;
   /** The change in chips, never 0. */
   readonly chips: number;
+  /** The pot it was worked out from, when one was typed. Missing for a rake typed in by hand. */
+  readonly potChips?: number;
+  /** When the total so far was typed over to correct it, rather than added to. */
+  readonly typedOver?: true;
 }
 
 /** Ledger event. Append-only, never changed (ADR 0005). */

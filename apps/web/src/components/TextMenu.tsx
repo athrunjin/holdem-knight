@@ -42,6 +42,8 @@ interface TextMenuProps<T extends string> {
   /** Styles the line, and so the text that shows the choice */
   className?: string;
   captionClassName?: string;
+  /** In place of the chevron, such as a mark for switching */
+  icon?: ReactNode;
 }
 
 const readerText = ({ label, name }: TextMenuOption<string>) =>
@@ -63,6 +65,7 @@ export function TextMenu<T extends string>({
   disabled = false,
   className,
   captionClassName,
+  icon,
 }: TextMenuProps<T>) {
   const [open, setOpen] = useState(false);
   const current = options.find((option) => option.value === value);
@@ -90,10 +93,12 @@ export function TextMenu<T extends string>({
         <span className="flex min-w-0 items-center truncate">
           {current ? (current.chosen ?? current.label) : placeholder}
         </span>
-        <ChevronDown
-          className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")}
-          aria-hidden
-        />
+        {icon ?? (
+          <ChevronDown
+            className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")}
+            aria-hidden
+          />
+        )}
       </button>
       {open && (
         <>

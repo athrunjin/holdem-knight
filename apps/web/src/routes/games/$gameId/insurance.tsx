@@ -7,6 +7,7 @@ import {
   insuranceRecords,
   ORGANIZER_PLAYER_ID,
   parseInsuranceRule,
+  ruleAtStakes,
   summarizeByPlayer,
   toInsuranceRuleForm,
 } from "@holdem-knight/core";
@@ -80,8 +81,10 @@ function GameInsurance({ game }: { game: Game }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: the form counts by what it reads, not by which object it is
   const rule = useMemo(() => {
     const parsed = choice && parseInsuranceRule(choice.form);
-    return parsed?.ok ? parsed.rule : insurance;
-  }, [formKey, insurance]);
+    const kept = parsed?.ok ? parsed.rule : insurance;
+    // Priced to the smallest chip at this game's small blind
+    return kept && ruleAtStakes(kept, game.smallBlindChips);
+  }, [formKey, insurance, game.smallBlindChips]);
 
   /**
    * The settings here are the game's own, so a change is a change to the game, and is asked about
@@ -94,10 +97,11 @@ function GameInsurance({ game }: { game: Game }) {
     const terms = ({ oddsTableId: _, ...rest }: InsuranceRuleForm) => JSON.stringify(rest);
     const repriced = choice === undefined || terms(next.form) !== terms(choice.form);
     if (repriced && !window.confirm("这个修改会应用到本局，之后的保险都按新设置计算。继续？")) {
-      return;
+      return false;
     }
     setEdited({ source: next.source, form: next.form });
     if (changed && parsed.ok) saveGame.mutate({ ...game, insurance: parsed.rule });
+    return true;
   }
 
   const nameOf = gameNameOf(players, game);
@@ -199,7 +203,14 @@ function GameInsurance({ game }: { game: Game }) {
       <div className="pb-11">
         {!insurance && <p className="text-muted">这局没有开启保险，可以在设置里开启。</p>}
 
-        {choice && editable && <InsuranceSetup value={choice} onChange={setChoice} />}
+        {choice && editable && (
+          <InsuranceSetup
+            value={choice}
+            stakes={{ smallBlindChips: game.smallBlindChips }}
+            onChange={setChoice}
+            settleTyping
+          />
+        )}
 
         {insurance && editable && hands && (
           <InsuranceCalculator
