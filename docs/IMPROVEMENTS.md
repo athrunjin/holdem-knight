@@ -1471,7 +1471,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - Backups are at version 15: the configs named, when each config was last saved, and the currency. Earlier backups read as before.
   - Fixed on the way: a long name beside the 开局设置 title ran under the title on a narrow screen. The side columns now keep to their share and the name is cut short.
 - Decision: do, with game configs that follow rather than ones that stay as saved, as the organizer chose. One table for all saved configs, a page to manage them, and a restore that takes the newer of two are left for later. Checked in the browser preview at 393 and 360 wide, dark mode, on an isolated preview origin: a wage config saved and used in a game config, changed and updated, the game config then filling in the new rate, and the config deleted with the game config keeping it.
-- Tracking: [ADR 0038](adr/0038-game-configs-follow-saved-configs.md)
+- Tracking: PR #93, [ADR 0038](adr/0038-game-configs-follow-saved-configs.md)
 
 ### #I-074 Rake configs with amounts in blinds only
 
@@ -1484,7 +1484,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - A rake config saved or updated there keeps blinds only. One from before, with chips, shows and counts in blinds once picked at a game, when its chips come out the same.
   - 抽水计算 in the tools stays in chips, kept in the browser. Picking a config brings its 比例, 取整 and switches and leaves the chips typed there. Saving or updating a config from the tools keeps those and the config's own cap and smallest chip in blinds; the name dialog says so. Changing only the chips there leaves the config's name, with nothing to save. 更新 now works there for every config.
 - Decision: do. How rake is worked out is unchanged, and so are backups. Checked in the browser preview at 393 wide, dark mode, on an isolated preview origin: a cap of 25 chips typed at blinds of 5/10 kept as 2.5 BB; in the tools, chips typed left the name alone, a config picked kept them, and 更新 after a new rate kept the cap at 2.5 BB; a config made in chips showed as 3 BB and 1 SB at setup, unchanged.
-- Tracking: [ADR 0039](adr/0039-rake-configs-keep-amounts-in-blinds.md)
+- Tracking: PR #93, [ADR 0039](adr/0039-rake-configs-keep-amounts-in-blinds.md)
 
 ### #I-075 设置 for every saved config, switched in place, and checks on what setup takes
 
@@ -1500,7 +1500,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - Lists read in one order: 上次设置, 默认设置, then the saved ones, oldest first. 超出部分 reads 四舍五入, 向下取整, 向上取整 for wages as it does for rake and insurance.
   - Number fields at setup let through digits, and a decimal point where decimals are allowed, so no minus sign or letter gets in. A start or a save refused for an invalid value says so above the buttons, until every value is valid. An invalid rake percentage says what it may be. A cap under one smallest chip, which takes no rake at all, says so.
 - Decision: do. 保存全局设置 was first written as 保存全局配置 in the same note; the organizer confirmed 设置 throughout. Saved ones keep the names they were given. Checked in the browser preview at 393 and 360 wide, dark mode, on an isolated preview origin.
-- Tracking: [ADR 0038](adr/0038-game-configs-follow-saved-configs.md)
+- Tracking: PR #93, [ADR 0038](adr/0038-game-configs-follow-saved-configs.md)
 
 ## Not doing or deferred
 
