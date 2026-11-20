@@ -50,7 +50,8 @@ function GameSettingsPage() {
         initialRake={game.rake}
         lastRake={game.rake}
         lastBasics={game}
-        lastBasicsLabel="本局配置"
+        lastBasicsLabel="本局设置"
+        lastSources={game.sources}
         rakeLocked={rakeChips(events) > 0}
         saving={saveGame.isPending}
         saveFailed={saveGame.isError}

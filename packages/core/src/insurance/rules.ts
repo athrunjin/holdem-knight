@@ -95,6 +95,20 @@ export function ruleToKeep(rule: InsuranceRule): InsuranceRule {
 }
 
 /**
+ * Everything in a rule's form but its odds and the table they are from, which the odds table sets
+ * on its own, and the smallest chip in chips, which is set where the rule is used and never kept.
+ */
+export function insuranceSettingsOf(form: InsuranceRuleForm) {
+  const { odds: _, oddsTableId: __, roundChips: ___, ...settings } = form;
+  return settings;
+}
+
+/** Whether two rules have the same settings, whatever their odds. */
+export const sameInsuranceSettings = (a: InsuranceRule, b: InsuranceRule) =>
+  JSON.stringify(insuranceSettingsOf(toInsuranceRuleForm(a))) ===
+  JSON.stringify(insuranceSettingsOf(toInsuranceRuleForm(b)));
+
+/**
  * The rule priced at a game's stakes: its smallest chip, kept in small blinds, worked out in chips
  * from the game's small blind, and at least 1. A rule with no rounding, or no blind to go by, is
  * left as it is, and prices in whole chips.

@@ -27,3 +27,12 @@ export function selectOnFocus(input: HTMLInputElement) {
     if (document.activeElement === input) input.select();
   });
 }
+
+/**
+ * What a number field lets through as it is typed: digits alone for a whole number, and digits
+ * with a decimal point otherwise. No amount at setup is below 0, so a minus sign never gets in,
+ * and neither do letters from a paste.
+ */
+export function numberTyped(text: string, wholeNumber: boolean) {
+  return text.replace(wholeNumber ? /\D/g : /[^\d.]/g, "");
+}

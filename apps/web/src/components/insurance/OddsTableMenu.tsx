@@ -8,7 +8,9 @@ import {
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { TextMenu } from "@/components/TextMenu";
+import { useConfigFollowers } from "@/data/game-configs";
 import { useOddsTables, useRemoveOddsTable } from "@/data/insurance";
+import { removalQuestion } from "@/lib/config-text";
 import { OddsTableDialog, type OddsTableSubject } from "./OddsTableDialog";
 
 /** Stands for odds that are no table on offer. */
@@ -35,6 +37,7 @@ interface OddsTableMenuProps {
 export function OddsTableMenu({ odds, tableId, onApply, align, className }: OddsTableMenuProps) {
   const { data: saved = [] } = useOddsTables();
   const removeTable = useRemoveOddsTable();
+  const followers = useConfigFollowers();
   // The odds table being made, edited or looked at
   const [subject, setSubject] = useState<OddsTableSubject>();
 
@@ -71,7 +74,10 @@ export function OddsTableMenu({ odds, tableId, onApply, align, className }: Odds
           label: "删除",
           icon: <Trash2 className="size-4" aria-hidden />,
           onSelect: () => {
-            if (window.confirm(`删除赔率表「${table.name}」？`)) removeTable.mutate(table.id);
+            const using = followers({ oddsTableId: table.id });
+            if (window.confirm(removalQuestion("赔率表", table.name, using))) {
+              removeTable.mutate(table.id);
+            }
           },
         },
       ],

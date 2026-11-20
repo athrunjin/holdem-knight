@@ -15,6 +15,7 @@ Each milestone maps to a GitHub Milestone, and each feature in it maps to an iss
 ## M1 Core ledger (MVP: usable at a real game)
 
 - Game setup: blinds, chip-to-cash ratio, currency, in one 基础设置 card with configs of its own
+- Game configs that follow the saved configs of their sections, which can be updated in place ([ADR 0038](adr/0038-game-configs-follow-saved-configs.md))
 - Player list (stored locally in guest mode): add, search (name / pinyin initials)
 - Ledger: buy-ins, rebuys and cash-outs in an append-only ledger, with undo
 - Buying in by hands: one buy-in = xx big blinds, one row per seated player, quick hand adjustments

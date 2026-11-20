@@ -13,7 +13,7 @@ import {
 import { z } from "zod";
 
 const FORMAT = "holdem-backup";
-const VERSION = 14;
+const VERSION = 15;
 
 const id = z.string().min(1);
 const money = z
@@ -93,6 +93,20 @@ const wageSchema = z.object({
     .optional(),
 });
 
+/** Added in version 15: the saved configs a game's or a game config's settings are taken from. */
+const sourcesSchema = z
+  .object({
+    basics: id.optional(),
+    insurance: id.optional(),
+    tableFee: id.optional(),
+    wage: id.optional(),
+    rake: id.optional(),
+  })
+  .optional();
+
+/** Added in version 15, on everything saved under a name. */
+const updatedAt = timestamp.optional();
+
 const gameFields = {
   ...owned,
   currency: z.enum(CURRENCIES as ["AUD", "CNY"]),
@@ -145,6 +159,7 @@ const gameFields = {
   rakeInSplit: z.literal(true).optional(),
   /** Added in version 13. */
   insuranceInSplit: z.literal(true).optional(),
+  sources: sourcesSchema,
 };
 
 const gameSchema = z.object({
@@ -223,6 +238,7 @@ const savedRuleSchema = z.object({
   name: z.string().min(1),
   rule: insuranceRuleSchema,
   createdAt: timestamp,
+  updatedAt,
 });
 
 const card = z.number().int().min(0).max(51);
@@ -241,8 +257,10 @@ const gameConfigSchema = z.object({
     wage: wageSchema.optional(),
     /** Added in version 13. */
     rake: rakeSchema.optional(),
+    sources: sourcesSchema,
   }),
   createdAt: timestamp,
+  updatedAt,
 });
 
 const insuranceHandSchema = z.object({
@@ -281,12 +299,15 @@ const oddsTableSchema = z.object({
   name: z.string().min(1),
   oddsHundredths: insuranceRuleSchema.shape.oddsHundredths,
   createdAt: timestamp,
+  updatedAt,
 });
 
-const savedFields = { ...owned, name: z.string().min(1), createdAt: timestamp };
+const savedFields = { ...owned, name: z.string().min(1), createdAt: timestamp, updatedAt };
+/** Added in version 15: the currency a table fee or wage config was set in. */
+const setIn = gameFields.currency.optional();
 const chargeRuleSchema = z.discriminatedUnion("kind", [
-  z.object({ ...savedFields, kind: z.literal("table_fee"), rule: tableFeeSchema }),
-  z.object({ ...savedFields, kind: z.literal("wage"), rule: wageSchema }),
+  z.object({ ...savedFields, kind: z.literal("table_fee"), rule: tableFeeSchema, currency: setIn }),
+  z.object({ ...savedFields, kind: z.literal("wage"), rule: wageSchema, currency: setIn }),
   /** Added in version 14. */
   z.object({ ...savedFields, kind: z.literal("rake"), rule: rakeSchema }),
   /** Added in version 14. */

@@ -4,7 +4,7 @@ import { useSaveGame } from "@/data/games";
 import { type ChargeChoice, initialRakeChoice, RakeSettingsPanel } from "./ChargeSettings";
 
 /** What 本局 stands for in the list of presets: the rule this game was set up with. */
-const THIS_GAME = "本局配置";
+const THIS_GAME = "本局设置";
 
 /**
  * 抽水计算's settings in a game: closed at first, they are this game's own rule, so a change is
@@ -41,6 +41,7 @@ export function GameRakeSettings({ game }: { game: Game }) {
       }}
       lastRule={rule}
       lastRuleLabel={THIS_GAME}
+      lastSource={game.sources?.rake}
       defaultOpen={false}
       onChange={handleChange}
     />

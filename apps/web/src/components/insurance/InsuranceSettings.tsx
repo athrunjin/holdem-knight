@@ -1,4 +1,5 @@
 import {
+  configInUse,
   type InsuranceRule,
   type InsuranceRuleForm,
   type InsuranceRuleIssues,
@@ -6,14 +7,17 @@ import {
   RULE_30,
   ruleToKeep,
   type SavedInsuranceRule,
+  sameInsuranceSettings as sameSettings,
+  insuranceSettingsOf as settingsOf,
   toInsuranceRuleForm,
   withOdds,
 } from "@holdem-knight/core";
-import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { ConfigMenu } from "@/components/ConfigMenu";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { SaveNameDialog } from "@/components/SaveNameDialog";
 import { Toggle } from "@/components/Toggle";
+import { useConfigFollowers } from "@/data/game-configs";
 import {
   newSavedRule,
   useInsuranceRules,
@@ -21,34 +25,29 @@ import {
   useSaveInsuranceRule,
 } from "@/data/insurance";
 import { cn } from "@/lib/cn";
+import { removalQuestion, updateQuestion } from "@/lib/config-text";
 import { datedName } from "@/lib/dated-name";
-import { ChoiceModal } from "./ChoiceModal";
 import { CoverLimitPicker } from "./CoverLimitPicker";
 import { InsuranceRoundingLine, type RoundingStakes, RoundingSwitch } from "./InsuranceRounding";
 import { OddsTableEditor } from "./OddsTableEditor";
 
-const LAST_RULE = "last";
+/** Stands for last time's settings while they are no saved set. */
+export const LAST_RULE = "last";
 const DEFAULT_RULE = "default";
 const CUSTOM_RULE = "custom";
-export const CUSTOM_NAME = "自定义";
 
 /**
- * Everything in a rule but its odds and the table they are from, which the odds table sets on its
- * own, and the smallest chip in chips, which is set where the rule is used and never kept.
+ * The set a rule's settings belong to: the default, a saved one, or none of them. Of two saved
+ * sets with the same settings, the one they were taken from comes first.
  */
-function settingsOf(form: InsuranceRuleForm) {
-  const { odds: _, oddsTableId: __, roundChips: ___, ...settings } = form;
-  return settings;
-}
-
-const sameSettings = (a: InsuranceRule, b: InsuranceRule) =>
-  JSON.stringify(settingsOf(toInsuranceRuleForm(a))) ===
-  JSON.stringify(settingsOf(toInsuranceRuleForm(b)));
-
-/** The set a rule's settings belong to: the default, a saved one, or none of them. */
-export function configSourceOf(rule: InsuranceRule, saved: readonly SavedInsuranceRule[]): string {
+export function configSourceOf(
+  rule: InsuranceRule,
+  saved: readonly SavedInsuranceRule[],
+  takenFromId?: string,
+): string {
   if (sameSettings(rule, RULE_30)) return DEFAULT_RULE;
-  return saved.find((other) => sameSettings(other.rule, rule))?.id ?? CUSTOM_RULE;
+  const set = configInUse(saved, (other) => sameSettings(other.rule, rule), takenFromId);
+  return set?.id ?? CUSTOM_RULE;
 }
 
 export interface InsuranceChoice {
@@ -75,26 +74,45 @@ interface ConfigList {
   lastRule: InsuranceRule | undefined;
   /** What to call that rule in the list */
   lastRuleLabel: string;
+  /** The saved set that rule was taken from, which names it where another holds the same */
+  lastSource?: string | undefined;
   onChange: (value: InsuranceChoice) => void;
 }
 
 /**
  * The sets of settings on offer, which leave the odds out: last time's, the default and the saved
- * ones. Picking one takes its settings and keeps the odds in use.
+ * ones. Picking one takes its settings and keeps the odds in use. Settings changed by hand stay
+ * with the saved set they started from, which then reads as changed (ADR 0038).
  */
-export function useInsuranceConfigs({ value, lastRule, lastRuleLabel, onChange }: ConfigList) {
+export function useInsuranceConfigs({
+  value,
+  lastRule,
+  lastRuleLabel,
+  lastSource,
+  onChange,
+}: ConfigList) {
   const { source, form } = value;
   const { data: saved = [] } = useInsuranceRules();
 
   // Last time's settings go by their saved name when they were a saved set
-  const lastSaved = lastRule && saved.find((rule) => sameSettings(rule.rule, lastRule));
+  const lastSaved =
+    lastRule && configInUse(saved, (rule) => sameSettings(rule.rule, lastRule), lastSource);
+  // And are listed as last time's only when they are neither a saved set nor the default
+  const lastShown = lastRule !== undefined && !lastSaved && !sameSettings(lastRule, RULE_30);
   const rules = [
-    ...(lastRule && !lastSaved ? [{ id: LAST_RULE, name: lastRuleLabel, rule: lastRule }] : []),
-    { id: DEFAULT_RULE, name: "默认配置", rule: RULE_30 },
+    ...(lastShown ? [{ id: LAST_RULE, name: lastRuleLabel, rule: lastRule }] : []),
+    { id: DEFAULT_RULE, name: "默认设置", rule: RULE_30 },
     ...saved.map((rule) => ({ ...rule, removable: true })),
   ];
-  const selectedId = source === LAST_RULE && lastSaved ? lastSaved.id : source;
-  const selectedName = rules.find((rule) => rule.id === selectedId)?.name ?? CUSTOM_NAME;
+  const selectedId =
+    source === LAST_RULE ? (lastSaved?.id ?? (lastShown ? LAST_RULE : DEFAULT_RULE)) : source;
+  /** The saved set the settings are with, whether or not they still equal it. */
+  const base = saved.find((rule) => rule.id === selectedId);
+  // Compared as rules, so values kept for a switch that is off do not count
+  const current = parseInsuranceRule(form);
+  const modified = base !== undefined && !(current.ok && sameSettings(current.rule, base.rule));
+  /** Where settings changed by hand belong: with their saved set, or with none. */
+  const editedSource = base ? base.id : CUSTOM_RULE;
 
   function choose(id: string) {
     const rule = rules.find((r) => r.id === id)?.rule;
@@ -110,7 +128,7 @@ export function useInsuranceConfigs({ value, lastRule, lastRuleLabel, onChange }
     }
   }
 
-  return { saved, rules, selectedId, selectedName, choose };
+  return { saved, rules, selectedId, base, modified, editedSource, choose };
 }
 
 interface InsuranceSettingsProps extends ConfigList {
@@ -135,6 +153,7 @@ export function InsuranceSettings({
   issues,
   lastRule,
   lastRuleLabel,
+  lastSource,
   locked,
   stakes,
   bare = false,
@@ -142,22 +161,23 @@ export function InsuranceSettings({
 }: InsuranceSettingsProps) {
   const { form } = value;
   const enabled = bare || value.enabled;
-  const { saved, rules, selectedId, selectedName, choose } = useInsuranceConfigs({
+  const { saved, rules, selectedId, base, modified, editedSource, choose } = useInsuranceConfigs({
     value,
     lastRule,
     lastRuleLabel,
+    lastSource,
     onChange,
   });
   const removeRule = useRemoveInsuranceRule();
   const saveRule = useSaveInsuranceRule();
-  const [picking, setPicking] = useState(false);
+  const followers = useConfigFollowers();
   const [naming, setNaming] = useState(false);
 
   // The smallest chip in chips is not part of a set, so changing it keeps the set's name
   const setForm = (next: Partial<InsuranceRuleForm>) => {
     const changed = { ...form, ...next };
     const same = JSON.stringify(settingsOf(changed)) === JSON.stringify(settingsOf(form));
-    onChange({ ...value, source: same ? value.source : CUSTOM_RULE, form: changed });
+    onChange({ ...value, source: same ? value.source : editedSource, form: changed });
   };
 
   // Worth saving only once the settings are valid and differ from every set already on offer
@@ -168,19 +188,22 @@ export function InsuranceSettings({
       (rule) => JSON.stringify(settingsOf(toInsuranceRuleForm(rule))) === settingsText,
     );
 
+  // Settings changed from a saved set can go back into it, once they are valid
+  const updating = base !== undefined && modified && parseInsuranceRule(form).ok;
+
   const roundingInvalid = issues.roundSmallBlinds !== undefined || issues.roundChips !== undefined;
 
   const configButton = (
-    <button
-      type="button"
-      aria-haspopup="dialog"
-      aria-label={`保险配置：${selectedName}`}
-      onClick={() => setPicking(true)}
-      className="flex min-h-11 min-w-0 items-center gap-0.5 text-sm"
-    >
-      <span className="truncate">{selectedName}</span>
-      <ChevronDown className="size-4 shrink-0 text-muted" aria-hidden />
-    </button>
+    <ConfigMenu
+      label="保险设置"
+      choices={rules}
+      selectedId={selectedId}
+      modified={modified}
+      onPick={choose}
+      onRemove={handleRemove}
+      align="right"
+      className="text-sm"
+    />
   );
 
   /** Saved with this game's odds too, but only the other settings are taken when it is picked. */
@@ -200,9 +223,25 @@ export function InsuranceSettings({
     return undefined;
   }
 
+  /**
+   * Saves the settings into the set they were taken from. Game configs that follow the set take
+   * its new settings, so that is asked about first.
+   */
+  function handleUpdate() {
+    const parsed = parseInsuranceRule(form);
+    if (!parsed.ok || !base) return;
+    const using = followers({ section: "insurance", id: base.id });
+    if (using > 0 && !window.confirm(updateQuestion(base.name, using))) return;
+    saveRule.mutate(
+      { ...base, rule: ruleToKeep(parsed.rule) },
+      { onSuccess: () => onChange({ ...value, source: base.id }) },
+    );
+  }
+
   function handleRemove(id: string) {
     const rule = saved.find((r) => r.id === id);
-    if (rule && window.confirm(`删除规则「${rule.name}」？`)) {
+    const using = followers({ section: "insurance", id });
+    if (rule && window.confirm(removalQuestion("设置", rule.name, using))) {
       removeRule.mutate(id, {
         onSuccess: () => {
           if (selectedId === id) onChange({ ...value, source: CUSTOM_RULE });
@@ -273,14 +312,33 @@ export function InsuranceSettings({
             onChange={setForm}
           />
 
-          {savable && (
-            <button
-              type="button"
-              onClick={() => setNaming(true)}
-              className="min-h-11 self-end text-sm font-medium text-highlight"
-            >
-              保存配置
-            </button>
+          {(savable || updating) && (
+            <div className="flex min-w-0 justify-end gap-5">
+              {updating && (
+                <button
+                  type="button"
+                  disabled={saveRule.isPending}
+                  onClick={handleUpdate}
+                  className="min-h-11 min-w-0 truncate text-sm font-medium text-highlight disabled:opacity-60"
+                >
+                  更新「{base.name}」
+                </button>
+              )}
+              {savable && (
+                <button
+                  type="button"
+                  onClick={() => setNaming(true)}
+                  className="min-h-11 shrink-0 text-sm font-medium text-highlight"
+                >
+                  {updating ? "另存为" : "保存设置"}
+                </button>
+              )}
+            </div>
+          )}
+          {saveRule.isError && !naming && (
+            <p role="alert" className="text-right text-sm text-highlight">
+              保存失败，请重试。
+            </p>
           )}
 
           {!bare && (
@@ -296,25 +354,11 @@ export function InsuranceSettings({
         </>
       )}
 
-      {picking && (
-        <ChoiceModal
-          title="保险配置（不含赔率）"
-          choices={rules}
-          selectedId={selectedId}
-          onPick={(id) => {
-            choose(id);
-            setPicking(false);
-          }}
-          onRemove={handleRemove}
-          onClose={() => setPicking(false)}
-        />
-      )}
-
       {naming && (
         <SaveNameDialog
-          title="保存保险配置，下次快速应用？"
+          title="保存保险设置，下次快速应用？"
           label="名称，同名会覆盖；赔率另存为赔率表"
-          initialName={datedName("保险配置", new Set(saved.map((rule) => rule.name)))}
+          initialName={datedName("保险设置", new Set(saved.map((rule) => rule.name)))}
           saving={saveRule.isPending}
           saveFailed={saveRule.isError}
           onSave={handleSave}

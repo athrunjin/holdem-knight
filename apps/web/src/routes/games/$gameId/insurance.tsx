@@ -73,7 +73,7 @@ function GameInsurance({ game }: { game: Game }) {
   const [edited, setEdited] = useState<Pick<InsuranceChoice, "source" | "form">>();
   const choice: InsuranceChoice | undefined = insurance && {
     enabled: true,
-    source: edited?.source ?? configSourceOf(insurance, savedRules),
+    source: edited?.source ?? configSourceOf(insurance, savedRules, game.sources?.insurance),
     form: edited?.form ?? toInsuranceRuleForm(insurance),
   };
   // One rule for as long as the settings read the same, so the hand is not priced again for nothing

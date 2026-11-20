@@ -1,7 +1,7 @@
 import { parseChips, tryParseMoney } from "@holdem-knight/core";
 import { type ReactNode, useState } from "react";
 import { cn } from "@/lib/cn";
-import { selectOnFocus } from "@/lib/number-input";
+import { numberTyped, selectOnFocus } from "@/lib/number-input";
 
 /**
  * The pieces of a setup row of figures: numbers typed in place, centered in slots so rows line up,
@@ -36,7 +36,7 @@ export function FigureInput({
   wide?: boolean;
   /** The digits its slot holds, in place of 3 or 4, where room is short */
   minChars?: number;
-  /** Only digits get through */
+  /** Only digits get through, where otherwise a decimal point does too */
   wholeNumber?: boolean;
   disabled?: boolean;
   above?: string | null | undefined;
@@ -64,9 +64,7 @@ export function FigureInput({
           onBlur?.();
         }}
         onKeyDown={(event) => event.key === "Enter" && event.preventDefault()}
-        onChange={(event) =>
-          onChange(wholeNumber ? event.target.value.replace(/\D/g, "") : event.target.value)
-        }
+        onChange={(event) => onChange(numberTyped(event.target.value, wholeNumber))}
         // As wide as the value both tidied and as typed, so a tap never changes its width
         style={{
           width: `${Math.max(minChars ?? (wide ? 4 : 3), value.length, (tidy?.(value) ?? value).length) + 1}ch`,

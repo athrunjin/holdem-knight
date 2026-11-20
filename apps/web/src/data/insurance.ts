@@ -19,6 +19,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { GUEST_ORGANIZER_ID, repository } from ".";
+import { GAME_CONFIGS_KEY, releaseGameConfigs } from "./game-configs";
 import { newEventMeta } from "./ledger";
 
 const RULES_KEY = ["insurance-rules"] as const;
@@ -40,7 +41,8 @@ export function newSavedRule(name: string, rule: SavedInsuranceRule["rule"]): Sa
 export function useSaveInsuranceRule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (rule: SavedInsuranceRule) => repository.insuranceRules.save(rule),
+    mutationFn: (rule: SavedInsuranceRule) =>
+      repository.insuranceRules.save({ ...rule, updatedAt: Date.now() }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: RULES_KEY }),
   });
 }
@@ -48,8 +50,15 @@ export function useSaveInsuranceRule() {
 export function useRemoveInsuranceRule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => repository.insuranceRules.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: RULES_KEY }),
+    mutationFn: async (id: string) => {
+      await releaseGameConfigs({ section: "insurance", id });
+      await repository.insuranceRules.remove(id);
+    },
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: RULES_KEY }),
+        queryClient.invalidateQueries({ queryKey: GAME_CONFIGS_KEY }),
+      ]),
   });
 }
 
@@ -72,7 +81,8 @@ export function newOddsTable(name: string, oddsHundredths: readonly number[]): S
 export function useSaveOddsTable() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (table: SavedOddsTable) => repository.oddsTables.save(table),
+    mutationFn: (table: SavedOddsTable) =>
+      repository.oddsTables.save({ ...table, updatedAt: Date.now() }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ODDS_TABLES_KEY }),
   });
 }
@@ -80,8 +90,15 @@ export function useSaveOddsTable() {
 export function useRemoveOddsTable() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => repository.oddsTables.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ODDS_TABLES_KEY }),
+    mutationFn: async (id: string) => {
+      await releaseGameConfigs({ oddsTableId: id });
+      await repository.oddsTables.remove(id);
+    },
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ODDS_TABLES_KEY }),
+        queryClient.invalidateQueries({ queryKey: GAME_CONFIGS_KEY }),
+      ]),
   });
 }
 

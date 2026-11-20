@@ -525,9 +525,73 @@ describe("backup file", () => {
     expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
   });
 
+  it("round-trips the configs settings are taken from, and when each was last saved", () => {
+    const [game] = data.games;
+    if (!game) throw new Error("Missing sample game");
+    const wage = { hourly: cents(2500), unitMinutes: 1, rounding: "nearest" } as const;
+    const sources = { basics: "b", insurance: "i", tableFee: "f", wage: "w", rake: "r" };
+    const saved = { organizerId: "guest", createdAt: 1, updatedAt: 5 };
+    const full: BackupData = {
+      ...data,
+      games: [{ ...game, wage, sources: { wage: "w" } }],
+      insuranceRules: [{ ...saved, id: "i", name: "退保费", rule: RULE_30 }],
+      oddsTables: [{ ...saved, id: "t", name: "赔率表", oddsHundredths: [3000, 1500] }],
+      chargeRules: [
+        { ...saved, id: "w", name: "标准工资", kind: "wage", rule: wage, currency: "CNY" },
+        {
+          ...saved,
+          id: "f",
+          name: "袋鼠台费",
+          kind: "table_fee",
+          rule: { amount: cents(1000), minMinutes: 5 },
+          currency: "AUD",
+        },
+      ],
+      gameConfigs: [
+        {
+          ...saved,
+          id: "c",
+          name: "周五熊猫局",
+          settings: { ...DEFAULT_GAME_SETTINGS, wage, sources },
+        },
+      ],
+    };
+    expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
+  });
+
+  it("reads version 14 backups, whose configs name no sources", () => {
+    const older = edit((backup) => {
+      backup.version = 14;
+      backup.gameConfigs = [
+        {
+          id: "c",
+          organizerId: "guest",
+          name: "周五局",
+          settings: DEFAULT_GAME_SETTINGS,
+          createdAt: 1,
+        },
+      ];
+    });
+    expect(parseBackup(older)).toEqual({
+      ok: true,
+      data: {
+        ...data,
+        gameConfigs: [
+          {
+            id: "c",
+            organizerId: "guest",
+            name: "周五局",
+            settings: DEFAULT_GAME_SETTINGS,
+            createdAt: 1,
+          },
+        ],
+      },
+    });
+  });
+
   it("rejects backups from a newer version", () => {
     const text = edit((backup) => {
-      backup.version = 15;
+      backup.version = 16;
     });
     expect(parseBackup(text)).toEqual({ ok: false, issue: "newer-version" });
   });

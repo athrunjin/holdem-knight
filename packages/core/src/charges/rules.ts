@@ -17,7 +17,8 @@ export const DEFAULT_WAGE: WageRule = { hourly: cents(2_500), unitMinutes: 1, ro
 
 export const WAGE_UNITS: readonly WageUnitMinutes[] = [1, 15, 30, 60];
 
-export const WAGE_ROUNDINGS: readonly WageRounding[] = ["nearest", "up", "down"];
+/** In the order they are listed, the same as for rake and insurance. */
+export const WAGE_ROUNDINGS: readonly WageRounding[] = ["nearest", "down", "up"];
 
 /** Most segments of each kind, and of both together. */
 export const MAX_WAGE_SEGMENTS = 3;

@@ -1456,6 +1456,52 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. Checked on a production build in the preview: with the setup page's file held as HTML in the offline cache, tapping 开局 reloaded once and opened the page, with the real file back in the offline cache; with the file missing, it reloaded once and then showed the new page. Not tried on the device where it happened.
 - Tracking: PR #92
 
+### #I-073 Game configs that follow their sections' saved configs, updated in place
+
+- Type: feature
+- Date: proposed and decided 2026-11-20
+- Source: discussion, on how saved settings should be kept so they are easy to use in each game and to look after later
+- Problem: a game config and the configs of its sections were separate copies. After a wage config was changed, the game config that used it still filled the next game with the old rate. A section's name on the setup page came from comparing values, so settings changed from a config read 自定义 and could only be saved back by typing the config's name again. The game config's name at the top right stayed after the settings were changed. Table fee and wage configs carried no currency.
+- Proposal:
+  - Each section of a game config names the saved config it was taken from and keeps the values too. Using the game config takes each named config's values as they are then; the kept values hold once that config is gone. Games keep their own copy as before, and also name the configs, so of two with the same values the one used shows at the next setup.
+  - Values changed from a saved config stay with it: the section reads `name · 已修改`, with 更新「name」 to save them into it and, when they match no other config, 另存为 for a new one. This holds at setup, in a game's settings, on the insurance pages and in 抽水计算.
+  - The game config at the top right has 已修改 under its name once the settings differ from what it would fill in now. 保存全局设置 (保存当前配置 until #I-075) offers that name, so 保存 updates it and another name keeps a new one.
+  - Saving new values into a config, or new odds into an odds table, that game configs follow asks first and says how many follow it. Deleting one says so too, and those game configs keep the values it had.
+  - Table fee and wage configs keep the currency they were set in, shown by its mark before the name in the list, with those of another currency last.
+  - Backups are at version 15: the configs named, when each config was last saved, and the currency. Earlier backups read as before.
+  - Fixed on the way: a long name beside the 开局设置 title ran under the title on a narrow screen. The side columns now keep to their share and the name is cut short.
+- Decision: do, with game configs that follow rather than ones that stay as saved, as the organizer chose. One table for all saved configs, a page to manage them, and a restore that takes the newer of two are left for later. Checked in the browser preview at 393 and 360 wide, dark mode, on an isolated preview origin: a wage config saved and used in a game config, changed and updated, the game config then filling in the new rate, and the config deleted with the game config keeping it.
+- Tracking: [ADR 0038](adr/0038-game-configs-follow-saved-configs.md)
+
+### #I-074 Rake configs with amounts in blinds only
+
+- Type: feature
+- Date: proposed and decided 2026-11-20
+- Source: the organizer, on why a rake config in blinds could not be updated from the tools in #I-073
+- Problem: a rake config kept its cap and smallest chip in chips or in blinds, whichever box was typed in last, and the tools saved configs in chips. Insurance keeps only small blinds and works the chips out at each game, which is what the organizer expected of rake too. Updating a config from the tools would have rewritten its blinds as chips.
+- Proposal:
+  - At setup and in a game, chips or points typed for 封顶 or 最小筹码面值 are kept as the blinds they come to, so the amount follows the game's blinds. The chips box shows whole chips as the rule uses them, and is closed while the blind is not known. 等值最大底池 sets the cap in big blinds.
+  - A rake config saved or updated there keeps blinds only. One from before, with chips, shows and counts in blinds once picked at a game, when its chips come out the same.
+  - 抽水计算 in the tools stays in chips, kept in the browser. Picking a config brings its 比例, 取整 and switches and leaves the chips typed there. Saving or updating a config from the tools keeps those and the config's own cap and smallest chip in blinds; the name dialog says so. Changing only the chips there leaves the config's name, with nothing to save. 更新 now works there for every config.
+- Decision: do. How rake is worked out is unchanged, and so are backups. Checked in the browser preview at 393 wide, dark mode, on an isolated preview origin: a cap of 25 chips typed at blinds of 5/10 kept as 2.5 BB; in the tools, chips typed left the name alone, a config picked kept them, and 更新 after a new rate kept the cap at 2.5 BB; a config made in chips showed as 3 BB and 1 SB at setup, unchanged.
+- Tracking: [ADR 0039](adr/0039-rake-configs-keep-amounts-in-blinds.md)
+
+### #I-075 设置 for every saved config, switched in place, and checks on what setup takes
+
+- Type: feature
+- Date: proposed and decided 2026-11-20
+- Source: the organizer, on the setup page after #I-073
+- Problem: saved setups were called 配置 beside pages and cards called 设置, and the whole setup had no name of its own. Switching one took a dialog, and the whole setup a second one to confirm. The page's title sat in the middle, with the picker squeezed beside it. Number fields took letters and minus signs, a start that was refused said nothing, and a rake cap under the smallest chip quietly took no rake.
+- Proposal:
+  - Wording: 配置 reads 设置 everywhere, in names offered for saving too (`工资设置_11-20`, and `基础设置_11-20` for the basic settings). The whole setup is 全局设置: the button under the form reads 保存全局设置, and the questions asked before a change name it so. Its picker beside the title shows only the name of the one in use, as where it sits says what it is. 对局配置 on the games page reads 对局设置.
+  - 开局设置's title is at the left, as on every page, with the picker at the right, reading `name · 已修改` once the settings are changed, like each section's.
+  - Switching takes one tap and nothing to confirm, for the whole setup and for every section: the list hangs under the name, each saved one with a bin. With more than five saved ones, not counting 上次设置 and 默认设置, the list opens as a dialog instead. One component does this at setup, in a game's settings, on the insurance pages and in 抽水计算.
+  - 上次设置 is listed only when last time's values are neither a saved one nor the default; otherwise they go by that name. This now holds for the whole setup too, which also starts on 默认设置 with no game before it.
+  - Lists read in one order: 上次设置, 默认设置, then the saved ones, oldest first. 超出部分 reads 四舍五入, 向下取整, 向上取整 for wages as it does for rake and insurance.
+  - Number fields at setup let through digits, and a decimal point where decimals are allowed, so no minus sign or letter gets in. A start or a save refused for an invalid value says so above the buttons, until every value is valid. An invalid rake percentage says what it may be. A cap under one smallest chip, which takes no rake at all, says so.
+- Decision: do. 保存全局设置 was first written as 保存全局配置 in the same note; the organizer confirmed 设置 throughout. Saved ones keep the names they were given. Checked in the browser preview at 393 and 360 wide, dark mode, on an isolated preview origin.
+- Tracking: [ADR 0038](adr/0038-game-configs-follow-saved-configs.md)
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

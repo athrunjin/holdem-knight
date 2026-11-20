@@ -1,52 +1,47 @@
-import { DEFAULT_GAME_SETTINGS, type GameSettings } from "@holdem-knight/core";
-import { Check, ChevronDown, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { Modal } from "@/components/insurance/Modal";
+import { ConfigMenu } from "@/components/ConfigMenu";
 import { useGameConfigs, useRemoveGameConfig } from "@/data/game-configs";
-import { cn } from "@/lib/cn";
 
+/** Last time's setup, which the page starts from. */
 export const LAST_CONFIG = "last";
-const DEFAULT_CONFIG = "default";
-
-export interface GameConfigChoice {
-  readonly id: string;
-  readonly name: string;
-  /** Missing means last time's setup, which the page already has. */
-  readonly settings?: GameSettings;
-}
-
-const DEFAULT_CHOICE: GameConfigChoice = {
-  id: DEFAULT_CONFIG,
-  name: "默认配置",
-  settings: DEFAULT_GAME_SETTINGS,
-};
-const LAST_CHOICE: GameConfigChoice = { id: LAST_CONFIG, name: "上次配置" };
+/** A new game's settings with nothing to carry over. */
+export const DEFAULT_CONFIG = "default";
+export const DEFAULT_CONFIG_NAME = "默认设置";
 
 interface GameConfigPickerProps {
-  /** The chosen config's ID, or null once it has been deleted */
+  /** The chosen game config's ID, or null once it has been deleted */
   selected: string | null;
+  /** The settings were changed by hand since the game config filled them */
+  modified: boolean;
+  /** Whether last time's setup is listed: only when it is neither a saved game config nor the default */
+  lastShown: boolean;
   onSelect: (id: string | null) => void;
-  /** Fills the form with a config */
-  onApply: (choice: GameConfigChoice) => void;
+  /** Fills the form with a game config, by its ID */
+  onApply: (id: string) => void;
 }
 
-/** Shows the config in use and switches to another one. */
-export function GameConfigPicker({ selected, onSelect, onApply }: GameConfigPickerProps) {
+/**
+ * The game config in use, at the right of the page's title: only its name, as where it sits says
+ * what it is, and a way to switch. A tap lists the others and one more fills the form, with
+ * nothing to confirm. It is called 全局设置 for a reader and wherever it is named, to tell it from
+ * each section's own.
+ */
+export function GameConfigPicker({
+  selected,
+  modified,
+  lastShown,
+  onSelect,
+  onApply,
+}: GameConfigPickerProps) {
   const { data: saved = [] } = useGameConfigs();
   const removeConfig = useRemoveGameConfig();
-  const [open, setOpen] = useState(false);
-  const [confirming, setConfirming] = useState<GameConfigChoice | null>(null);
-  const choices = [LAST_CHOICE, DEFAULT_CHOICE, ...saved];
-  const selectedName = choices.find((choice) => choice.id === selected)?.name;
-
-  function handleConfirm(choice: GameConfigChoice) {
-    onApply(choice);
-    setConfirming(null);
-    setOpen(false);
-  }
-
-  function handleRemove(id: string, configName: string) {
-    if (!window.confirm(`删除配置「${configName}」？`)) return;
+  const choices = [
+    ...(lastShown ? [{ id: LAST_CONFIG, name: "上次设置" }] : []),
+    { id: DEFAULT_CONFIG, name: DEFAULT_CONFIG_NAME },
+    ...saved.map(({ id, name }) => ({ id, name, removable: true })),
+  ];
+  function handleRemove(id: string) {
+    const config = saved.find((other) => other.id === id);
+    if (!config || !window.confirm(`删除全局设置「${config.name}」？`)) return;
     removeConfig.mutate(id, {
       onSuccess: () => {
         if (selected === id) onSelect(null);
@@ -54,101 +49,16 @@ export function GameConfigPicker({ selected, onSelect, onApply }: GameConfigPick
     });
   }
 
-  const rowClass = (id: string) =>
-    cn(
-      "flex min-h-12 min-w-0 flex-1 items-center justify-between gap-2 px-3 text-left font-medium",
-      selected === id && "text-highlight",
-    );
-  const check = (id: string) =>
-    selected === id && <Check className="size-5 shrink-0" aria-label="当前选中" />;
-
   return (
-    <>
-      <button
-        type="button"
-        aria-haspopup="dialog"
-        onClick={() => setOpen(true)}
-        className="ml-auto flex min-h-11 max-w-full items-center gap-0.5 text-sm text-muted"
-      >
-        <span className="truncate">{selectedName ?? "选择配置"}</span>
-        <ChevronDown className="size-4 shrink-0" aria-hidden />
-      </button>
-
-      {open && (
-        <Modal title="选择配置" onClose={() => setOpen(false)}>
-          <ul className="divide-y divide-line rounded-xl border border-line">
-            <li className="flex">
-              <button
-                type="button"
-                onClick={() => setConfirming(DEFAULT_CHOICE)}
-                className={rowClass(DEFAULT_CONFIG)}
-              >
-                恢复默认
-                {check(DEFAULT_CONFIG)}
-              </button>
-            </li>
-            <li className="flex">
-              <button
-                type="button"
-                onClick={() => setConfirming(LAST_CHOICE)}
-                className={rowClass(LAST_CONFIG)}
-              >
-                上次配置
-                {check(LAST_CONFIG)}
-              </button>
-            </li>
-            {saved.map((config) => (
-              <li key={config.id} className="flex">
-                <button
-                  type="button"
-                  onClick={() => setConfirming(config)}
-                  className={rowClass(config.id)}
-                >
-                  <span className="truncate">{config.name}</span>
-                  {check(config.id)}
-                </button>
-                <button
-                  type="button"
-                  aria-label={`删除配置 ${config.name}`}
-                  onClick={() => handleRemove(config.id, config.name)}
-                  className="grid min-h-12 w-12 shrink-0 place-items-center text-muted"
-                >
-                  <Trash2 className="size-5" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
-          >
-            关闭
-          </button>
-        </Modal>
-      )}
-
-      {confirming && (
-        <Modal title="使用配置" onClose={() => setConfirming(null)}>
-          <p>是否使用{confirming.name}？</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setConfirming(null)}
-              className="min-h-11 rounded-xl border border-line font-medium"
-            >
-              取消
-            </button>
-            <button
-              type="button"
-              onClick={() => handleConfirm(confirming)}
-              className="min-h-11 rounded-xl bg-accent font-semibold text-accent-text"
-            >
-              确认
-            </button>
-          </div>
-        </Modal>
-      )}
-    </>
+    <ConfigMenu
+      label="全局设置"
+      choices={choices}
+      selectedId={selected ?? undefined}
+      modified={modified}
+      onPick={onApply}
+      onRemove={handleRemove}
+      align="right"
+      className="text-sm"
+    />
   );
 }
