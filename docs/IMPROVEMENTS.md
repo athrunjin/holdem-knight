@@ -1537,7 +1537,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - A build with no Supabase project set (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`) keeps the 游客模式 card as it was, so this can go out before there is a project to sign in to.
   - `pnpm db:env` writes the local Supabase's address and public key to `apps/web/.env.local` for the dev server.
 - Decision: do. The sign-in service itself answers that an address is taken when asked to sign up with it; the page does not pass that on, but someone asking the service directly can still learn it, which the human check planned for sign-up is there to slow down. The human check, the sending domain and the terms' text come with the first hosted project. Checked against the local Supabase: the whole flow in tests that read the codes from its mail catcher, and in the browser preview at 393 and 360 wide, dark mode.
-- Tracking: [ADR 0041](adr/0041-sign-in-by-email-and-password-with-codes.md)
+- Tracking: PR #97, [ADR 0041](adr/0041-sign-in-by-email-and-password-with-codes.md)
 
 ## Not doing or deferred
 
