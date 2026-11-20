@@ -1436,9 +1436,10 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Source: discussion
 - Problem: the four basic rows at setup had no title and no configs of their own, unlike the options under them. 抽水计算's record named only the pot or 手动输入, with no running total.
 - Proposal:
-  - The 积分, 比例, 盲注 and Buy-in rows sit in one card titled 基础设置, always open, with no switch. Its config sits at the right of the title, where the other cards have theirs: 上次配置 (本局配置 in a game's settings), 默认配置 and saved ones. 保存配置 shows under the rows for a valid change that matches none of them. Configs are kept with the table fee, wage and rake configs, as `SavedChargeRule` of kind `basics`. With ledger records, a config picked in a game's settings changes only the blinds, as the rest is locked.
+  - The 积分, 比例, 盲注 and Buy-in rows sit in one card titled 基础设置, always open, with no switch and no lines between the rows, so they read as one, like the cards under it. Its config sits at the right of the title, where the other cards have theirs: 上次配置 (本局配置 in a game's settings), 默认配置 and saved ones. 保存配置 shows under the rows for a valid change that matches none of them. Configs are kept with the table fee, wage and rake configs, as `SavedChargeRule` of kind `basics`. With ledger records, a config picked in a game's settings changes only the blinds, as the rest is locked.
   - 抽水计算's 记录 is a table of 时间, 输入 (底池, 增量 or 修改), 底池, 变化 and 总抽水, latest first. The pot of an 增量 is the smallest pot that gives it under the rule now in use, shown faintly; a 修改 has N/A. 变化 is green for a rise and red for a fall, and 总抽水 is the total after it.
-  - Only the latest 3 show. The history mark after 记录, shown once there are more, opens them all in place; there is no scrolling window.
+  - The record sits under 撤销 and 返回, with the latest 3. Its line reads `记录 (N)` with the total count, after a record mark, in gold, and stays with the table's head before there are any records. A tap on it opens every record in a dialog of its own; there is no scrolling window.
+  - Fixed on the way: closing a dialog opened from 抽水计算, such as all the records, 保存配置 or an info mark, closed 抽水计算 too, as React passes a dialog's close on to the one it was opened from. 抽水计算 and the shared modal now act only on their own.
   - A rake event keeps `typedOver` when the total so far was typed over. Rakes from before count a fall as 修改. Backups stay at version 14.
 - Decision: do. Checked at 393 wide in the browser preview, dark mode, on an isolated preview origin.
 - Tracking: PR #90

@@ -17,7 +17,10 @@ export function Modal({ title, onClose, children }: ModalProps) {
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
+      // Only its own close: React passes on that of a dialog opened from it, such as an info mark's
+      onClose={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
       className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-sm rounded-2xl border border-line bg-surface p-3 text-text backdrop:bg-black/60"
     >
       <h2 className="mb-2 font-semibold">{title}</h2>

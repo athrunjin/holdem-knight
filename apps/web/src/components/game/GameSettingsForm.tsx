@@ -101,7 +101,7 @@ function QuickRow<T extends string>({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-14 items-center px-4 py-2">
+    <div className="flex min-h-12 items-center px-4 py-1">
       <span className={cn("shrink-0 font-medium", disabled && "opacity-60")}>{label}</span>
       {accessory}
       <div className="flex min-h-11 min-w-0 flex-1 items-center justify-end pl-3 font-medium">
@@ -356,7 +356,7 @@ export function GameSettingsForm({
               onPick={(preset) => pickBasics(preset.id, preset.form)}
             />
           </div>
-          <div className="divide-y divide-line border-t border-line">
+          <div>
             {/* The whole row opens the list, which hangs under the mark at its right */}
             <TextMenu
               label="积分"
@@ -366,7 +366,7 @@ export function GameSettingsForm({
               onChange={(currency) => editValues({ ...values, currency })}
               align="right"
               disabled={ratioLocked}
-              className="min-h-14 w-full px-4 py-2 font-medium"
+              className="min-h-12 w-full px-4 py-1 font-medium"
               captionClassName="mr-auto font-medium text-text"
             />
             <QuickRow

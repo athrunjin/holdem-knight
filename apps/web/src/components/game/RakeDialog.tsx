@@ -5,9 +5,10 @@ import {
   type RakeRule,
   rakeFromPot,
 } from "@holdem-knight/core";
-import { History } from "lucide-react";
+import { ScrollText } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Modal } from "@/components/insurance/Modal";
 import { RollingNumber } from "@/components/RollingNumber";
 import { cn } from "@/lib/cn";
 import { selectOnFocus } from "@/lib/number-input";
@@ -29,7 +30,7 @@ export interface RakeEntry {
   readonly typedOver?: true;
 }
 
-/** The records shown until 全部 is asked for. */
+/** The records shown under the buttons; the rest are a tap on 记录 away. */
 const RECENT_ENTRIES = 3;
 
 /** How a rake was put in: from a pot, added by hand, or the total typed over. */
@@ -210,8 +211,13 @@ export function RakeDialog({
   return createPortal(
     <dialog
       ref={ref}
-      onClose={onClose}
+      // React passes a dialog opened from this one, such as all the records, its close and
+      // Escape on to this one, which leaves them to it
+      onClose={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
       onCancel={(event) => {
+        if (event.target !== event.currentTarget) return;
         // Escape leaves the way 返回 does, so a change is never lost to it at once
         event.preventDefault();
         handleBack();
@@ -336,8 +342,6 @@ export function RakeDialog({
         </p>
       )}
 
-      {entries.length > 0 && <RakeRecords entries={entries} rule={rule} blinds={blinds} />}
-
       <div className="mt-5 grid grid-cols-[auto_minmax(0,1fr)] gap-2">
         <button
           type="button"
@@ -352,6 +356,8 @@ export function RakeDialog({
         </button>
         <BackButton armed={armed} onClick={handleBack} />
       </div>
+
+      <RakeRecords entries={entries} rule={rule} blinds={blinds} />
     </dialog>,
     document.body,
   );
@@ -387,29 +393,61 @@ function BackButton({ armed, onClick }: { armed: boolean; onClick: () => void })
   );
 }
 
-/**
- * 记录: each rake with its time, how it was put in, its pot, its change and the total after it,
- * latest first. Only the latest few show, until the mark after 记录 opens them all. A rake added by
- * hand shows, faintly, the smallest pot it could have come from under the rule in use now.
- */
-function RakeRecords({
-  entries,
-  rule,
-  blinds,
-}: {
+interface RecordsProps {
   entries: readonly RakeEntry[];
   rule: RakeRule;
   blinds: RakeBlinds | undefined;
-}) {
-  const [all, setAll] = useState(false);
+}
+
+/**
+ * 记录 under the buttons: the latest 3 rakes, with the line and the table's head kept even before
+ * there are any. The 记录 line, in gold, opens every record in a dialog of its own.
+ */
+function RakeRecords({ entries, rule, blinds }: RecordsProps) {
+  const [showingAll, setShowingAll] = useState(false);
+  const title = `记录 (${entries.length})`;
+  return (
+    <section className="mt-4">
+      <button
+        type="button"
+        onClick={() => setShowingAll(true)}
+        aria-label={`${title}，点击查看全部`}
+        className="flex min-h-11 items-center gap-1.5 text-sm font-medium text-highlight"
+      >
+        <ScrollText className="size-4" aria-hidden />
+        {title}
+      </button>
+      <RecordsTable entries={entries} rule={rule} blinds={blinds} limit={RECENT_ENTRIES} />
+      {showingAll && (
+        <Modal title={`抽水${title}`} onClose={() => setShowingAll(false)}>
+          <RecordsTable entries={entries} rule={rule} blinds={blinds} />
+          <form method="dialog">
+            <button
+              type="submit"
+              className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
+            >
+              返回
+            </button>
+          </form>
+        </Modal>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Each rake with its time, how it was put in, its pot, its change and the total after it, latest
+ * first, up to `limit`. A rake added by hand shows, faintly, the smallest pot it could have come
+ * from under the rule in use now.
+ */
+function RecordsTable({ entries, rule, blinds, limit }: RecordsProps & { limit?: number }) {
   let running = 0;
   const rows = entries.map((entry) => {
     running += entry.chips;
     return { entry, input: inputOf(entry), total: running };
   });
   const latestFirst = rows.reverse();
-  const shown = all ? latestFirst : latestFirst.slice(0, RECENT_ENTRIES);
-  const more = entries.length > RECENT_ENTRIES;
+  const shown = limit === undefined ? latestFirst : latestFirst.slice(0, limit);
   const head = "px-1 py-1 text-xs font-normal text-muted";
 
   function potCell({ entry, input }: (typeof rows)[number]) {
@@ -422,57 +460,38 @@ function RakeRecords({
   }
 
   return (
-    <section className="mt-4">
-      <div className="flex items-center gap-1">
-        <h3 className="text-sm text-muted">记录</h3>
-        {more && (
-          <button
-            type="button"
-            aria-label={all ? "只看最近 3 条记录" : `展开全部 ${entries.length} 条记录`}
-            aria-expanded={all}
-            onClick={() => setAll(!all)}
-            className={cn(
-              "-my-3 grid size-11 place-items-center",
-              all ? "text-highlight" : "text-muted",
-            )}
-          >
-            <History className="size-4" aria-hidden />
-          </button>
-        )}
-      </div>
-      <table className="mt-1 w-full table-fixed text-sm tabular-nums">
-        <thead>
-          <tr className="border-b border-line">
-            <th className={cn(head, "w-[18%] text-left")}>时间</th>
-            <th className={cn(head, "w-[16%] text-left")}>输入</th>
-            <th className={cn(head, "text-right")}>底池</th>
-            <th className={cn(head, "text-right")}>变化</th>
-            <th className={cn(head, "text-right")}>总抽水</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-line">
-          {shown.map((row) => {
-            const { entry, input, total } = row;
-            return (
-              <tr key={entry.id}>
-                <td className="px-1 py-1.5 text-muted">{ENTRY_TIME.format(entry.occurredAt)}</td>
-                <td className="px-1 py-1.5 text-muted">{INPUT_NAMES[input]}</td>
-                <td className="px-1 py-1.5 text-right">{potCell(row)}</td>
-                <td
-                  className={cn(
-                    "px-1 py-1.5 text-right font-medium",
-                    entry.chips > 0 ? "text-win" : "text-loss",
-                  )}
-                >
-                  {entry.chips > 0 ? "+" : "−"}
-                  {Math.abs(entry.chips).toLocaleString("zh-CN")}
-                </td>
-                <td className="px-1 py-1.5 text-right">{total.toLocaleString("zh-CN")}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </section>
+    <table className="w-full table-fixed text-sm tabular-nums">
+      <thead>
+        <tr className="border-b border-line">
+          <th className={cn(head, "w-[18%] text-left")}>时间</th>
+          <th className={cn(head, "w-[16%] text-left")}>输入</th>
+          <th className={cn(head, "text-right")}>底池</th>
+          <th className={cn(head, "text-right")}>变化</th>
+          <th className={cn(head, "text-right")}>总抽水</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-line">
+        {shown.map((row) => {
+          const { entry, input, total } = row;
+          return (
+            <tr key={entry.id}>
+              <td className="px-1 py-1.5 text-muted">{ENTRY_TIME.format(entry.occurredAt)}</td>
+              <td className="px-1 py-1.5 text-muted">{INPUT_NAMES[input]}</td>
+              <td className="px-1 py-1.5 text-right">{potCell(row)}</td>
+              <td
+                className={cn(
+                  "px-1 py-1.5 text-right font-medium",
+                  entry.chips > 0 ? "text-win" : "text-loss",
+                )}
+              >
+                {entry.chips > 0 ? "+" : "−"}
+                {Math.abs(entry.chips).toLocaleString("zh-CN")}
+              </td>
+              <td className="px-1 py-1.5 text-right">{total.toLocaleString("zh-CN")}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
