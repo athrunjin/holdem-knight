@@ -5,6 +5,9 @@
   "description": "The Supabase database: SQL migrations, and tests of its row-level security.",
   "license": "UNLICENSED",
   "type": "module",
+  "exports": {
+    "./local": "./src/local/stack.ts"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",

@@ -8,6 +8,7 @@ import type {
   Game,
   InsuranceHand,
   LedgerEvent,
+  OrganizerId,
   Player,
   SavedChargeRule,
   SavedGameConfig,
@@ -92,6 +93,26 @@ export interface BackupData {
   readonly gameConfigs: readonly SavedGameConfig[];
   readonly oddsTables: readonly SavedOddsTable[];
   readonly chargeRules: readonly SavedChargeRule[];
+}
+
+/**
+ * A backup as another organizer's own: every record carries their ID, and nothing else changes.
+ * Records keep their IDs, so bringing the same backup in twice adds nothing the second time. What
+ * guest data goes through on its way into an account (ADR 0040).
+ */
+export function backupForOrganizer(data: BackupData, organizerId: OrganizerId): BackupData {
+  const own = <T extends { readonly organizerId: OrganizerId }>(records: readonly T[]): T[] =>
+    records.map((record) => ({ ...record, organizerId }));
+  return {
+    games: own(data.games),
+    players: own(data.players),
+    ledgerEvents: own(data.ledgerEvents),
+    insuranceRules: own(data.insuranceRules),
+    insuranceHands: own(data.insuranceHands),
+    gameConfigs: own(data.gameConfigs),
+    oddsTables: own(data.oddsTables),
+    chargeRules: own(data.chargeRules),
+  };
 }
 
 export interface RestoreResult {

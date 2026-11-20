@@ -97,11 +97,13 @@ for each row execute function public.handle_new_user();
 ------------------------------------------------------------------------------------------------
 
 -- Each record is the document the app keeps (`data`), under its space and its own ID. IDs are
--- made by the app and are unique only within a space, so the space is part of every key.
+-- made by the app and are unique only within a space, so the space is part of every key. IDs and
+-- names sort by their characters alone (the "C" collation), as the app's storage on a device does,
+-- so a list reads in the same order from either.
 
 create table public.games (
   organizer_id uuid not null references public.organizers (id) on delete cascade,
-  id text not null check (id <> ''),
+  id text collate "C" not null check (id <> ''),
   data jsonb not null,
   created_at bigint generated always as ((data ->> 'createdAt')::bigint) stored not null,
   status text generated always as (data ->> 'status') stored not null,
@@ -113,9 +115,9 @@ create index games_newest_first on public.games (organizer_id, created_at desc);
 
 create table public.players (
   organizer_id uuid not null references public.organizers (id) on delete cascade,
-  id text not null check (id <> ''),
+  id text collate "C" not null check (id <> ''),
   data jsonb not null,
-  name text generated always as (data ->> 'name') stored not null,
+  name text collate "C" generated always as (data ->> 'name') stored not null,
   -- The account this record is linked to, once it is taken up (ADR 0042)
   linked_user_id uuid references public.profiles (id) on delete set null,
   primary key (organizer_id, id),
@@ -129,9 +131,9 @@ create index players_by_account on public.players (linked_user_id) where linked_
 
 create table public.ledger_events (
   organizer_id uuid not null,
-  id text not null check (id <> ''),
+  id text collate "C" not null check (id <> ''),
   data jsonb not null,
-  game_id text generated always as (data ->> 'gameId') stored not null,
+  game_id text collate "C" generated always as (data ->> 'gameId') stored not null,
   occurred_at bigint generated always as ((data ->> 'occurredAt')::bigint) stored not null,
   type text generated always as (data ->> 'type') stored not null,
   -- Missing on a reversal, which points to the event it undoes
@@ -145,9 +147,9 @@ create index ledger_events_by_game on public.ledger_events (organizer_id, game_i
 
 create table public.insurance_hands (
   organizer_id uuid not null,
-  id text not null check (id <> ''),
+  id text collate "C" not null check (id <> ''),
   data jsonb not null,
-  game_id text generated always as (data ->> 'gameId') stored not null,
+  game_id text collate "C" generated always as (data ->> 'gameId') stored not null,
   created_at bigint generated always as ((data ->> 'createdAt')::bigint) stored not null,
   primary key (organizer_id, id),
   foreign key (organizer_id, game_id) references public.games (organizer_id, id) on delete cascade,
@@ -160,18 +162,79 @@ create index insurance_hands_by_game on public.insurance_hands (organizer_id, ga
 -- the basics, wages, the table fee and rake, and whole game configs.
 create table public.saved_configs (
   organizer_id uuid not null references public.organizers (id) on delete cascade,
-  id text not null check (id <> ''),
+  id text collate "C" not null check (id <> ''),
   -- Which of the app's lists it belongs to
   collection text not null
     check (collection in ('insuranceRules', 'oddsTables', 'chargeRules', 'gameConfigs')),
   data jsonb not null,
   created_at bigint generated always as ((data ->> 'createdAt')::bigint) stored not null,
-  primary key (organizer_id, id),
+  -- The app keeps each list apart, so an ID is unique within its list
+  primary key (organizer_id, collection, id),
   check (data ->> 'id' = id and data ->> 'organizerId' = organizer_id::text)
 );
 
 create index saved_configs_oldest_first
   on public.saved_configs (organizer_id, collection, created_at);
+
+/**
+ * Adds the records of a backup that a space does not have yet, all or none, and says how many it
+ * added and how many it left as they were. What is there is never overwritten (ADR 0009). It runs
+ * with the caller's own rights, so it can do nothing the caller could not do record by record.
+ */
+create function public.restore_books(space uuid, books jsonb)
+returns table (added integer, skipped integer)
+language plpgsql security invoker
+set search_path = ''
+as $$
+declare
+  list text;
+  total integer := 0;
+  done integer := 0;
+  n integer;
+begin
+  -- Games first, as events and hands belong to them
+  insert into public.games (organizer_id, id, data)
+  select space, r ->> 'id', r from jsonb_array_elements(coalesce(books -> 'games', '[]')) r
+  on conflict do nothing;
+  get diagnostics n = row_count;
+  done := done + n;
+
+  insert into public.players (organizer_id, id, data)
+  select space, r ->> 'id', r from jsonb_array_elements(coalesce(books -> 'players', '[]')) r
+  on conflict do nothing;
+  get diagnostics n = row_count;
+  done := done + n;
+
+  insert into public.ledger_events (organizer_id, id, data)
+  select space, r ->> 'id', r from jsonb_array_elements(coalesce(books -> 'ledgerEvents', '[]')) r
+  on conflict do nothing;
+  get diagnostics n = row_count;
+  done := done + n;
+
+  insert into public.insurance_hands (organizer_id, id, data)
+  select space, r ->> 'id', r from jsonb_array_elements(coalesce(books -> 'insuranceHands', '[]')) r
+  on conflict do nothing;
+  get diagnostics n = row_count;
+  done := done + n;
+
+  foreach list in array array['insuranceRules', 'oddsTables', 'chargeRules', 'gameConfigs'] loop
+    insert into public.saved_configs (organizer_id, id, collection, data)
+    select space, r ->> 'id', list, r from jsonb_array_elements(coalesce(books -> list, '[]')) r
+    on conflict do nothing;
+    get diagnostics n = row_count;
+    done := done + n;
+  end loop;
+
+  foreach list in array array[
+    'games', 'players', 'ledgerEvents', 'insuranceHands',
+    'insuranceRules', 'oddsTables', 'chargeRules', 'gameConfigs'
+  ] loop
+    total := total + jsonb_array_length(coalesce(books -> list, '[]'));
+  end loop;
+
+  return query select done, total - done;
+end;
+$$;
 
 ------------------------------------------------------------------------------------------------
 -- Who may do what (ADR 0042). Only the owner so far: assistants and linked players come later.
@@ -229,7 +292,8 @@ to authenticated;
 -- a function when a record is taken up (ADR 0042), never by hand.
 grant select, delete on public.players to authenticated;
 grant insert (organizer_id, id, data) on public.players to authenticated;
-grant update (data) on public.players to authenticated;
+-- The key is granted too: saving a record again writes every column it sends, the key among them
+grant update (organizer_id, id, data) on public.players to authenticated;
 
 create policy "owner keeps the games" on public.games
 for all to authenticated
@@ -262,4 +326,6 @@ create policy "owner adds to the ledger" on public.ledger_events
 for insert to authenticated with check (public.has_role(organizer_id, array['owner']));
 
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
+revoke execute on function public.restore_books(uuid, jsonb) from public, anon;
+grant execute on function public.restore_books(uuid, jsonb) to authenticated;
 grant execute on function public.has_role(uuid, text[]) to authenticated;

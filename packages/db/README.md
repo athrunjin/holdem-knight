@@ -5,7 +5,7 @@ The Supabase database: its SQL migrations, the local Supabase's configuration, a
 - `supabase/migrations/`: one SQL file per change, named `YYYYMMDDHHMMSS_what_it_does.sql`, applied oldest first.
 - `supabase/config.toml`: the local Supabase. Only what the app uses is started: the database, sign-in, the API, Studio and the mail catcher.
 - `src/testing.ts` and `src/*.test.ts`: every rule, in a Postgres that runs inside the test process (PGlite). No Docker.
-- `src/local/`: the main rules again, through the real sign-in and API of the local Supabase.
+- `src/local/`: the main rules again, through the real sign-in and API of the local Supabase. `apps/web` runs its repository against the same stack ([ADR 0045](../../docs/adr/0045-one-contract-for-both-repositories.md)).
 
 ## Commands
 
@@ -14,7 +14,7 @@ From the repository's root:
 ```bash
 pnpm test          # includes the in-process tests
 pnpm db:start      # start the local Supabase and apply the migrations (needs Docker)
-pnpm test:local    # the tests that need it running
+pnpm test:local    # the tests that need it running, here and in apps/web
 pnpm db:reset      # empty the local database and apply every migration again
 pnpm db:stop       # stop it; the data stays until the next reset
 ```

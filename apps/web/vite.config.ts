@@ -2,8 +2,8 @@ import { fileURLToPath, URL } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { configDefaults, defineConfig } from "vitest/config";
 
 import pkg from "./package.json" with { type: "json" };
 
@@ -47,5 +47,9 @@ export default defineConfig({
   },
   server: {
     host: true,
+  },
+  test: {
+    // Those need the local Supabase running: `pnpm test:local`
+    exclude: [...configDefaults.exclude, "src/**/*.local.test.ts"],
   },
 });
