@@ -79,6 +79,10 @@ These are the product defaults. Rules are configurable by design, so organizers 
 | Cover        | The deepest of the hand's players, at most one, who matches the next deepest |
 | Insured card  | The next card only. Each pot is priced apart. Tie cards are sold by default, apart from the outs. The buyer may give up some cards of a kind, or have some sold as a second cover priced on its own cards         |
 | Multi-device  | No need for several devices on one game. M1 is guest mode, Supabase arrives in M6        |
+| Accounts (M6) | One account per person, as host and as player. An account owns one host space for now; the books belong to the space. Sign-in by email and password, confirmed with codes; a second factor later (ADR 0040, ADR 0041) |
+| Players' rights | A player linked to a record reads, for the games they played in, their own results, what the game was played under, and whether the books balanced and how a difference was handled. They read no other player's result and change nothing; only the host changes the books. Records are taken up by an invitation from the host or a request the host places (ADR 0042) |
+| Namesakes     | Several players may carry the same name. In a game the later ones read `name_1`, `name_2`. Each record has a number, and a player's page tells them apart (ADR 0043) |
+| Leaving       | A host's account that is deleted keeps its space for 30 days, then the books go with it. A player's account that is deleted only unlinks (ADR 0040) |
 | Workflow      | From M1 on: branch → PR → CI → merge                                                     |
 
 "Hand" (手) here means one buy-in unit, not a hand of cards.
@@ -86,7 +90,7 @@ These are the product defaults. Rules are configurable by design, so organizers 
 ## Open questions
 
 - Whether insurance quotes take the rake out of the pot first: the switch exists, off by default, with no effect yet (ADR 0036)
-- Trademark check and a permanent domain. Deployment uses a free `*.pages.dev` subdomain for now, see issue #9
+- Trademark check and a permanent domain. Deployment uses a free `*.pages.dev` subdomain for now, see issue #9. Sign-in needs a domain to send mail from (ADR 0041)
 
 ## Known pitfalls
 

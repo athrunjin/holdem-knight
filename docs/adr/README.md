@@ -44,6 +44,10 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0037](0037-insurance-prices-rounded-to-the-smallest-chip.md) | Insurance prices rounded to the smallest chip | Accepted |
 | [0038](0038-game-configs-follow-saved-configs.md) | Game configs follow the saved configs they are made of | Accepted |
 | [0039](0039-rake-configs-keep-amounts-in-blinds.md) | Rake configs keep their amounts in blinds | Accepted |
+| [0040](0040-accounts-host-spaces-and-player-records.md) | Accounts, host spaces and player records are three things | Accepted |
+| [0041](0041-sign-in-by-email-and-password-with-codes.md) | Sign-in by email and password, confirmed with codes | Accepted |
+| [0042](0042-linked-players-and-claiming-records.md) | Linked players read their own results and what a game was played under, and claim their records by invitation | Accepted |
+| [0043](0043-namesakes-in-a-space.md) | Players may share a name, told apart in a game and by number | Accepted |
 
 ## Template
 

@@ -67,13 +67,20 @@ A preflop all-in is not covered yet, see #I-019 in the [improvement log](IMPROVE
 
 ## M6 Accounts and cloud
 
-- Supabase: sign-in, cloud storage for the player list and past games, multi-device sync
-- One-tap import of guest data into an account
+In four steps, each usable on its own:
+
+1. Accounts: sign-in by email and password with codes ([ADR 0041](adr/0041-sign-in-by-email-and-password-with-codes.md)), one host space per account ([ADR 0040](adr/0040-accounts-host-spaces-and-player-records.md)), cloud storage for the player list and past games behind the repository interface, and one-tap import of guest data
+2. Sync: last-changed times and deletion marks on records that change, a restore that takes the newer of two, the ledger written locally first and sent when online, and several devices kept in step
+3. Linked players: invitations and requests to take up a player record, unlinking and merging, and a read-only page of a player's own results in the games they took part in ([ADR 0042](adr/0042-linked-players-and-claiming-records.md))
+4. More rights: assistants who record for a host, a second factor for hosts, signing out everywhere, and deleting an account with its 30 days of grace
+
+Ahead of accounts, in guest mode: players who share a name, numbered records, avatars and a player's page ([ADR 0043](adr/0043-namesakes-in-a-space.md)).
+
 - Leave room for plans and entitlements (monthly / per game), no payments yet
 
 ## M7 and beyond
 
-- Player app: players view their own records through a link or by signing in
+- Player app: a link to a game's result for players without an account. Signed-in players are covered by M6
 - Capacitor packaging for iOS / Android
 - China version: Supabase instance and CDN in China (requires ICP filing), phone number / WeChat sign-in
 - Payments: Stripe (Australia), WeChat Pay / Alipay (China)
