@@ -98,6 +98,6 @@ These are the product defaults. Rules are configurable by design, so organizers 
   so a `'` in a path produces invalid code. Use only lowercase letters, digits and hyphens in directory names.
 - **Commit `routeTree.gen.ts`.** It regenerates when routes change. Without it, type checks fail on a clean checkout.
 - **`node` or `pnpm` not found:** run `source ~/.bashrc` or open a new terminal.
-- **Docker** is only needed to run Supabase locally in M6. Expand the VM's disk first if it's tight.
+- **Docker** runs the local Supabase (`pnpm db:start`), which the repository and sign-in are built against. The database's own tests need none (ADR 0044). The images take about 4 GB.
 - **Access from mainland China:** the official Supabase and Cloudflare services can both be unreliable there, so the China version is deployed separately.
 - **Supabase free tier pausing:** a project pauses after a week without traffic. That's fine in development, but production needs the Pro plan.
