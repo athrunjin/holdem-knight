@@ -220,7 +220,7 @@ function GameLedger({ game }: { game: Game }) {
   const latestRake = rakeRecords(events).at(-1);
 
   /** A new rake total, saved as the change from the one before, with the pot it came from. */
-  async function saveRake(totalChips: number, potChips: number | undefined) {
+  async function saveRake(totalChips: number, potChips: number | undefined, typedOver: boolean) {
     const chips = totalChips - rakeTotal;
     if (chips === 0) return;
     await appendEvent.mutateAsync({
@@ -229,6 +229,7 @@ function GameLedger({ game }: { game: Game }) {
       playerId: RAKE_PLAYER_ID,
       chips,
       ...(potChips !== undefined && { potChips }),
+      ...(typedOver && { typedOver: true }),
     });
   }
 

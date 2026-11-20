@@ -75,12 +75,13 @@ function RakeTool({ onClose }: { onClose: () => void }) {
       undoTo={latest && total - latest.chips}
       saving={false}
       saveFailed={false}
-      onSave={async (totalChips, potChips) => {
+      onSave={async (totalChips, potChips, typedOver) => {
         const entry = {
           id: crypto.randomUUID(),
           occurredAt: Date.now(),
           chips: totalChips - total,
           ...(potChips !== undefined && { potChips }),
+          ...(typedOver && { typedOver: true as const }),
         };
         setEntries([...entries, entry]);
       }}

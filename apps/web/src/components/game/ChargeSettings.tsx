@@ -73,9 +73,9 @@ import {
   pointsText,
 } from "./SetupFigures";
 
-const LAST_PRESET = "last";
-const DEFAULT_PRESET = "default";
-const CUSTOM_PRESET = "custom";
+export const LAST_PRESET = "last";
+export const DEFAULT_PRESET = "default";
+export const CUSTOM_PRESET = "custom";
 
 const ISSUE_TEXT: Record<ChargeIssue, string> = {
   invalid: "请输入有效的数字",
@@ -133,7 +133,7 @@ type ChargeKind = SavedChargeRule["kind"];
  * Last time's values, the defaults and the saved configs of one kind. Last time goes by its saved
  * name when it was a saved config, as insurance does.
  */
-function useChargePresets<Rule, Form>(
+export function useChargePresets<Rule, Form>(
   kind: ChargeKind,
   last: Rule | undefined,
   lastLabel: string,
@@ -167,7 +167,7 @@ function useChargePresets<Rule, Form>(
 }
 
 /** Where the values came from, beside the switch like insurance's, and a way to switch preset. */
-function PresetPicker<Form>({
+export function PresetPicker<Form>({
   title,
   choices,
   source,
@@ -219,7 +219,7 @@ function PresetPicker<Form>({
  * 保存配置 at the foot of an option: names its values and keeps them for later games. Shown only
  * for a valid change, one that matches no preset already on offer.
  */
-function SaveChargeConfig({
+export function SaveChargeConfig({
   kind,
   title,
   takenNames,
@@ -229,7 +229,7 @@ function SaveChargeConfig({
 }: {
   kind: ChargeKind;
   visible: boolean;
-  /** 台费, 工资 or 抽水 */
+  /** 台费, 工资, 抽水 or 基础设置 */
   title: string;
   takenNames: readonly string[];
   /** The values as a rule, or null when some are invalid */

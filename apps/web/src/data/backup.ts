@@ -213,6 +213,8 @@ const eventSchema = z.discriminatedUnion("type", [
       .refine((change) => change !== 0),
     /** Added in version 14. */
     potChips: chips.positive().optional(),
+    /** Added in version 14. */
+    typedOver: z.literal(true).optional(),
   }),
 ]);
 
@@ -287,6 +289,18 @@ const chargeRuleSchema = z.discriminatedUnion("kind", [
   z.object({ ...savedFields, kind: z.literal("wage"), rule: wageSchema }),
   /** Added in version 14. */
   z.object({ ...savedFields, kind: z.literal("rake"), rule: rakeSchema }),
+  /** Added in version 14. */
+  z.object({
+    ...savedFields,
+    kind: z.literal("basics"),
+    rule: z.object({
+      currency: gameFields.currency,
+      smallBlindChips: chips.positive(),
+      bigBlindChips: chips.positive(),
+      chipRatio: gameFields.chipRatio,
+      buyInBigBlinds: chips.positive(),
+    }),
+  }),
 ]);
 
 const collections = {

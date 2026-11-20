@@ -78,7 +78,13 @@ export interface InsuranceRounding {
   readonly chips?: number;
 }
 
-/** A table fee or wage setup kept under a name, to fill a new game's settings quickly. */
+/** A game's basic settings: the points, the ratio, the blinds and the Buy-in. */
+export type BasicSettings = Pick<
+  Game,
+  "currency" | "smallBlindChips" | "bigBlindChips" | "chipRatio"
+> & { readonly buyInBigBlinds: number };
+
+/** A table fee, wage, rake or basic settings setup kept under a name, to fill a new game's settings quickly. */
 export type SavedChargeRule = {
   readonly id: string;
   readonly organizerId: OrganizerId;
@@ -88,6 +94,7 @@ export type SavedChargeRule = {
   | { readonly kind: "table_fee"; readonly rule: TableFeeRule }
   | { readonly kind: "wage"; readonly rule: WageRule }
   | { readonly kind: "rake"; readonly rule: RakeRule }
+  | { readonly kind: "basics"; readonly rule: BasicSettings }
 );
 
 /** Odds by outs kept under a name, to fill a rule's table quickly. */
@@ -509,6 +516,8 @@ export interface RakeEvent extends LedgerEventBase {
   readonly chips: number;
   /** The pot it was worked out from, when one was typed. Missing for a rake typed in by hand. */
   readonly potChips?: number;
+  /** When the total so far was typed over to correct it, rather than added to. */
+  readonly typedOver?: true;
 }
 
 /** Ledger event. Append-only, never changed (ADR 0005). */

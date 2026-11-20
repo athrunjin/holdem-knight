@@ -487,6 +487,44 @@ describe("backup file", () => {
     expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
   });
 
+  it("round-trips saved basic settings and a rake total typed over", () => {
+    const [game] = data.games;
+    if (!game) throw new Error("Missing sample game");
+    const full: BackupData = {
+      ...data,
+      ledgerEvents: [
+        ...data.ledgerEvents,
+        {
+          id: "rk",
+          organizerId: "guest",
+          gameId: game.id,
+          occurredAt: 9,
+          type: "rake",
+          playerId: RAKE_PLAYER_ID,
+          chips: -5,
+          typedOver: true,
+        },
+      ],
+      chargeRules: [
+        {
+          id: "b",
+          organizerId: "guest",
+          name: "基础设置配置_11-20",
+          createdAt: 1,
+          kind: "basics",
+          rule: {
+            currency: "CNY",
+            smallBlindChips: 5,
+            bigBlindChips: 10,
+            chipRatio: { chips: 1, amount: cents(100) },
+            buyInBigBlinds: 100,
+          },
+        },
+      ],
+    };
+    expect(parseBackup(serializeBackup(full, 1))).toEqual({ ok: true, data: full });
+  });
+
   it("rejects backups from a newer version", () => {
     const text = edit((backup) => {
       backup.version = 15;

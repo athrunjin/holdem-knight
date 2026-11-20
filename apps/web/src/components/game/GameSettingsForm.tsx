@@ -1,7 +1,9 @@
 import {
+  type BasicSettings,
   CURRENCIES,
   type Currency,
   chipsToCents,
+  DEFAULT_GAME_SETTINGS,
   type GameSettingsForm as FormValues,
   type GameSettings,
   type InsuranceRule,
@@ -16,6 +18,7 @@ import {
   type RakeRule,
   type TableFeeIssues,
   type TableFeeRule,
+  toGameSettingsForm,
   tryParseMoney,
   type WageIssues,
   type WageRule,
@@ -31,11 +34,17 @@ import { TextMenu } from "@/components/TextMenu";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import {
+  CUSTOM_PRESET,
+  DEFAULT_PRESET,
   initialRakeChoice,
   initialTableFeeChoice,
   initialWageChoice,
+  LAST_PRESET,
+  PresetPicker,
   RakeSettings,
+  SaveChargeConfig,
   TableFeeSettings,
+  useChargePresets,
   WageSettings,
 } from "./ChargeSettings";
 import { chipsText, FigureInput, Join, Mark, pointsInputText, pointsText } from "./SetupFigures";
@@ -151,6 +160,41 @@ interface GameSettingsFormProps {
   onSubmit: (settings: GameSettings) => void;
   /** Offers saving the entered settings, beside the submit button */
   onSaveConfig?: (settings: GameSettings) => void;
+  /** Offered as "last time" for the basic settings, like the insurance rule. Older games may have no Buy-in */
+  lastBasics?: LastBasics | undefined;
+  lastBasicsLabel?: string | undefined;
+}
+
+/** The basic settings of a new game with nothing to carry over. */
+const DEFAULT_BASICS: BasicSettings = {
+  currency: DEFAULT_GAME_SETTINGS.currency,
+  smallBlindChips: DEFAULT_GAME_SETTINGS.smallBlindChips,
+  bigBlindChips: DEFAULT_GAME_SETTINGS.bigBlindChips,
+  chipRatio: DEFAULT_GAME_SETTINGS.chipRatio,
+  buyInBigBlinds: DEFAULT_GAME_SETTINGS.buyInBigBlinds,
+};
+
+type LastBasics = Omit<BasicSettings, "buyInBigBlinds"> & {
+  readonly buyInBigBlinds?: number | undefined;
+};
+
+/** Only the basic settings of a game or config, with the default Buy-in where it has none. */
+const basicsFrom = (last: LastBasics): BasicSettings => ({
+  currency: last.currency,
+  smallBlindChips: last.smallBlindChips,
+  bigBlindChips: last.bigBlindChips,
+  chipRatio: last.chipRatio,
+  buyInBigBlinds: last.buyInBigBlinds ?? DEFAULT_GAME_SETTINGS.buyInBigBlinds,
+});
+
+const toBasicsForm = (basics: BasicSettings): FormValues => toGameSettingsForm(basics);
+
+/** The basic settings as typed, or null while some are invalid. */
+function basicsOf(form: FormValues): BasicSettings | null {
+  const parsed = parseGameSettings(form);
+  if (!parsed.ok) return null;
+  const { currency, smallBlindChips, bigBlindChips, chipRatio, buyInBigBlinds } = parsed.settings;
+  return { currency, smallBlindChips, bigBlindChips, chipRatio, buyInBigBlinds };
 }
 
 export function GameSettingsForm({
@@ -173,12 +217,38 @@ export function GameSettingsForm({
   lastRake,
   lastRakeLabel = "上次配置",
   rakeLocked = false,
+  lastBasics,
+  lastBasicsLabel = "上次配置",
   saving,
   saveFailed,
   onSubmit,
   onSaveConfig,
 }: GameSettingsFormProps) {
   const [values, setValues] = useState(initial);
+  const [basicsSource, setBasicsSource] = useState(lastBasics ? LAST_PRESET : DEFAULT_PRESET);
+  const basicsPresets = useChargePresets(
+    "basics",
+    lastBasics && basicsFrom(lastBasics),
+    lastBasicsLabel,
+    DEFAULT_BASICS,
+    toBasicsForm,
+    basicsOf,
+    basicsSource,
+  );
+  /** Values changed by hand belong to no preset any more. */
+  const editValues = (next: FormValues) => {
+    setValues(next);
+    setBasicsSource(CUSTOM_PRESET);
+  };
+  /** A preset's values, apart from those the ledger has locked. */
+  function pickBasics(id: string, form: FormValues) {
+    setBasicsSource(id);
+    setValues(
+      ratioLocked
+        ? { ...values, smallBlindChips: form.smallBlindChips, bigBlindChips: form.bigBlindChips }
+        : form,
+    );
+  }
   const [insurance, setInsurance] = useState(() =>
     initialInsuranceChoice(initialInsurance, lastInsurance),
   );
@@ -211,7 +281,7 @@ export function GameSettingsForm({
   // What is typed into the hand's chips or points, from which the big blinds are worked out
   const [handDraft, setHandDraft] = useState<string | null>(null);
   const setValue = (field: keyof FormValues) => (text: string) =>
-    setValues({ ...values, [field]: text });
+    editValues({ ...values, [field]: text });
   const positive = (value: number | null) => value === null || value <= 0;
 
   /** The chips a typed hand comes to, from chips or from points by the ratio. */
@@ -230,9 +300,9 @@ export function GameSettingsForm({
     if (typed === null || !bigBlind) return;
     const bigBlinds = typed / bigBlind;
     if (Number.isInteger(bigBlinds) && bigBlinds > 0) {
-      setValues({ ...values, buyInBigBlinds: String(bigBlinds) });
+      editValues({ ...values, buyInBigBlinds: String(bigBlinds) });
     } else if (settle) {
-      setValues({ ...values, buyInBigBlinds: String(Math.max(1, Math.round(bigBlinds))) });
+      editValues({ ...values, buyInBigBlinds: String(Math.max(1, Math.round(bigBlinds))) });
     }
   }
   const chipMark = <ChipStack ground="var(--surface)" className="size-5" />;
@@ -275,157 +345,179 @@ export function GameSettingsForm({
   return (
     <form onSubmit={handleSubmit} noValidate className="flex max-w-md flex-col gap-6 pb-8">
       <div>
-        <div className="divide-y divide-line rounded-xl border border-line bg-surface">
-          {/* The whole row opens the list, which hangs under the mark at its right */}
-          <TextMenu
-            label="积分"
-            caption="积分"
-            options={CURRENCY_OPTIONS}
-            value={values.currency}
-            onChange={(currency) => setValues({ ...values, currency })}
-            align="right"
-            disabled={ratioLocked}
-            className="min-h-14 w-full px-4 py-2 font-medium"
-            captionClassName="mr-auto font-medium text-text"
-          />
-          <QuickRow
-            label="比例"
-            disabled={ratioLocked}
-            picks={RATIO_PICKS.map(({ chips: n, label }) => ({ value: String(n), label }))}
-            value={ratioAmount === 100 && ratioChips !== null ? String(ratioChips) : undefined}
-            onPick={(n) => setValues({ ...values, ratioChips: n, ratioAmount: "1.00" })}
-          >
-            <FigureInput
-              label="比例筹码"
-              value={values.ratioChips}
-              onChange={setValue("ratioChips")}
-              tidy={chipsText}
-              invalid={positive(ratioChips)}
-              wholeNumber
+        <div className="rounded-xl border border-line bg-surface">
+          {/* Always open, so with no switch; its preset sits where the others' do */}
+          <div className="flex min-h-12 items-center justify-between gap-3 px-4 pt-1">
+            <span className="font-medium">基础设置</span>
+            <PresetPicker
+              title="基础设置配置"
+              choices={basicsPresets.choices}
+              source={basicsPresets.selectedId}
+              onPick={(preset) => pickBasics(preset.id, preset.form)}
+            />
+          </div>
+          <div className="divide-y divide-line border-t border-line">
+            {/* The whole row opens the list, which hangs under the mark at its right */}
+            <TextMenu
+              label="积分"
+              caption="积分"
+              options={CURRENCY_OPTIONS}
+              value={values.currency}
+              onChange={(currency) => editValues({ ...values, currency })}
+              align="right"
               disabled={ratioLocked}
+              className="min-h-14 w-full px-4 py-2 font-medium"
+              captionClassName="mr-auto font-medium text-text"
             />
-            <Mark>{chipMark}</Mark>
-            <Join>=</Join>
-            <FigureInput
-              label="比例积分"
-              value={values.ratioAmount}
-              onChange={setValue("ratioAmount")}
-              tidy={pointsInputText}
-              invalid={positive(ratioAmount)}
-              wide
-              disabled={ratioLocked}
-            />
-            <Mark>{pointsMark}</Mark>
-          </QuickRow>
-          <QuickRow
-            label="盲注"
-            picks={BLIND_PICKS.map(({ label }) => ({ value: label, label }))}
-            value={
-              smallBlind !== null && bigBlind !== null ? `${smallBlind}/${bigBlind}` : undefined
-            }
-            onPick={(pick) => {
-              const [small = "", big = ""] = pick.split("/");
-              setValues({ ...values, smallBlindChips: small, bigBlindChips: big });
-            }}
-          >
-            <FigureInput
-              label="小盲"
-              value={values.smallBlindChips}
-              onChange={setValue("smallBlindChips")}
-              tidy={chipsText}
-              invalid={positive(smallBlind)}
-              wholeNumber
-              above={blindPoints(smallBlind)}
-            />
-            <Mark>SB</Mark>
-            <Join>/</Join>
-            <FigureInput
-              label="大盲"
-              value={values.bigBlindChips}
-              onChange={setValue("bigBlindChips")}
-              tidy={chipsText}
-              invalid={
-                positive(bigBlind) ||
-                (smallBlind !== null && bigBlind !== null && bigBlind < smallBlind)
-              }
-              wide
-              wholeNumber
-              above={blindPoints(bigBlind)}
-            />
-            <Mark>BB</Mark>
-          </QuickRow>
-          {showBuyIn && (
             <QuickRow
-              label="Buy-in"
-              accessory={
-                <button
-                  type="button"
-                  aria-label={`右侧显示${buyInInPoints ? "积分" : "筹码"}，点击切换`}
-                  onClick={() => {
-                    setHandDraft(null);
-                    setBuyInInPoints(!buyInInPoints);
-                  }}
-                  className="-my-1 ml-1 grid size-9 shrink-0 place-items-center text-muted"
-                >
-                  {buyInInPoints ? (
-                    <CurrencyIcon currency={values.currency} className="size-4.5" />
-                  ) : (
-                    <ChipStack ground="var(--surface)" className="size-4.5" />
-                  )}
-                </button>
-              }
+              label="比例"
               disabled={ratioLocked}
-              picks={BUY_IN_PICKS.map(({ bigBlinds, label }) => ({
-                value: String(bigBlinds),
-                label,
-              }))}
-              value={buyIn === null ? undefined : String(buyIn)}
-              onPick={(bigBlinds) => setValues({ ...values, buyInBigBlinds: bigBlinds })}
+              picks={RATIO_PICKS.map(({ chips: n, label }) => ({ value: String(n), label }))}
+              value={ratioAmount === 100 && ratioChips !== null ? String(ratioChips) : undefined}
+              onPick={(n) => editValues({ ...values, ratioChips: n, ratioAmount: "1.00" })}
             >
               <FigureInput
-                label="一个买入的大盲数"
-                value={values.buyInBigBlinds}
-                onChange={setValue("buyInBigBlinds")}
+                label="比例筹码"
+                value={values.ratioChips}
+                onChange={setValue("ratioChips")}
                 tidy={chipsText}
-                invalid={positive(buyIn)}
+                invalid={positive(ratioChips)}
                 wholeNumber
                 disabled={ratioLocked}
               />
-              <Mark>BB</Mark>
-              <Join>
-                <span aria-hidden className="text-xl leading-none">
-                  ⇔
-                </span>
-                <span className="sr-only">即</span>
-              </Join>
+              <Mark>{chipMark}</Mark>
+              <Join>=</Join>
               <FigureInput
-                label={buyInInPoints ? "一个买入的积分" : "一个买入的筹码"}
-                value={
-                  handDraft ??
-                  (buyInInPoints
-                    ? handPoints === null
-                      ? ""
-                      : pointsText(handPoints)
-                    : handChips === null
-                      ? ""
-                      : String(handChips))
-                }
-                onChange={(text) => {
-                  setHandDraft(text);
-                  typeHand(text, false);
-                }}
-                onBlur={() => {
-                  if (handDraft !== null) typeHand(handDraft, true);
-                  setHandDraft(null);
-                }}
-                tidy={buyInInPoints ? pointsInputText : chipsText}
+                label="比例积分"
+                value={values.ratioAmount}
+                onChange={setValue("ratioAmount")}
+                tidy={pointsInputText}
+                invalid={positive(ratioAmount)}
                 wide
-                wholeNumber={!buyInInPoints}
                 disabled={ratioLocked}
               />
-              <Mark>{buyInInPoints ? pointsMark : chipMark}</Mark>
+              <Mark>{pointsMark}</Mark>
             </QuickRow>
-          )}
+            <QuickRow
+              label="盲注"
+              picks={BLIND_PICKS.map(({ label }) => ({ value: label, label }))}
+              value={
+                smallBlind !== null && bigBlind !== null ? `${smallBlind}/${bigBlind}` : undefined
+              }
+              onPick={(pick) => {
+                const [small = "", big = ""] = pick.split("/");
+                editValues({ ...values, smallBlindChips: small, bigBlindChips: big });
+              }}
+            >
+              <FigureInput
+                label="小盲"
+                value={values.smallBlindChips}
+                onChange={setValue("smallBlindChips")}
+                tidy={chipsText}
+                invalid={positive(smallBlind)}
+                wholeNumber
+                above={blindPoints(smallBlind)}
+              />
+              <Mark>SB</Mark>
+              <Join>/</Join>
+              <FigureInput
+                label="大盲"
+                value={values.bigBlindChips}
+                onChange={setValue("bigBlindChips")}
+                tidy={chipsText}
+                invalid={
+                  positive(bigBlind) ||
+                  (smallBlind !== null && bigBlind !== null && bigBlind < smallBlind)
+                }
+                wide
+                wholeNumber
+                above={blindPoints(bigBlind)}
+              />
+              <Mark>BB</Mark>
+            </QuickRow>
+            {showBuyIn && (
+              <QuickRow
+                label="Buy-in"
+                accessory={
+                  <button
+                    type="button"
+                    aria-label={`右侧显示${buyInInPoints ? "积分" : "筹码"}，点击切换`}
+                    onClick={() => {
+                      setHandDraft(null);
+                      setBuyInInPoints(!buyInInPoints);
+                    }}
+                    className="-my-1 ml-1 grid size-9 shrink-0 place-items-center text-muted"
+                  >
+                    {buyInInPoints ? (
+                      <CurrencyIcon currency={values.currency} className="size-4.5" />
+                    ) : (
+                      <ChipStack ground="var(--surface)" className="size-4.5" />
+                    )}
+                  </button>
+                }
+                disabled={ratioLocked}
+                picks={BUY_IN_PICKS.map(({ bigBlinds, label }) => ({
+                  value: String(bigBlinds),
+                  label,
+                }))}
+                value={buyIn === null ? undefined : String(buyIn)}
+                onPick={(bigBlinds) => editValues({ ...values, buyInBigBlinds: bigBlinds })}
+              >
+                <FigureInput
+                  label="一个买入的大盲数"
+                  value={values.buyInBigBlinds}
+                  onChange={setValue("buyInBigBlinds")}
+                  tidy={chipsText}
+                  invalid={positive(buyIn)}
+                  wholeNumber
+                  disabled={ratioLocked}
+                />
+                <Mark>BB</Mark>
+                <Join>
+                  <span aria-hidden className="text-xl leading-none">
+                    ⇔
+                  </span>
+                  <span className="sr-only">即</span>
+                </Join>
+                <FigureInput
+                  label={buyInInPoints ? "一个买入的积分" : "一个买入的筹码"}
+                  value={
+                    handDraft ??
+                    (buyInInPoints
+                      ? handPoints === null
+                        ? ""
+                        : pointsText(handPoints)
+                      : handChips === null
+                        ? ""
+                        : String(handChips))
+                  }
+                  onChange={(text) => {
+                    setHandDraft(text);
+                    typeHand(text, false);
+                  }}
+                  onBlur={() => {
+                    if (handDraft !== null) typeHand(handDraft, true);
+                    setHandDraft(null);
+                  }}
+                  tidy={buyInInPoints ? pointsInputText : chipsText}
+                  wide
+                  wholeNumber={!buyInInPoints}
+                  disabled={ratioLocked}
+                />
+                <Mark>{buyInInPoints ? pointsMark : chipMark}</Mark>
+              </QuickRow>
+            )}
+          </div>
+          <div className="px-4">
+            <SaveChargeConfig
+              kind="basics"
+              title="基础设置"
+              takenNames={basicsPresets.saved.map((r) => r.name)}
+              visible={basicsPresets.isNew(values)}
+              read={() => basicsOf(values)}
+              onSaved={setBasicsSource}
+            />
+          </div>
         </div>
         {ratioLocked && (
           <p className="mt-2 text-sm text-muted">已有账本记录，积分、比例和 Buy-in 不能再修改。</p>

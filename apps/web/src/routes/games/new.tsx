@@ -121,6 +121,9 @@ function NewGamePage() {
             initialRake={start.rake}
             lastRake={configRake ?? games.data?.find((game) => game.rake)?.rake}
             lastRakeLabel={configRake && applied.choice?.name}
+            // A picked game config's basics, or else the latest game's
+            lastBasics={settings ?? latest}
+            lastBasicsLabel={settings && applied.choice?.name}
             submitLabel="下一步：选择玩家"
             saving={false}
             saveFailed={false}
