@@ -5,6 +5,8 @@ interface MiniSwitchProps {
   /** Names the switch for a reader only, where its title stands beside it */
   hideLabel?: boolean;
   checked: boolean;
+  /** Shown faded and not for switching, such as something not ready yet */
+  disabled?: boolean;
   onChange: (checked: boolean) => void;
   className?: string;
 }
@@ -14,6 +16,7 @@ export function MiniSwitch({
   label,
   hideLabel = false,
   checked,
+  disabled = false,
   onChange,
   className,
 }: MiniSwitchProps) {
@@ -22,8 +25,12 @@ export function MiniSwitch({
       type="button"
       role="switch"
       aria-checked={checked}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={cn("flex min-h-11 items-center gap-1.5 text-xs text-muted", className)}
+      className={cn(
+        "flex min-h-11 items-center gap-1.5 text-xs text-muted disabled:opacity-50",
+        className,
+      )}
     >
       {hideLabel ? <span className="sr-only">{label}</span> : label}
       <span

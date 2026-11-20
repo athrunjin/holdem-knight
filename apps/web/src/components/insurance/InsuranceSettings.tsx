@@ -101,7 +101,7 @@ export function useInsuranceConfigs({
   const lastShown = lastRule !== undefined && !lastSaved && !sameSettings(lastRule, RULE_30);
   const rules = [
     ...(lastShown ? [{ id: LAST_RULE, name: lastRuleLabel, rule: lastRule }] : []),
-    { id: DEFAULT_RULE, name: "默认设置", rule: RULE_30 },
+    { id: DEFAULT_RULE, name: "默认保险设置", rule: RULE_30 },
     ...saved.map((rule) => ({ ...rule, removable: true })),
   ];
   const selectedId =
@@ -330,7 +330,7 @@ export function InsuranceSettings({
                   onClick={() => setNaming(true)}
                   className="min-h-11 shrink-0 text-sm font-medium text-highlight"
                 >
-                  {updating ? "另存为" : "保存设置"}
+                  {updating ? "另存为" : "保存保险设置"}
                 </button>
               )}
             </div>

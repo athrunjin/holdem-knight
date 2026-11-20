@@ -230,20 +230,20 @@ export function GameSettingsForm({
   showInsurance = true,
   initialInsurance,
   lastInsurance,
-  lastInsuranceLabel = "上次设置",
+  lastInsuranceLabel = "上次保险设置",
   insuranceLocked = false,
   initialTableFee,
   lastTableFee,
-  lastTableFeeLabel = "上次设置",
+  lastTableFeeLabel = "上次台费设置",
   initialWage,
   lastWage,
-  lastWageLabel = "上次设置",
+  lastWageLabel = "上次工资设置",
   initialRake,
   lastRake,
-  lastRakeLabel = "上次设置",
+  lastRakeLabel = "上次抽水设置",
   rakeLocked = false,
   lastBasics,
-  lastBasicsLabel = "上次设置",
+  lastBasicsLabel = "上次基础设置",
   lastSources,
   saving,
   saveFailed,
@@ -601,7 +601,6 @@ export function GameSettingsForm({
           <div className="px-4">
             <SaveChargeConfig
               kind="basics"
-              title="基础设置"
               takenNames={basicsPresets.saved.map((r) => r.name)}
               visible={basicsPresets.isNew(values)}
               base={basicsPresets.base}

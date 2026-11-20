@@ -42,15 +42,19 @@ function GameSettingsPage() {
         showInsurance={game.handChips !== undefined}
         initialInsurance={game.insurance}
         lastInsurance={game.insurance}
+        lastInsuranceLabel="本局保险设置"
         insuranceLocked={insuranceActive(events)}
         initialTableFee={game.tableFee}
         lastTableFee={game.tableFee}
+        lastTableFeeLabel="本局台费设置"
         initialWage={game.wage}
         lastWage={game.wage}
+        lastWageLabel="本局工资设置"
         initialRake={game.rake}
         lastRake={game.rake}
+        lastRakeLabel="本局抽水设置"
         lastBasics={game}
-        lastBasicsLabel="本局设置"
+        lastBasicsLabel="本局基础设置"
         lastSources={game.sources}
         rakeLocked={rakeChips(events) > 0}
         saving={saveGame.isPending}

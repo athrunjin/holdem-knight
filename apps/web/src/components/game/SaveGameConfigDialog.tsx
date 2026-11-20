@@ -14,7 +14,8 @@ interface SaveGameConfigDialogProps {
 
 /**
  * Keeps the whole setup under a name. The name of the config in use is filled in, so 保存 updates
- * it and another name keeps a new one. It then opens on 取消, so a phone keyboard stays down.
+ * it and another name keeps a new one. It then opens on 取消, so a phone keyboard stays down. A
+ * name already in use says under the field that saving replaces that one, with nothing to confirm.
  */
 export function SaveGameConfigDialog({
   settings,
@@ -27,15 +28,17 @@ export function SaveGameConfigDialog({
   const [name, setName] = useState(currentName ?? "");
   const [issue, setIssue] = useState<string>();
 
+  const trimmed = name.trim();
+  // Saving under a name in use replaces that game config, which is said and not asked about
+  const taken = saved.find((config) => config.name === trimmed);
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const trimmed = name.trim();
     if (trimmed === "") {
       setIssue("请输入名称");
       return;
     }
-    const existing = saved.find((config) => config.name === trimmed);
-    const config = existing ? { ...existing, settings } : newGameConfig(trimmed, settings);
+    const config = taken ? { ...taken, settings } : newGameConfig(trimmed, settings);
     saveConfig.mutate(config, { onSuccess: () => onSaved(config.id) });
   }
 
@@ -51,7 +54,7 @@ export function SaveGameConfigDialog({
     >
       <TextField
         id="config-name"
-        label={currentName === undefined ? "名称，同名会覆盖" : "名称：同名更新，改名另存"}
+        label="全局设置名称"
         value={name}
         issue={issue}
         inputMode="text"
@@ -61,6 +64,11 @@ export function SaveGameConfigDialog({
           setIssue(undefined);
         }}
       />
+      {taken && !issue && (
+        <p role="status" className="mt-1 text-sm text-highlight">
+          已有同名的全局设置，保存会覆盖它。
+        </p>
+      )}
     </FormDialog>
   );
 }

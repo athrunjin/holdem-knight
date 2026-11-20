@@ -144,6 +144,17 @@ interface Preset<Form> {
 type ChargeKind = SavedChargeRule["kind"];
 
 /**
+ * What each kind's saved setups are called. The default, last time's and the save button carry
+ * it, as in 默认工资设置, so they are told apart from the other sections' and the whole setup's.
+ */
+export const CONFIG_NAMES: Record<ChargeKind, string> = {
+  basics: "基础设置",
+  table_fee: "台费设置",
+  wage: "工资设置",
+  rake: "抽水设置",
+};
+
+/**
  * Last time's values, the defaults and the saved configs of one kind. Last time goes by its saved
  * name when it was a saved config, as insurance does, and by the config it was taken from where
  * two hold the same values; equal to the default, it goes by the default. Values changed by hand stay with the saved config they started from,
@@ -180,7 +191,7 @@ export function useChargePresets<Rule, Form>(
     currency !== undefined && setIn(r) !== undefined && setIn(r) !== currency;
   const choices: Preset<Form>[] = [
     ...(lastShown ? [{ id: LAST_PRESET, name: lastLabel, form: toForm(last) }] : []),
-    { id: DEFAULT_PRESET, name: "默认设置", form: toForm(fallback) },
+    { id: DEFAULT_PRESET, name: `默认${CONFIG_NAMES[kind]}`, form: toForm(fallback) },
     ...[...saved.filter((r) => !foreign(r)), ...saved.filter(foreign)].map((r) => {
       const mark = setIn(r);
       return {
@@ -262,13 +273,12 @@ export function PresetPicker<Form>({
 }
 
 /**
- * 保存设置 at the foot of an option: names its values and keeps them for later games. Shown only
+ * 保存工资设置 and the like at the foot of an option: names its values and keeps them for later games. Shown only
  * for a valid change, one that matches no preset already on offer. Values changed from a saved
  * config can go back into it with 更新, when keeping them under a new name reads 另存为.
  */
 export function SaveChargeConfig({
   kind,
-  title,
   takenNames,
   visible,
   base,
@@ -280,8 +290,6 @@ export function SaveChargeConfig({
 }: {
   kind: ChargeKind;
   visible: boolean;
-  /** 台费, 工资, 抽水 or 基础设置 */
-  title: string;
   takenNames: readonly string[];
   /** The saved config the values were taken from, which 更新 saves them into */
   base?: { readonly id: string; readonly name: string } | undefined;
@@ -299,8 +307,7 @@ export function SaveChargeConfig({
   const saveRule = useSaveChargeRule();
   const followers = useConfigFollowers();
   const [naming, setNaming] = useState(false);
-  // What a saved one is called: 工资设置, and 基础设置 as it is
-  const named = title.endsWith("设置") ? title : `${title}设置`;
+  const named = CONFIG_NAMES[kind];
   const fieldsOf = (rule: NonNullable<ReturnType<typeof read>>) =>
     ({ kind, rule, ...(currency && { currency }) }) as Parameters<typeof newChargeRule>[1];
   const updating = base !== undefined && modified && read() !== null;
@@ -355,7 +362,7 @@ export function SaveChargeConfig({
             onClick={() => setNaming(true)}
             className="min-h-11 shrink-0 text-sm font-medium text-highlight"
           >
-            {updating ? "另存为" : "保存设置"}
+            {updating ? "另存为" : `保存${named}`}
           </button>
         )}
       </div>
@@ -611,7 +618,6 @@ export function TableFeeSettings({
           />
           <SaveChargeConfig
             kind="table_fee"
-            title="台费"
             takenNames={saved.map((r) => r.name)}
             visible={isNew(form)}
             base={base}
@@ -985,7 +991,6 @@ export function WageSettings({
 
           <SaveChargeConfig
             kind="wage"
-            title="工资"
             takenNames={saved.map((r) => r.name)}
             visible={isNew(form)}
             base={base}
@@ -1278,7 +1283,7 @@ function useRakePresets(
 
 /**
  * The rake rule's fields: 比例, then 封顶 and 取整 in one grid so their colons, figures and marks
- * line up, 保险报价先扣除抽水 and 保存设置. With `chipsOnly`, as in the tools with no blinds, the cap
+ * line up, 保险报价先扣除抽水 and 保存抽水设置. With `chipsOnly`, as in the tools with no blinds, the cap
  * and the smallest chip are in chips alone, and the smallest chip has common ones a tap away.
  */
 function RakeFields({
@@ -1504,20 +1509,16 @@ function RakeFields({
           <InfoButton
             title="保险报价先扣除抽水"
             text={
-              "开启后，算保险时先从底池扣除这一手的抽水，再按剩下的底池报价。\n这项还在开发中，目前开关只记录选择，不影响保险报价。"
+              "开启后，算保险时先从底池扣除这一手的抽水，再按剩下的底池报价。\n这项还在开发中，暂时不能开启。"
             }
           />
         </span>
-        <MiniSwitch
-          label="开发中"
-          checked={form.insuranceAfterRake}
-          onChange={(insuranceAfterRake) => setForm({ insuranceAfterRake })}
-        />
+        {/* Not in effect yet, so held off whatever a rule from before has kept */}
+        <MiniSwitch label="开发中" checked={false} disabled onChange={() => undefined} />
       </div>
 
       <SaveChargeConfig
         kind="rake"
-        title="抽水"
         takenNames={presets.saved.map((r) => r.name)}
         visible={presets.isNew(form)}
         base={presets.base}
@@ -1622,7 +1623,7 @@ export function RakeSettingsPanel({
   stakes,
   chipsOnly = false,
   lastRule,
-  lastRuleLabel = "上次设置",
+  lastRuleLabel = "上次抽水设置",
   lastSource,
   defaultOpen,
   onChange,

@@ -5,7 +5,7 @@ import { useGameConfigs, useRemoveGameConfig } from "@/data/game-configs";
 export const LAST_CONFIG = "last";
 /** A new game's settings with nothing to carry over. */
 export const DEFAULT_CONFIG = "default";
-export const DEFAULT_CONFIG_NAME = "默认设置";
+export const DEFAULT_CONFIG_NAME = "默认全局设置";
 
 interface GameConfigPickerProps {
   /** The chosen game config's ID, or null once it has been deleted */
@@ -35,7 +35,7 @@ export function GameConfigPicker({
   const { data: saved = [] } = useGameConfigs();
   const removeConfig = useRemoveGameConfig();
   const choices = [
-    ...(lastShown ? [{ id: LAST_CONFIG, name: "上次设置" }] : []),
+    ...(lastShown ? [{ id: LAST_CONFIG, name: "上次全局设置" }] : []),
     { id: DEFAULT_CONFIG, name: DEFAULT_CONFIG_NAME },
     ...saved.map(({ id, name }) => ({ id, name, removable: true })),
   ];
