@@ -14,7 +14,7 @@ From the repository's root:
 
 ```bash
 pnpm test          # includes the in-process tests
-pnpm db:start      # start the local Supabase and apply the migrations (needs Docker)
+pnpm db:start      # start the local Supabase and apply the migrations (needs Docker); returns once it sends the emails in supabase/templates
 pnpm db:env        # point the app's dev server at it (writes apps/web/.env.local)
 pnpm test:local    # the tests that need it running, here and in apps/web
 pnpm db:reset      # empty the local database and apply every migration again
