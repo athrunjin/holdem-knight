@@ -54,8 +54,12 @@ export async function signUp(
   db: TestDatabase,
   email: string,
   displayName?: string,
+  termsVersion?: string,
 ): Promise<TestAccount> {
-  const meta = JSON.stringify(displayName === undefined ? {} : { display_name: displayName });
+  const meta = JSON.stringify({
+    ...(displayName !== undefined && { display_name: displayName }),
+    ...(termsVersion !== undefined && { terms_version: termsVersion }),
+  });
   const user = await db.query<{ id: string }>(
     "insert into auth.users (email, raw_user_meta_data) values ($1, $2) returning id",
     [email, meta],

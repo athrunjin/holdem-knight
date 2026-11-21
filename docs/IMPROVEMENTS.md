@@ -1518,6 +1518,27 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. 保存全局设置 was first written as 保存全局配置 in the same note; the organizer confirmed 设置 throughout. Saved ones keep the names they were given. Checked in the browser preview at 393 and 360 wide, dark mode, on an isolated preview origin.
 - Tracking: PR #93, [ADR 0038](adr/0038-game-configs-follow-saved-configs.md)
 
+### #I-077 Sign-in pages: signing up, a code by email, signing in and resetting a password
+
+- Type: feature
+- Date: proposed and decided 2026-11-20
+- Source: the plan for accounts (#I-076, [ADR 0041](adr/0041-sign-in-by-email-and-password-with-codes.md))
+- Problem: 我的 had a 游客模式 card with a 登录 button that did nothing.
+- Proposal:
+  - Signing in is never asked for: the app works as a guest, and the only way in is the card on 我的, which reads 还没有登录 with 登录 and 注册.
+  - Four single-form pages under 我的: 登录 (`/me/sign-in`), 注册 (`/me/sign-up`, with a name to show, an address, a password, and a box for being 18 and agreeing to the terms), 输入验证码 (`/me/verify`, for a new account and for a reset alike) and 重置密码 (`/me/reset`, then `/me/new-password`). 用户协议 and 隐私政策 are pages with a line saying their text is to come.
+  - The code is typed into one field, large and spaced to read as six digits, so a paste and a phone's own offer of the code both land whole. Another email can be asked for after 60 seconds, counted from when the last went out.
+  - The emails are in Chinese and carry the six digits and no link. The digits are in the subject too.
+  - No page says whether an address has an account: a wrong password and an unknown address read 邮箱或密码不正确, a reset for an unknown address goes on to the code page, and so does signing up with an address that is taken, where the page adds that a registered address gets no code.
+  - A password is 8 to 72 characters with a letter and a digit, counting the letters a to z as the sign-in service does. The service asks the same, so a client that skips the page's check is refused too.
+  - A name is 1 to 30 characters: letters of any script, digits, emoji, single spaces, and `-`, `.` and `_`. Every kind of space is read as one space. It may not hold the marks code and markup are written with, anything that shows nothing or steers the text (zero-width and direction marks, blank letters), or be 保险, 抽水 or 组织者. The database holds a name to the same rule; a sign-up with a name it refuses still goes through, under what the address starts with or 玩家.
+  - Ticking the box is kept with the account: the time, noted by the service, and the version of the terms, `0` until their text is written. The account cannot write it.
+  - Signed in, the card shows the account's name, which can be changed there, its code with a button that copies it, its address, 退出登录, and a line that the records are still on this device until the next step brings them over. A browser whose session has outlived its account is signed out.
+  - A build with no Supabase project set (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`) keeps the 游客模式 card as it was, so this can go out before there is a project to sign in to.
+  - `pnpm db:env` writes the local Supabase's address and public key to `apps/web/.env.local` for the dev server.
+- Decision: do. The sign-in service itself answers that an address is taken when asked to sign up with it; the page does not pass that on, but someone asking the service directly can still learn it, which the human check planned for sign-up is there to slow down. The human check, the sending domain and the terms' text come with the first hosted project. Checked against the local Supabase: the whole flow in tests that read the codes from its mail catcher, and in the browser preview at 393 and 360 wide, dark mode.
+- Tracking: PR #97, [ADR 0041](adr/0041-sign-in-by-email-and-password-with-codes.md)
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

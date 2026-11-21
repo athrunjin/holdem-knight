@@ -22,6 +22,11 @@ export default defineConfig({
       SUPABASE_URL: stack.url,
       SUPABASE_PUBLISHABLE_KEY: stack.publicKey,
       SUPABASE_SECRET_KEY: stack.secretKey,
+      // Where the stack's emails end up, for reading the codes they carry
+      MAIL_URL: stack.mailUrl,
+      // What the app itself is built with
+      VITE_SUPABASE_URL: stack.url,
+      VITE_SUPABASE_PUBLISHABLE_KEY: stack.publicKey,
     },
   },
 });

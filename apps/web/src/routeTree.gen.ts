@@ -13,6 +13,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as ToolsRouteImport } from './routes/tools'
 import { Route as GamesNewRouteImport } from './routes/games/new'
+import { Route as MeNewPasswordRouteImport } from './routes/me_.new-password'
+import { Route as MePrivacyRouteImport } from './routes/me_.privacy'
+import { Route as MeResetRouteImport } from './routes/me_.reset'
+import { Route as MeSignInRouteImport } from './routes/me_.sign-in'
+import { Route as MeSignUpRouteImport } from './routes/me_.sign-up'
+import { Route as MeTermsRouteImport } from './routes/me_.terms'
+import { Route as MeVerifyRouteImport } from './routes/me_.verify'
 import { Route as PlayersIndexRouteImport } from './routes/players/index'
 import { Route as PlayersPlayerIdRouteImport } from './routes/players/$playerId'
 import { Route as ToolsCallTimeRouteImport } from './routes/tools_.call-time'
@@ -41,6 +48,41 @@ const ToolsRoute = ToolsRouteImport.update({
 const GamesNewRoute = GamesNewRouteImport.update({
   id: '/games/new',
   path: '/games/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeNewPasswordRoute = MeNewPasswordRouteImport.update({
+  id: '/me_/new-password',
+  path: '/me/new-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MePrivacyRoute = MePrivacyRouteImport.update({
+  id: '/me_/privacy',
+  path: '/me/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeResetRoute = MeResetRouteImport.update({
+  id: '/me_/reset',
+  path: '/me/reset',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeSignInRoute = MeSignInRouteImport.update({
+  id: '/me_/sign-in',
+  path: '/me/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeSignUpRoute = MeSignUpRouteImport.update({
+  id: '/me_/sign-up',
+  path: '/me/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeTermsRoute = MeTermsRouteImport.update({
+  id: '/me_/terms',
+  path: '/me/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeVerifyRoute = MeVerifyRouteImport.update({
+  id: '/me_/verify',
+  path: '/me/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlayersIndexRoute = PlayersIndexRouteImport.update({
@@ -94,6 +136,13 @@ export interface FileRoutesByFullPath {
   '/me': typeof MeRoute
   '/tools': typeof ToolsRoute
   '/games/new': typeof GamesNewRoute
+  '/me/new-password': typeof MeNewPasswordRoute
+  '/me/privacy': typeof MePrivacyRoute
+  '/me/reset': typeof MeResetRoute
+  '/me/sign-in': typeof MeSignInRoute
+  '/me/sign-up': typeof MeSignUpRoute
+  '/me/terms': typeof MeTermsRoute
+  '/me/verify': typeof MeVerifyRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
   '/tools/call-time': typeof ToolsCallTimeRoute
   '/tools/insurance': typeof ToolsInsuranceRoute
@@ -109,6 +158,13 @@ export interface FileRoutesByTo {
   '/me': typeof MeRoute
   '/tools': typeof ToolsRoute
   '/games/new': typeof GamesNewRoute
+  '/me/new-password': typeof MeNewPasswordRoute
+  '/me/privacy': typeof MePrivacyRoute
+  '/me/reset': typeof MeResetRoute
+  '/me/sign-in': typeof MeSignInRoute
+  '/me/sign-up': typeof MeSignUpRoute
+  '/me/terms': typeof MeTermsRoute
+  '/me/verify': typeof MeVerifyRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
   '/tools/call-time': typeof ToolsCallTimeRoute
   '/tools/insurance': typeof ToolsInsuranceRoute
@@ -125,6 +181,13 @@ export interface FileRoutesById {
   '/me': typeof MeRoute
   '/tools': typeof ToolsRoute
   '/games/new': typeof GamesNewRoute
+  '/me_/new-password': typeof MeNewPasswordRoute
+  '/me_/privacy': typeof MePrivacyRoute
+  '/me_/reset': typeof MeResetRoute
+  '/me_/sign-in': typeof MeSignInRoute
+  '/me_/sign-up': typeof MeSignUpRoute
+  '/me_/terms': typeof MeTermsRoute
+  '/me_/verify': typeof MeVerifyRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
   '/tools_/call-time': typeof ToolsCallTimeRoute
   '/tools_/insurance': typeof ToolsInsuranceRoute
@@ -142,6 +205,13 @@ export interface FileRouteTypes {
     | '/me'
     | '/tools'
     | '/games/new'
+    | '/me/new-password'
+    | '/me/privacy'
+    | '/me/reset'
+    | '/me/sign-in'
+    | '/me/sign-up'
+    | '/me/terms'
+    | '/me/verify'
     | '/players/$playerId'
     | '/tools/call-time'
     | '/tools/insurance'
@@ -157,6 +227,13 @@ export interface FileRouteTypes {
     | '/me'
     | '/tools'
     | '/games/new'
+    | '/me/new-password'
+    | '/me/privacy'
+    | '/me/reset'
+    | '/me/sign-in'
+    | '/me/sign-up'
+    | '/me/terms'
+    | '/me/verify'
     | '/players/$playerId'
     | '/tools/call-time'
     | '/tools/insurance'
@@ -172,6 +249,13 @@ export interface FileRouteTypes {
     | '/me'
     | '/tools'
     | '/games/new'
+    | '/me_/new-password'
+    | '/me_/privacy'
+    | '/me_/reset'
+    | '/me_/sign-in'
+    | '/me_/sign-up'
+    | '/me_/terms'
+    | '/me_/verify'
     | '/players/$playerId'
     | '/tools_/call-time'
     | '/tools_/insurance'
@@ -188,6 +272,13 @@ export interface RootRouteChildren {
   MeRoute: typeof MeRoute
   ToolsRoute: typeof ToolsRoute
   GamesNewRoute: typeof GamesNewRoute
+  MeNewPasswordRoute: typeof MeNewPasswordRoute
+  MePrivacyRoute: typeof MePrivacyRoute
+  MeResetRoute: typeof MeResetRoute
+  MeSignInRoute: typeof MeSignInRoute
+  MeSignUpRoute: typeof MeSignUpRoute
+  MeTermsRoute: typeof MeTermsRoute
+  MeVerifyRoute: typeof MeVerifyRoute
   PlayersPlayerIdRoute: typeof PlayersPlayerIdRoute
   ToolsCallTimeRoute: typeof ToolsCallTimeRoute
   ToolsInsuranceRoute: typeof ToolsInsuranceRoute
@@ -227,6 +318,55 @@ declare module '@tanstack/react-router' {
       path: '/games/new'
       fullPath: '/games/new'
       preLoaderRoute: typeof GamesNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me_/new-password': {
+      id: '/me_/new-password'
+      path: '/me/new-password'
+      fullPath: '/me/new-password'
+      preLoaderRoute: typeof MeNewPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me_/privacy': {
+      id: '/me_/privacy'
+      path: '/me/privacy'
+      fullPath: '/me/privacy'
+      preLoaderRoute: typeof MePrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me_/reset': {
+      id: '/me_/reset'
+      path: '/me/reset'
+      fullPath: '/me/reset'
+      preLoaderRoute: typeof MeResetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me_/sign-in': {
+      id: '/me_/sign-in'
+      path: '/me/sign-in'
+      fullPath: '/me/sign-in'
+      preLoaderRoute: typeof MeSignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me_/sign-up': {
+      id: '/me_/sign-up'
+      path: '/me/sign-up'
+      fullPath: '/me/sign-up'
+      preLoaderRoute: typeof MeSignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me_/terms': {
+      id: '/me_/terms'
+      path: '/me/terms'
+      fullPath: '/me/terms'
+      preLoaderRoute: typeof MeTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me_/verify': {
+      id: '/me_/verify'
+      path: '/me/verify'
+      fullPath: '/me/verify'
+      preLoaderRoute: typeof MeVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/players/': {
@@ -300,6 +440,13 @@ const rootRouteChildren: RootRouteChildren = {
   MeRoute: MeRoute,
   ToolsRoute: ToolsRoute,
   GamesNewRoute: GamesNewRoute,
+  MeNewPasswordRoute: MeNewPasswordRoute,
+  MePrivacyRoute: MePrivacyRoute,
+  MeResetRoute: MeResetRoute,
+  MeSignInRoute: MeSignInRoute,
+  MeSignUpRoute: MeSignUpRoute,
+  MeTermsRoute: MeTermsRoute,
+  MeVerifyRoute: MeVerifyRoute,
   PlayersPlayerIdRoute: PlayersPlayerIdRoute,
   ToolsCallTimeRoute: ToolsCallTimeRoute,
   ToolsInsuranceRoute: ToolsInsuranceRoute,

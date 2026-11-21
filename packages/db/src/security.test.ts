@@ -75,6 +75,122 @@ describe("signing up", () => {
   });
 });
 
+describe("the name an account shows", () => {
+  const valid = (name: string) =>
+    db
+      .query<{ ok: boolean | null }>("select public.valid_display_name($1) as ok", [name])
+      .then((result) => result.rows[0]?.ok);
+
+  it("may be letters of any script, digits, emoji, single spaces and - . _", async () => {
+    for (const name of [
+      "老王",
+      "Old Wang",
+      "a_b-c.d",
+      "王😀",
+      "ＡＢＣ",
+      "José",
+      "김철수",
+      "王".repeat(30),
+    ]) {
+      expect(await valid(name), name).toBe(true);
+    }
+  });
+
+  it("may not be empty, padded, doubly spaced or too long", async () => {
+    for (const name of ["", " ", " 老王", "老王 ", "a  b", "王".repeat(31)]) {
+      expect(await valid(name), JSON.stringify(name)).toBe(false);
+    }
+  });
+
+  it("may not hold what shows nothing or steers the text", async () => {
+    const unseen = [
+      "\u200b",
+      "老\u200b王",
+      "\u3164",
+      "a\u202eb",
+      "x\ue000",
+      "老\ufeff王",
+      "a\u0007b",
+      "老\u3000王",
+    ];
+    for (const name of unseen) {
+      expect(await valid(name), JSON.stringify(name)).toBe(false);
+    }
+  });
+
+  it("may not hold the marks that code and markup are written with", async () => {
+    for (const name of [
+      "<b>",
+      "a'b",
+      'a"b',
+      "a;b",
+      "a\\b",
+      "a/b",
+      "a&b",
+      "{x}",
+      "a=b",
+      "$a",
+      "a`b",
+    ]) {
+      expect(await valid(name), name).toBe(false);
+    }
+  });
+
+  it("may not be what a seat or the host is called in a game", async () => {
+    for (const name of ["保险", "抽水", "组织者", "抽 水"]) {
+      expect(await valid(name), name).toBe(false);
+    }
+    expect(await valid("保险箱")).toBe(true);
+  });
+
+  it("is held to that when the account changes it", async () => {
+    await asAccount(db, host, async () => {
+      await expect(
+        db.query("update public.profiles set display_name = '<script>' where id = $1", [host.id]),
+      ).rejects.toThrow(/check constraint/);
+      await db.query("update public.profiles set display_name = '王老板' where id = $1", [host.id]);
+    });
+  });
+
+  it("falls back on the address, then on 玩家, when the one given at sign-up is refused", async () => {
+    const shown = async (email: string, given: string) => {
+      const account = await signUp(db, email, given);
+      const profile = await db.query<{ display_name: string }>(
+        "select display_name from public.profiles where id = $1",
+        [account.id],
+      );
+      return profile.rows[0]?.display_name;
+    };
+    expect(await shown("first.last+tag@example.com", "<img src=x>")).toBe("first.lasttag");
+    expect(await shown("+++@example.com", "保险")).toBe("玩家");
+  });
+});
+
+describe("agreeing to the terms", () => {
+  it("is kept with its time and the text's version when an account signs up through the app", async () => {
+    const account = await signUp(db, "agreed@example.com", "同意的人", "2026-11");
+    const profile = await db.query<{ agreed_at: Date | null; agreed_version: string | null }>(
+      "select agreed_at, agreed_version from public.profiles where id = $1",
+      [account.id],
+    );
+    expect(profile.rows[0]?.agreed_version).toBe("2026-11");
+    expect(profile.rows[0]?.agreed_at).toBeInstanceOf(Date);
+  });
+
+  it("is missing on an account made another way, and cannot be written by the account", async () => {
+    const profile = await db.query<{ agreed_at: Date | null }>(
+      "select agreed_at from public.profiles where id = $1",
+      [other.id],
+    );
+    expect(profile.rows[0]?.agreed_at).toBeNull();
+    await asAccount(db, other, async () => {
+      await expect(
+        db.query("update public.profiles set agreed_at = now() where id = $1", [other.id]),
+      ).rejects.toThrow(/permission denied/);
+    });
+  });
+});
+
 describe("the owner of a space", () => {
   it("reads and keeps its books", async () => {
     await asAccount(db, host, async () => {

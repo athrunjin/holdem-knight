@@ -20,7 +20,8 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "db:start": "pnpm --filter @holdem-knight/db db:start",
     "db:stop": "pnpm --filter @holdem-knight/db db:stop",
-    "db:reset": "pnpm --filter @holdem-knight/db db:reset"
+    "db:reset": "pnpm --filter @holdem-knight/db db:reset",
+    "db:env": "pnpm --filter @holdem-knight/db db:env"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
