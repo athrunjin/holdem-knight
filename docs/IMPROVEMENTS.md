@@ -1539,6 +1539,22 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. The sign-in service itself answers that an address is taken when asked to sign up with it; the page does not pass that on, but someone asking the service directly can still learn it, which the human check planned for sign-up is there to slow down. The human check, the sending domain and the terms' text come with the first hosted project. Checked against the local Supabase: the whole flow in tests that read the codes from its mail catcher, and in the browser preview at 393 and 360 wide, dark mode.
 - Tracking: PR #97, [ADR 0041](adr/0041-sign-in-by-email-and-password-with-codes.md)
 
+### #I-078 Signed in, the books are the account's
+
+- Type: feature
+- Date: proposed and decided 2026-11-21
+- Source: the plan for accounts (#I-076), after the sign-in pages (#I-077)
+- Problem: an account could sign in, and every page went on reading and writing the device's storage as the guest.
+- Proposal:
+  - Signing in opens the account's space: games, players, the ledger, insurance hands and every saved 设置 are read from and written to Supabase. Signing out goes back to the device's records, which are left as they were.
+  - The guest's records are not brought into the account. The card on 我的 says so before and after signing in. One-tap import waits until there are released records to bring over.
+  - While the account's space is being read the page waits, saying 正在打开账户… if that takes more than a moment. If it cannot be read the page is 连不上账户, with 重试 and 退出登录, and tries again when the network is back. The guest's records are never shown in an account's place.
+  - A read that fails puts a line over the page, 云端的记录没有读出来，这一页可能不完整, with 重试. A write that fails says so where it was made, as before.
+  - The organizer on a game's pages and in what is shared from them is the name of the account's space, where the space's ID would have shown.
+  - 数据备份 exports and restores the account's records when signed in, and says so. A guest's backup is refused by an account.
+- Decision: do. With no network an account cannot record until the ledger is written to the device first (M6, step 2), so a real game is safer as a guest until then. Checked with unit tests of the switching, a test against the local Supabase that signs in and out with both storages real, and in the browser preview at 412 wide, dark mode: a guest's player, signing in to an empty account, a player and a game started in it, signing out to the guest's player, a failed read and its 重试, and an account that cannot be reached.
+- Tracking: PR #98, [ADR 0046](adr/0046-the-books-in-use-follow-who-is-signed-in.md)
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

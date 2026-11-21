@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { CallTimeFloat } from "@/components/call-time/CallTimeFloat";
 import { cn } from "@/lib/cn";
+import { BooksGate } from "./BooksGate";
 import { NAV_ITEMS } from "./nav-items";
 import { UpdatePrompt } from "./UpdatePrompt";
 
@@ -63,7 +64,9 @@ export function AppShell() {
       </nav>
 
       <main className="min-w-0 pt-[env(safe-area-inset-top)] pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-8">
-        <Outlet />
+        <BooksGate>
+          <Outlet />
+        </BooksGate>
       </main>
 
       {/* Phone: bottom navigation */}

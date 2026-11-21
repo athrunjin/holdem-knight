@@ -20,7 +20,7 @@ import { GameSettingsForm } from "@/components/game/GameSettingsForm";
 import { PlayerPicker } from "@/components/game/PlayerPicker";
 import { SaveGameConfigDialog } from "@/components/game/SaveGameConfigDialog";
 import { Page } from "@/components/Page";
-import { GUEST_ORGANIZER_ID } from "@/data";
+import { currentOrganizerId } from "@/data";
 import { useConfigLibrary } from "@/data/config-library";
 import { useGameConfigs } from "@/data/game-configs";
 import { useGames, useStartGame } from "@/data/games";
@@ -61,7 +61,7 @@ function NewGamePage() {
     const game = createGame(
       {
         id: crypto.randomUUID(),
-        organizerId: GUEST_ORGANIZER_ID,
+        organizerId: currentOrganizerId(),
         createdAt: now,
         timeZone: deviceTimeZone(),
       },

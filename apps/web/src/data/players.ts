@@ -2,14 +2,14 @@ import { type Player, recentPlayers } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { toInitials } from "@/lib/pinyin";
-import { GUEST_ORGANIZER_ID, repository } from ".";
+import { currentOrganizerId, repository } from ".";
 
 const PLAYERS_KEY = ["players"] as const;
 
 export function newPlayer(name: string): Player {
   return {
     id: crypto.randomUUID(),
-    organizerId: GUEST_ORGANIZER_ID,
+    organizerId: currentOrganizerId(),
     name,
     initials: toInitials(name),
     createdAt: Date.now(),

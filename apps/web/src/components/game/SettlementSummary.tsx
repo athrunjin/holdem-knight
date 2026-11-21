@@ -9,6 +9,7 @@ import {
   timerElapsedMs,
 } from "@holdem-knight/core";
 import { TextMenu } from "@/components/TextMenu";
+import { organizerNameOf } from "@/data";
 import { useSaveGame } from "@/data/games";
 import { BalanceTile, BuyInTile, GameHostLine, GameTiles, Tile } from "./GameTiles";
 import { formatElapsed } from "./GameTimer";
@@ -38,7 +39,7 @@ export function SettlementSummary({ game, ledger, difference, onLocked }: Settle
   // Short enough to sit over the balance box; the box under it has the amount
   const choices: readonly (readonly [ImbalanceHandling, string])[] = [
     ["split", `水${difference > 0 ? "上" : "下"}比例分摊`],
-    ["organizer", `${game.organizerId} ${difference > 0 ? "承担" : "收取"}`],
+    ["organizer", `${organizerNameOf(game)} ${difference > 0 ? "承担" : "收取"}`],
     ["ignore", "不做处理"],
   ];
   const chosen = choices.find(([handling]) => handling === game.imbalanceHandling)?.[1];

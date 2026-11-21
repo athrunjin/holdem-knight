@@ -7,12 +7,12 @@ import {
 } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { GUEST_ORGANIZER_ID, repository } from ".";
+import { currentOrganizerId, repository } from ".";
 
 export function newEventMeta(gameId: string, occurredAt = Date.now()) {
   return {
     id: crypto.randomUUID(),
-    organizerId: GUEST_ORGANIZER_ID,
+    organizerId: currentOrganizerId(),
     gameId,
     occurredAt,
   };

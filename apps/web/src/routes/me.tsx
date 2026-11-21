@@ -38,7 +38,7 @@ function SignedOut() {
     <section className={cardClass}>
       <p className="font-medium">还没有登录</p>
       <p className="mt-1 text-sm text-muted">
-        记录只保存在这台设备上。登录后自动保存到云端，换手机也不会丢。
+        记录只保存在这台设备上。登录后新的记录保存到云端的账户里，换手机也不会丢。这台设备上已有的记录暂时不会带进账户。
       </p>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <Link
@@ -70,7 +70,7 @@ function MePage() {
       )}
       {/* While the kept session is being read, the card's place stays empty for a moment */}
       {session.status === "loading" && <section className={`${cardClass} min-h-40`} />}
-      <BackupSection />
+      <BackupSection account={session.status === "signed-in"} />
       <p className="mt-6 text-center text-xs text-muted">
         Hold’em Knight · 开发版 {__APP_VERSION__}
       </p>

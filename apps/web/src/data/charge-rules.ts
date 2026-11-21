@@ -1,7 +1,7 @@
 import type { Currency, SavedChargeRule, SettingsSection } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { GUEST_ORGANIZER_ID, repository } from ".";
+import { currentOrganizerId, repository } from ".";
 import { GAME_CONFIGS_KEY, releaseGameConfigs } from "./game-configs";
 
 const CHARGE_RULES_KEY = ["charge-rules"] as const;
@@ -27,7 +27,7 @@ type ChargeRuleFields = Pick<SavedChargeRule, "kind" | "rule"> & {
 export function newChargeRule(name: string, fields: ChargeRuleFields): SavedChargeRule {
   return {
     id: crypto.randomUUID(),
-    organizerId: GUEST_ORGANIZER_ID,
+    organizerId: currentOrganizerId(),
     name,
     createdAt: Date.now(),
     ...fields,
