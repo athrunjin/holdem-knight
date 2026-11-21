@@ -54,5 +54,5 @@ pnpm test:local       # Tests through its sign-in and API; pnpm db:reset empties
 
 ## Design tokens
 
-Table-felt green is the base and chip gold is the only accent color; dark is the main mode. Tokens are defined in `apps/web/src/styles.css`.
+Table-felt green is the base and chip gold is the only accent color; dark is the only mode, whatever the device is set to. Tokens are defined in `apps/web/src/styles.css`.
 The logo, icons and brand rules are in `docs/brand/README.md` (ADR 0021).

@@ -127,10 +127,7 @@ function SettlementPage() {
       }
       actions={
         // The emblem, no taller than the title and the line under it
-        <picture className="shrink-0">
-          <source srcSet="/emblem-on-dark.svg" media="(prefers-color-scheme: dark)" />
-          <img src="/emblem-on-light.svg" alt="" className="h-12 w-auto" />
-        </picture>
+        <img src="/emblem-on-dark.svg" alt="" className="h-12 w-auto shrink-0" />
       }
     >
       {/* The game's settings, to read only: they are changed from the game page */}
