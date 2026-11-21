@@ -15,7 +15,7 @@ export const common: Messages["common"] = {
   close: "Close",
   rebuy: "Rebuy",
   rejoin: "Rejoin",
-  rejoined: "Rejoined",
+  rejoined: "Back",
   settings: "Settings",
   couldntSaveTryAgain: "Couldn’t save. Try again.",
   timeCharge: "Fee",

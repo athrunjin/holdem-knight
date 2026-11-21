@@ -130,6 +130,8 @@ export const game = {
     gameSettings: "全局设置",
   },
   gameOptions: {
+    /** In the row of what a game has on, where each is two characters or a short word. */
+    insuranceTag: "保险",
     off: "（未开启）",
     editSettings: "修改设置",
     viewSettings: "查看设置",

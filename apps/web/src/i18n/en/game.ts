@@ -9,15 +9,15 @@ export const game: Messages["game"] = {
     create: (a) => `Create “${a}”`,
   },
   buyInRecord: {
-    satDown: "Sat down",
-    chipsBack: "Chips back",
+    satDown: "Sit",
+    chipsBack: "Refund",
     left: "Left",
-    cashOut: "Cash-out",
+    cashOut: "Out",
     collapseTheBuyInRecord: "Collapse the buy-in record",
     dayOfMonth: (a) => `${a}`,
     timesBefore: "",
     timesAfter: "×",
-    boughtIn: "Bought in",
+    boughtIn: "In",
   },
   chargeSettings: {
     enterAValidNumber: "Enter a valid number",
@@ -135,6 +135,7 @@ export const game: Messages["game"] = {
     gameSettings: "Game settings",
   },
   gameOptions: {
+    insuranceTag: "Ins",
     off: "(off)",
     editSettings: "Edit settings",
     viewSettings: "View settings",

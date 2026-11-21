@@ -9,7 +9,7 @@ import { GAME_OPTIONS, type GameOption, hasOption } from "@/lib/game-history";
 
 /** What a game can charge or offer: each one's name, and its color while it is on. */
 export const OPTION_MARKS: Record<GameOption, { label: string; className: string }> = {
-  insurance: { label: t.common.insurance, className: "text-highlight" },
+  insurance: { label: t.game.gameOptions.insuranceTag, className: "text-highlight" },
   wage: { label: t.common.dealerWage, className: "text-win" },
   tableFee: { label: t.common.timeCharge, className: "text-win" },
   rake: { label: t.common.rake, className: "text-win" },
