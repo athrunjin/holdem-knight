@@ -403,7 +403,7 @@ export function LedgerPlayers({
                 onClick={() => onReturn(INSURANCE_PLAYER_ID)}
                 className={cn(cellButtonClass, "col-span-2 text-highlight")}
               >
-                {t.common.rejoined}
+                {t.common.rejoin}
               </button>
             ) : (
               <>
@@ -518,7 +518,7 @@ export function LedgerPlayers({
             onClick={() => onReturn(ORGANIZER_PLAYER_ID)}
             className="flex min-h-11 items-center"
           >
-            <span className={cn(pillClass, "border-line")}>{t.common.rejoined}</span>
+            <span className={cn(pillClass, "border-line")}>{t.common.rejoin}</span>
           </button>
         )),
     };
@@ -664,7 +664,7 @@ export function LedgerPlayers({
                       onClick={() => onReturn(playerId)}
                       className={actionClass}
                     >
-                      {t.common.rejoined}
+                      {t.common.rejoin}
                     </button>
                   )}
                 </li>

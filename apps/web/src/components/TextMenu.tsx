@@ -82,7 +82,7 @@ export function TextMenu<T extends string>({
         disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`${label}：${current ? readerText(current) : typeof placeholder === "string" ? placeholder : ""}`}
+        aria-label={`${label}${t.common.colon}${current ? readerText(current) : typeof placeholder === "string" ? placeholder : ""}`}
         onClick={() => setOpen(!open)}
         className={cn("flex min-h-11 max-w-full items-center gap-1 disabled:opacity-60", className)}
       >

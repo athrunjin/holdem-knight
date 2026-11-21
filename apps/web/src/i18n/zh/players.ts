@@ -1,5 +1,6 @@
 /** The player library. */
 export const players = {
+  title: "玩家",
   playerList: {
     allPlayers: "全部玩家",
     groups: "分组",

@@ -2,7 +2,7 @@ import type { Messages } from "../zh";
 
 export const gamePages: Messages["gamePages"] = {
   ledger: {
-    game: "Game",
+    game: "Games",
     thisGameCantBeFound: "This game can’t be found.",
     backToGames: "Back to games",
     adjustBuyIns: "Adjust buy-ins",
@@ -24,13 +24,13 @@ export const gamePages: Messages["gamePages"] = {
   settings: {
     editSettings: "Edit settings",
     thisGamesInsuranceSettings: "This game’s insurance settings",
-    thisGamesTimeChargeSettings: "This game’s time charge settings",
-    thisGamesDealerWageSettings: "This game’s dealer wage settings",
+    thisGamesTimeChargeSettings: "This game’s fee settings",
+    thisGamesDealerWageSettings: "This game’s wage settings",
     thisGamesRakeSettings: "This game’s rake settings",
     thisGamesBasics: "This game’s basics",
   },
   settlement: {
-    thisGameHasNoInsuranceDealer: "This game has no insurance, dealer wage, time charge or rake.",
+    thisGameHasNoInsuranceDealer: "This game has no insurance, wage, fee or rake.",
     charges: "Charges",
     stillAtTheTableEveryoneHas: (a, b) =>
       `${a} still at the table: ${b}. Everyone has to leave before settling.`,
@@ -103,6 +103,6 @@ export const gamePages: Messages["gamePages"] = {
     inProgress: "In progress",
     settling: "Settling",
     gamesYouPlayInAsA: "Games you play in as a player will show here.",
-    game: "Game",
+    game: "Games",
   },
 };

@@ -114,7 +114,7 @@ export function HandCardPicker({
             options={targets.map(({ id, label, cards, count, disabled, faint }) => ({
               value: id,
               name: t.insurance.handCardPicker.ofPicked(label, cards.length, count),
-              chosen: `${label}（${cards.length}/${count}）`,
+              chosen: `${label}${t.common.openParen}${cards.length}/${count}${t.common.closeParen}`,
               // The name keeps a width of its own, so the counts line up down the list
               label: (
                 <span
@@ -165,7 +165,9 @@ export function HandCardPicker({
                 disabled={(owner !== undefined && !own) || target.disabled}
                 aria-pressed={own}
                 aria-label={
-                  owner ? `${formatCardText(card)}，${owner.label}` : formatCardText(card)
+                  owner
+                    ? `${formatCardText(card)}${t.common.comma}${owner.label}`
+                    : formatCardText(card)
                 }
                 onClick={() => toggle(card)}
                 className={cn(

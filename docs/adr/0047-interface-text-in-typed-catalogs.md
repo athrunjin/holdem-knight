@@ -21,7 +21,9 @@ Every word of the interface was written in Chinese where it is shown: about a th
 - Dates are formatted for the language in use (`localeTag`). Amounts and chip counts read the same in both.
 - The language is the device's first that the interface comes in: Chinese for any kind of Chinese, else English. 我的 has a row to pick one instead, which takes effect at once and is kept in the browser. Each language is listed under its own name. The page's `lang` follows.
 - Poker's own words that the Chinese interface already has in English, such as Buy-in and Call Time, stay as they are in both.
-- English for the game's own words follows common usage in cash games: buy-in, rebuy, cash-out, rake and its cap, time charge for 台费, dealer wage for 工资, premium, payout, outs and odds for insurance.
+- English for the game's own words follows common usage in cash games: buy-in, rebuy, cash-out, rake and its cap, premium, payout, outs and odds for insurance. Where a page was laid out for two Chinese characters the English is the short word, so the layout stays the Chinese one: Wage for 工资 and Fee for 台费, Round with Nearest, Up and Down, Min chip, Seated.
+- Marks that differ by language, such as brackets, the colon and what separates a list, are in `common` too, not written into the code.
+- English dates use the device's own tag for English, so their order is that of its region.
 - Tests read the interface in Chinese whatever the machine is set to (`src/test-setup.ts`).
 
 ## Consequences

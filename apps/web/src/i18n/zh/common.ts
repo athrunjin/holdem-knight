@@ -13,6 +13,7 @@ export const common = {
   enterAName: "请输入名称",
   close: "关闭",
   rebuy: "补码",
+  rejoin: "回桌",
   rejoined: "回桌",
   settings: "设置",
   couldntSaveTryAgain: "保存失败，请重试。",
@@ -34,4 +35,10 @@ export const common = {
   tie: "平分",
   outdraw: "反超",
   ahead: "领先",
+  /** Marks around and between pieces of text, which differ by language. */
+  openParen: "（",
+  closeParen: "）",
+  listSeparator: "、",
+  colon: "：",
+  comma: "，",
 };

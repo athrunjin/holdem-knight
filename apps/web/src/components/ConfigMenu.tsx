@@ -114,7 +114,7 @@ export function ConfigMenu({
       <button
         type="button"
         aria-haspopup="dialog"
-        aria-label={`${label}：${name}${changed ? MODIFIED_MARK : ""}`}
+        aria-label={`${label}${t.common.colon}${name}${changed ? MODIFIED_MARK : ""}`}
         onClick={() => setOpen(true)}
         className={cn("flex min-h-11 max-w-full min-w-0 items-center gap-1", className)}
       >

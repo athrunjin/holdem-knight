@@ -249,7 +249,11 @@ function missingParts(hand: InsuranceHand, nameOf: (id: string) => string): stri
         ...(player.cover || player.chips > 0 ? [] : [t.common.chips]),
         ...(player.cards.length === 2 ? [] : [t.insurance.insuranceHandFlow.holeCards]),
       ];
-      return parts.length > 0 ? [`${nameOf(player.playerId)}（${parts.join("、")}）`] : [];
+      return parts.length > 0
+        ? [
+            `${nameOf(player.playerId)}${t.common.openParen}${parts.join(t.common.listSeparator)}${t.common.closeParen}`,
+          ]
+        : [];
     }),
   ];
 }
@@ -703,7 +707,7 @@ export function InsuranceHandFlow({
             <p className="text-sm text-muted">
               {missing.length > 0
                 ? t.insurance.insuranceHandFlow.stillNeededInsuranceShowsHereOnce(
-                    missing.join("、"),
+                    missing.join(t.common.listSeparator),
                   )
                 : t.insurance.insuranceHandFlow.onlyOnePlayerCanCoverAnd}
             </p>

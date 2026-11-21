@@ -19,7 +19,7 @@ function PlayerPage() {
   const player = players?.find(({ id }) => id === playerId);
   if (!players || !player) {
     return (
-      <Page title={t.common.player}>
+      <Page title={t.players.title}>
         <p className="text-muted">{t.players.playerPage.thisPlayerCantBeFound}</p>
         <Link to="/players" className="mt-2 inline-flex min-h-11 items-center text-highlight">
           {t.players.playerPage.backToPlayers}

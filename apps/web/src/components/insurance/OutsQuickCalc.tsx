@@ -426,7 +426,11 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
         ...(staked(player) ? [] : [t.common.chips]),
         ...(index === trailer && trailerEntry === undefined ? ["Outs"] : []),
       ];
-      return needs.length > 0 ? [`${nameOf(player.playerId)}（${needs.join("、")}）`] : [];
+      return needs.length > 0
+        ? [
+            `${nameOf(player.playerId)}${t.common.openParen}${needs.join(t.common.listSeparator)}${t.common.closeParen}`,
+          ]
+        : [];
     }),
   ];
 
@@ -605,7 +609,9 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
         ) : (
           <p className="text-sm text-muted">
             {missing.length > 0
-              ? t.insurance.outsQuickCalc.stillNeededInsuranceShowsHereOnce(missing.join("、"))
+              ? t.insurance.outsQuickCalc.stillNeededInsuranceShowsHereOnce(
+                  missing.join(t.common.listSeparator),
+                )
               : t.insurance.outsQuickCalc.onlyOnePlayerCanCoverAnd}
           </p>
         )}

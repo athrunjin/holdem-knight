@@ -101,8 +101,10 @@ export function HandsDialog({
           <p className="mt-2 text-center text-sm text-muted">
             {t.game.handsDialog.chips}{" "}
             <span className={cn("tabular-nums", tone)}>
-              {formatSignedChips(by * handChips)}（
-              {formatGameAmount(chipsToCents(by * handChips, ratio), currency, "exceptZero")}）
+              {formatSignedChips(by * handChips)}
+              {t.common.openParen}
+              {formatGameAmount(chipsToCents(by * handChips, ratio), currency, "exceptZero")}
+              {t.common.closeParen}
             </span>
           </p>
         </div>

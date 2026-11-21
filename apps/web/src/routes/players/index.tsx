@@ -31,7 +31,7 @@ function PlayersPage() {
   if (isPending) return null;
 
   return (
-    <Page title={t.common.player}>
+    <Page title={t.players.title}>
       <div className="pb-6">
         <PlayerSearch
           label={t.players.library.searchOrAddAPlayer}

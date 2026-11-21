@@ -119,23 +119,23 @@ export const insurance: Messages["insurance"] = {
   insuranceRounding: {
     thePremiumIsPayoutOddsAnd:
       "The premium is “payout ÷ odds” and the payout is “premium × odds”. For either, any part smaller than the smallest chip is:",
-    roundHalfAChipOrMore: "· Round: half a chip or more goes up, less is dropped",
-    roundDownThePartIsDropped: "· Round down: the part is dropped",
-    roundUpAnyPartGoesUp: "· Round up: any part goes up to a chip",
+    roundHalfAChipOrMore: "· Nearest: half a chip or more goes up, less is dropped",
+    roundDownThePartIsDropped: "· Down: the part is dropped",
+    roundUpAnyPartGoesUp: "· Up: any part goes up to a chip",
     thePremiumIsAtLeastOne:
       "The premium is at least one smallest chip. After rounding, a stake-back payout may be a little under or over the stake, and a full-pot payout may slightly exceed the share of the pot.",
     withRoundingOffWholeChipsAre:
       "With rounding off, whole chips are used: stake-back and half-pot payouts are at least the amount, and a full-pot payout never exceeds the share of the pot.",
-    rounding: "Rounding",
-    smallestChipChips: "Smallest chip (chips)",
-    quickSmallestChip: "Quick smallest chip",
+    rounding: "Round",
+    smallestChipChips: "Min chip (chips)",
+    quickSmallestChip: "Quick min chip",
     leftover: "Leftover",
     leftover2: "Leftover:",
-    smallestChip: "Smallest chip:",
-    smallestChipSb: "Smallest chip (SB)",
+    smallestChip: "Min chip:",
+    smallestChipSb: "Min chip (SB)",
   },
   insuranceSettings: {
-    defaultInsuranceSettings: "Default insurance settings",
+    defaultInsuranceSettings: "Default",
     insuranceSettings: "Insurance settings",
     someRulesArentValid: "Some rules aren’t valid",
     thisGameAlreadyHasInsuranceRecorded:
@@ -175,7 +175,7 @@ export const insurance: Messages["insurance"] = {
     applyToThisGame: "Apply to this game?",
     saveAsAnOddsTableTo: "Save as an odds table to apply quickly next time?",
     oddsTableNameAnExistingName: "Odds table name. An existing name is overwritten",
-    inProgress: "In progress",
+    inProgress: "Soon",
   },
   oddsTableMenu: {
     view: "View",

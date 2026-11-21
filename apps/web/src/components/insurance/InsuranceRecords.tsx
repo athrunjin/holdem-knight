@@ -194,7 +194,8 @@ export function InsuranceRecords({ hands, records, nameOf, actions }: InsuranceR
             className="flex min-h-11 w-full items-center gap-1 text-sm text-muted"
           >
             {t.insurance.insuranceRecords.insuranceLog}
-            {count}）
+            {count}
+            {t.common.closeParen}
             {pending > 0 && (
               <span className="text-highlight">
                 {t.insurance.insuranceRecords.pending2(pending)}

@@ -491,7 +491,7 @@ function HourPicker({
       <button
         type="button"
         aria-haspopup="dialog"
-        aria-label={`${title}：${value === NO_END ? NO_END_NAME : name}`}
+        aria-label={`${title}${t.common.colon}${value === NO_END ? NO_END_NAME : name}`}
         onClick={() => setOpen(true)}
         className="flex min-h-11 items-center gap-0.5 font-medium"
       >
@@ -1146,7 +1146,7 @@ function RakeAmountFigures({
   return (
     <span className="contents font-medium">
       <FigureInput
-        label={`${label}（${mark}）`}
+        label={`${label}${t.common.openParen}${mark}${t.common.closeParen}`}
         value={unit === blind ? amount : blinds === null ? "" : blindText(blinds)}
         onChange={(text) => onChange(blind, text)}
         invalid={invalid}
@@ -1159,7 +1159,7 @@ function RakeAmountFigures({
         <span className="sr-only">{t.common.equals}</span>
       </Join>
       <FigureInput
-        label={`${label}（${inPoints ? t.game.chargeSettings.currency : t.common.chips}）`}
+        label={`${label}${t.common.openParen}${inPoints ? t.game.chargeSettings.currency : t.common.chips}${t.common.closeParen}`}
         value={right}
         onChange={typeRight}
         onBlur={() => setDraft(null)}

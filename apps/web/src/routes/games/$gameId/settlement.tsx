@@ -165,7 +165,10 @@ function SettlementPage() {
       )}
       {seated.length > 0 ? (
         <Notice gameId={gameId}>
-          {t.gamePages.settlement.stillAtTheTableEveryoneHas(seated.length, seated.join("、"))}
+          {t.gamePages.settlement.stillAtTheTableEveryoneHas(
+            seated.length,
+            seated.join(t.common.listSeparator),
+          )}
         </Notice>
       ) : (
         <>

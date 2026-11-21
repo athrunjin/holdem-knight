@@ -64,8 +64,15 @@ export const languageChoice: LanguageChoice = choice;
  */
 export const t: Messages = LANGUAGES[language].catalog;
 
-/** The language tag for formatting dates and numbers as the interface reads. */
-export const localeTag: string = LANGUAGES[language].tag;
+/**
+ * The language tag for formatting dates as the interface reads. The device's own tag for the
+ * language is used where it has one, so English dates are in the order of its region.
+ */
+export const localeTag: string =
+  (typeof navigator === "undefined"
+    ? undefined
+    : navigator.languages.find((tag) => tag.toLowerCase().split("-")[0] === language)) ??
+  LANGUAGES[language].tag;
 
 /**
  * Keeps the choice in this browser and loads the page again in it. A language is changed rarely,
