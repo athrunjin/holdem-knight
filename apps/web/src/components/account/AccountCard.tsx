@@ -155,7 +155,7 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
       )}
 
       <p className="mt-3 text-sm text-muted">
-        已登录。牌局和玩家记录目前仍保存在这台设备上，同步到云端的功能还在开发中。
+        已登录。牌局和玩家记录保存在云端的账户里，需要联网才能读写。这台设备上登录前的游客记录没有带进账户，退出登录后还在。
       </p>
       <button
         type="button"

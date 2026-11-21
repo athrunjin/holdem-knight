@@ -18,7 +18,7 @@ import {
 } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { GUEST_ORGANIZER_ID, repository } from ".";
+import { currentOrganizerId, repository } from ".";
 import { GAME_CONFIGS_KEY, releaseGameConfigs } from "./game-configs";
 import { newEventMeta } from "./ledger";
 
@@ -31,7 +31,7 @@ export function useInsuranceRules() {
 export function newSavedRule(name: string, rule: SavedInsuranceRule["rule"]): SavedInsuranceRule {
   return {
     id: crypto.randomUUID(),
-    organizerId: GUEST_ORGANIZER_ID,
+    organizerId: currentOrganizerId(),
     name,
     rule,
     createdAt: Date.now(),
@@ -71,7 +71,7 @@ export function useOddsTables() {
 export function newOddsTable(name: string, oddsHundredths: readonly number[]): SavedOddsTable {
   return {
     id: crypto.randomUUID(),
-    organizerId: GUEST_ORGANIZER_ID,
+    organizerId: currentOrganizerId(),
     name,
     oddsHundredths,
     createdAt: Date.now(),
@@ -147,7 +147,7 @@ function ledgerScope(gameId: string) {
 export function newInsuranceHand(gameId: string): InsuranceHand {
   return blankInsuranceHand({
     id: crypto.randomUUID(),
-    organizerId: GUEST_ORGANIZER_ID,
+    organizerId: currentOrganizerId(),
     gameId,
     createdAt: Date.now(),
   });

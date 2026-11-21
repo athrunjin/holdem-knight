@@ -9,16 +9,17 @@ import {
   RAKE_PLAYER_ID,
   RAKE_PLAYER_NAME,
 } from "@holdem-knight/core";
+import { organizerNameOf } from "@/data";
 
 /**
- * Names for everyone with chips in a game: the players, the insurance and rake seats and the organizer,
- * whose ID stands in until organizers have names (M6).
+ * Names for everyone with chips in a game: the players, the insurance and rake seats and the
+ * organizer, by the name of their space.
  */
 export function gameNameOf(players: readonly Player[], game: Pick<Game, "organizerId">) {
   const names = new Map(players.map(({ id, name }) => [id, name]));
   names.set(INSURANCE_PLAYER_ID, INSURANCE_PLAYER_NAME);
   names.set(RAKE_PLAYER_ID, RAKE_PLAYER_NAME);
-  names.set(ORGANIZER_PLAYER_ID, game.organizerId);
+  names.set(ORGANIZER_PLAYER_ID, organizerNameOf(game));
   return (playerId: string) => names.get(playerId) ?? "未知玩家";
 }
 

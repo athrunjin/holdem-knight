@@ -7,7 +7,7 @@ import {
 } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { GUEST_ORGANIZER_ID, repository } from ".";
+import { currentOrganizerId, repository } from ".";
 
 export const GAME_CONFIGS_KEY = ["game-configs"] as const;
 const CONFIGS_KEY = GAME_CONFIGS_KEY;
@@ -19,7 +19,7 @@ export function useGameConfigs() {
 export function newGameConfig(name: string, settings: GameSettings): SavedGameConfig {
   return {
     id: crypto.randomUUID(),
-    organizerId: GUEST_ORGANIZER_ID,
+    organizerId: currentOrganizerId(),
     name,
     settings,
     createdAt: Date.now(),

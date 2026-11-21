@@ -53,6 +53,7 @@ import { Transfers } from "@/components/game/Transfers";
 import { InfoButton } from "@/components/InfoButton";
 import { Modal } from "@/components/insurance/Modal";
 import { Page } from "@/components/Page";
+import { organizerNameOf } from "@/data";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
@@ -468,8 +469,7 @@ function SettlementResult({
       : [
           {
             id: ORGANIZER_COLLECTOR,
-            // The organizer's ID stands in until organizers have names (M6)
-            name: game.organizerId,
+            name: organizerNameOf(game),
             hands: !host || handChips === undefined ? "—" : String(host.boughtChips / handChips),
             chips: host ? host.cashedOutChips.toLocaleString("zh-CN") : "—",
             ...(host && {

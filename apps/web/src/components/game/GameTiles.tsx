@@ -4,6 +4,7 @@ import { Calculator, Check, Timer, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { ChipStack } from "@/components/ChipStack";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
+import { organizerNameOf } from "@/data";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
 
@@ -31,7 +32,7 @@ function formatStart(time: number) {
 
 /**
  * Whose game it is and when it started, over the boxes on the game page and the settlement page.
- * The organizer's ID stands in until organizers have names (M6).
+ * The organizer goes by the name of their space.
  */
 export function GameHostLine({
   game,
@@ -46,7 +47,7 @@ export function GameHostLine({
     <div className="mt-1 mb-1 flex items-end justify-between gap-2 pb-0.5 leading-none">
       <p className="flex min-w-0 items-end gap-1.5 text-sm leading-none whitespace-nowrap text-muted tabular-nums">
         <span className="truncate text-lg leading-none font-semibold text-white">
-          {game.organizerId}
+          {organizerNameOf(game)}
         </span>
         <span className="shrink-0 pb-px">· {formatStart(game.createdAt)}</span>
       </p>

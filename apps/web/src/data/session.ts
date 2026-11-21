@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 
 import { supabase } from "./supabase";
@@ -24,13 +24,18 @@ supabase?.auth.onAuthStateChange((_event, current) => {
   for (const listener of listeners) listener();
 });
 
-function subscribe(listener: () => void) {
+/** Calls back at every sign-in and sign-out, and once what was kept from last time is read. */
+export function onSessionChange(listener: () => void) {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
+export const currentSession = (): Session => session;
+
 export function useSession(): Session {
-  return useSyncExternalStore(subscribe, () => session);
+  return useSyncExternalStore(onSessionChange, currentSession);
 }
 
 /** What an account shows of itself: its name, its code, and the name of its space (ADR 0040). */
@@ -43,13 +48,15 @@ export interface Account {
 
 const accountKey = (userId: string) => ["account", userId] as const;
 
-/** The signed-in account's profile and space. Row-level security returns only its own. */
-export function useAccount(userId: string | undefined) {
-  return useQuery({
-    queryKey: accountKey(userId ?? ""),
-    enabled: supabase !== null && userId !== undefined,
+/**
+ * An account's profile and space. Row-level security returns only its own. The books are opened
+ * from the same answer the account card shows.
+ */
+export const accountQuery = (userId: string) =>
+  queryOptions({
+    queryKey: accountKey(userId),
     queryFn: async (): Promise<Account> => {
-      if (!supabase || !userId) throw new Error("Not signed in");
+      if (!supabase) throw new Error("Not signed in");
       const [profile, space] = await Promise.all([
         supabase.from("profiles").select("display_name, code").eq("id", userId).maybeSingle(),
         supabase.from("organizers").select("id, name").eq("owner_id", userId).maybeSingle(),
@@ -69,6 +76,13 @@ export function useAccount(userId: string | undefined) {
         spaceName: space.data.name,
       };
     },
+  });
+
+/** The signed-in account's profile and space. */
+export function useAccount(userId: string | undefined) {
+  return useQuery({
+    ...accountQuery(userId ?? ""),
+    enabled: supabase !== null && userId !== undefined,
   });
 }
 
