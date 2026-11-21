@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { CallTimeFloat } from "@/components/call-time/CallTimeFloat";
+import { useLanguage, useMessages } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { BooksGate } from "./BooksGate";
 import { NAV_ITEMS } from "./nav-items";
@@ -19,17 +20,20 @@ const HALF = NAV_ITEMS.length / 2;
  * badge rises 8px over the bar, which the bars resting on the navigation leave clear.
  */
 function StartGameLink({ className }: { className?: string }) {
+  const m = useMessages();
   return (
     <Link to="/games/new" className={cn(linkBase, "group text-text", className)}>
       <span className="grid size-11 shrink-0 place-items-center rounded-full bg-felt-700 transition-transform group-active:scale-95">
         <BrandMark className="w-5.5" />
       </span>
-      开局
+      {m.shell.nav.start}
     </Link>
   );
 }
 
 export function AppShell() {
+  const m = useMessages();
+  const language = useLanguage();
   // Game details live under /games but still count as the Games tab
   const inGame = useLocation({ select: (location) => location.pathname.startsWith("/games") });
 
@@ -48,7 +52,7 @@ export function AppShell() {
         activeOptions={{ exact: to === "/" }}
       >
         <Icon className="size-6" strokeWidth={1.75} aria-hidden />
-        {label}
+        {m.shell.nav[label]}
       </Link>
     ));
 
@@ -56,7 +60,7 @@ export function AppShell() {
     <div className="min-h-dvh md:grid md:grid-cols-[96px_1fr]">
       {/* Tablet and up: side navigation */}
       <nav
-        aria-label="主导航"
+        aria-label={m.shell.nav.label}
         className="sticky top-0 hidden h-dvh flex-col items-center gap-2 border-r border-line bg-surface pt-[max(1rem,env(safe-area-inset-top))] md:flex"
       >
         <img src="/favicon.svg" alt="" className="mb-4 size-10" />
@@ -64,14 +68,15 @@ export function AppShell() {
       </nav>
 
       <main className="min-w-0 pt-[env(safe-area-inset-top)] pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-8">
-        <BooksGate>
+        {/* Pages start over in a new language, so text worked out outside a component is said again */}
+        <BooksGate key={language}>
           <Outlet />
         </BooksGate>
       </main>
 
       {/* Phone: bottom navigation */}
       <nav
-        aria-label="主导航"
+        aria-label={m.shell.nav.label}
         className={cn(
           "fixed inset-x-0 bottom-0 z-10 grid border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden",
           inGame ? "grid-cols-4" : "grid-cols-5",

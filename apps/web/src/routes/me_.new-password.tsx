@@ -1,15 +1,9 @@
 import { parsePassword } from "@holdem-knight/core";
 import { createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
-import {
-  AuthPage,
-  FormIssue,
-  PASSWORD_ISSUE_TEXT,
-  PASSWORD_RULE,
-  PasswordField,
-  SubmitButton,
-} from "@/components/account/AuthParts";
+import { AuthPage, FormIssue, PasswordField, SubmitButton } from "@/components/account/AuthParts";
 import { type AuthIssue, setPassword as saveNewPassword } from "@/data/auth";
+import { messages, useMessages } from "@/i18n";
 
 export const Route = createFileRoute("/me_/new-password")({
   component: NewPasswordPage,
@@ -17,6 +11,7 @@ export const Route = createFileRoute("/me_/new-password")({
 
 /** The last step of a reset: the code has signed the account in, and it now takes a new password. */
 function NewPasswordPage() {
+  const m = useMessages();
   const navigate = Route.useNavigate();
   const [password, setPassword] = useState("");
   const [passwordIssue, setPasswordIssue] = useState<string>();
@@ -26,7 +21,7 @@ function NewPasswordPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const chosen = parsePassword(password);
-    setPasswordIssue(chosen.ok ? undefined : PASSWORD_ISSUE_TEXT[chosen.issue]);
+    setPasswordIssue(chosen.ok ? undefined : messages().account.passwordIssue[chosen.issue]);
     setIssue(undefined);
     if (!chosen.ok) return;
 
@@ -41,9 +36,9 @@ function NewPasswordPage() {
   }
 
   return (
-    <AuthPage title="设置新密码" audience="accounts" onSubmit={handleSubmit}>
+    <AuthPage title={m.account.newPasswordPage.title} audience="accounts" onSubmit={handleSubmit}>
       <PasswordField
-        label={`新密码，${PASSWORD_RULE}`}
+        label={m.account.newPasswordWithRule}
         fresh
         value={password}
         issue={passwordIssue}
@@ -53,7 +48,7 @@ function NewPasswordPage() {
         }}
       />
       <FormIssue issue={issue} />
-      <SubmitButton busy={busy}>保存</SubmitButton>
+      <SubmitButton busy={busy}>{m.common.save}</SubmitButton>
     </AuthPage>
   );
 }

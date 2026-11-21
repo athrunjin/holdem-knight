@@ -51,6 +51,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0044](0044-books-in-postgres-as-documents.md) | The books in Postgres as the app's documents, with their security tested in process | Accepted |
 | [0045](0045-one-contract-for-both-repositories.md) | One contract for the device's repository and the account's | Accepted |
 | [0046](0046-the-books-in-use-follow-who-is-signed-in.md) | The books in use follow who is signed in | Accepted |
+| [0047](0047-interface-text-in-typed-catalogs.md) | Interface text in typed catalogs, one a language | Accepted |
 
 ## Template
 

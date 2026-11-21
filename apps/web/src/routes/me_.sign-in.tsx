@@ -3,15 +3,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import {
   AuthPage,
-  EMAIL_ISSUE_TEXT,
   EmailField,
   FormIssue,
-  PASSWORD_ISSUE_TEXT,
   PasswordField,
   SubmitButton,
   textLinkClass,
 } from "@/components/account/AuthParts";
 import { type AuthIssue, resendCode, signIn } from "@/data/auth";
+import { messages, useMessages } from "@/i18n";
 import { keepPendingCode } from "@/lib/pending-code";
 
 export const Route = createFileRoute("/me_/sign-in")({
@@ -19,6 +18,7 @@ export const Route = createFileRoute("/me_/sign-in")({
 });
 
 function SignInPage() {
+  const m = useMessages();
   const navigate = Route.useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,8 +32,10 @@ function SignInPage() {
     const address = parseEmail(email);
     // Only that it was typed: an older account may have a password today's rule would refuse
     const typed = parsePassword(password);
-    setEmailIssue(address.ok ? undefined : EMAIL_ISSUE_TEXT[address.issue]);
-    setPasswordIssue(!typed.ok && typed.issue === "empty" ? PASSWORD_ISSUE_TEXT.empty : undefined);
+    setEmailIssue(address.ok ? undefined : messages().account.emailIssue[address.issue]);
+    setPasswordIssue(
+      !typed.ok && typed.issue === "empty" ? messages().account.passwordIssue.empty : undefined,
+    );
     setIssue(undefined);
     if (!address.ok || password === "") return;
 
@@ -52,7 +54,7 @@ function SignInPage() {
   }
 
   return (
-    <AuthPage title="登录" audience="guests" onSubmit={handleSubmit}>
+    <AuthPage title={m.common.signIn} audience="guests" onSubmit={handleSubmit}>
       <EmailField
         value={email}
         issue={emailIssue}
@@ -70,13 +72,13 @@ function SignInPage() {
         }}
       />
       <FormIssue issue={issue} />
-      <SubmitButton busy={busy}>登录</SubmitButton>
+      <SubmitButton busy={busy}>{m.common.signIn}</SubmitButton>
       <div className="flex justify-between">
         <Link to="/me/reset" className={textLinkClass}>
-          忘记密码
+          {m.account.signInPage.forgot}
         </Link>
         <Link to="/me/sign-up" className={textLinkClass}>
-          没有账户？注册
+          {m.account.signInPage.toSignUp}
         </Link>
       </div>
     </AuthPage>

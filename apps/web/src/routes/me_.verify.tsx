@@ -1,15 +1,15 @@
-import { parseCode } from "@holdem-knight/core";
+import { CODE_LENGTH, parseCode } from "@holdem-knight/core";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { type FormEvent, useEffect, useState } from "react";
 import {
   AuthPage,
-  CODE_ISSUE_TEXT,
   CodeField,
   FormIssue,
   SubmitButton,
   textLinkClass,
 } from "@/components/account/AuthParts";
 import { type AuthIssue, resendCode, verifyCode } from "@/data/auth";
+import { messages, useMessages } from "@/i18n";
 import { keepPendingCode, readPendingCode } from "@/lib/pending-code";
 
 export const Route = createFileRoute("/me_/verify")({
@@ -33,6 +33,7 @@ function useSecondsLeft(sentAt: number) {
 }
 
 function VerifyPage() {
+  const m = useMessages();
   const navigate = Route.useNavigate();
   const [pending, setPending] = useState(readPendingCode);
   const [code, setCode] = useState("");
@@ -49,7 +50,7 @@ function VerifyPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const typed = parseCode(code);
-    setCodeIssue(typed.ok ? undefined : CODE_ISSUE_TEXT[typed.issue]);
+    setCodeIssue(typed.ok ? undefined : messages().account.codeIssue(CODE_LENGTH)[typed.issue]);
     setIssue(undefined);
     if (!typed.ok) return;
 
@@ -81,13 +82,15 @@ function VerifyPage() {
 
   return (
     <AuthPage
-      title="输入验证码"
+      title={m.account.verifyPage.title}
       back={purpose === "recovery" ? "/me/reset" : "/me/sign-up"}
       audience="anyone"
       onSubmit={handleSubmit}
     >
       <p className="text-sm text-muted">
-        6 位验证码已发到 <span className="break-all text-text">{email}</span>，1 小时内有效。
+        {m.account.verifyPage.sentBefore(CODE_LENGTH)}
+        <span className="break-all text-text">{email}</span>
+        {m.account.verifyPage.sentAfter}
       </p>
       <CodeField
         value={code}
@@ -98,26 +101,25 @@ function VerifyPage() {
         }}
       />
       <FormIssue issue={issue} />
-      <SubmitButton busy={busy}>确认</SubmitButton>
+      <SubmitButton busy={busy}>{m.common.confirm}</SubmitButton>
       <div className="flex items-center justify-between">
         {secondsLeft > 0 ? (
           <span className="inline-flex min-h-11 items-center text-sm text-muted">
-            {resent ? "已重新发送，" : ""}
-            {secondsLeft} 秒后可重新发送
+            {resent ? m.account.verifyPage.resent : ""}
+            {m.account.verifyPage.resendIn(secondsLeft)}
           </span>
         ) : (
           <button type="button" onClick={handleResend} className={textLinkClass}>
-            重新发送
+            {m.account.verifyPage.resend}
           </button>
         )}
         <Link to={purpose === "recovery" ? "/me/reset" : "/me/sign-up"} className={textLinkClass}>
-          换个邮箱
+          {m.account.verifyPage.changeEmail}
         </Link>
       </div>
       <p className="text-xs text-muted">
-        没收到？先看看垃圾邮件箱。
-        {purpose === "sign-up" &&
-          "如果这个邮箱已经注册过，不会再收到验证码，请直接登录或重置密码。"}
+        {m.account.verifyPage.notReceived}
+        {purpose === "sign-up" && m.account.verifyPage.alreadyRegistered}
       </p>
     </AuthPage>
   );

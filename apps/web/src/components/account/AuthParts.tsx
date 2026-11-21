@@ -1,4 +1,4 @@
-import { type AccountIssue, CODE_LENGTH, codeDigits } from "@holdem-knight/core";
+import { codeDigits } from "@holdem-knight/core";
 import { Link, Navigate } from "@tanstack/react-router";
 import { ChevronLeft, Eye, EyeOff } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
@@ -6,66 +6,8 @@ import { Page } from "@/components/Page";
 import { TextField } from "@/components/TextField";
 import type { AuthIssue } from "@/data/auth";
 import { type Session, useSession } from "@/data/session";
+import { useMessages } from "@/i18n";
 import { cn } from "@/lib/cn";
-
-/** What the sign-in service's answers read as. None says whether an address has an account. */
-export const AUTH_ISSUE_TEXT: Record<AuthIssue, string> = {
-  "invalid-credentials": "邮箱或密码不正确",
-  "email-not-confirmed": "这个邮箱还没有验证",
-  "weak-password": "密码太简单：至少 8 位，包含字母和数字",
-  "same-password": "新密码不能和原来的一样",
-  "invalid-code": "验证码不正确或已过期",
-  "invalid-email": "邮箱地址无效",
-  "rate-limited": "操作太频繁，请稍后再试",
-  network: "网络连接失败，请重试",
-  unavailable: "这个版本还不能登录",
-  unknown: "出错了，请重试",
-};
-
-const INVALID_EMAIL = "邮箱地址无效";
-
-export const EMAIL_ISSUE_TEXT: Record<AccountIssue, string> = {
-  empty: "请输入邮箱",
-  invalid: INVALID_EMAIL,
-  "too-short": INVALID_EMAIL,
-  "too-long": INVALID_EMAIL,
-  weak: INVALID_EMAIL,
-  reserved: INVALID_EMAIL,
-};
-
-/** What a password has to be, said on the field before anything is typed. */
-export const PASSWORD_RULE = "至少 8 位，包含字母和数字";
-
-export const PASSWORD_ISSUE_TEXT: Record<AccountIssue, string> = {
-  empty: "请输入密码",
-  invalid: "密码无效",
-  "too-short": "密码至少 8 位",
-  "too-long": "密码最多 72 位",
-  weak: "密码需要同时包含字母和数字",
-  reserved: "密码无效",
-};
-
-const INVALID_NAME = "昵称不能包含特殊符号，可以用文字、数字、空格和 - . _";
-
-export const NAME_ISSUE_TEXT: Record<AccountIssue, string> = {
-  empty: "请输入昵称",
-  invalid: INVALID_NAME,
-  "too-short": INVALID_NAME,
-  "too-long": "昵称最多 30 个字",
-  weak: INVALID_NAME,
-  reserved: "这个昵称不能使用，请换一个",
-};
-
-const INVALID_CODE = `验证码是 ${CODE_LENGTH} 位数字`;
-
-export const CODE_ISSUE_TEXT: Record<AccountIssue, string> = {
-  empty: "请输入验证码",
-  invalid: INVALID_CODE,
-  "too-short": INVALID_CODE,
-  "too-long": INVALID_CODE,
-  weak: INVALID_CODE,
-  reserved: INVALID_CODE,
-};
 
 interface AuthPageProps {
   title: string;
@@ -83,12 +25,13 @@ interface AuthPageProps {
  * Where the app was built with no project to sign in to, it says so and offers nothing.
  */
 export function AuthPage({ title, back = "/me", audience, onSubmit, children }: AuthPageProps) {
+  const m = useMessages();
   const session = useSession();
   const heading = (
     <span className="flex items-center">
       <Link
         to={back}
-        aria-label="返回"
+        aria-label={m.common.back}
         className="-ml-3 grid size-11 shrink-0 place-items-center text-muted"
       >
         <ChevronLeft className="size-6" aria-hidden />
@@ -106,7 +49,7 @@ export function AuthPage({ title, back = "/me", audience, onSubmit, children }: 
   return (
     <Page title={heading} centered>
       {session.status === "unavailable" && audience !== "anyone" ? (
-        <p className="text-muted">{AUTH_ISSUE_TEXT.unavailable}。</p>
+        <p className="text-muted">{m.account.authIssue.unavailable}</p>
       ) : session.status === "loading" ? null : onSubmit ? (
         <form onSubmit={onSubmit} noValidate className="flex max-w-md flex-col gap-4 pb-8">
           {content}
@@ -125,10 +68,11 @@ interface FieldProps {
 }
 
 export function EmailField({ value, issue, onChange }: FieldProps) {
+  const m = useMessages();
   return (
     <TextField
       id="email"
-      label="邮箱"
+      label={m.account.email}
       value={value}
       issue={issue}
       type="email"
@@ -145,18 +89,19 @@ export function PasswordField({
   value,
   issue,
   onChange,
-  label = "密码",
+  label,
   fresh = false,
 }: FieldProps & {
   label?: string;
   /** A password being chosen, which a password manager may offer to make and keep */
   fresh?: boolean;
 }) {
+  const m = useMessages();
   const [shown, setShown] = useState(false);
   return (
     <TextField
       id="password"
-      label={label}
+      label={label ?? m.account.password}
       value={value}
       issue={issue}
       type={shown ? "text" : "password"}
@@ -166,7 +111,7 @@ export function PasswordField({
       trailing={
         <button
           type="button"
-          aria-label={shown ? "隐藏密码" : "显示密码"}
+          aria-label={shown ? m.account.hidePassword : m.account.showPassword}
           aria-pressed={shown}
           onClick={() => setShown(!shown)}
           className="-mr-3 grid size-11 shrink-0 place-items-center text-muted"
@@ -187,10 +132,11 @@ export function PasswordField({
  * and a phone's own offer of the code both land whole, which six separate boxes do not manage.
  */
 export function CodeField({ value, issue, onChange }: FieldProps) {
+  const m = useMessages();
   return (
     <div>
       <label htmlFor="code" className="sr-only">
-        验证码
+        {m.account.code}
       </label>
       <input
         id="code"
@@ -231,10 +177,11 @@ export function SubmitButton({ busy, children }: { busy: boolean; children: Reac
 
 /** Why the step did not go through, said under the form. */
 export function FormIssue({ issue }: { issue: AuthIssue | undefined }) {
+  const m = useMessages();
   if (!issue) return null;
   return (
     <p role="alert" className="text-sm text-highlight">
-      {AUTH_ISSUE_TEXT[issue]}
+      {m.account.authIssue[issue]}
     </p>
   );
 }

@@ -1555,6 +1555,29 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. With no network an account cannot record until the ledger is written to the device first (M6, step 2), so a real game is safer as a guest until then. Checked with unit tests of the switching, a test against the local Supabase that signs in and out with both storages real, and in the browser preview at 412 wide, dark mode: a guest's player, signing in to an empty account, a player and a game started in it, signing out to the guest's player, a failed read and its 重试, and an account that cannot be reached.
 - Tracking: PR #98, [ADR 0046](adr/0046-the-books-in-use-follow-who-is-signed-in.md)
 
+### #I-079 Dark whatever the device is set to
+
+- Type: feature
+- Date: proposed and decided 2026-11-21
+- Source: the organizer, who uses the app in dark mode only
+- Problem: the app followed the device, so a phone set to light showed a light theme nobody had designed for or checked.
+- Proposal: one set of colours, the dark one, with the browser's own controls drawn dark too, and the dark emblem on the settlement page.
+- Decision: do. Checked in the browser preview with the device set to light.
+- Tracking: PR #99
+
+### #I-080 An English interface and a language setting
+
+- Type: feature
+- Date: proposed and decided 2026-11-21
+- Source: the organizer, ahead of a first release
+- Problem: the interface is in Chinese only, written where it is shown.
+- Proposal:
+  - The text lives in catalogs, one a language, with the Chinese giving the shape the others are held to ([ADR 0047](adr/0047-interface-text-in-typed-catalogs.md)).
+  - The language is the device's, Chinese for any kind of Chinese and English otherwise, unless one is picked in a new 语言 row on 我的: 跟随系统, 中文, English.
+  - Moved so far: the navigation, the notices around every page, 我的 with its account card and backups, and the pages for signing up, signing in, codes and passwords. The rest reads in Chinese in either language until its part is moved: starting a game, the game and settlement pages, insurance, players, the tools, and shared images.
+- Decision: do, a part of the app at a time. English names for 水上/水下, 袋鼠分/熊猫分 and the like are to be agreed with the organizer before the game pages are moved.
+- Tracking: PR #99, [ADR 0047](adr/0047-interface-text-in-typed-catalogs.md)
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
