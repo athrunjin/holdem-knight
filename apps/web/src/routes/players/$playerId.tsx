@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { Page } from "@/components/Page";
 import { usePlayers, useSavePlayer } from "@/data/players";
+import { t } from "@/i18n";
 import { toInitials } from "@/lib/pinyin";
 import { PLAYER_NAME_ISSUE_TEXT } from "@/lib/player-name";
 
@@ -18,10 +19,10 @@ function PlayerPage() {
   const player = players?.find(({ id }) => id === playerId);
   if (!players || !player) {
     return (
-      <Page title="玩家">
-        <p className="text-muted">找不到这位玩家。</p>
+      <Page title={t.players.title}>
+        <p className="text-muted">{t.players.playerPage.thisPlayerCantBeFound}</p>
         <Link to="/players" className="mt-2 inline-flex min-h-11 items-center text-highlight">
-          回到玩家库
+          {t.players.playerPage.backToPlayers}
         </Link>
       </Page>
     );
@@ -52,11 +53,11 @@ function EditPlayerForm({ player, otherNames }: { player: Player; otherNames: st
   }
 
   return (
-    <Page title="修改玩家">
+    <Page title={t.players.playerPage.editPlayer}>
       <form onSubmit={handleSubmit} noValidate className="flex max-w-md flex-col gap-6 pb-8">
         <div>
           <label htmlFor="name" className="mb-2 block font-medium">
-            名字
+            {t.players.playerPage.name}
           </label>
           <input
             id="name"
@@ -76,7 +77,7 @@ function EditPlayerForm({ player, otherNames }: { player: Player; otherNames: st
         </div>
         {savePlayer.isError && (
           <p role="alert" className="text-sm text-highlight">
-            保存失败，请重试。
+            {t.common.couldntSaveTryAgain}
           </p>
         )}
         <button
@@ -84,7 +85,7 @@ function EditPlayerForm({ player, otherNames }: { player: Player; otherNames: st
           disabled={savePlayer.isPending}
           className="min-h-12 rounded-xl bg-accent px-6 font-semibold text-accent-text disabled:opacity-60"
         >
-          保存
+          {t.common.save}
         </button>
       </form>
     </Page>

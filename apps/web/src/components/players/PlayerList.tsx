@@ -8,6 +8,7 @@ import {
 import { ArrowUpDown, ChevronDown, ListFilter, Search, UserPlus } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { LetterIndex, letterSectionId, useActiveLetter } from "@/components/game/LetterIndex";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { PLAYER_NAME_ISSUE_TEXT } from "@/lib/player-name";
 
@@ -96,7 +97,7 @@ export function PlayerSearch({
       )}
       {saveFailed && (
         <p role="alert" className="mt-1 text-sm text-highlight">
-          保存失败，请重试。
+          {t.common.couldntSaveTryAgain}
         </p>
       )}
     </form>
@@ -115,30 +116,30 @@ export function PlayerListHeading({ className }: { className?: string }) {
 
   return (
     <div className={cn("flex items-center justify-between", className)}>
-      <h2 className="font-semibold">全部玩家</h2>
+      <h2 className="font-semibold">{t.players.playerList.allPlayers}</h2>
       <div className="-mr-2 flex items-center">
         <button
           type="button"
-          onClick={() => setNotice("分组")}
+          onClick={() => setNotice(t.players.playerList.groups)}
           className="flex min-h-11 items-center px-1"
         >
           <span className="flex items-center gap-0.5 rounded-full border border-line px-2.5 py-1 text-xs font-medium">
-            全部
+            {t.players.playerList.all}
             <ChevronDown className="size-3.5 text-muted" aria-hidden />
           </span>
         </button>
         <button
           type="button"
-          aria-label="筛选"
-          onClick={() => setNotice("筛选")}
+          aria-label={t.players.playerList.filter}
+          onClick={() => setNotice(t.players.playerList.filter)}
           className="grid size-11 place-items-center text-muted"
         >
           <ListFilter className="size-5" aria-hidden />
         </button>
         <button
           type="button"
-          aria-label="排列方式"
-          onClick={() => setNotice("排列方式")}
+          aria-label={t.players.playerList.sort}
+          onClick={() => setNotice(t.players.playerList.sort)}
           className="grid size-11 place-items-center text-muted"
         >
           <ArrowUpDown className="size-5" aria-hidden />
@@ -149,7 +150,7 @@ export function PlayerListHeading({ className }: { className?: string }) {
           role="status"
           className="fixed inset-x-0 top-1/2 z-20 mx-auto w-fit rounded-full bg-text px-4 py-2 text-sm text-bg shadow-lg"
         >
-          {notice} · 开发中
+          {t.players.playerList.inProgress(notice)}
         </p>
       )}
     </div>

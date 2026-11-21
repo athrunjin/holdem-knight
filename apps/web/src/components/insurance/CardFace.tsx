@@ -1,4 +1,5 @@
 import { type Card, formatCard } from "@holdem-knight/core";
+import { t } from "@/i18n";
 import { formatCardText } from "@/lib/cards";
 import { cn } from "@/lib/cn";
 
@@ -25,7 +26,11 @@ export const BOARD_PLACES = [0, 1, 2, 3, 4] as const;
 /** Five places: dealt cards, then question marks. */
 export function BoardCards({ cards }: { cards: readonly Card[] }) {
   return (
-    <span className="flex gap-1" role="img" aria-label={`公共牌已发 ${cards.length} 张`}>
+    <span
+      className="flex gap-1"
+      role="img"
+      aria-label={t.insurance.cardFace.boardCardsDealt(cards.length)}
+    >
       {BOARD_PLACES.map((place) => (
         <CardFace key={place} card={cards[place] ?? null} />
       ))}

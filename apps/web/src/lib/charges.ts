@@ -15,6 +15,7 @@ import {
   type WageRule,
   type WageUnitMinutes,
 } from "@holdem-knight/core";
+import { t } from "@/i18n";
 import { formatGameMoney } from "./currency";
 
 type MinuteOfDay = ChargeClock["minuteOfDay"];
@@ -70,16 +71,16 @@ export function chargeClock(game: Pick<Game, "settledAt" | "timeZone">): ChargeC
 }
 
 export const UNIT_NAMES: Record<WageUnitMinutes, string> = {
-  1: "精确到分",
-  15: "精确到15分",
-  30: "精确到30分",
-  60: "每小时",
+  1: t.lib.charges.byTheMinute,
+  15: t.lib.charges.by15Min,
+  30: t.lib.charges.by30Min,
+  60: t.lib.charges.perHour,
 };
 
 export const RAKE_ROUNDING_NAMES: Record<RakeRounding, string> = {
-  nearest: "四舍五入",
-  down: "向下取整",
-  up: "向上取整",
+  nearest: t.lib.charges.round,
+  down: t.lib.charges.roundDown,
+  up: t.lib.charges.roundUp,
 };
 
 /**
@@ -89,31 +90,31 @@ export const RAKE_ROUNDING_NAMES: Record<RakeRounding, string> = {
 function rakeRuleParts(rule: RakeRule): string[] {
   const { cap, roundTo, rounding } = rule;
   const amount = ({ unit, amount: value }: RakeAmount) =>
-    `${formatRakeNumber(value)}${unit === "chips" ? " 筹码" : unit === "smallBlinds" ? " SB" : " BB"}`;
+    `${formatRakeNumber(value)}${unit === "chips" ? t.lib.charges.chips : unit === "smallBlinds" ? " SB" : " BB"}`;
   return [
-    `底池 ${formatRakeNumber(rule.percent)}%`,
-    cap ? `封顶 ${amount(cap)}` : "不封顶",
+    t.lib.charges.ofThePot(formatRakeNumber(rule.percent)),
+    cap ? t.lib.charges.cap(amount(cap)) : t.lib.charges.noCap,
     rounding === undefined || roundTo === undefined
-      ? "不足 1 筹码舍去"
-      : `按 ${amount(roundTo)} ${RAKE_ROUNDING_NAMES[rounding]}`,
+      ? t.lib.charges.under1ChipIsDropped
+      : t.lib.charges.to(amount(roundTo), RAKE_ROUNDING_NAMES[rounding]),
   ];
 }
 
 export const ROUNDING_NAMES: Record<WageRounding, string> = {
-  nearest: "四舍五入",
-  up: "向上取整",
-  down: "向下取整",
+  nearest: t.lib.charges.round,
+  up: t.lib.charges.roundUp,
+  down: t.lib.charges.roundDown,
 };
 
 /** A rate in a few words: 基础, 22点–6点, 0点起 or 开局6小时后. */
 function wagePartName(rule: WageRule, part: WagePart) {
   const hours = (from: number, to: number | undefined) =>
-    to === undefined ? `${from}点起` : `${from}点–${to}点`;
-  if (part === "base") return "基础";
+    to === undefined ? t.lib.charges.from00(from) : t.lib.charges.n0000(from, to);
+  if (part === "base") return t.lib.charges.base;
   if (part === "adjusted") {
     const { adjustment } = rule;
     if (adjustment?.kind === "time_of_day") return hours(adjustment.fromHour, adjustment.toHour);
-    return adjustment ? `开局${adjustment.afterHours}小时后` : "调整";
+    return adjustment ? t.lib.charges.hrIntoTheGame(adjustment.afterHours) : t.lib.charges.adjusted;
   }
   const index = Number(part.slice(part.indexOf("-") + 1)) - 1;
   if (part.startsWith("time-")) {
@@ -121,7 +122,7 @@ function wagePartName(rule: WageRule, part: WagePart) {
     return segment ? hours(segment.fromHour, segment.toHour) : part;
   }
   const segment = rule.afterStartSegments?.[index];
-  return segment ? `开局${segment.afterHours}小时后` : part;
+  return segment ? t.lib.charges.hrIntoTheGame(segment.afterHours) : part;
 }
 
 /** Base first, then rates by time of day, then by game time. */
@@ -137,7 +138,8 @@ export interface GameRuleLine {
 }
 
 /** Odds for a number of outs, such as 8赔3.5. */
-export const oddsText = (outs: number, hundredths: number) => `${outs}赔${formatOdds(hundredths)}`;
+export const oddsText = (outs: number, hundredths: number) =>
+  t.lib.charges.pays(outs, formatOdds(hundredths));
 
 /** Outs whose odds a game's rules name, where the table has them. */
 const SHOWN_OUTS = [1, 3, 8, 9];
@@ -162,11 +164,15 @@ export function gameRuleLines(
     });
     // The odds take a row of their own, under the two switches
     lines.push({
-      label: "保险",
+      label: t.common.insurance,
       rows: [
         [
-          `平分牌${insurance.tieOuts === "include" ? "算" : "不算"} outs`,
-          `击中${insurance.refundPremium ? "退" : "不退"}保费`,
+          t.lib.charges.tieCardsAsOuts(
+            insurance.tieOuts === "include" ? t.lib.charges.count : t.lib.charges.dontCount,
+          ),
+          t.lib.charges.aHitThePremium(
+            insurance.refundPremium ? t.lib.charges.refunds : t.lib.charges.keeps,
+          ),
         ],
         odds,
       ],
@@ -181,47 +187,51 @@ export function gameRuleLines(
     if (used.size === 0) used.set("base", wage.hourly);
     const rates = [...used]
       .sort(([a], [b]) => partOrder(a).localeCompare(partOrder(b)))
-      .map(([part, hourly]) => `${wagePartName(wage, part)} ${money(hourly)}/时`);
+      .map(([part, hourly]) => t.lib.charges.hr(wagePartName(wage, part), money(hourly)));
     const rounding = wage.rounding ?? (wage.roundUp ? "up" : "down");
     const how = [UNIT_NAMES[wage.unitMinutes ?? 1], ROUNDING_NAMES[rounding]];
-    lines.push({ label: "工资", rows: [[...rates, ...how]] });
+    lines.push({ label: t.common.dealerWage, rows: [[...rates, ...how]] });
   }
   if (tableFee) {
-    const least = tableFee.minMinutes > 0 ? [`在桌满 ${tableFee.minMinutes} 分钟`] : [];
-    lines.push({ label: "台费", rows: [[`${money(tableFee.amount)}/人`, ...least]] });
+    const least =
+      tableFee.minMinutes > 0 ? [t.lib.charges.afterMinAtTheTable(tableFee.minMinutes)] : [];
+    lines.push({
+      label: t.common.timeCharge,
+      rows: [[t.lib.charges.player(money(tableFee.amount)), ...least]],
+    });
   }
-  if (rake) lines.push({ label: "抽水", rows: [rakeRuleParts(rake)] });
+  if (rake) lines.push({ label: t.common.rake, rows: [rakeRuleParts(rake)] });
   return lines;
 }
 
 const UNIT_LENGTH: Record<number, string> = {
-  1: "1 分钟",
-  15: "15 分钟",
-  30: "30 分钟",
-  60: "1 小时",
+  1: t.lib.charges.n1Min,
+  15: t.lib.charges.n15Min,
+  30: t.lib.charges.n30Min,
+  60: t.lib.charges.n1Hr,
 };
 const UNIT_CHARGE: Record<number, string> = {
-  1: "按分钟",
-  15: "按每 15 分钟",
-  30: "按每 30 分钟",
-  60: "按每小时",
+  1: t.lib.charges.byTheMinute2,
+  15: t.lib.charges.by15Minutes,
+  30: t.lib.charges.by30Minutes,
+  60: t.lib.charges.byTheHour,
 };
 
 /** How a wage rule charges time, without its subject: 按每 30 分钟计费，不足 30 分钟的部分四舍五入. */
 function wageUnitNote({ unitMinutes = 1, rounding, roundUp }: WageRule) {
-  const length = UNIT_LENGTH[unitMinutes];
+  const length = UNIT_LENGTH[unitMinutes] ?? "";
   const mode = rounding ?? (roundUp ? "up" : "down");
   const rest =
     mode === "nearest"
-      ? `不足 ${length}的部分四舍五入`
+      ? t.lib.charges.aPartUnderIsRounded(length)
       : mode === "up"
-        ? `不足 ${length}按 ${length}计`
-        : `不足 ${length}的部分不计`;
-  return `${UNIT_CHARGE[unitMinutes]}计费，${rest}`;
+        ? t.lib.charges.aPartUnderCountsAs(length, length)
+        : t.lib.charges.aPartUnderIsFree(length);
+  return t.lib.charges.charged(UNIT_CHARGE[unitMinutes] ?? "", rest);
 }
 
 /** What time counts toward the table fee and wages. */
-export const CHARGE_CLOCK_RULE = "只计对局计时器运行期间的在桌时间";
+export const CHARGE_CLOCK_RULE = t.lib.charges.onlyTimeAtTheTableWhile;
 
 /**
  * The game's charging rules in plain words for the players: how wages are charged and rounded
@@ -235,14 +245,15 @@ export function chargeRuleSections(
   const rates = (wage?.timeSegments?.length ?? 0) + (wage?.afterStartSegments?.length ?? 0);
   const sections: { title: string; lines: string[] }[] = [];
   if (wage) {
-    const across = wage.rounding && rates > 0 ? ["一段时间跨两种时薪时，按占时较长的时薪计"] : [];
-    sections.push({ title: "工资", lines: [wageUnitNote(wage), ...across] });
+    const across = wage.rounding && rates > 0 ? [t.lib.charges.aBlockThatSpansTwoRates] : [];
+    sections.push({ title: t.common.dealerWage, lines: [wageUnitNote(wage), ...across] });
   }
   if (tableFee) {
-    const least = tableFee.minMinutes > 0 ? `，在桌满 ${tableFee.minMinutes} 分钟才收` : "";
+    const least =
+      tableFee.minMinutes > 0 ? t.lib.charges.onlyAfterMinAtTheTable(tableFee.minMinutes) : "";
     sections.push({
-      title: "台费",
-      lines: [`每人 ${formatGameMoney(cents(tableFee.amount), currency)}${least}`],
+      title: t.common.timeCharge,
+      lines: [t.lib.charges.perPlayer(formatGameMoney(cents(tableFee.amount), currency), least)],
     });
   }
   return sections;
@@ -285,5 +296,7 @@ export function formatSeatTime(ms: number) {
   const minutes = Math.floor(ms / 60_000);
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  return hours === 0 ? `${rest}分` : `${hours}小时${String(rest).padStart(2, "0")}分`;
+  return hours === 0
+    ? t.lib.charges.min(rest)
+    : t.lib.charges.hrMin(hours, String(rest).padStart(2, "0"));
 }

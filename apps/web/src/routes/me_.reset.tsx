@@ -1,14 +1,9 @@
 import { parseEmail } from "@holdem-knight/core";
 import { createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
-import {
-  AuthPage,
-  EMAIL_ISSUE_TEXT,
-  EmailField,
-  FormIssue,
-  SubmitButton,
-} from "@/components/account/AuthParts";
+import { AuthPage, EmailField, FormIssue, SubmitButton } from "@/components/account/AuthParts";
 import { type AuthIssue, requestReset } from "@/data/auth";
+import { t } from "@/i18n";
 import { keepPendingCode } from "@/lib/pending-code";
 
 export const Route = createFileRoute("/me_/reset")({
@@ -25,7 +20,7 @@ function ResetPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const address = parseEmail(email);
-    setEmailIssue(address.ok ? undefined : EMAIL_ISSUE_TEXT[address.issue]);
+    setEmailIssue(address.ok ? undefined : t.account.emailIssue[address.issue]);
     setIssue(undefined);
     if (!address.ok) return;
 
@@ -41,8 +36,13 @@ function ResetPage() {
   }
 
   return (
-    <AuthPage title="重置密码" back="/me/sign-in" audience="guests" onSubmit={handleSubmit}>
-      <p className="text-sm text-muted">输入注册时的邮箱，我们发一个验证码给你。</p>
+    <AuthPage
+      title={t.account.resetPage.title}
+      back="/me/sign-in"
+      audience="guests"
+      onSubmit={handleSubmit}
+    >
+      <p className="text-sm text-muted">{t.account.resetPage.body}</p>
       <EmailField
         value={email}
         issue={emailIssue}
@@ -52,7 +52,7 @@ function ResetPage() {
         }}
       />
       <FormIssue issue={issue} />
-      <SubmitButton busy={busy}>发送验证码</SubmitButton>
+      <SubmitButton busy={busy}>{t.account.sendCode}</SubmitButton>
     </AuthPage>
   );
 }

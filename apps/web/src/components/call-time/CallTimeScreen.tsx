@@ -10,6 +10,7 @@ import { useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { Minimize2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Page } from "@/components/Page";
+import { t } from "@/i18n";
 import { callTimeActions, useCallTime } from "@/lib/call-time";
 import { cn } from "@/lib/cn";
 import { selectOnFocus } from "@/lib/number-input";
@@ -44,7 +45,7 @@ function LengthField({ seconds }: { seconds: number }) {
         maxLength={4}
         enterKeyHint="done"
         autoComplete="off"
-        aria-label="时长（秒），点按后输入"
+        aria-label={t.callTime.callTimeScreen.lengthInSecondsTapToType}
         aria-invalid={invalid ? true : undefined}
         value={draft ?? String(seconds)}
         onFocus={(event) => selectOnFocus(event.currentTarget)}
@@ -61,7 +62,9 @@ function LengthField({ seconds }: { seconds: number }) {
         className={cn(figureClass, "w-full rounded-lg bg-transparent text-center outline-none")}
       />
       <span className={cn("mt-1 text-sm", invalid ? "text-highlight" : "text-muted")}>
-        {invalid ? `范围 ${MIN_CALL_TIME}–${MAX_CALL_TIME} 秒` : "秒"}
+        {invalid
+          ? t.callTime.callTimeScreen.fromToSeconds(MIN_CALL_TIME, MAX_CALL_TIME)
+          : t.callTime.callTimeScreen.secondsUnit}
       </span>
     </>
   );
@@ -97,7 +100,10 @@ export function CallTimeScreen({ gameId }: { gameId?: string }) {
   const step = (delta: number) => (
     <button
       type="button"
-      aria-label={`${delta > 0 ? "增加" : "减少"} ${CALL_TIME_STEP} 秒`}
+      aria-label={t.callTime.callTimeScreen.secondsLabelled(
+        delta > 0 ? t.callTime.callTimeScreen.more : t.callTime.callTimeScreen.less,
+        CALL_TIME_STEP,
+      )}
       disabled={!canAdjustCallTime(callTime, delta, now)}
       onClick={() => callTimeActions.adjust(delta)}
       className={cn(stepClass, done && "invisible")}
@@ -113,7 +119,7 @@ export function CallTimeScreen({ gameId }: { gameId?: string }) {
       actions={
         <button
           type="button"
-          aria-label="返回"
+          aria-label={t.common.back}
           onClick={exit}
           className="-mr-2 grid size-11 shrink-0 place-items-center text-highlight"
         >
@@ -133,7 +139,11 @@ export function CallTimeScreen({ gameId }: { gameId?: string }) {
             {phase === "idle" && <LengthField seconds={seconds} />}
             {counting && (
               <>
-                <span role="timer" aria-label={`剩余 ${seconds} 秒`} className={figureClass}>
+                <span
+                  role="timer"
+                  aria-label={t.callTime.callTimeScreen.sLeft(seconds)}
+                  className={figureClass}
+                >
                   {lastSeconds ? (
                     <>
                       {lastSeconds.whole}
@@ -143,10 +153,14 @@ export function CallTimeScreen({ gameId }: { gameId?: string }) {
                     seconds
                   )}
                 </span>
-                <span className={cn("mt-1 text-sm", !lastSeconds && "text-muted")}>秒</span>
+                <span className={cn("mt-1 text-sm", !lastSeconds && "text-muted")}>
+                  {t.callTime.callTimeScreen.secondsUnit}
+                </span>
               </>
             )}
-            {done && <span className="text-4xl font-bold">时间到</span>}
+            {done && (
+              <span className="text-4xl font-bold">{t.callTime.callTimeScreen.timesUp}</span>
+            )}
           </CallTimeDial>
           {step(CALL_TIME_STEP)}
         </div>
@@ -175,7 +189,12 @@ export function CallTimeScreen({ gameId }: { gameId?: string }) {
             </ul>
           )}
           {counting && (
-            <button type="button" aria-label="缩小成悬浮窗" onClick={leave} className={stepClass}>
+            <button
+              type="button"
+              aria-label={t.callTime.callTimeScreen.shrinkToAFloatingTimer}
+              onClick={leave}
+              className={stepClass}
+            >
               <Minimize2 className="size-6" strokeWidth={1.75} aria-hidden />
             </button>
           )}
@@ -187,7 +206,7 @@ export function CallTimeScreen({ gameId }: { gameId?: string }) {
             onClick={callTimeActions.start}
             className={cn(mainClass, "bg-accent text-accent-text")}
           >
-            开始
+            {t.callTime.callTimeScreen.start}
           </button>
         )}
         {counting && (
@@ -196,7 +215,7 @@ export function CallTimeScreen({ gameId }: { gameId?: string }) {
             onClick={callTimeActions.stop}
             className={cn(mainClass, "border border-line bg-surface")}
           >
-            结束
+            {t.callTime.callTimeScreen.stop}
           </button>
         )}
         {done && (
@@ -205,7 +224,7 @@ export function CallTimeScreen({ gameId }: { gameId?: string }) {
             onClick={exit}
             className={cn(mainClass, "bg-accent text-accent-text")}
           >
-            退出
+            {t.callTime.callTimeScreen.exit}
           </button>
         )}
       </div>

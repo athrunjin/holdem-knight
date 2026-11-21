@@ -10,6 +10,7 @@ import { useState } from "react";
 import { TextMenu } from "@/components/TextMenu";
 import { useConfigFollowers } from "@/data/game-configs";
 import { useOddsTables, useRemoveOddsTable } from "@/data/insurance";
+import { t } from "@/i18n";
 import { removalQuestion } from "@/lib/config-text";
 import { OddsTableDialog, type OddsTableSubject } from "./OddsTableDialog";
 
@@ -54,7 +55,7 @@ export function OddsTableMenu({ odds, tableId, onApply, align, className }: Odds
       label: name,
       actions: [
         {
-          label: "查看",
+          label: t.insurance.oddsTableMenu.view,
           icon: <Eye className="size-4" aria-hidden />,
           onSelect: () => setSubject({ kind: "view", name, oddsHundredths: rule.oddsHundredths }),
         },
@@ -66,29 +67,29 @@ export function OddsTableMenu({ odds, tableId, onApply, align, className }: Odds
       name: table.name,
       actions: [
         {
-          label: "编辑",
+          label: t.insurance.oddsTableMenu.edit,
           icon: <Pencil className="size-4" aria-hidden />,
           onSelect: () => setSubject({ kind: "edit", table }),
         },
         {
-          label: "删除",
+          label: t.insurance.oddsTableMenu.delete,
           icon: <Trash2 className="size-4" aria-hidden />,
           onSelect: () => {
             const using = followers({ oddsTableId: table.id });
-            if (window.confirm(removalQuestion("赔率表", table.name, using))) {
+            if (window.confirm(removalQuestion(t.common.oddsTable, table.name, using))) {
               removeTable.mutate(table.id);
             }
           },
         },
       ],
     })),
-    ...(selected ? [] : [{ value: CUSTOM_TABLE, label: "自定义" }]),
+    ...(selected ? [] : [{ value: CUSTOM_TABLE, label: t.common.custom }]),
   ];
 
   return (
     <>
       <TextMenu
-        label="赔率表"
+        label={t.common.oddsTable}
         options={options}
         value={selected?.id ?? CUSTOM_TABLE}
         onChange={(id) => {
@@ -96,7 +97,7 @@ export function OddsTableMenu({ odds, tableId, onApply, align, className }: Odds
           if (table) apply(table);
         }}
         footer={{
-          label: "新建赔率表",
+          label: t.insurance.oddsTableMenu.newOddsTable,
           icon: <Plus className="size-4" aria-hidden />,
           onSelect: () => setSubject({ kind: "new" }),
         }}

@@ -51,5 +51,6 @@ export default defineConfig({
   test: {
     // Those need the local Supabase running: `pnpm test:local`
     exclude: [...configDefaults.exclude, "src/**/*.local.test.ts"],
+    setupFiles: ["./src/test-setup.ts"],
   },
 });

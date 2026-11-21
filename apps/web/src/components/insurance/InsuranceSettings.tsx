@@ -24,6 +24,7 @@ import {
   useRemoveInsuranceRule,
   useSaveInsuranceRule,
 } from "@/data/insurance";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { removalQuestion, updateQuestion } from "@/lib/config-text";
 import { datedName } from "@/lib/dated-name";
@@ -101,7 +102,11 @@ export function useInsuranceConfigs({
   const lastShown = lastRule !== undefined && !lastSaved && !sameSettings(lastRule, RULE_30);
   const rules = [
     ...(lastShown ? [{ id: LAST_RULE, name: lastRuleLabel, rule: lastRule }] : []),
-    { id: DEFAULT_RULE, name: "默认保险设置", rule: RULE_30 },
+    {
+      id: DEFAULT_RULE,
+      name: t.insurance.insuranceSettings.defaultInsuranceSettings,
+      rule: RULE_30,
+    },
     ...saved.map((rule) => ({ ...rule, removable: true })),
   ];
   const selectedId =
@@ -195,7 +200,7 @@ export function InsuranceSettings({
 
   const configButton = (
     <ConfigMenu
-      label="保险设置"
+      label={t.insurance.insuranceSettings.insuranceSettings}
       choices={rules}
       selectedId={selectedId}
       modified={modified}
@@ -209,7 +214,7 @@ export function InsuranceSettings({
   /** Saved with this game's odds too, but only the other settings are taken when it is picked. */
   function handleSave(name: string) {
     const parsed = parseInsuranceRule(form);
-    if (!parsed.ok) return "规则里有无效的数值";
+    if (!parsed.ok) return t.insurance.insuranceSettings.someRulesArentValid;
     const existing = saved.find((rule) => rule.name === name);
     // Kept with the smallest chip in small blinds only, to be worked out at the game it is used in
     const kept = ruleToKeep(parsed.rule);
@@ -241,7 +246,7 @@ export function InsuranceSettings({
   function handleRemove(id: string) {
     const rule = saved.find((r) => r.id === id);
     const using = followers({ section: "insurance", id });
-    if (rule && window.confirm(removalQuestion("设置", rule.name, using))) {
+    if (rule && window.confirm(removalQuestion(t.common.settings, rule.name, using))) {
       removeRule.mutate(id, {
         onSuccess: () => {
           if (selectedId === id) onChange({ ...value, source: CUSTOM_RULE });
@@ -259,9 +264,11 @@ export function InsuranceSettings({
     >
       {!bare && (
         <Toggle
-          label="保险"
-          {...(locked && { detail: "这局已有保险记录，不能关闭" })}
-          info="开启后「保险」作为一席加入牌局，默认 1 个 Buy-in"
+          label={t.common.insurance}
+          {...(locked && {
+            detail: t.insurance.insuranceSettings.thisGameAlreadyHasInsuranceRecorded,
+          })}
+          info={t.insurance.insuranceSettings.whenOnInsuranceJoinsTheGame}
           checked={enabled}
           disabled={locked}
           accessory={enabled && configButton}
@@ -273,26 +280,26 @@ export function InsuranceSettings({
         <>
           <div className="flex flex-wrap gap-x-4">
             <MiniSwitch
-              label="命中退还保费"
+              label={t.insurance.insuranceSettings.refundPremiumOnAHit}
               checked={form.refundPremium}
               onChange={(refundPremium) => setForm({ refundPremium })}
             />
             <MiniSwitch
-              label="平分牌算 outs"
+              label={t.insurance.insuranceSettings.tieCardsCountAsOuts}
               checked={form.tieOuts === "include"}
               onChange={(checked) => setForm({ tieOuts: checked ? "include" : "exclude" })}
             />
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 text-sm">
-            <span className="text-muted">保费上限</span>
+            <span className="text-muted">{t.insurance.insuranceSettings.coverLimit}</span>
             <CoverLimitPicker
-              street="翻牌"
+              street={t.insurance.insuranceSettings.flop}
               value={form.turnLimit}
               onChange={(turnLimit) => setForm({ turnLimit })}
             />
             <CoverLimitPicker
-              street="转牌"
+              street={t.common.turn}
               value={form.riverLimit}
               onChange={(riverLimit) => setForm({ riverLimit })}
             />
@@ -301,7 +308,7 @@ export function InsuranceSettings({
           </div>
           {(issues.turnLimit || issues.riverLimit || issues.odds) && (
             <p role="alert" className="text-sm text-highlight">
-              规则里有无效的数值，请重新选择。
+              {t.insurance.insuranceSettings.someRulesArentValidChooseAgain}
             </p>
           )}
 
@@ -321,7 +328,7 @@ export function InsuranceSettings({
                   onClick={handleUpdate}
                   className="min-h-11 min-w-0 truncate text-sm font-medium text-highlight disabled:opacity-60"
                 >
-                  更新「{base.name}」
+                  {t.insurance.insuranceSettings.update(base.name)}
                 </button>
               )}
               {savable && (
@@ -330,14 +337,16 @@ export function InsuranceSettings({
                   onClick={() => setNaming(true)}
                   className="min-h-11 shrink-0 text-sm font-medium text-highlight"
                 >
-                  {updating ? "另存为" : "保存保险设置"}
+                  {updating
+                    ? t.insurance.insuranceSettings.saveAs
+                    : t.insurance.insuranceSettings.saveInsuranceSettings}
                 </button>
               )}
             </div>
           )}
           {saveRule.isError && !naming && (
             <p role="alert" className="text-right text-sm text-highlight">
-              保存失败，请重试。
+              {t.common.couldntSaveTryAgain}
             </p>
           )}
 
@@ -356,9 +365,12 @@ export function InsuranceSettings({
 
       {naming && (
         <SaveNameDialog
-          title="保存保险设置，下次快速应用？"
-          label="名称，同名会覆盖；赔率另存为赔率表"
-          initialName={datedName("保险设置", new Set(saved.map((rule) => rule.name)))}
+          title={t.insurance.insuranceSettings.saveTheseInsuranceSettingsToApply}
+          label={t.insurance.insuranceSettings.nameAnExistingNameIsOverwritten}
+          initialName={datedName(
+            t.insurance.insuranceSettings.insuranceSettings,
+            new Set(saved.map((rule) => rule.name)),
+          )}
           saving={saveRule.isPending}
           saveFailed={saveRule.isError}
           onSave={handleSave}

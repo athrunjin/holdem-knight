@@ -1,15 +1,9 @@
 import { parsePassword } from "@holdem-knight/core";
 import { createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
-import {
-  AuthPage,
-  FormIssue,
-  PASSWORD_ISSUE_TEXT,
-  PASSWORD_RULE,
-  PasswordField,
-  SubmitButton,
-} from "@/components/account/AuthParts";
+import { AuthPage, FormIssue, PasswordField, SubmitButton } from "@/components/account/AuthParts";
 import { type AuthIssue, setPassword as saveNewPassword } from "@/data/auth";
+import { t } from "@/i18n";
 
 export const Route = createFileRoute("/me_/new-password")({
   component: NewPasswordPage,
@@ -26,7 +20,7 @@ function NewPasswordPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const chosen = parsePassword(password);
-    setPasswordIssue(chosen.ok ? undefined : PASSWORD_ISSUE_TEXT[chosen.issue]);
+    setPasswordIssue(chosen.ok ? undefined : t.account.passwordIssue[chosen.issue]);
     setIssue(undefined);
     if (!chosen.ok) return;
 
@@ -41,9 +35,9 @@ function NewPasswordPage() {
   }
 
   return (
-    <AuthPage title="设置新密码" audience="accounts" onSubmit={handleSubmit}>
+    <AuthPage title={t.account.newPasswordPage.title} audience="accounts" onSubmit={handleSubmit}>
       <PasswordField
-        label={`新密码，${PASSWORD_RULE}`}
+        label={t.account.newPasswordWithRule}
         fresh
         value={password}
         issue={passwordIssue}
@@ -53,7 +47,7 @@ function NewPasswordPage() {
         }}
       />
       <FormIssue issue={issue} />
-      <SubmitButton busy={busy}>保存</SubmitButton>
+      <SubmitButton busy={busy}>{t.common.save}</SubmitButton>
     </AuthPage>
   );
 }

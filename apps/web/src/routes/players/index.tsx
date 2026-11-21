@@ -9,6 +9,7 @@ import {
   PlayerSearch,
 } from "@/components/players/PlayerList";
 import { newPlayer, usePlayers, useSavePlayer } from "@/data/players";
+import { t } from "@/i18n";
 
 export const Route = createFileRoute("/players/")({
   component: PlayersPage,
@@ -30,16 +31,16 @@ function PlayersPage() {
   if (isPending) return null;
 
   return (
-    <Page title="玩家">
+    <Page title={t.players.title}>
       <div className="pb-6">
         <PlayerSearch
-          label="搜索或新建玩家"
-          placeholder="搜索或新建：名字或拼音首字母"
+          label={t.players.library.searchOrAddAPlayer}
+          placeholder={t.players.library.searchOrAddNameOrInitials}
           query={query}
           onQueryChange={setQuery}
           newName={newName}
           tooLong={tooLong}
-          createLabel={(name) => `新建「${name}」`}
+          createLabel={(name) => t.players.library.create(name)}
           saving={savePlayer.isPending}
           saveFailed={savePlayer.isError}
           onCreate={handleCreate}
@@ -47,7 +48,7 @@ function PlayersPage() {
 
         {players.length === 0 && query === "" && (
           <p className="mt-4 rounded-2xl border border-dashed border-line px-6 py-8 text-center text-muted">
-            玩家库是空的。输入名字新建玩家，开局时就能直接选人。
+            {t.players.library.noPlayersYetTypeAName}
           </p>
         )}
 

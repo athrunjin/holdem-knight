@@ -3,14 +3,15 @@ import { type FormEvent, useState } from "react";
 import { FormDialog } from "@/components/game/FormDialog";
 import { TextField } from "@/components/TextField";
 import { TextMenu } from "@/components/TextMenu";
+import { t } from "@/i18n";
 
 const CUSTOM = "custom";
 
 const PRESETS = [
-  { id: STAKE_LIMIT, name: "保本" },
-  { id: "50", name: "半池" },
-  { id: "75", name: "3/4池" },
-  { id: FULL_POT_LIMIT, name: "满池" },
+  { id: STAKE_LIMIT, name: t.insurance.coverLimitPicker.stakeBack },
+  { id: "50", name: t.insurance.coverLimitPicker.halfPot },
+  { id: "75", name: t.insurance.coverLimitPicker.n34Pot },
+  { id: FULL_POT_LIMIT, name: t.insurance.coverLimitPicker.fullPot },
 ] as const;
 
 interface CoverLimitPickerProps {
@@ -32,7 +33,7 @@ export function CoverLimitPicker({ street, value, onChange }: CoverLimitPickerPr
     event.preventDefault();
     const limit = parseCoverLimit(percent);
     if (limit === null || limit === STAKE_LIMIT) {
-      setIssue("请输入 1–100 的整数");
+      setIssue(t.insurance.coverLimitPicker.enterAWholeNumberFrom1);
       return;
     }
     onChange(limit === undefined ? FULL_POT_LIMIT : String(limit));
@@ -42,14 +43,18 @@ export function CoverLimitPicker({ street, value, onChange }: CoverLimitPickerPr
   return (
     <>
       <TextMenu
-        label={`${street}保费上限`}
+        label={t.insurance.coverLimitPicker.coverLimit(street)}
         caption={street}
         options={[
           ...PRESETS.map(({ id, name }) => ({ value: id as string, label: name })),
           // Its own percentage shows in the line, and picking it again changes the percentage
           isPreset
-            ? { value: CUSTOM, label: "自定义" }
-            : { value: CUSTOM, label: `自定义（${value}%）`, chosen: `${value}%` },
+            ? { value: CUSTOM, label: t.common.custom }
+            : {
+                value: CUSTOM,
+                label: t.insurance.coverLimitPicker.custom(value),
+                chosen: `${value}%`,
+              },
         ]}
         value={isPreset ? value : CUSTOM}
         onChange={(id) => {
@@ -66,8 +71,8 @@ export function CoverLimitPicker({ street, value, onChange }: CoverLimitPickerPr
 
       {customizing && (
         <FormDialog
-          title={`${street}保费上限`}
-          submitLabel="确定"
+          title={t.insurance.coverLimitPicker.coverLimit(street)}
+          submitLabel={t.common.ok}
           saving={false}
           saveFailed={false}
           onSubmit={handleCustom}
@@ -75,7 +80,7 @@ export function CoverLimitPicker({ street, value, onChange }: CoverLimitPickerPr
         >
           <TextField
             id={`${street}-limit`}
-            label="命中后最多拿回自己那份底池的"
+            label={t.insurance.coverLimitPicker.aHitPaysBackAtMost}
             value={percent}
             issue={issue}
             suffix="%"

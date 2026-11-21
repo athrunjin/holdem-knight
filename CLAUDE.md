@@ -49,10 +49,12 @@ pnpm test:local       # Tests through its sign-in and API; pnpm db:reset empties
 - Commit messages use Conventional Commits in English, for example `feat(core): compute minimal settlement transfers`.
 - Everything in the repository and on GitHub is in English: commit messages, branch names, pull requests, issues, comments,
   documentation, code comments and test names. Interface text and Chinese sample data in tests stay in Chinese.
+- Interface text goes in the catalogs under `apps/web/src/i18n`, Chinese first and every other language with it,
+  and is read from `t` (ADR 0047). No Chinese text is written in components, routes or helpers.
   Discussions with the user are in Chinese.
 - Decisions that affect the long-term structure get a new record in `docs/adr/`.
 
 ## Design tokens
 
-Table-felt green is the base and chip gold is the only accent color; dark is the main mode. Tokens are defined in `apps/web/src/styles.css`.
+Table-felt green is the base and chip gold is the only accent color; dark is the only mode, whatever the device is set to. Tokens are defined in `apps/web/src/styles.css`.
 The logo, icons and brand rules are in `docs/brand/README.md` (ADR 0021).

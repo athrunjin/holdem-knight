@@ -1,10 +1,11 @@
 import { DEFAULT_RAKE_RULE, type Game, parseRake, type RakeForm } from "@holdem-knight/core";
 import { useState } from "react";
 import { useSaveGame } from "@/data/games";
+import { t } from "@/i18n";
 import { type ChargeChoice, initialRakeChoice, RakeSettingsPanel } from "./ChargeSettings";
 
 /** What 本局 stands for in the list of presets: the rule this game was set up with. */
-const THIS_GAME = "本局抽水设置";
+const THIS_GAME = t.game.gameRakeSettings.thisGamesRakeSettings;
 
 /**
  * 抽水计算's settings in a game: closed at first, they are this game's own rule, so a change is
@@ -23,7 +24,7 @@ export function GameRakeSettings({ game }: { game: Game }) {
     const repriced =
       parsed.ok && JSON.stringify(parsed.rule) !== JSON.stringify(current.ok && current.rule);
     if (repriced) {
-      if (!window.confirm("这个修改会应用到本局，之后的抽水都按新设置计算。继续？")) return false;
+      if (!window.confirm(t.game.gameRakeSettings.thisChangeAppliesToThisGame)) return false;
       saveGame.mutate({ ...game, rake: parsed.rule });
     }
     setChoice(next);

@@ -1555,6 +1555,40 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. With no network an account cannot record until the ledger is written to the device first (M6, step 2), so a real game is safer as a guest until then. Checked with unit tests of the switching, a test against the local Supabase that signs in and out with both storages real, and in the browser preview at 412 wide, dark mode: a guest's player, signing in to an empty account, a player and a game started in it, signing out to the guest's player, a failed read and its 重试, and an account that cannot be reached.
 - Tracking: PR #98, [ADR 0046](adr/0046-the-books-in-use-follow-who-is-signed-in.md)
 
+### #I-079 Dark whatever the device is set to
+
+- Type: feature
+- Date: proposed and decided 2026-11-21
+- Source: the organizer, who uses the app in dark mode only
+- Problem: the app followed the device, so a phone set to light showed a light theme nobody had designed for or checked.
+- Proposal: one set of colours, the dark one, with the browser's own controls drawn dark too, and the dark emblem on the settlement page.
+- Decision: do. Checked in the browser preview with the device set to light.
+- Tracking: PR #99
+
+### #I-080 An English interface and a language setting
+
+- Type: feature
+- Date: proposed and decided 2026-11-21
+- Source: the organizer, ahead of a first release
+- Problem: the interface is in Chinese only, written where it is shown.
+- Proposal:
+  - The text lives in catalogs, one a language, with the Chinese giving the shape the others are held to ([ADR 0047](adr/0047-interface-text-in-typed-catalogs.md)).
+  - The language is the device's, Chinese for any kind of Chinese and English otherwise, unless one is picked in a new 语言 row on 我的: 跟随系统, 中文, English.
+  - Every page is in both: some 660 texts in about 90 files, moved by a script that listed each one and rewrote the source to read the catalog, with the English written text by text. Dates follow the language.
+  - Not translated: names kept as data (saved settings, players, the two built-in odds tables), the emails with codes, and the page's title before the app starts.
+- Decision: do. The language follows the device, as the organizer chose. English for the game's own words follows common cash-game usage, checked against poker glossaries: rebuy for 补码, cash-out for 带出, Fee for 台费 and Wage for 工资, short so the pages keep the layout made for Chinese, net for 水上/下, Kangaroo pts and Panda pts for the two currencies. Checked with the catalogs' tests and in the browser preview in both languages: starting a game with every section on, the game page, 我的 and the tools. At 393 wide the English first pushed the game page's 结算 button off the screen and overlapped two labels in the rake settings; shorter words put both right, with the Chinese layout unchanged. The insurance flow inside a game and the shared image have not been looked at in English.
+- Tracking: PR #99, [ADR 0047](adr/0047-interface-text-in-typed-catalogs.md)
+
+### #I-081 A count in the outs dialog selected when it is tapped
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-21
+- Source: the organizer, using Outs数速算 on a phone
+- Problem: the dialog for the outs of the player behind selected its outs count as it opened.
+- Proposal: nothing is selected as the dialog opens. A tap on either count, the outs or the tie cards, selects it, so the first digit typed replaces it, as the app's other number fields do.
+- Decision: do. Checked in the browser preview: nothing is selected on opening, a tap selects the count, and a digit typed replaces it.
+- Tracking: PR #99
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

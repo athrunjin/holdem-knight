@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 /** Something to do from the list other than picking an option: an icon with a name for a reader. */
@@ -81,7 +82,7 @@ export function TextMenu<T extends string>({
         disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`${label}：${current ? readerText(current) : typeof placeholder === "string" ? placeholder : ""}`}
+        aria-label={`${label}${t.common.colon}${current ? readerText(current) : typeof placeholder === "string" ? placeholder : ""}`}
         onClick={() => setOpen(!open)}
         className={cn("flex min-h-11 max-w-full items-center gap-1 disabled:opacity-60", className)}
       >
@@ -105,7 +106,7 @@ export function TextMenu<T extends string>({
           {/* A tap anywhere else puts the list away */}
           <button
             type="button"
-            aria-label="收起"
+            aria-label={t.ui.textMenu.collapse}
             tabIndex={-1}
             onClick={() => setOpen(false)}
             className="fixed inset-0 z-10 cursor-default"

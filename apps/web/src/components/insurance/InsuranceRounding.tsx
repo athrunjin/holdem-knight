@@ -10,6 +10,7 @@ import {
 import { InfoButton } from "@/components/InfoButton";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { TextMenu } from "@/components/TextMenu";
+import { t } from "@/i18n";
 import { RAKE_ROUNDING_NAMES } from "@/lib/charges";
 import { cn } from "@/lib/cn";
 
@@ -19,12 +20,12 @@ const ROUNDING_OPTIONS = RAKE_ROUNDINGS.map((mode) => ({
 }));
 
 const ROUNDING_INFO = [
-  "保费按「赔付 ÷ 赔率」算出，赔付按「保费 × 赔率」算出。两者不满一个最小筹码面值的零头：",
-  "· 四舍五入：满半个面值进一个，不满半个舍去",
-  "· 向下取整：零头舍去",
-  "· 向上取整：有零头就进一个",
-  "保费至少一个最小筹码面值。取整后，保本的赔付可能比本金略少或略多，满池的赔付也可能略超过底池份额。",
-  "关闭取整时按整个筹码计：保本、半池的赔付至少够数，满池的赔付不超过底池份额。",
+  t.insurance.insuranceRounding.thePremiumIsPayoutOddsAnd,
+  t.insurance.insuranceRounding.roundHalfAChipOrMore,
+  t.insurance.insuranceRounding.roundDownThePartIsDropped,
+  t.insurance.insuranceRounding.roundUpAnyPartGoesUp,
+  t.insurance.insuranceRounding.thePremiumIsAtLeastOne,
+  t.insurance.insuranceRounding.withRoundingOffWholeChipsAre,
 ].join("\n");
 
 /** Where the smallest chip is set: in small blinds at a game, or in chips in the tools. */
@@ -52,9 +53,11 @@ export function RoundingSwitch({
 }: Pick<RoundingProps, "form" | "onChange"> & { className?: string }) {
   return (
     <span className={cn("flex min-h-11 items-center gap-1.5 whitespace-nowrap", className)}>
-      <span className={figureTitleClass(form.roundOn)}>取整</span>
+      <span className={figureTitleClass(form.roundOn)}>
+        {t.insurance.insuranceRounding.rounding}
+      </span>
       <MiniSwitch
-        label="取整"
+        label={t.insurance.insuranceRounding.rounding}
         hideLabel
         checked={form.roundOn}
         onChange={(roundOn) => onChange({ roundOn })}
@@ -68,7 +71,7 @@ function ChipFigure({ form, invalid, onChange }: Omit<RoundingProps, "stakes">) 
   return (
     <>
       <FigureInput
-        label="最小筹码面值（筹码）"
+        label={t.insurance.insuranceRounding.smallestChipChips}
         value={form.roundChips ?? ""}
         onChange={(roundChips) => onChange({ roundChips })}
         tidy={chipsText}
@@ -76,7 +79,7 @@ function ChipFigure({ form, invalid, onChange }: Omit<RoundingProps, "stakes">) 
         wholeNumber
       />
       <TextMenu
-        label="最小筹码面值快速选择"
+        label={t.insurance.insuranceRounding.quickSmallestChip}
         options={SMALLEST_CHIP_PICKS}
         value={SMALLEST_CHIP_PICKS.find((pick) => pick.value === form.roundChips?.trim())?.value}
         onChange={(roundChips) => onChange({ roundChips })}
@@ -89,7 +92,7 @@ function ChipFigure({ form, invalid, onChange }: Omit<RoundingProps, "stakes">) 
 
 const modeMenu = ({ form, onChange }: Pick<RoundingProps, "form" | "onChange">) => (
   <TextMenu
-    label="超出部分"
+    label={t.insurance.insuranceRounding.leftover}
     options={ROUNDING_OPTIONS}
     value={form.roundMode}
     onChange={(roundMode) => onChange({ roundMode })}
@@ -100,8 +103,8 @@ const modeMenu = ({ form, onChange }: Pick<RoundingProps, "form" | "onChange">) 
 
 const modeCaption = (
   <>
-    <InfoButton title="超出部分" text={ROUNDING_INFO} inline />
-    超出部分:
+    <InfoButton title={t.insurance.insuranceRounding.leftover} text={ROUNDING_INFO} inline />
+    {t.insurance.insuranceRounding.leftover2}
   </>
 );
 
@@ -118,7 +121,7 @@ export function InsuranceRoundingLine({ form, stakes, invalid, onChange }: Round
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-1">
       <span className="flex items-center font-medium">
-        <span className={caption}>最小筹码面值:</span>
+        <span className={caption}>{t.insurance.insuranceRounding.smallestChip}</span>
         {stakes ? (
           <BlindFigures
             smallBlinds={form.roundSmallBlinds}
@@ -173,7 +176,7 @@ function BlindFigures({
   return (
     <span className="contents font-medium">
       <FigureInput
-        label="最小筹码面值（SB）"
+        label={t.insurance.insuranceRounding.smallestChipSb}
         value={smallBlinds}
         minChars={1}
         onChange={onChange}
@@ -184,10 +187,10 @@ function BlindFigures({
         <span aria-hidden className="text-xl leading-none">
           ⇔
         </span>
-        <span className="sr-only">即</span>
+        <span className="sr-only">{t.common.equals}</span>
       </span>
       <FigureInput
-        label="最小筹码面值（筹码）"
+        label={t.insurance.insuranceRounding.smallestChipChips}
         value={draft ?? chips}
         onChange={typeChips}
         onBlur={() => setDraft(null)}

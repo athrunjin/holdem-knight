@@ -10,6 +10,7 @@ import { GameSettingsForm } from "@/components/game/GameSettingsForm";
 import { Page } from "@/components/Page";
 import { useGame, useHasLedgerEvents, useSaveGameSettings } from "@/data/games";
 import { useLedger } from "@/data/ledger";
+import { t } from "@/i18n";
 
 export const Route = createFileRoute("/games/$gameId/settings")({
   component: GameSettingsPage,
@@ -33,28 +34,28 @@ function GameSettingsPage() {
   }
 
   return (
-    <Page title="修改设置">
+    <Page title={t.gamePages.settings.editSettings}>
       <GameSettingsForm
         initial={toGameSettingsForm(game)}
-        submitLabel="保存"
+        submitLabel={t.common.save}
         ratioLocked={hasLedgerEvents}
         showBuyIn={!hasLedgerEvents || game.handChips !== undefined}
         showInsurance={game.handChips !== undefined}
         initialInsurance={game.insurance}
         lastInsurance={game.insurance}
-        lastInsuranceLabel="本局保险设置"
+        lastInsuranceLabel={t.gamePages.settings.thisGamesInsuranceSettings}
         insuranceLocked={insuranceActive(events)}
         initialTableFee={game.tableFee}
         lastTableFee={game.tableFee}
-        lastTableFeeLabel="本局台费设置"
+        lastTableFeeLabel={t.gamePages.settings.thisGamesTimeChargeSettings}
         initialWage={game.wage}
         lastWage={game.wage}
-        lastWageLabel="本局工资设置"
+        lastWageLabel={t.gamePages.settings.thisGamesDealerWageSettings}
         initialRake={game.rake}
         lastRake={game.rake}
-        lastRakeLabel="本局抽水设置"
+        lastRakeLabel={t.gamePages.settings.thisGamesRakeSettings}
         lastBasics={game}
-        lastBasicsLabel="本局基础设置"
+        lastBasicsLabel={t.gamePages.settings.thisGamesBasics}
         lastSources={game.sources}
         rakeLocked={rakeChips(events) > 0}
         saving={saveGame.isPending}
