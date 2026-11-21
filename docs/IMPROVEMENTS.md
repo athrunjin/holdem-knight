@@ -1553,7 +1553,7 @@ Records discussions of feature and process improvements: what was proposed, how 
   - The organizer on a game's pages and in what is shared from them is the name of the account's space, where the space's ID would have shown.
   - 数据备份 exports and restores the account's records when signed in, and says so. A guest's backup is refused by an account.
 - Decision: do. With no network an account cannot record until the ledger is written to the device first (M6, step 2), so a real game is safer as a guest until then. Checked with unit tests of the switching, a test against the local Supabase that signs in and out with both storages real, and in the browser preview at 412 wide, dark mode: a guest's player, signing in to an empty account, a player and a game started in it, signing out to the guest's player, a failed read and its 重试, and an account that cannot be reached.
-- Tracking: [ADR 0046](adr/0046-the-books-in-use-follow-who-is-signed-in.md)
+- Tracking: PR #98, [ADR 0046](adr/0046-the-books-in-use-follow-who-is-signed-in.md)
 
 ## Not doing or deferred
 
