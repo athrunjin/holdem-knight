@@ -57,6 +57,7 @@ import {
   useReturnAll,
 } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
+import { t } from "@/i18n";
 import { formatGameAmount } from "@/lib/currency";
 import { gameInitialsOf, gameNameOf } from "@/lib/player-name";
 
@@ -71,10 +72,10 @@ function GamePage() {
   if (isPending) return null;
   if (!game) {
     return (
-      <Page title="牌局">
-        <p className="text-muted">找不到这局牌。</p>
+      <Page title={t.gamePages.ledger.game}>
+        <p className="text-muted">{t.gamePages.ledger.thisGameCantBeFound}</p>
         <Link to="/" className="mt-2 inline-flex min-h-11 items-center text-highlight">
-          回到牌局列表
+          {t.gamePages.ledger.backToGames}
         </Link>
       </Page>
     );
@@ -98,7 +99,7 @@ type PendingEntry = {
 const settleClass =
   "inline-flex min-h-11 items-center rounded-xl bg-accent px-4 font-semibold text-accent-text";
 
-const HANDS_TITLE = { join: "Buy-in", edit: "调整 Buy-in" } as const;
+const HANDS_TITLE = { join: "Buy-in", edit: t.gamePages.ledger.adjustBuyIns } as const;
 
 function GameLedger({ game }: { game: Game }) {
   const { id: gameId, currency, chipRatio, handChips, status } = game;
@@ -194,7 +195,7 @@ function GameLedger({ game }: { game: Game }) {
 
   function handleRemove(playerId: string) {
     const buyIn = soleBuyIn(events, playerId);
-    if (buyIn && window.confirm(`把 ${nameOf(playerId)} 移出这局？`)) {
+    if (buyIn && window.confirm(t.gamePages.ledger.removeFromThisGame(nameOf(playerId)))) {
       appendReversal(buyIn.id);
       closeDialog();
     }
@@ -300,11 +301,11 @@ function GameLedger({ game }: { game: Game }) {
           {people.length > 0 &&
             (editable ? (
               <button type="button" onClick={handleSettle} className={settleClass}>
-                结算
+                {t.gamePages.ledger.settle}
               </button>
             ) : (
               <Link to="/games/$gameId/settlement" params={{ gameId }} className={settleClass}>
-                查看结算
+                {t.gamePages.ledger.viewSettlement}
               </Link>
             ))}
         </div>
@@ -374,7 +375,7 @@ function GameLedger({ game }: { game: Game }) {
         !pending &&
         !raking && (
           <p role="alert" className="mt-2 text-sm text-highlight">
-            保存失败，请重试。
+            {t.common.couldntSaveTryAgain}
           </p>
         )}
 
@@ -447,8 +448,8 @@ function GameLedger({ game }: { game: Game }) {
       {pending?.kind === "buy" && (
         <ChipAmountDialog
           key={pending.playerId}
-          title={`${nextBuyType(events, pending.playerId) === "buy_in" ? "Buy-in" : "补码"} · ${pending.name}`}
-          submitLabel="确定"
+          title={`${nextBuyType(events, pending.playerId) === "buy_in" ? "Buy-in" : t.common.rebuy} · ${pending.name}`}
+          submitLabel={t.common.ok}
           initialChips={lastBuyChips(events)}
           ratio={chipRatio}
           currency={currency}

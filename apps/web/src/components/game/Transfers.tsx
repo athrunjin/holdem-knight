@@ -4,6 +4,7 @@ import { ArrowRight, Check, Share2 } from "lucide-react";
 import { useState } from "react";
 import { type TransferPlan, TransferPlanPicker } from "@/components/game/TransferPlanPicker";
 import { Modal } from "@/components/insurance/Modal";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 
@@ -25,8 +26,8 @@ interface TransfersProps {
 type Notice = "share" | "locked";
 
 const NOTICE_TITLE: Record<Notice, string> = {
-  share: "分享转账",
-  locked: "不能切换方案",
+  share: t.game.transfers.shareTransfers,
+  locked: t.game.transfers.cantSwitchPlans,
 };
 
 /**
@@ -74,9 +75,12 @@ export function Transfers({
         </div>
         {transfers.length > 0 && (
           <>
-            <ShareButton label="分享全部转账" onClick={() => setNotice("share")} />
+            <ShareButton
+              label={t.game.transfers.shareAllTransfers}
+              onClick={() => setNotice("share")}
+            />
             <DoneButton
-              label="全部收到"
+              label={t.game.transfers.allReceived}
               done={allDone}
               disabled={disabled}
               onClick={() => mark(transfers, !allDone)}
@@ -87,14 +91,14 @@ export function Transfers({
 
       {transfers.length === 0 ? (
         <p className="border-t border-line py-2 pl-0.5 text-sm text-muted">
-          没有输赢，不需要转账。
+          {t.game.transfers.nobodyWonOrLostSoThere}
         </p>
       ) : (
         <ul className="border-t border-line">
           {transfers.map((transfer) => {
             const { from, to, amount } = transfer;
             const done = made.includes(transfer);
-            const pair = `${nameOf(from)} 转给 ${nameOf(to)}`;
+            const pair = t.game.transfers.pays(nameOf(from), nameOf(to));
             const struck = done && "text-muted line-through";
             return (
               <li
@@ -102,7 +106,10 @@ export function Transfers({
                 className="flex min-h-11 items-center gap-1.5 pl-0.5 text-sm"
               >
                 <span className={cn("min-w-0 truncate font-medium", struck)}>{nameOf(from)}</span>
-                <ArrowRight className="size-3.5 shrink-0 text-muted" aria-label="转给" />
+                <ArrowRight
+                  className="size-3.5 shrink-0 text-muted"
+                  aria-label={t.game.transfers.pays2}
+                />
                 <span className={cn("min-w-0 truncate font-medium", struck)}>{nameOf(to)}</span>
                 <span
                   className={cn(
@@ -113,9 +120,12 @@ export function Transfers({
                   {formatGameMoney(amount, currency)}
                 </span>
                 <div className="-ml-1.5 flex shrink-0">
-                  <ShareButton label={`分享 ${pair}`} onClick={() => setNotice("share")} />
+                  <ShareButton
+                    label={t.game.transfers.share(pair)}
+                    onClick={() => setNotice("share")}
+                  />
                   <DoneButton
-                    label={`${pair} 已完成`}
+                    label={t.game.transfers.done(pair)}
                     done={done}
                     disabled={disabled}
                     onClick={() => mark([transfer], !done)}
@@ -130,25 +140,29 @@ export function Transfers({
       <div className="flex min-h-11 items-center justify-between gap-3 border-t border-line pt-1.5 pl-0.5">
         <p className="min-w-0 text-xs text-muted">
           {transfers.length > 0 &&
-            `共 ${transfers.length} 笔（已收 ${made.length} / ${transfers.length}）`}
+            t.game.transfers.inAllReceived(transfers.length, made.length, transfers.length)}
         </p>
         <Link to="/" className="flex min-h-11 shrink-0 items-center text-xs text-highlight">
-          返回主界面
+          {t.game.transfers.backToTheMainView}
         </Link>
       </div>
 
       {notice && (
         <Modal title={NOTICE_TITLE[notice]} onClose={close}>
-          {notice === "share" && <p className="text-sm text-muted">这个功能还在开发中。</p>}
+          {notice === "share" && (
+            <p className="text-sm text-muted">{t.game.transfers.thisIsStillBeingBuilt}</p>
+          )}
           {notice === "locked" && (
-            <p className="text-sm text-muted">存在已完成的转账。取消勾选后才能切换方案。</p>
+            <p className="text-sm text-muted">
+              {t.game.transfers.someTransfersAreMarkedDoneUntick}
+            </p>
           )}
           <button
             type="button"
             onClick={close}
             className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
           >
-            关闭
+            {t.common.close}
           </button>
         </Modal>
       )}

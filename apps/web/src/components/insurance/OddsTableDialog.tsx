@@ -14,6 +14,7 @@ import {
   useRemoveOddsTable,
   useSaveOddsTable,
 } from "@/data/insurance";
+import { t } from "@/i18n";
 import { removalQuestion, updateQuestion } from "@/lib/config-text";
 import { datedName } from "@/lib/dated-name";
 import { formatOddsText, selectOnFocus } from "@/lib/number-input";
@@ -57,7 +58,7 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
   const [name, setName] = useState(() =>
     subject.kind === "view"
       ? subject.name
-      : (table?.name ?? datedName("赔率表", new Set(saved.map((other) => other.name)))),
+      : (table?.name ?? datedName(t.common.oddsTable, new Set(saved.map((other) => other.name)))),
   );
   // The name as it was before renaming began, to go back to if it is left empty
   const [renaming, setRenaming] = useState<string>();
@@ -86,11 +87,12 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
   function handleConfirm() {
     const trimmed = name.trim();
     const others = saved.filter((other) => other.id !== table?.id);
-    if (trimmed === "") return setIssue("请输入名称");
+    if (trimmed === "") return setIssue(t.common.enterAName);
     if (BUILT_IN_RULES.some((builtIn) => builtIn.name === trimmed)) {
-      return setIssue("这是预设赔率表的名称");
+      return setIssue(t.insurance.oddsTableDialog.thatIsTheNameOfA);
     }
-    if (others.some((other) => other.name === trimmed)) return setIssue("已有同名的赔率表");
+    if (others.some((other) => other.name === trimmed))
+      return setIssue(t.insurance.oddsTableDialog.anOddsTableWithThisName);
     const same = [
       ...BUILT_IN_RULES.map(({ name: builtIn, rule }) => ({ name: builtIn, ...rule })),
       ...others,
@@ -103,7 +105,7 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
 
   function handleRemove() {
     const using = table ? followers({ oddsTableId: table.id }) : 0;
-    if (table && window.confirm(removalQuestion("赔率表", table.name, using))) {
+    if (table && window.confirm(removalQuestion(t.common.oddsTable, table.name, using))) {
       removeTable.mutate(table.id, { onSuccess: onClose });
     }
   }
@@ -114,7 +116,9 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
         <button
           type="button"
           disabled={readOnly}
-          aria-label={readOnly ? undefined : `赔率表名称：${name}，点按重命名`}
+          aria-label={
+            readOnly ? undefined : t.insurance.oddsTableDialog.oddsTableNameTapToRename(name)
+          }
           onClick={() => setRenaming(name)}
           className="min-h-11 min-w-0 flex-1 truncate text-left font-semibold"
         >
@@ -123,7 +127,7 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
       ) : (
         <input
           type="text"
-          aria-label="赔率表名称"
+          aria-label={t.insurance.oddsTableDialog.oddsTableName}
           // Opened by a tap on the name or the pen, so the keyboard is expected
           // biome-ignore lint/a11y/noAutofocus: the field appears in answer to that tap
           autoFocus
@@ -148,7 +152,7 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
       {!readOnly && (
         <button
           type="button"
-          aria-label="重命名"
+          aria-label={t.insurance.oddsTableDialog.rename}
           // Keeps the field's focus, so a tap while renaming does not end and restart it
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => renaming === undefined && setRenaming(name)}
@@ -158,7 +162,12 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
         </button>
       )}
       {table && (
-        <button type="button" aria-label="删除赔率表" onClick={handleRemove} className={iconClass}>
+        <button
+          type="button"
+          aria-label={t.insurance.oddsTableDialog.deleteOddsTable}
+          onClick={handleRemove}
+          className={iconClass}
+        >
           <Trash2 className="size-5" strokeWidth={1.75} aria-hidden />
         </button>
       )}
@@ -175,7 +184,7 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
       <OddsGrid draft={draft} readOnly={readOnly} onChange={setDraft} />
       {(saveTable.isError || removeTable.isError) && (
         <p role="alert" className="mt-2 text-sm text-highlight">
-          保存失败，请重试。
+          {t.common.couldntSaveTryAgain}
         </p>
       )}
       {readOnly ? (
@@ -184,7 +193,7 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
           onClick={onClose}
           className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
         >
-          关闭
+          {t.common.close}
         </button>
       ) : (
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -193,7 +202,7 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
             onClick={onClose}
             className="min-h-11 rounded-xl border border-line font-medium"
           >
-            取消
+            {t.common.cancel}
           </button>
           <button
             type="button"
@@ -201,20 +210,20 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
             onClick={handleConfirm}
             className="min-h-11 rounded-xl bg-accent font-semibold text-accent-text disabled:bg-line disabled:text-muted"
           >
-            确认
+            {t.common.confirm}
           </button>
         </div>
       )}
       {twin !== undefined && (
-        <Modal title="赔率相同" onClose={() => setTwin(undefined)}>
-          <p>当前赔率和「{twin}」相同，是否保存？</p>
+        <Modal title={t.insurance.oddsTableDialog.sameOdds} onClose={() => setTwin(undefined)}>
+          <p>{t.insurance.oddsTableDialog.theseOddsAreTheSameAs(twin)}</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setTwin(undefined)}
               className="min-h-11 rounded-xl border border-line font-medium"
             >
-              取消
+              {t.common.cancel}
             </button>
             <button
               type="button"
@@ -224,7 +233,7 @@ export function OddsTableDialog({ subject, onSaved, onClose }: OddsTableDialogPr
               }}
               className="min-h-11 rounded-xl bg-accent font-semibold text-accent-text"
             >
-              保存
+              {t.common.save}
             </button>
           </div>
         </Modal>

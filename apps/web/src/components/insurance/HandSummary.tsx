@@ -8,6 +8,7 @@ import {
   premiumBuyIns,
 } from "@holdem-knight/core";
 import { type ReactNode, useState } from "react";
+import { t } from "@/i18n";
 import { formatSignedChips } from "@/lib/chips";
 import { BoardCards, CardFace } from "./CardFace";
 import type { SeatChips } from "./InsuranceHandFlow";
@@ -55,19 +56,23 @@ function PlayerResult({
         </span>
       </div>
       <dl className="mt-2 flex flex-col gap-1 border-t border-line pt-2">
-        <Line label="从底池拿走">{chipText(potChips)}</Line>
-        {refundChips > 0 && <Line label="退回未跟注">{chipText(refundChips)}</Line>}
-        <Line label="保险盈亏">{formatSignedChips(insuranceChips)}</Line>
+        <Line label={t.insurance.handSummary.takesFromThePot}>{chipText(potChips)}</Line>
+        {refundChips > 0 && (
+          <Line label={t.insurance.handSummary.uncalledBetReturned}>{chipText(refundChips)}</Line>
+        )}
+        <Line label={t.insurance.handSummary.insurancePL}>{formatSignedChips(insuranceChips)}</Line>
         {buyIn && handChips !== undefined && (
-          <Line label="需 Buy-in">
-            {buyIn.buyInChips / handChips} 个（{chipText(buyIn.buyInChips)}）
+          <Line label={t.insurance.handSummary.needsABuyIn}>
+            {t.insurance.handSummary.text(buyIn.buyInChips / handChips, chipText(buyIn.buyInChips))}
           </Line>
         )}
-        <Line label="后手">{stackAfter === null ? "Cover 不适用" : chipText(stackAfter)}</Line>
+        <Line label={t.insurance.handSummary.stackBehind}>
+          {stackAfter === null ? t.insurance.handSummary.coverDoesntApply : chipText(stackAfter)}
+        </Line>
       </dl>
       {shortChips > 0 && (
         <p className="mt-1 text-sm text-highlight">
-          还差 {chipText(shortChips)} 保费，确认时需要 Buy-in。
+          {t.insurance.handSummary.shortForThePremiumConfirmingNeeds(chipText(shortChips))}
         </p>
       )}
     </li>
@@ -105,8 +110,8 @@ export function HandSummary({
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <section aria-label="本手总结">
-      <h2 className="mt-3 mb-2 font-semibold">本手总结</h2>
+    <section aria-label={t.insurance.handSummary.handSummary}>
+      <h2 className="mt-3 mb-2 font-semibold">{t.insurance.handSummary.handSummary}</h2>
       <BoardCards cards={hand.board} />
       <ul className="mt-3 flex flex-col gap-2">
         {results.map((result) => (
@@ -120,12 +125,21 @@ export function HandSummary({
           />
         ))}
       </ul>
-      <section aria-label="保险" className="mt-2 rounded-xl border border-line bg-surface p-3">
-        <h3 className="font-semibold">保险</h3>
+      <section
+        aria-label={t.common.insurance}
+        className="mt-2 rounded-xl border border-line bg-surface p-3"
+      >
+        <h3 className="font-semibold">{t.common.insurance}</h3>
         <dl className="mt-1 flex flex-col gap-1">
-          <Line label="本手盈亏">{formatSignedChips(seatChips)}</Line>
-          {topUp > 0 && <Line label="自动 Buy-in">{chipText(topUp)}</Line>}
-          {seat && <Line label="后手">{chipText(seat.stackChips + seatChips + topUp)}</Line>}
+          <Line label={t.insurance.handSummary.handPL}>{formatSignedChips(seatChips)}</Line>
+          {topUp > 0 && (
+            <Line label={t.insurance.handSummary.automaticBuyIn}>{chipText(topUp)}</Line>
+          )}
+          {seat && (
+            <Line label={t.insurance.handSummary.stackBehind}>
+              {chipText(seat.stackChips + seatChips + topUp)}
+            </Line>
+          )}
         </dl>
       </section>
       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -134,7 +148,7 @@ export function HandSummary({
           onClick={onBack}
           className="min-h-12 rounded-xl border border-line font-medium"
         >
-          返回上一步
+          {t.insurance.handSummary.previousStep}
         </button>
         <button
           type="button"
@@ -142,23 +156,34 @@ export function HandSummary({
           onClick={() => (buyIns.length > 0 ? setConfirming(true) : onConfirm())}
           className="min-h-12 rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40"
         >
-          {recording ? "确认并返回牌局" : "重新计算"}
+          {recording
+            ? t.insurance.handSummary.confirmAndReturnToTheGame
+            : t.insurance.handSummary.recalculate}
         </button>
       </div>
       {confirming && seat && (
-        <Modal title="需要自动 Buy-in" onClose={() => setConfirming(false)}>
+        <Modal
+          title={t.insurance.handSummary.automaticBuyInNeeded}
+          onClose={() => setConfirming(false)}
+        >
           <p role="alert" className="font-medium text-highlight">
-            以下玩家不够支付保费，确认后会增加 Buy-in。
+            {t.insurance.handSummary.thesePlayersCantPayTheirPremium}
           </p>
           <ul className="mt-2 flex flex-col gap-2">
             {buyIns.map(({ playerId, shortChips, buyInChips, stackChips }) => (
               <li key={playerId} className="rounded-xl border border-line bg-bg p-3">
                 <p className="font-semibold">
-                  {nameOf(playerId)} · {buyInChips / seat.handChips} 个 Buy-in（
-                  {chipText(buyInChips)} 筹码）
+                  {t.insurance.handSummary.buyInsChips(
+                    nameOf(playerId),
+                    buyInChips / seat.handChips,
+                    chipText(buyInChips),
+                  )}
                 </p>
                 <p className="text-sm text-muted tabular-nums">
-                  欠保费 {chipText(shortChips)} · Buy-in 后后手 {chipText(stackChips)}
+                  {t.insurance.handSummary.premiumOwedStackAfterBuyIn(
+                    chipText(shortChips),
+                    chipText(stackChips),
+                  )}
                 </p>
               </li>
             ))}
@@ -169,7 +194,7 @@ export function HandSummary({
               onClick={() => setConfirming(false)}
               className="min-h-11 rounded-xl border border-line font-medium"
             >
-              取消
+              {t.common.cancel}
             </button>
             <button
               type="button"
@@ -177,7 +202,7 @@ export function HandSummary({
               onClick={onConfirm}
               className="min-h-11 rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40"
             >
-              确认 Buy-in
+              {t.insurance.handSummary.confirmBuyIn}
             </button>
           </div>
         </Modal>

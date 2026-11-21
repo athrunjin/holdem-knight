@@ -1,11 +1,12 @@
 import { type Cents, type Currency, formatMoney } from "@holdem-knight/core";
+import { t } from "@/i18n";
 
 export const CURRENCY_INFO: Record<
   Currency,
   { readonly label: string; readonly symbol: string; readonly locale: string }
 > = {
-  AUD: { label: "澳元", symbol: "$", locale: "en-AU" },
-  CNY: { label: "人民币", symbol: "¥", locale: "zh-CN" },
+  AUD: { label: t.lib.currency.australianDollar, symbol: "$", locale: "en-AU" },
+  CNY: { label: t.lib.currency.chineseYuan, symbol: "¥", locale: "zh-CN" },
 };
 
 export function formatGameMoney(

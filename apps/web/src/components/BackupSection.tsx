@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { type ChangeEvent, useRef, useState } from "react";
 import { repository } from "@/data";
 import { parseBackup, serializeBackup } from "@/data/backup";
-import { useMessages } from "@/i18n";
+import { t } from "@/i18n";
 import { shareFile } from "@/lib/share";
 
 const buttonClass = "min-h-12 rounded-xl border border-line px-4 font-medium disabled:opacity-60";
@@ -15,8 +15,7 @@ type Status = { tone: "ok" | "error"; text: string };
  * before changing devices or clearing the browser, or the account's, as a copy to keep.
  */
 export function BackupSection({ account }: { account: boolean }) {
-  const m = useMessages();
-  const text = m.me.backup;
+  const text = t.me.backup;
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);

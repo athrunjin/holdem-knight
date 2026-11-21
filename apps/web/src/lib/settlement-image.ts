@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 /**
  * Draws the settlement result as a PNG. It uses Canvas directly because the content is only text and lines,
  * so no DOM screenshot library is needed; those tend to lose fonts on iOS Safari.
@@ -119,15 +120,15 @@ export async function renderSettlementImage(data: SettlementImageData): Promise<
     ctx.textAlign = "left";
   }
 
-  heading("结果");
+  heading(t.lib.settlementImage.result);
   ctx.font = font(30);
   ctx.fillStyle = COLOR.muted;
-  ctx.fillText("玩家", PADDING + 36, y + 12);
+  ctx.fillText(t.common.player, PADDING + 36, y + 12);
   for (const [label, right] of [
-    ["手", COLUMN.hands],
-    ["筹码", COLUMN.chips],
-    ["水上/下", COLUMN.net],
-    ["金额", COLUMN.amount],
+    [t.lib.settlementImage.buyIns, COLUMN.hands],
+    [t.common.chips, COLUMN.chips],
+    [t.lib.settlementImage.net, COLUMN.net],
+    [t.common.amount, COLUMN.amount],
   ] as const) {
     cellAtRight(label, right, y + 12, COLOR.muted, font(30));
   }

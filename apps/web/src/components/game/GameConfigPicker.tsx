@@ -1,11 +1,12 @@
 import { ConfigMenu } from "@/components/ConfigMenu";
 import { useGameConfigs, useRemoveGameConfig } from "@/data/game-configs";
+import { t } from "@/i18n";
 
 /** Last time's setup, which the page starts from. */
 export const LAST_CONFIG = "last";
 /** A new game's settings with nothing to carry over. */
 export const DEFAULT_CONFIG = "default";
-export const DEFAULT_CONFIG_NAME = "默认全局设置";
+export const DEFAULT_CONFIG_NAME = t.game.gameConfigPicker.defaultGameSettings;
 
 interface GameConfigPickerProps {
   /** The chosen game config's ID, or null once it has been deleted */
@@ -35,13 +36,14 @@ export function GameConfigPicker({
   const { data: saved = [] } = useGameConfigs();
   const removeConfig = useRemoveGameConfig();
   const choices = [
-    ...(lastShown ? [{ id: LAST_CONFIG, name: "上次全局设置" }] : []),
+    ...(lastShown ? [{ id: LAST_CONFIG, name: t.game.gameConfigPicker.lastGameSettings }] : []),
     { id: DEFAULT_CONFIG, name: DEFAULT_CONFIG_NAME },
     ...saved.map(({ id, name }) => ({ id, name, removable: true })),
   ];
   function handleRemove(id: string) {
     const config = saved.find((other) => other.id === id);
-    if (!config || !window.confirm(`删除全局设置「${config.name}」？`)) return;
+    if (!config || !window.confirm(t.game.gameConfigPicker.deleteTheGameSettings(config.name)))
+      return;
     removeConfig.mutate(id, {
       onSuccess: () => {
         if (selected === id) onSelect(null);
@@ -51,7 +53,7 @@ export function GameConfigPicker({
 
   return (
     <ConfigMenu
-      label="全局设置"
+      label={t.game.gameConfigPicker.gameSettings}
       choices={choices}
       selectedId={selected ?? undefined}
       modified={modified}

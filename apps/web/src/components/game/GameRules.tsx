@@ -1,6 +1,7 @@
 import type { Charge, Game } from "@holdem-knight/core";
 import { useState } from "react";
 import { Modal } from "@/components/insurance/Modal";
+import { t } from "@/i18n";
 import { gameRuleLines, oddsText } from "@/lib/charges";
 
 interface GameRulesProps {
@@ -16,20 +17,20 @@ export function hasGameRules(game: Pick<Game, "insurance" | "wage" | "tableFee" 
 /** The whole odds table, by outs. */
 function OddsTable({ odds, onClose }: { odds: readonly number[]; onClose: () => void }) {
   return (
-    <Modal title="赔率表" onClose={onClose}>
+    <Modal title={t.common.oddsTable} onClose={onClose}>
       <ul className="grid grid-cols-3 gap-x-2 gap-y-1 text-sm tabular-nums">
         {odds.map((hundredths, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: each place is that many outs
           <li key={i}>{oddsText(i + 1, hundredths)}</li>
         ))}
       </ul>
-      <p className="mt-2 text-xs text-muted">前面是 outs 张数，后面是赔率。</p>
+      <p className="mt-2 text-xs text-muted">{t.game.gameRules.outsFirstThenTheOdds}</p>
       <button
         type="button"
         onClick={onClose}
         className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
       >
-        关闭
+        {t.common.close}
       </button>
     </Modal>
   );
@@ -61,7 +62,7 @@ export function GameRules({ game, charges }: GameRulesProps) {
                 {oddsHundredths && row === rows.length - 1 && (
                   <button
                     type="button"
-                    aria-label="完整赔率表"
+                    aria-label={t.game.gameRules.fullOddsTable}
                     onClick={() => setShowingOdds(true)}
                     className="-my-1 px-1 font-semibold tracking-widest text-highlight"
                   >

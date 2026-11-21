@@ -1,0 +1,78 @@
+import type { Messages } from "../zh";
+
+export const lib: Messages["lib"] = {
+  charges: {
+    byTheMinute: "By the minute",
+    by15Min: "By 15 min",
+    by30Min: "By 30 min",
+    perHour: "Per hour",
+    round: "Round",
+    roundDown: "Round down",
+    roundUp: "Round up",
+    chips: " chips",
+    ofThePot: (a) => `${a}% of the pot`,
+    cap: (a) => `Cap ${a}`,
+    noCap: "No cap",
+    under1ChipIsDropped: "Under 1 chip is dropped",
+    to: (a, b) => `${b} to ${a}`,
+    from00: (a) => `From ${a}:00`,
+    n0000: (a, b) => `${a}:00–${b}:00`,
+    base: "Base",
+    hrIntoTheGame: (a) => `${a} hr into the game`,
+    adjusted: "Adjusted",
+    pays: (a, b) => `${a} pays ${b}`,
+    tieCardsAsOuts: (a) => `Tie cards ${a} as outs`,
+    count: "count",
+    dontCount: "don’t count",
+    aHitThePremium: (a) => `A hit ${a} the premium`,
+    refunds: "refunds",
+    keeps: "keeps",
+    hr: (a, b) => `${a} ${b}/hr`,
+    afterMinAtTheTable: (a) => `After ${a} min at the table`,
+    player: (a) => `${a}/player`,
+    n1Min: "1 min",
+    n15Min: "15 min",
+    n30Min: "30 min",
+    n1Hr: "1 hr",
+    byTheMinute2: "By the minute",
+    by15Minutes: "By 15 minutes",
+    by30Minutes: "By 30 minutes",
+    byTheHour: "By the hour",
+    aPartUnderIsRounded: (a) => `A part under ${a} is rounded`,
+    aPartUnderCountsAs: (a, b) => `A part under ${a} counts as ${b}`,
+    aPartUnderIsFree: (a) => `A part under ${a} is free`,
+    charged: (a, b) => `Charged ${a}. ${b}`,
+    onlyTimeAtTheTableWhile: "Only time at the table while the game clock runs is counted",
+    aBlockThatSpansTwoRates:
+      "A block that spans two rates is charged at the one it spends longer in",
+    onlyAfterMinAtTheTable: (a) => `, only after ${a} min at the table`,
+    perPlayer: (a, b) => `${a} per player${b}`,
+    min: (a) => `${a} min`,
+    hrMin: (a, b) => `${a} hr ${b} min`,
+  },
+  configText: {
+    edited: " · edited",
+    deleteThe: (a, b) => `Delete the ${a} “${b}”?`,
+    gameSettingsUseItTheyKeep: (a, b) => `${a}
+${b} game settings use it. They keep its current values after it is deleted.`,
+    updateGameSettingsUseItGames: (a, b) => `Update “${a}”?
+${b} game settings use it. Games started from them will follow the new values.`,
+  },
+  currency: {
+    australianDollar: "Australian dollar",
+    chineseYuan: "Chinese yuan",
+  },
+  playerName: {
+    enterAName: "Enter a name",
+    aNameCantBeLongerThan: (a) => `A name can’t be longer than ${a} characters`,
+    aPlayerWithThisNameExists:
+      "A player with this name exists. Write something like “Wang2” to tell them apart",
+    andAreReservedNamesChooseAnother: (a, b) =>
+      `“${a}” and “${b}” are reserved names. Choose another`,
+  },
+  settlementImage: {
+    result: "Result",
+    buyIns: "Buy-ins",
+    net: "Net",
+  },
+};

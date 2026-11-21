@@ -1,6 +1,7 @@
 import type { ImbalanceHandling } from "@holdem-knight/core";
 import { Check, X } from "lucide-react";
 import { type FormEvent, useState } from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { FormDialog } from "./FormDialog";
 import { ImbalanceOptions } from "./ImbalanceOptions";
@@ -49,8 +50,10 @@ export function SettleDialog({
 
   return (
     <FormDialog
-      title="结算"
-      submitLabel={seatedCount > 0 ? "一键离桌并结算" : "去结算"}
+      title={t.game.settleDialog.settle}
+      submitLabel={
+        seatedCount > 0 ? t.game.settleDialog.allLeaveSettle : t.game.settleDialog.goToSettlement
+      }
       saving={saving}
       saveFailed={saveFailed}
       onSubmit={handleSubmit}
@@ -62,13 +65,15 @@ export function SettleDialog({
       >
         {balanced ? (
           <>
-            筹码配平
+            {t.game.settleDialog.chipBalance}
             <Check className="size-4 shrink-0" aria-hidden />
           </>
         ) : (
           <>
             <X className="size-4 shrink-0" aria-hidden />
-            筹码未配平，{balanceChips > 0 ? "多" : "少"} {chips} 筹码 / {cash}
+            {t.game.settleDialog.chipsDontBalance}
+            {balanceChips > 0 ? t.game.settleDialog.over : t.game.settleDialog.short} {chips}{" "}
+            {t.game.settleDialog.chips} {cash}
           </>
         )}
       </p>
@@ -84,13 +89,12 @@ export function SettleDialog({
       )}
       {seatedCount > 0 && (
         <p className="text-sm text-muted">
-          还有 {seatedCount}{" "}
-          人在桌，一键离桌会按当前筹码记录，之后可以点「回桌」或「全部回桌」回到牌桌。
+          {t.game.settleDialog.stillAtTheTableLeavingAll(seatedCount, " ")}
         </p>
       )}
       {pendingInsurance > 0 && (
         <p role="alert" className="text-sm text-highlight">
-          还有 {pendingInsurance} 笔保险没有记录开奖结果。
+          {t.game.settleDialog.insuranceBetsHaveNoResultRecorded(pendingInsurance)}
         </p>
       )}
     </FormDialog>

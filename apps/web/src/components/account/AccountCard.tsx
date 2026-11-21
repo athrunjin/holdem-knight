@@ -4,7 +4,7 @@ import { type FormEvent, useRef, useState } from "react";
 import { TextField } from "@/components/TextField";
 import { signOut } from "@/data/auth";
 import { useAccount, useRenameAccount } from "@/data/session";
-import { useMessages } from "@/i18n";
+import { t } from "@/i18n";
 
 const rowClass = "flex min-h-11 items-center justify-between gap-3";
 
@@ -13,7 +13,6 @@ const rowClass = "flex min-h-11 items-center justify-between gap-3";
  * shows a tick for a moment once it has, and says so where copying is not allowed.
  */
 function AccountCode({ code }: { code: string }) {
-  const m = useMessages();
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
 
   const shown = useRef<HTMLSpanElement>(null);
@@ -48,7 +47,7 @@ function AccountCode({ code }: { code: string }) {
     <dd className="flex min-w-0 items-center">
       {state !== "idle" && (
         <span role="status" className="mr-2 text-xs text-muted">
-          {state === "copied" ? m.me.account.copied : m.me.account.copyFailed}
+          {state === "copied" ? t.me.account.copied : t.me.account.copyFailed}
         </span>
       )}
       <span ref={shown} className="font-medium tabular-nums select-all">
@@ -56,7 +55,7 @@ function AccountCode({ code }: { code: string }) {
       </span>
       <button
         type="button"
-        aria-label={m.me.account.copyCode}
+        aria-label={t.me.account.copyCode}
         onClick={handleCopy}
         className="-mr-3 grid size-11 shrink-0 place-items-center text-muted"
       >
@@ -76,7 +75,6 @@ const buttonClass = "min-h-11 rounded-xl border border-line px-4 font-medium dis
  * check it by, its address, and the way out.
  */
 export function AccountCard({ userId, email }: { userId: string; email: string }) {
-  const m = useMessages();
   const { data: account, isError } = useAccount(userId);
   const rename = useRenameAccount(userId);
   const [editing, setEditing] = useState<string>();
@@ -87,7 +85,7 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
     event.preventDefault();
     const shown = parseDisplayName(editing ?? "");
     if (!shown.ok) {
-      setNameIssue(m.account.nameIssue[shown.issue]);
+      setNameIssue(t.account.nameIssue[shown.issue]);
       return;
     }
     rename.mutate(shown.value, { onSuccess: () => setEditing(undefined) });
@@ -108,16 +106,16 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
             }}
             className="min-h-11 shrink-0 text-sm font-medium text-highlight disabled:opacity-60"
           >
-            {m.me.account.rename}
+            {t.me.account.rename}
           </button>
         </div>
       ) : (
         <form onSubmit={handleRename} noValidate className="flex flex-col gap-3">
           <TextField
             id="display-name"
-            label={m.account.name}
+            label={t.account.name}
             value={editing}
-            issue={nameIssue ?? (rename.isError ? m.me.account.renameFailed : undefined)}
+            issue={nameIssue ?? (rename.isError ? t.me.account.renameFailed : undefined)}
             inputMode="text"
             selectOnFocus
             onChange={(next) => {
@@ -127,14 +125,14 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
           />
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => setEditing(undefined)} className={buttonClass}>
-              {m.common.cancel}
+              {t.common.cancel}
             </button>
             <button
               type="submit"
               disabled={rename.isPending}
               className="min-h-11 rounded-xl bg-accent px-4 font-semibold text-accent-text disabled:opacity-60"
             >
-              {m.common.save}
+              {t.common.save}
             </button>
           </div>
         </form>
@@ -142,21 +140,21 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
 
       <dl className="mt-2 divide-y divide-line text-sm">
         <div className={rowClass}>
-          <dt className="shrink-0 text-muted">{m.me.account.code}</dt>
+          <dt className="shrink-0 text-muted">{t.me.account.code}</dt>
           {account ? <AccountCode code={account.code} /> : <dd />}
         </div>
         <div className={rowClass}>
-          <dt className="shrink-0 text-muted">{m.me.account.email}</dt>
+          <dt className="shrink-0 text-muted">{t.me.account.email}</dt>
           <dd className="min-w-0 truncate">{email}</dd>
         </div>
       </dl>
       {isError && (
         <p role="alert" className="mt-2 text-sm text-highlight">
-          {m.me.account.unread}
+          {t.me.account.unread}
         </p>
       )}
 
-      <p className="mt-3 text-sm text-muted">{m.me.account.note}</p>
+      <p className="mt-3 text-sm text-muted">{t.me.account.note}</p>
       <button
         type="button"
         disabled={leaving}
@@ -167,7 +165,7 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
         }}
         className={`${buttonClass} mt-4 w-full`}
       >
-        {m.common.signOut}
+        {t.common.signOut}
       </button>
     </section>
   );

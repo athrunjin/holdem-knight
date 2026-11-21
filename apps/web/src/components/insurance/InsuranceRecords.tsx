@@ -7,23 +7,24 @@ import {
 } from "@holdem-knight/core";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { t } from "@/i18n";
 import { formatCardText } from "@/lib/cards";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 
 const STATUS_TEXT: Record<InsuranceStatus, string> = {
-  pending: "待开奖",
-  hit: "命中",
-  miss: "未中",
+  pending: t.insurance.insuranceRecords.pending,
+  hit: t.insurance.insuranceRecords.hit,
+  miss: t.insurance.insuranceRecords.missed,
 };
 
-const STREET_TEXT = { turn: "转牌", river: "河牌" } as const;
+const STREET_TEXT = { turn: t.common.turn, river: t.common.river } as const;
 
 const chipText = (chips: number) => chips.toLocaleString("zh-CN");
 
 /** The cards a purchase was on: how many overtake, or how many split the pot. */
 const outsText = (count: number, tie: boolean | undefined) =>
-  tie ? `平分 ${count} 张` : `${count} outs`;
+  tie ? t.insurance.insuranceRecords.tieOn(count) : `${count} outs`;
 
 /** Changing the records. Missing once the game is closed. */
 export interface RecordActions {
@@ -59,24 +60,37 @@ function HandRecord({
       <details>
         <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-2 text-sm">
           <span className="min-w-0 truncate font-medium">
-            第 {number} 手 · {hand.players.map((p) => nameOf(p.playerId)).join(" / ")}
+            {t.insurance.insuranceRecords.hand(
+              number,
+              hand.players.map((p) => nameOf(p.playerId)).join(" / "),
+            )}
           </span>
           <span className="shrink-0 text-highlight tabular-nums">
-            {hand.purchases.length === 0 ? "未投保" : formatSignedChips(seatChips)}
+            {hand.purchases.length === 0
+              ? t.insurance.insuranceRecords.notInsured
+              : formatSignedChips(seatChips)}
           </span>
         </summary>
-        <p className="text-sm text-muted">公共牌 {hand.board.map(formatCardText).join(" ")}</p>
+        <p className="text-sm text-muted">
+          {t.insurance.insuranceRecords.board(hand.board.map(formatCardText).join(" "))}
+        </p>
         <ul className="pb-2">
           {hand.purchases.map((purchase) => (
             <li key={purchase.id} className="mt-1 text-sm tabular-nums">
               <span className="font-medium">
                 {nameOf(purchase.playerId)} · {STREET_TEXT[purchase.street]} ·{" "}
-                {purchase.hit ? "命中" : "未中"}
+                {purchase.hit
+                  ? t.insurance.insuranceRecords.hit
+                  : t.insurance.insuranceRecords.missed}
               </span>
               <span className="block text-muted">
-                {outsText(purchase.outs.length, purchase.tie)} · 赔{" "}
-                {formatOdds(purchase.oddsHundredths)} · 保费 {chipText(purchase.premiumChips)} ·
-                赔付 {chipText(purchase.payoutChips)}
+                {t.insurance.insuranceRecords.paysPremiumPayout(
+                  outsText(purchase.outs.length, purchase.tie),
+                  " ",
+                  formatOdds(purchase.oddsHundredths),
+                  chipText(purchase.premiumChips),
+                  chipText(purchase.payoutChips),
+                )}
               </span>
             </li>
           ))}
@@ -88,7 +102,7 @@ function HandRecord({
             onClick={() => actions.onUndoHand(hand)}
             className="mb-2 min-h-11 rounded-lg px-3 text-sm text-muted disabled:opacity-60"
           >
-            撤销这手
+            {t.insurance.insuranceRecords.undoThisHand}
           </button>
         )}
       </details>
@@ -115,8 +129,13 @@ function PurchaseRecord({
         <span className="shrink-0 text-highlight">{STATUS_TEXT[status]}</span>
       </p>
       <p className="text-muted tabular-nums">
-        {outsText(purchase.outs, purchase.tie)} · 赔 {formatOdds(purchase.oddsHundredths)} · 保费{" "}
-        {chipText(purchase.chips)} · 赔付 {chipText(purchase.payoutChips)}
+        {t.insurance.insuranceRecords.paysPremiumPayout2(
+          outsText(purchase.outs, purchase.tie),
+          formatOdds(purchase.oddsHundredths),
+          " ",
+          chipText(purchase.chips),
+          chipText(purchase.payoutChips),
+        )}
       </p>
       {actions && (
         <div className="mt-1 flex gap-2">
@@ -128,7 +147,7 @@ function PurchaseRecord({
                 onClick={() => actions.onSettle(record, true)}
                 className="min-h-11 flex-1 rounded-lg border border-accent font-medium disabled:opacity-60"
               >
-                命中
+                {t.insurance.insuranceRecords.hit}
               </button>
               <button
                 type="button"
@@ -136,7 +155,7 @@ function PurchaseRecord({
                 onClick={() => actions.onSettle(record, false)}
                 className="min-h-11 flex-1 rounded-lg border border-line font-medium disabled:opacity-60"
               >
-                未中
+                {t.insurance.insuranceRecords.missed}
               </button>
             </>
           )}
@@ -146,7 +165,7 @@ function PurchaseRecord({
             onClick={() => actions.onUndo(record)}
             className="min-h-11 rounded-lg px-3 text-sm text-muted disabled:opacity-60"
           >
-            撤销
+            {t.insurance.insuranceRecords.undo}
           </button>
         </div>
       )}
@@ -174,15 +193,24 @@ export function InsuranceRecords({ hands, records, nameOf, actions }: InsuranceR
             onClick={() => setOpen(!open)}
             className="flex min-h-11 w-full items-center gap-1 text-sm text-muted"
           >
-            保险记录（{count}）
-            {pending > 0 && <span className="text-highlight">{pending} 笔待开奖</span>}
+            {t.insurance.insuranceRecords.insuranceLog}
+            {count}）
+            {pending > 0 && (
+              <span className="text-highlight">
+                {t.insurance.insuranceRecords.pending2(pending)}
+              </span>
+            )}
             <ChevronDown
               className={cn("size-4 transition-transform", open && "rotate-180")}
               aria-hidden
             />
           </button>
         </h2>
-        {open && count === 0 && <p className="pb-3 text-sm text-muted">这局还没有保险记录。</p>}
+        {open && count === 0 && (
+          <p className="pb-3 text-sm text-muted">
+            {t.insurance.insuranceRecords.noInsuranceRecordedInThisGame}
+          </p>
+        )}
         {open && count > 0 && (
           <ul className="max-h-[40dvh] divide-y divide-line overflow-y-auto overscroll-contain pb-2">
             {hands.toReversed().map((hand) => (

@@ -9,7 +9,7 @@ import {
   textLinkClass,
 } from "@/components/account/AuthParts";
 import { type AuthIssue, resendCode, verifyCode } from "@/data/auth";
-import { messages, useMessages } from "@/i18n";
+import { t } from "@/i18n";
 import { keepPendingCode, readPendingCode } from "@/lib/pending-code";
 
 export const Route = createFileRoute("/me_/verify")({
@@ -33,7 +33,6 @@ function useSecondsLeft(sentAt: number) {
 }
 
 function VerifyPage() {
-  const m = useMessages();
   const navigate = Route.useNavigate();
   const [pending, setPending] = useState(readPendingCode);
   const [code, setCode] = useState("");
@@ -50,7 +49,7 @@ function VerifyPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const typed = parseCode(code);
-    setCodeIssue(typed.ok ? undefined : messages().account.codeIssue(CODE_LENGTH)[typed.issue]);
+    setCodeIssue(typed.ok ? undefined : t.account.codeIssue(CODE_LENGTH)[typed.issue]);
     setIssue(undefined);
     if (!typed.ok) return;
 
@@ -82,15 +81,15 @@ function VerifyPage() {
 
   return (
     <AuthPage
-      title={m.account.verifyPage.title}
+      title={t.account.verifyPage.title}
       back={purpose === "recovery" ? "/me/reset" : "/me/sign-up"}
       audience="anyone"
       onSubmit={handleSubmit}
     >
       <p className="text-sm text-muted">
-        {m.account.verifyPage.sentBefore(CODE_LENGTH)}
+        {t.account.verifyPage.sentBefore(CODE_LENGTH)}
         <span className="break-all text-text">{email}</span>
-        {m.account.verifyPage.sentAfter}
+        {t.account.verifyPage.sentAfter}
       </p>
       <CodeField
         value={code}
@@ -101,25 +100,25 @@ function VerifyPage() {
         }}
       />
       <FormIssue issue={issue} />
-      <SubmitButton busy={busy}>{m.common.confirm}</SubmitButton>
+      <SubmitButton busy={busy}>{t.common.confirm}</SubmitButton>
       <div className="flex items-center justify-between">
         {secondsLeft > 0 ? (
           <span className="inline-flex min-h-11 items-center text-sm text-muted">
-            {resent ? m.account.verifyPage.resent : ""}
-            {m.account.verifyPage.resendIn(secondsLeft)}
+            {resent ? t.account.verifyPage.resent : ""}
+            {t.account.verifyPage.resendIn(secondsLeft)}
           </span>
         ) : (
           <button type="button" onClick={handleResend} className={textLinkClass}>
-            {m.account.verifyPage.resend}
+            {t.account.verifyPage.resend}
           </button>
         )}
         <Link to={purpose === "recovery" ? "/me/reset" : "/me/sign-up"} className={textLinkClass}>
-          {m.account.verifyPage.changeEmail}
+          {t.account.verifyPage.changeEmail}
         </Link>
       </div>
       <p className="text-xs text-muted">
-        {m.account.verifyPage.notReceived}
-        {purpose === "sign-up" && m.account.verifyPage.alreadyRegistered}
+        {t.account.verifyPage.notReceived}
+        {purpose === "sign-up" && t.account.verifyPage.alreadyRegistered}
       </p>
     </AuthPage>
   );

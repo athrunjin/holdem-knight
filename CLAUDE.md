@@ -49,8 +49,8 @@ pnpm test:local       # Tests through its sign-in and API; pnpm db:reset empties
 - Commit messages use Conventional Commits in English, for example `feat(core): compute minimal settlement transfers`.
 - Everything in the repository and on GitHub is in English: commit messages, branch names, pull requests, issues, comments,
   documentation, code comments and test names. Interface text and Chinese sample data in tests stay in Chinese.
-- Interface text goes in the catalogs under `apps/web/src/i18n`, Chinese first and every other language with it;
-  components read it with `useMessages()`, other code with `messages()` when called (ADR 0047).
+- Interface text goes in the catalogs under `apps/web/src/i18n`, Chinese first and every other language with it,
+  and is read from `t` (ADR 0047). No Chinese text is written in components, routes or helpers.
   Discussions with the user are in Chinese.
 - Decisions that affect the long-term structure get a new record in `docs/adr/`.
 

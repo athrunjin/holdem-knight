@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Calculator, ChevronRight, HandCoins } 
 import { type ReactNode, useState } from "react";
 import { MiniSwitch } from "@/components/MiniSwitch";
 import { RollingNumber } from "@/components/RollingNumber";
+import { t } from "@/i18n";
 import { type CardSort, DEFAULT_SORT, nextSort, type SortKey, sortCards } from "@/lib/card-sort";
 import { breakable, formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
@@ -49,7 +50,13 @@ export interface ResultLine {
 }
 
 /** The items a collapsed card lists, left to right. */
-const SUMMARY_GROUPS = ["差额", "分摊", "保险", "工资", "台费"] as const;
+const SUMMARY_GROUPS = [
+  t.game.resultCards.difference,
+  t.game.resultCards.share,
+  t.common.insurance,
+  t.common.dealerWage,
+  t.common.timeCharge,
+] as const;
 type SummaryGroup = (typeof SUMMARY_GROUPS)[number];
 
 export interface ResultCard {
@@ -113,7 +120,7 @@ export function TotalLine({
   return (
     <div className={cn(columnsClass, "min-h-11 border-t border-accent")}>
       <span className={cn(labelClass, "justify-between font-semibold")}>
-        合计
+        {t.game.resultCards.total2}
         {action}
       </span>
       <span className="text-right whitespace-nowrap">
@@ -139,12 +146,16 @@ function SortTitle({
 }) {
   const active = sort.key === column;
   const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
-  const order = active ? (sort.dir === "asc" ? "，正序" : "，倒序") : "";
+  const order = active
+    ? sort.dir === "asc"
+      ? t.game.resultCards.ascending
+      : t.game.resultCards.descending
+    : "";
   return (
     // The row is short, so the tap target reaches past it to 44px
     <button
       type="button"
-      aria-label={`按${label}排序${order}`}
+      aria-label={t.game.resultCards.sortBy(label, order)}
       onClick={() => onSort(column)}
       className={cn(
         "relative flex items-center gap-0.5 after:absolute after:-inset-x-1 after:-inset-y-3.5",
@@ -181,9 +192,9 @@ export function ColumnTitles({
           {firstNote && <span className="text-[0.625rem]"> {firstNote}</span>}
         </span>
         <span className="text-center">Buy-in</span>
-        <span className="text-center">筹码</span>
-        <span className="text-right">水上/下</span>
-        <span className="text-right">金额</span>
+        <span className="text-center">{t.common.chips}</span>
+        <span className="text-right">{t.game.resultCards.net}</span>
+        <span className="text-right">{t.common.amount}</span>
       </div>
     );
   }
@@ -192,9 +203,9 @@ export function ColumnTitles({
     <div className={cn(columnsClass, "px-2 text-xs text-muted")}>
       <SortTitle label={first} column="name" {...by} />
       <span className="text-center">Buy-in</span>
-      <span className="text-center">筹码</span>
-      <SortTitle label="水上/下" column="net" className="justify-self-end" {...by} />
-      <SortTitle label="金额" column="amount" className="justify-self-end" {...by} />
+      <span className="text-center">{t.common.chips}</span>
+      <SortTitle label={t.game.resultCards.net} column="net" className="justify-self-end" {...by} />
+      <SortTitle label={t.common.amount} column="amount" className="justify-self-end" {...by} />
     </div>
   );
 }
@@ -220,7 +231,7 @@ export function InsuranceName() {
   return (
     <>
       <Calculator className="size-4 shrink-0" aria-hidden />
-      <span className="truncate">保险</span>
+      <span className="truncate">{t.common.insurance}</span>
     </>
   );
 }
@@ -269,7 +280,7 @@ export function RakeName() {
   return (
     <>
       <HandCoins className="size-4 shrink-0" aria-hidden />
-      <span className="truncate">抽水</span>
+      <span className="truncate">{t.common.rake}</span>
     </>
   );
 }
@@ -390,7 +401,9 @@ function Summary({
     const amount = due.reduce((total, l) => total + (l.amount ?? 0), 0);
     const tone = lines[0]?.tone ?? "charge";
     const value =
-      due.length === 0 ? "已免" : formatGameAmount(cents(amount), currency, "exceptZero");
+      due.length === 0
+        ? t.game.resultCards.waived
+        : formatGameAmount(cents(amount), currency, "exceptZero");
     return [{ group, value, tone }];
   });
   // With no items the row over the line already shows the result, unless it has none from chips
@@ -411,7 +424,7 @@ function Summary({
         ))}
       </p>
       <span className="flex shrink-0 items-center gap-1 text-muted">
-        合计
+        {t.game.resultCards.total2}
         <TotalChip total={card.total} currency={currency} />
       </span>
     </div>
@@ -577,10 +590,10 @@ export function ResultCards({
   return (
     <div className="mt-3 flex flex-col gap-2">
       <div className="-mb-2 flex min-h-11 items-center justify-between gap-2">
-        <h3 className="font-semibold">对局总览</h3>
+        <h3 className="font-semibold">{t.game.resultCards.gameSummary}</h3>
         {foldable.length > 0 && (
           <MiniSwitch
-            label="明细"
+            label={t.game.resultCards.details}
             checked={allOpen}
             onChange={(on) => setOpen(new Set(on ? foldable.map(({ id }) => id) : []))}
           />
@@ -588,11 +601,15 @@ export function ResultCards({
       </div>
       {organizer && (
         <>
-          <ColumnTitles first="组织者" />
+          <ColumnTitles first={t.game.resultCards.host} />
           {card(organizer)}
         </>
       )}
-      <ColumnTitles first="玩家" sort={sort} onSort={(column) => setSort(nextSort(sort, column))} />
+      <ColumnTitles
+        first={t.common.player}
+        sort={sort}
+        onSort={(column) => setSort(nextSort(sort, column))}
+      />
       {sortResultCards(cards, sort).map(card)}
     </div>
   );

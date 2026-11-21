@@ -8,6 +8,7 @@ import {
   PlayerSearch,
 } from "@/components/players/PlayerList";
 import { newPlayer, usePlayers, useRecentPlayers, useSavePlayer } from "@/data/players";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 /** Four tiles a row, at most three rows. */
@@ -63,13 +64,13 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
       {/* Tall enough that the bar below stays at the bottom of the screen with few players */}
       <div className="min-h-[calc(100dvh-12rem)] pb-4">
         <PlayerSearch
-          label="搜索或新建玩家"
-          placeholder="搜索或新建：名字或拼音首字母"
+          label={t.game.playerPicker.searchOrAddAPlayer}
+          placeholder={t.game.playerPicker.searchOrAddNameOrInitials}
           query={query}
           onQueryChange={setQuery}
           newName={newName}
           tooLong={tooLong}
-          createLabel={(name) => `新建「${name}」并选中`}
+          createLabel={(name) => t.game.playerPicker.createAndSelect(name)}
           saving={savePlayer.isPending}
           saveFailed={savePlayer.isError}
           onCreate={handleCreate}
@@ -77,13 +78,13 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
 
         {all.length === 0 && query === "" && (
           <p className="mt-4 rounded-2xl border border-dashed border-line px-6 py-8 text-center text-muted">
-            玩家库是空的。输入名字新建玩家，或直接开局，之后再加人。
+            {t.game.playerPicker.noPlayersYetTypeAName}
           </p>
         )}
 
         {recentMatches.length > 0 && (
           <>
-            <h2 className="mt-5 mb-2 font-semibold">最近玩家</h2>
+            <h2 className="mt-5 mb-2 font-semibold">{t.game.playerPicker.recentPlayers}</h2>
             <ul className="grid grid-cols-4 gap-2">
               {recentMatches.map(({ id, name }) => (
                 <li key={id}>
@@ -114,7 +115,7 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
               <li key={id}>
                 <button
                   type="button"
-                  aria-label={`取消选择${byId.get(id)?.name}`}
+                  aria-label={t.game.playerPicker.unselect(byId.get(id)?.name ?? "")}
                   onClick={() => toggle(id)}
                   className="h-5 rounded-full bg-accent/15 px-2 text-xs leading-5 font-medium"
                 >
@@ -126,7 +127,7 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
         )}
         {saveFailed && (
           <p role="alert" className="mb-1 text-sm text-highlight">
-            开局失败，请重试。
+            {t.game.playerPicker.couldntStartTheGameTryAgain}
           </p>
         )}
         <div className="grid grid-cols-[1fr_2fr] items-center gap-2">
@@ -143,7 +144,9 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
             >
               {startClock && <Check className="size-3.5" strokeWidth={3} />}
             </span>
-            <span className="text-xs leading-tight">开局后直接开始计时</span>
+            <span className="text-xs leading-tight">
+              {t.game.playerPicker.startTheClockWithTheGame}
+            </span>
           </label>
           <button
             type="button"
@@ -151,7 +154,9 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
             onClick={() => onStart(selected, startClock)}
             className="min-h-12 rounded-xl bg-accent px-6 font-semibold text-accent-text disabled:opacity-60"
           >
-            {selected.length > 0 ? `开局 · ${selected.length} 人` : "开局"}
+            {selected.length > 0
+              ? t.game.playerPicker.startPlayers(selected.length)
+              : t.game.playerPicker.start}
           </button>
         </div>
       </div>
@@ -220,7 +225,7 @@ function PlayerRow({
       <label className="grid size-11 shrink-0 cursor-pointer place-items-center">
         <input
           type="checkbox"
-          aria-label={`选择${player.name}`}
+          aria-label={t.game.playerPicker.select(player.name)}
           checked={checked}
           onChange={onToggle}
           className="peer sr-only"

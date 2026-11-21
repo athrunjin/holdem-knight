@@ -1574,8 +1574,9 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Proposal:
   - The text lives in catalogs, one a language, with the Chinese giving the shape the others are held to ([ADR 0047](adr/0047-interface-text-in-typed-catalogs.md)).
   - The language is the device's, Chinese for any kind of Chinese and English otherwise, unless one is picked in a new 语言 row on 我的: 跟随系统, 中文, English.
-  - Moved so far: the navigation, the notices around every page, 我的 with its account card and backups, and the pages for signing up, signing in, codes and passwords. The rest reads in Chinese in either language until its part is moved: starting a game, the game and settlement pages, insurance, players, the tools, and shared images.
-- Decision: do, a part of the app at a time. English names for 水上/水下, 袋鼠分/熊猫分 and the like are to be agreed with the organizer before the game pages are moved.
+  - Every page is in both: some 660 texts in about 90 files, moved by a script that listed each one and rewrote the source to read the catalog, with the English written text by text. Dates follow the language.
+  - Not translated: names kept as data (saved settings, players, the two built-in odds tables), the emails with codes, and the page's title before the app starts.
+- Decision: do. The language follows the device, as the organizer chose. English for the game's own words follows common cash-game usage, checked against poker glossaries: rebuy for 补码, cash-out for 带出, time charge for 台费, dealer wage for 工资, net for 水上/下, Kangaroo pts and Panda pts for the two currencies. Checked with the catalogs' tests and in the browser preview in both languages: starting a game with every section on, the game page, 我的 and the tools. The English has not been read through on every page; wording is to be corrected as it is used.
 - Tracking: PR #99, [ADR 0047](adr/0047-interface-text-in-typed-catalogs.md)
 
 ## Not doing or deferred

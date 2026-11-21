@@ -3,6 +3,7 @@ import { type ReactNode, useState } from "react";
 import { ConfigName } from "@/components/ConfigName";
 import { ChoiceModal } from "@/components/insurance/ChoiceModal";
 import { TextMenu } from "@/components/TextMenu";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { MODIFIED_MARK } from "@/lib/config-text";
 
@@ -64,7 +65,7 @@ export function ConfigMenu({
   const [open, setOpen] = useState(false);
   const selected = choices.find((choice) => choice.id === selectedId);
   const changed = modified && selected !== undefined;
-  const name = selected?.name ?? "自定义";
+  const name = selected?.name ?? t.common.custom;
   const inDialog = choices.filter((choice) => choice.removable).length > MOST_SAVED_IN_MENU;
 
   if (!inDialog) {
@@ -90,14 +91,14 @@ export function ConfigMenu({
               onRemove && {
                 actions: [
                   {
-                    label: "删除",
+                    label: t.ui.configMenu.delete,
                     icon: <Trash2 className="size-4" aria-hidden />,
                     onSelect: () => onRemove(choice.id),
                   },
                 ],
               }),
           })),
-          ...(selected ? [] : [{ value: selectedId ?? CUSTOM, label: "自定义" }]),
+          ...(selected ? [] : [{ value: selectedId ?? CUSTOM, label: t.common.custom }]),
         ]}
         value={selectedId ?? CUSTOM}
         onChange={onPick}

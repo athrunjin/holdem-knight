@@ -57,6 +57,7 @@ import { organizerNameOf } from "@/data";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
+import { localeTag, t } from "@/i18n";
 import { CHARGE_CLOCK_RULE, chargeClock, chargeRuleNotes, chargeRuleSections } from "@/lib/charges";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
@@ -133,16 +134,18 @@ function SettlementPage() {
       {/* The game's settings, to read only: they are changed from the game page */}
       {rulesOpen && (
         <section
-          aria-label="设置"
+          aria-label={t.common.settings}
           className="mb-3 flex items-start justify-between gap-2 rounded-xl border border-line bg-surface px-3 pt-2 pb-1"
         >
           {hasGameRules(game) ? (
             <GameRules game={game} charges={charges} />
           ) : (
-            <p className="pb-1 text-xs text-muted">这局没有开启保险、工资、台费或抽水。</p>
+            <p className="pb-1 text-xs text-muted">
+              {t.gamePages.settlement.thisGameHasNoInsuranceDealer}
+            </p>
           )}
           {ruleSections.length > 0 && (
-            <InfoButton title="计费规则" small>
+            <InfoButton title={t.gamePages.settlement.charges} small>
               <div className="flex flex-col gap-2 text-sm">
                 {ruleSections.map(({ title, lines }) => (
                   <section key={title}>
@@ -162,7 +165,7 @@ function SettlementPage() {
       )}
       {seated.length > 0 ? (
         <Notice gameId={gameId}>
-          还有 {seated.length} 人在桌：{seated.join("、")}。全部离桌后才能结算。
+          {t.gamePages.settlement.stillAtTheTableEveryoneHas(seated.length, seated.join("、"))}
         </Notice>
       ) : (
         <>
@@ -189,7 +192,9 @@ function SettlementPage() {
               onNudge={setNudge}
             />
           ) : (
-            <p className="mt-3 text-sm text-muted">在上方选择差额的处理方案后显示结果。</p>
+            <p className="mt-3 text-sm text-muted">
+              {t.gamePages.settlement.chooseAboveHowToHandleThe}
+            </p>
           )}
         </>
       )}
@@ -206,7 +211,7 @@ function Notice({ gameId, children }: { gameId: string; children: ReactNode }) {
         params={{ gameId }}
         className="mt-2 inline-flex min-h-11 items-center text-highlight"
       >
-        回到账本
+        {t.gamePages.settlement.backToTheLedger}
       </Link>
     </div>
   );
@@ -298,7 +303,9 @@ function SettlementResult({
 
   const collectorId = transferCollector(game, nets);
   const transfers = transfersOf(game);
-  const planName = collectorId ? `代收人 ${nameOf(collectorId)}` : "最优方案";
+  const planName = collectorId
+    ? t.gamePages.settlement.collector(nameOf(collectorId))
+    : t.gamePages.settlement.fewestTransfers;
 
   const organizerNet = nets.find((p) => p.playerId === ORGANIZER_COLLECTOR)?.net;
   // Each person's result from the chips alone, before a difference is split
@@ -311,10 +318,10 @@ function SettlementResult({
     return [
       {
         key: "insurance",
-        label: "保险",
+        label: t.common.insurance,
         amount: insuranceBefore,
         tone: "adjustment",
-        group: "保险",
+        group: t.common.insurance,
       },
     ];
   }
@@ -326,7 +333,7 @@ function SettlementResult({
     label,
     amount: cents(share),
     tone: "adjustment",
-    group: "分摊",
+    group: t.gamePages.settlement.share,
   });
   /**
    * A seat's share of a split, which the organizer switches on. Off, it is struck through with no
@@ -346,7 +353,12 @@ function SettlementResult({
     const line = on || forced ? splitLine(`split-${seatId}`, label, share) : undefined;
     return [
       {
-        ...(line ?? { key: `split-${seatId}`, label, tone: "adjustment", group: "分摊" }),
+        ...(line ?? {
+          key: `split-${seatId}`,
+          label,
+          tone: "adjustment",
+          group: t.gamePages.settlement.share,
+        }),
         waiver: {
           waived: !on && !forced,
           disabled: saveGame.isPending || forced,
@@ -359,13 +371,13 @@ function SettlementResult({
   }
   const insuranceSplit = seatSplitLine(
     INSURANCE_PLAYER_ID,
-    "差额分摊 - 保险",
+    t.gamePages.settlement.splitTheDifferenceInsurance,
     game.insuranceInSplit === true,
     chooseInsuranceInSplit,
   );
   const rakeSplit = seatSplitLine(
     RAKE_PLAYER_ID,
-    "差额分摊 - 抽水",
+    t.gamePages.settlement.splitTheDifferenceRake,
     game.rakeInSplit === true,
     chooseRakeInSplit,
   );
@@ -395,7 +407,7 @@ function SettlementResult({
           ? insuranceSplit
           : share === 0
             ? []
-            : [splitLine("split", "差额分摊", share)];
+            : [splitLine("split", t.gamePages.settlement.splitTheDifference, share)];
       const name = nameOf(playerId);
       return {
         id: playerId,
@@ -426,12 +438,15 @@ function SettlementResult({
     game.imbalanceHandling === "organizer"
       ? {
           key: "difference",
-          label: covered < 0 ? "补齐差额" : "收取差额",
+          label:
+            covered < 0
+              ? t.gamePages.settlement.coverTheDifference
+              : t.gamePages.settlement.keepTheDifference,
           amount: cents(covered),
           tone: "adjustment",
-          group: "差额",
+          group: t.gamePages.settlement.difference,
         }
-      : splitLine("split", "差额分摊", covered);
+      : splitLine("split", t.gamePages.settlement.splitTheDifference, covered);
   const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
   // The insurance seat sits on the organizer's card as on the game page, when its result is theirs
   const insuranceRow = seat && ownerId === ORGANIZER_COLLECTOR && (
@@ -492,31 +507,36 @@ function SettlementResult({
     if (difference === 0) return undefined;
     const size = formatGameMoney(cents(Math.abs(difference)), currency);
     if (unresolved !== 0) {
-      const holder = collectorId ? "，差额留在代收人手上" : "";
-      return `未处理差额 ${size}${holder}`;
+      const holder = collectorId ? t.gamePages.settlement.theDifferenceStaysWithTheCollector : "";
+      return t.gamePages.settlement.differenceLeftAsIs(size, holder);
     }
     if (game.imbalanceHandling === "organizer") {
-      return `${nameOf(ORGANIZER_COLLECTOR)} ${difference > 0 ? "补齐" : "收取"} ${size}`;
+      return `${nameOf(ORGANIZER_COLLECTOR)} ${difference > 0 ? t.gamePages.settlement.covers : t.common.keeps} ${size}`;
     }
     // Everyone who takes a share, the seats included
     const count = outcome.nets.filter((p) => p.net !== netOf(chipNets, p.playerId)).length;
     return difference > 0
-      ? `水上多 ${size}，由 ${count} 位赢家按水上比例扣减`
-      : `水下多 ${size}，由 ${count} 位输家按水下比例少付`;
+      ? t.gamePages.settlement.winningsAreOverByTakenOff(size, count)
+      : t.gamePages.settlement.lossesAreOverByTakenOff(size, count);
   }
   function insuranceNote() {
     if (!seat || insuranceNet === 0) return undefined;
-    if (separateInsurance) return `保险 ${insuranceText}，单独列出`;
-    return `保险 ${insuranceText}，计入 ${nameOf(ownerId)}`;
+    if (separateInsurance) return t.gamePages.settlement.insuranceListedOnItsOwn(insuranceText);
+    return t.gamePages.settlement.insuranceCountedTo(insuranceText, nameOf(ownerId));
   }
   function chargesNote() {
     if (charged.total === 0) return undefined;
-    const kinds = [game.tableFee && "台费", game.wage && "工资"].filter(Boolean).join("和");
-    return `${kinds} ${chargesText}，计入 ${nameOf(charged.recipientId)}`;
+    const kinds = [game.tableFee && t.common.timeCharge, game.wage && t.common.dealerWage]
+      .filter(Boolean)
+      .join(t.gamePages.settlement.and);
+    return t.gamePages.settlement.countedTo(kinds, chargesText, nameOf(charged.recipientId));
   }
   function rakeNote() {
     if (rakeNet === 0) return undefined;
-    return `抽水 ${formatGameMoney(rakeNet, currency)}，计入 ${nameOf(ORGANIZER_COLLECTOR)}`;
+    return t.gamePages.settlement.rakeCountedTo(
+      formatGameMoney(rakeNet, currency),
+      nameOf(ORGANIZER_COLLECTOR),
+    );
   }
   const notes = [imbalanceNote(), insuranceNote(), rakeNote(), chargesNote()].filter(
     (text) => text !== undefined,
@@ -524,10 +544,10 @@ function SettlementResult({
 
   // The plans in the order they are listed: the optimal one, the organizer, then the players
   const plans: TransferPlan[] = [
-    { collectorId: undefined, label: "最优方案" },
+    { collectorId: undefined, label: t.gamePages.settlement.fewestTransfers },
     ...[ORGANIZER_COLLECTOR, ...playerCards.map(({ id }) => id)]
       .filter((id) => id !== INSURANCE_PLAYER_ID)
-      .map((id) => ({ collectorId: id, label: `代收人：${nameOf(id)}` })),
+      .map((id) => ({ collectorId: id, label: t.gamePages.settlement.collector2(nameOf(id)) })),
   ];
 
   async function handleShare() {
@@ -536,9 +556,13 @@ function SettlementResult({
     try {
       const date = new Date(createdAt);
       const image = await renderSettlementImage({
-        title: "Hold’em Knight · 结算",
-        subtitle: `${date.toLocaleDateString("zh-CN")} · 盲注 ${smallBlindChips} / ${bigBlindChips}`,
-        transferTitle: `转账方案 · ${planName}`,
+        title: t.gamePages.settlement.holdemKnightSettlement,
+        subtitle: t.gamePages.settlement.blinds(
+          date.toLocaleDateString(localeTag),
+          smallBlindChips,
+          bigBlindChips,
+        ),
+        transferTitle: t.gamePages.settlement.transfers(planName),
         transfers: transfers.map(({ from, to, amount }) => ({
           from: nameOf(from),
           to: nameOf(to),
@@ -557,7 +581,7 @@ function SettlementResult({
         ),
       });
       const day = [date.getFullYear(), date.getMonth() + 1, date.getDate()].join("-");
-      await shareFile(image, `结算-${day}.png`);
+      await shareFile(image, t.gamePages.settlement.settlementPng(day));
     } catch {
       setShareFailed(true);
     } finally {
@@ -596,7 +620,7 @@ function SettlementResult({
               onClick={handleRevise}
               className="relative min-h-12 min-w-0 flex-1 rounded-xl border border-line px-4 font-medium disabled:opacity-60"
             >
-              修改对局结果
+              {t.gamePages.settlement.editResult2}
               {nudge?.target === "revise" && <NudgeRing at={nudge.at} />}
             </button>
           ) : (
@@ -607,7 +631,7 @@ function SettlementResult({
               onClick={handleConfirm}
               className="relative min-h-12 min-w-0 flex-1 scroll-mt-4 scroll-mb-24 rounded-xl bg-accent px-4 font-semibold text-accent-text disabled:opacity-60"
             >
-              确认结算
+              {t.gamePages.settlement.confirmSettlement}
               {nudge?.target === "confirm" && <NudgeRing at={nudge.at} />}
             </button>
           )}
@@ -617,12 +641,12 @@ function SettlementResult({
             className="flex min-h-12 shrink-0 items-center gap-1 rounded-xl border border-line px-3 text-sm font-medium"
           >
             <Undo2 className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
-            返回牌桌
+            {t.gamePages.settlement.backToTheTable}
           </Link>
         </div>
         {saveGame.isError && (
           <p role="alert" className="mt-2 text-sm text-highlight">
-            保存失败，请重试。
+            {t.common.couldntSaveTryAgain}
           </p>
         )}
       </div>
@@ -637,7 +661,7 @@ function SettlementResult({
             className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line px-2 font-medium disabled:opacity-60"
           >
             <Share2 className="size-5 shrink-0" strokeWidth={1.75} aria-hidden />
-            生成图片
+            {t.gamePages.settlement.makeImage}
           </button>
           {/* Clear of the bar at the bottom of a phone when the page scrolls it to the bottom */}
           <button
@@ -647,7 +671,7 @@ function SettlementResult({
             onClick={() => setTransfersOpen(!transfersOpen)}
             className="flex min-h-12 scroll-mb-24 items-center justify-center gap-1 rounded-xl border border-line bg-surface px-2 font-medium whitespace-nowrap"
           >
-            积分管理
+            {t.gamePages.settlement.transfers2}
             <ChevronDown
               className={cn(
                 "size-5 shrink-0 text-muted transition-transform",
@@ -659,7 +683,7 @@ function SettlementResult({
         </div>
         {shareFailed && (
           <p role="alert" className="mt-2 text-sm text-highlight">
-            图片生成失败，请重试。
+            {t.gamePages.settlement.couldntMakeTheImageTryAgain}
           </p>
         )}
         {transfersOpen && (
@@ -679,21 +703,21 @@ function SettlementResult({
       </section>
 
       {revising && (
-        <Modal title="修改对局结果" onClose={() => setRevising(false)}>
-          <p className="text-sm">已有积分转移被记录，是否删除并修改对局结果？</p>
+        <Modal title={t.gamePages.settlement.editResult2} onClose={() => setRevising(false)}>
+          <p className="text-sm">{t.gamePages.settlement.transfersHaveBeenMarkedDeleteThose}</p>
           <button
             type="button"
             onClick={revise}
             className="mt-3 min-h-11 w-full rounded-xl bg-accent font-semibold text-accent-text"
           >
-            确定
+            {t.common.ok}
           </button>
           <button
             type="button"
             onClick={() => setRevising(false)}
             className="mt-2 min-h-11 w-full rounded-xl border border-line font-medium"
           >
-            取消
+            {t.common.cancel}
           </button>
         </Modal>
       )}

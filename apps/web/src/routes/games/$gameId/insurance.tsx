@@ -39,6 +39,7 @@ import {
 } from "@/data/insurance";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
+import { t } from "@/i18n";
 import { formatSignedChips } from "@/lib/chips";
 import { gameNameOf } from "@/lib/player-name";
 
@@ -96,7 +97,7 @@ function GameInsurance({ game }: { game: Game }) {
     // Which of two tables with the same odds is named changes no price, so it is kept unasked
     const terms = ({ oddsTableId: _, ...rest }: InsuranceRuleForm) => JSON.stringify(rest);
     const repriced = choice === undefined || terms(next.form) !== terms(choice.form);
-    if (repriced && !window.confirm("这个修改会应用到本局，之后的保险都按新设置计算。继续？")) {
+    if (repriced && !window.confirm(t.gamePages.insurance.thisChangeAppliesToThisGame)) {
       return false;
     }
     setEdited({ source: next.source, form: next.form });
@@ -147,7 +148,7 @@ function GameInsurance({ game }: { game: Game }) {
     if (!record) return true;
     if (
       record.status !== "pending" &&
-      !window.confirm("这笔保险已开奖，修改会撤销它的结果。继续？")
+      !window.confirm(t.gamePages.insurance.thisBetAlreadyHasAResult)
     ) {
       return false;
     }
@@ -160,11 +161,12 @@ function GameInsurance({ game }: { game: Game }) {
   }
 
   function handleUndo(record: InsuranceRecord) {
-    if (window.confirm("撤销这笔保险？它的盈亏也会一起撤销。")) undoInsurance.mutate(record);
+    if (window.confirm(t.gamePages.insurance.undoThisBetItsWinOr)) undoInsurance.mutate(record);
   }
 
   function handleUndoHand(hand: InsuranceHand) {
-    if (window.confirm("撤销这手保险？它的盈亏会一起撤销。")) undoHand.mutate(hand.id);
+    if (window.confirm(t.gamePages.insurance.undoThisHandsInsuranceItsWin))
+      undoHand.mutate(hand.id);
   }
 
   const failed =
@@ -180,11 +182,14 @@ function GameInsurance({ game }: { game: Game }) {
   return (
     <Page
       // A game being played has the calculator, and so its two ways of working as the title
-      title={choice && editable ? <ModeTitle mode={mode} onChange={setMode} /> : "保险"}
+      title={choice && editable ? <ModeTitle mode={mode} onChange={setMode} /> : t.common.insurance}
       subtitle={
         seat && (
           <p className="text-sm text-muted">
-            保险筹码 {chipText(seat.stackChips)} · 盈亏 {formatSignedChips(seat.netChips)}
+            {t.gamePages.insurance.insuranceChipsPL(
+              chipText(seat.stackChips),
+              formatSignedChips(seat.netChips),
+            )}
           </p>
         )
       }
@@ -192,7 +197,7 @@ function GameInsurance({ game }: { game: Game }) {
         <Link
           to="/games/$gameId"
           params={{ gameId }}
-          aria-label="返回牌局"
+          aria-label={t.gamePages.insurance.backToTheGame}
           className="-mr-2 grid size-11 shrink-0 place-items-center text-highlight"
         >
           <X className="size-6" strokeWidth={1.75} aria-hidden />
@@ -201,7 +206,9 @@ function GameInsurance({ game }: { game: Game }) {
     >
       {/* Ends clear of the records line pinned below */}
       <div className="pb-11">
-        {!insurance && <p className="text-muted">这局没有开启保险，可以在设置里开启。</p>}
+        {!insurance && (
+          <p className="text-muted">{t.gamePages.insurance.insuranceIsOffForThisGame}</p>
+        )}
 
         {choice && editable && (
           <InsuranceSetup
@@ -247,7 +254,7 @@ function GameInsurance({ game }: { game: Game }) {
 
         {failed && (
           <p role="alert" className="mt-2 text-sm text-highlight">
-            保存失败，请重试。
+            {t.common.couldntSaveTryAgain}
           </p>
         )}
       </div>

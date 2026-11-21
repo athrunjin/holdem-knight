@@ -1,6 +1,7 @@
 import { type Card, makeCard, RANKS, SUITS } from "@holdem-knight/core";
 import { RotateCcw } from "lucide-react";
 import { TextMenu } from "@/components/TextMenu";
+import { t } from "@/i18n";
 import { formatCardText, isRedSuit, suitSymbol } from "@/lib/cards";
 import { cn } from "@/lib/cn";
 import { Modal } from "./Modal";
@@ -109,10 +110,10 @@ export function HandCardPicker({
       title={
         <span className="-my-2 flex items-center justify-between gap-2">
           <TextMenu
-            label="选牌给"
+            label={t.insurance.handCardPicker.pickCardsFor}
             options={targets.map(({ id, label, cards, count, disabled, faint }) => ({
               value: id,
-              name: `${label}，已选 ${cards.length} 张，共 ${count} 张`,
+              name: t.insurance.handCardPicker.ofPicked(label, cards.length, count),
               chosen: `${label}（${cards.length}/${count}）`,
               // The name keeps a width of its own, so the counts line up down the list
               label: (
@@ -138,7 +139,7 @@ export function HandCardPicker({
           {!locked && (
             <button
               type="button"
-              aria-label="清空所有已选的牌"
+              aria-label={t.insurance.handCardPicker.clearAllPickedCards}
               onClick={onReset}
               className="-mr-2 grid size-11 shrink-0 place-items-center text-muted"
             >
@@ -198,7 +199,7 @@ export function HandCardPicker({
             onClick={locked.onCancel}
             className="min-h-11 rounded-xl border border-line font-medium"
           >
-            取消
+            {t.common.cancel}
           </button>
         )}
         <button
@@ -208,7 +209,7 @@ export function HandCardPicker({
           onClick={onClose}
           className="min-h-11 rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40"
         >
-          确认（{target.cards.length}/{target.count}）
+          {t.insurance.handCardPicker.confirm(target.cards.length, target.count)}
         </button>
       </div>
     </Modal>

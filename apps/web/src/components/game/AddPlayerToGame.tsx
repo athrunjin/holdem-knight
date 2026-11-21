@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Modal } from "@/components/insurance/Modal";
 import { TextField } from "@/components/TextField";
 import { newPlayer, usePlayers, useSavePlayer } from "@/data/players";
+import { t } from "@/i18n";
 
 const MAX_SUGGESTIONS = 8;
 
@@ -62,12 +63,12 @@ export function AddPlayerToGame({ excludedIds, variant, onPick }: AddPlayerToGam
           onClick={() => setOpen(true)}
           className="grid min-h-11 w-full place-items-center rounded-xl border border-line bg-surface/50 text-sm text-muted"
         >
-          点击邀请
+          {t.game.addPlayerToGame.tapToInvite}
         </button>
       ) : (
         <button
           type="button"
-          aria-label="加入玩家"
+          aria-label={t.game.addPlayerToGame.addAPlayer}
           onClick={() => setOpen(true)}
           className="mx-auto grid size-11 place-items-center text-highlight"
         >
@@ -78,12 +79,12 @@ export function AddPlayerToGame({ excludedIds, variant, onPick }: AddPlayerToGam
       )}
 
       {open && (
-        <Modal title="加入玩家" onClose={close}>
+        <Modal title={t.game.addPlayerToGame.addAPlayer} onClose={close}>
           <TextField
             id="add-player"
-            label="名字或拼音首字母"
+            label={t.game.addPlayerToGame.nameOrInitials}
             value={query}
-            issue={savePlayer.isError ? "保存失败，请重试" : undefined}
+            issue={savePlayer.isError ? t.game.addPlayerToGame.couldntSaveTryAgain : undefined}
             inputMode="text"
             onChange={setQuery}
           />
@@ -104,7 +105,7 @@ export function AddPlayerToGame({ excludedIds, variant, onPick }: AddPlayerToGam
                     onClick={handleCreate}
                     className={`${pillClass} border-accent disabled:opacity-60`}
                   >
-                    新建「{newName}」
+                    {t.game.addPlayerToGame.create(newName)}
                   </button>
                 </li>
               )}
@@ -115,7 +116,7 @@ export function AddPlayerToGame({ excludedIds, variant, onPick }: AddPlayerToGam
             onClick={close}
             className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
           >
-            关闭
+            {t.common.close}
           </button>
         </Modal>
       )}

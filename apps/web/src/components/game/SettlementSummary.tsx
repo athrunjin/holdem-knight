@@ -11,6 +11,7 @@ import {
 import { TextMenu } from "@/components/TextMenu";
 import { organizerNameOf } from "@/data";
 import { useSaveGame } from "@/data/games";
+import { t } from "@/i18n";
 import { BalanceTile, BuyInTile, GameHostLine, GameTiles, Tile } from "./GameTiles";
 import { formatElapsed } from "./GameTimer";
 
@@ -38,16 +39,24 @@ export function SettlementSummary({ game, ledger, difference, onLocked }: Settle
   const elapsed = timer && formatElapsed(timerElapsedMs(timer, game.settledAt ?? Date.now()));
   // Short enough to sit over the balance box; the box under it has the amount
   const choices: readonly (readonly [ImbalanceHandling, string])[] = [
-    ["split", `水${difference > 0 ? "上" : "下"}比例分摊`],
-    ["organizer", `${organizerNameOf(game)} ${difference > 0 ? "承担" : "收取"}`],
-    ["ignore", "不做处理"],
+    [
+      "split",
+      t.game.settlementSummary.splitByShareOf(
+        difference > 0 ? t.game.settlementSummary.winnings : t.game.settlementSummary.losses,
+      ),
+    ],
+    [
+      "organizer",
+      `${organizerNameOf(game)} ${difference > 0 ? t.game.settlementSummary.covers : t.common.keeps}`,
+    ],
+    ["ignore", t.game.settlementSummary.leaveAsIs],
   ];
   const chosen = choices.find(([handling]) => handling === game.imbalanceHandling)?.[1];
   // Small highlighted text at the end of the line; its 44px target reaches up from it
   const lineClass = "-mt-8 min-h-11 items-end text-xs leading-none text-highlight";
 
   return (
-    <section aria-label="牌局信息">
+    <section aria-label={t.game.settlementSummary.gameInfo}>
       <GameHostLine
         game={game}
         end={
@@ -59,15 +68,17 @@ export function SettlementSummary({ game, ledger, difference, onLocked }: Settle
               onClick={onLocked}
               className={`flex max-w-[45%] min-w-0 shrink-0 ${lineClass}`}
             >
-              <span className="truncate pb-px">{chosen ?? "选择处理方案"}</span>
+              <span className="truncate pb-px">
+                {chosen ?? t.game.settlementSummary.chooseHowToHandleIt}
+              </span>
             </button>
           ) : (
             <div className="max-w-[45%] shrink-0">
               <TextMenu
-                label="差额处理方案"
+                label={t.game.settlementSummary.howTheDifferenceIsHandled}
                 options={choices.map(([value, label]) => ({ value, label }))}
                 value={game.imbalanceHandling}
-                placeholder="选择处理方案"
+                placeholder={t.game.settlementSummary.chooseHowToHandleIt}
                 align="right"
                 disabled={saveGame.isPending}
                 onChange={(handling) => saveGame.mutate(chooseImbalanceHandling(game, handling))}
@@ -79,12 +90,12 @@ export function SettlementSummary({ game, ledger, difference, onLocked }: Settle
       />
       <GameTiles>
         <BuyInTile game={game} boughtChips={boughtChips} />
-        <Tile label="时长">{elapsed ?? "—"}</Tile>
+        <Tile label={t.game.settlementSummary.length}>{elapsed ?? "—"}</Tile>
         <BalanceTile game={game} balanceChips={difference} />
       </GameTiles>
       {saveGame.isError && (
         <p role="alert" className="mt-2 text-sm text-highlight">
-          保存失败，请重试。
+          {t.common.couldntSaveTryAgain}
         </p>
       )}
     </section>

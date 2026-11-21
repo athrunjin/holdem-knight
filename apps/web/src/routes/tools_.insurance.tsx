@@ -15,6 +15,7 @@ import {
 import { InsuranceSetup, ModeTitle } from "@/components/insurance/InsuranceHeader";
 import type { InsuranceChoice } from "@/components/insurance/InsuranceSettings";
 import { Page } from "@/components/Page";
+import { t } from "@/i18n";
 import { useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/tools_/insurance")({
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/tools_/insurance")({
 
 const SEATS = Array.from({ length: 9 }, (_, i) => ({
   id: `seat-${i + 1}`,
-  name: `玩家 ${i + 1}`,
+  name: t.tools.toolsInsurance.player(i + 1),
   // A round stack to start from, so a hand prices as soon as its cards are in
   chips: 1000,
 }));
@@ -101,7 +102,7 @@ function InsuranceToolPage() {
       actions={
         <Link
           to="/tools"
-          aria-label="返回工具"
+          aria-label={t.tools.toolsInsurance.backToTools}
           className="-mr-2 grid size-11 shrink-0 place-items-center text-highlight"
         >
           <X className="size-6" strokeWidth={1.75} aria-hidden />

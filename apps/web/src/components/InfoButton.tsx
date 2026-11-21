@@ -1,6 +1,7 @@
 import { Info } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Modal } from "@/components/insurance/Modal";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 interface InfoButtonProps {
@@ -29,7 +30,7 @@ export function InfoButton({
     <>
       <button
         type="button"
-        aria-label={`${title}说明`}
+        aria-label={t.ui.infoButton.about(title)}
         onClick={() => setOpen(true)}
         className={cn(
           "grid shrink-0 place-items-center text-muted",
@@ -46,7 +47,7 @@ export function InfoButton({
             onClick={() => setOpen(false)}
             className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
           >
-            知道了
+            {t.ui.infoButton.gotIt}
           </button>
         </Modal>
       )}

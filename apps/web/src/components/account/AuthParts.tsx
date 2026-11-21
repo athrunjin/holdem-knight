@@ -6,7 +6,7 @@ import { Page } from "@/components/Page";
 import { TextField } from "@/components/TextField";
 import type { AuthIssue } from "@/data/auth";
 import { type Session, useSession } from "@/data/session";
-import { useMessages } from "@/i18n";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 interface AuthPageProps {
@@ -25,13 +25,12 @@ interface AuthPageProps {
  * Where the app was built with no project to sign in to, it says so and offers nothing.
  */
 export function AuthPage({ title, back = "/me", audience, onSubmit, children }: AuthPageProps) {
-  const m = useMessages();
   const session = useSession();
   const heading = (
     <span className="flex items-center">
       <Link
         to={back}
-        aria-label={m.common.back}
+        aria-label={t.common.back}
         className="-ml-3 grid size-11 shrink-0 place-items-center text-muted"
       >
         <ChevronLeft className="size-6" aria-hidden />
@@ -49,7 +48,7 @@ export function AuthPage({ title, back = "/me", audience, onSubmit, children }: 
   return (
     <Page title={heading} centered>
       {session.status === "unavailable" && audience !== "anyone" ? (
-        <p className="text-muted">{m.account.authIssue.unavailable}</p>
+        <p className="text-muted">{t.account.authIssue.unavailable}</p>
       ) : session.status === "loading" ? null : onSubmit ? (
         <form onSubmit={onSubmit} noValidate className="flex max-w-md flex-col gap-4 pb-8">
           {content}
@@ -68,11 +67,10 @@ interface FieldProps {
 }
 
 export function EmailField({ value, issue, onChange }: FieldProps) {
-  const m = useMessages();
   return (
     <TextField
       id="email"
-      label={m.account.email}
+      label={t.account.email}
       value={value}
       issue={issue}
       type="email"
@@ -96,12 +94,11 @@ export function PasswordField({
   /** A password being chosen, which a password manager may offer to make and keep */
   fresh?: boolean;
 }) {
-  const m = useMessages();
   const [shown, setShown] = useState(false);
   return (
     <TextField
       id="password"
-      label={label ?? m.account.password}
+      label={label ?? t.account.password}
       value={value}
       issue={issue}
       type={shown ? "text" : "password"}
@@ -111,7 +108,7 @@ export function PasswordField({
       trailing={
         <button
           type="button"
-          aria-label={shown ? m.account.hidePassword : m.account.showPassword}
+          aria-label={shown ? t.account.hidePassword : t.account.showPassword}
           aria-pressed={shown}
           onClick={() => setShown(!shown)}
           className="-mr-3 grid size-11 shrink-0 place-items-center text-muted"
@@ -132,11 +129,10 @@ export function PasswordField({
  * and a phone's own offer of the code both land whole, which six separate boxes do not manage.
  */
 export function CodeField({ value, issue, onChange }: FieldProps) {
-  const m = useMessages();
   return (
     <div>
       <label htmlFor="code" className="sr-only">
-        {m.account.code}
+        {t.account.code}
       </label>
       <input
         id="code"
@@ -177,11 +173,10 @@ export function SubmitButton({ busy, children }: { busy: boolean; children: Reac
 
 /** Why the step did not go through, said under the form. */
 export function FormIssue({ issue }: { issue: AuthIssue | undefined }) {
-  const m = useMessages();
   if (!issue) return null;
   return (
     <p role="alert" className="text-sm text-highlight">
-      {m.account.authIssue[issue]}
+      {t.account.authIssue[issue]}
     </p>
   );
 }

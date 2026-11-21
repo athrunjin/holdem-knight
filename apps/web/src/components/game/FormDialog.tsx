@@ -1,5 +1,6 @@
 import { type FormEvent, type ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { t } from "@/i18n";
 
 interface FormDialogProps {
   title: ReactNode;
@@ -58,7 +59,7 @@ export function FormDialog({
         {children}
         {saveFailed && (
           <p role="alert" className="text-sm text-highlight">
-            保存失败，请重试。
+            {t.common.couldntSaveTryAgain}
           </p>
         )}
         <div className="grid grid-cols-2 gap-2">
@@ -68,7 +69,7 @@ export function FormDialog({
             onClick={() => (back ? back.onBack() : ref.current?.close())}
             className="min-h-12 rounded-xl border border-line font-medium"
           >
-            {back?.label ?? "取消"}
+            {back?.label ?? t.common.cancel}
           </button>
           <button
             type="submit"

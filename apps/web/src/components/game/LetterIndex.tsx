@@ -1,4 +1,5 @@
 import { type PointerEvent, useEffect, useRef, useState } from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 /** The element ID of a letter's section, which the index scrolls to. */
@@ -86,7 +87,7 @@ export function LetterIndex({ letters, active }: LetterIndexProps) {
   const shown = pressing ? (picked ?? active) : active;
 
   return (
-    <nav aria-label="按字母跳转" className="absolute top-0 right-0 h-full">
+    <nav aria-label={t.game.letterIndex.jumpToALetter} className="absolute top-0 right-0 h-full">
       <div className="sticky top-16 flex items-start">
         {enlarged && shown && (
           <span

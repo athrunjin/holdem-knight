@@ -1,6 +1,7 @@
 import { type Card, formatOdds } from "@holdem-knight/core";
 import { ArrowLeftRight, Check, Trash2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { t } from "@/i18n";
 import { formatCardText } from "@/lib/cards";
 import { formatOddsText } from "@/lib/number-input";
 import { CardFace } from "./CardFace";
@@ -32,7 +33,10 @@ type Part = "first" | "second" | "given";
 
 type Sort = "rank" | "suit";
 
-const SORT_TEXT: Record<Sort, string> = { rank: "大小", suit: "花色" };
+const SORT_TEXT: Record<Sort, string> = {
+  rank: t.insurance.outsManager.rank,
+  suit: t.insurance.outsManager.suit,
+};
 
 /** Cards are `rank * 4 + suit`: the highest rank first, or suit by suit with the highest first. */
 const SORTS: Record<Sort, (a: Card, b: Card) => number> = {
@@ -95,7 +99,7 @@ function PartSection({
         <h3 className="font-semibold whitespace-nowrap tabular-nums">{heading}</h3>
         <button
           type="button"
-          aria-label={`按${SORT_TEXT[sort]}排序，点击改为按${SORT_TEXT[next]}`}
+          aria-label={t.insurance.outsManager.sortedByTapToSortBy(SORT_TEXT[sort], SORT_TEXT[next])}
           onClick={() => setSort(next)}
           className="-mr-1 flex min-h-11 shrink-0 items-center gap-1 px-1 text-sm text-muted"
         >
@@ -150,7 +154,7 @@ function PartSection({
           {onRemove && (
             <button
               type="button"
-              aria-label={`删除${label}`}
+              aria-label={t.insurance.outsManager.delete(label)}
               onClick={onRemove}
               className="grid size-12 shrink-0 place-items-center text-muted"
             >
@@ -168,7 +172,7 @@ function PartSection({
           onClick={() => onPick(all ? [] : cards)}
           className={pickClass}
         >
-          全选
+          {t.insurance.outsManager.selectAll}
         </button>
         <button
           type="button"
@@ -177,7 +181,7 @@ function PartSection({
           onClick={() => onPick(cards.filter((card) => !mine.includes(card)))}
           className={pickClass}
         >
-          反选
+          {t.insurance.outsManager.invert}
         </button>
         <span className="flex-1" />
         {actions.map(({ label: text, enabled, onSelect }) => (
@@ -245,7 +249,7 @@ export function OutsManager({
     ];
     const sold = cards.filter((card) => !nextGiven.includes(card));
     if (sold.length === 0) {
-      setNotice("最少保留一张 Outs，如不想购买可在保险主界面选择");
+      setNotice(t.insurance.outsManager.keepAtLeastOneOutTo);
       return;
     }
     // With nothing left in the first cover, the second is the only one, and so the first
@@ -265,18 +269,20 @@ export function OutsManager({
   }
 
   function cancel() {
-    if (changed && !window.confirm("取消本次修改？")) return;
+    if (changed && !window.confirm(t.insurance.outsManager.discardTheseChanges)) return;
     onCancel();
   }
 
   const total = <span className="font-normal text-muted"> / {cards.length}</span>;
   const oddsText = (count: number) => {
     const odds = oddsOf(count);
-    return odds === undefined ? "超出赔率表" : `赔 ${formatOddsText(formatOdds(odds))}`;
+    return odds === undefined
+      ? t.insurance.outsManager.beyondTheOddsTable
+      : t.insurance.outsManager.pays(formatOddsText(formatOdds(odds)));
   };
   const some = (part: Part) => pickedIn(part).length > 0;
   const giveUp = (part: Part): Action => ({
-    label: "弃买",
+    label: t.insurance.outsManager.declined,
     enabled: some(part),
     onSelect: () => move(part, "given"),
   });
@@ -298,9 +304,13 @@ export function OutsManager({
         onPick={(chosen) => pick("first", chosen)}
         actions={[
           split
-            ? { label: "池 II", enabled: some("first"), onSelect: () => move("first", "second") }
+            ? {
+                label: t.insurance.outsManager.potIi,
+                enabled: some("first"),
+                onSelect: () => move("first", "second"),
+              }
             : {
-                label: "分开买",
+                label: t.insurance.outsManager.buySeparately,
                 // A second cover takes some of the cards, never all of them
                 enabled: some("first") && pickedIn("first").length < first.length,
                 onSelect: () => move("first", "second"),
@@ -323,7 +333,11 @@ export function OutsManager({
           empty=""
           onPick={(chosen) => pick("second", chosen)}
           actions={[
-            { label: "池 I", enabled: some("second"), onSelect: () => move("second", "first") },
+            {
+              label: t.insurance.outsManager.potI,
+              enabled: some("second"),
+              onSelect: () => move("second", "first"),
+            },
             giveUp("second"),
           ]}
           onRemove={removeSecond}
@@ -331,24 +345,38 @@ export function OutsManager({
       )}
 
       <PartSection
-        label="弃买"
+        label={t.insurance.outsManager.declined}
         heading={
           <>
-            弃买 · {given.length}
+            {t.insurance.outsManager.declined} · {given.length}
             {total}
           </>
         }
         cards={inPart("given")}
         picked={picked}
-        empty="没有弃买的 Outs"
+        empty={t.insurance.outsManager.noDeclinedOuts}
         onPick={(chosen) => pick("given", chosen)}
         actions={
           split
             ? [
-                { label: "池 I", enabled: some("given"), onSelect: () => move("given", "first") },
-                { label: "池 II", enabled: some("given"), onSelect: () => move("given", "second") },
+                {
+                  label: t.insurance.outsManager.potI,
+                  enabled: some("given"),
+                  onSelect: () => move("given", "first"),
+                },
+                {
+                  label: t.insurance.outsManager.potIi,
+                  enabled: some("given"),
+                  onSelect: () => move("given", "second"),
+                },
               ]
-            : [{ label: "购买", enabled: some("given"), onSelect: () => move("given", "first") }]
+            : [
+                {
+                  label: t.insurance.outsManager.buy,
+                  enabled: some("given"),
+                  onSelect: () => move("given", "first"),
+                },
+              ]
         }
       />
 
@@ -364,14 +392,14 @@ export function OutsManager({
           onClick={cancel}
           className="min-h-11 rounded-xl border border-line font-medium"
         >
-          取消
+          {t.common.cancel}
         </button>
         <button
           type="button"
           onClick={() => onConfirm({ skipped: inPart("given"), second: inPart("second") })}
           className="min-h-11 rounded-xl bg-accent font-semibold text-accent-text"
         >
-          确认
+          {t.common.confirm}
         </button>
       </div>
     </Modal>

@@ -8,6 +8,7 @@ import { InDevelopment } from "@/components/InDevelopment";
 import { Page } from "@/components/Page";
 import { TextMenu } from "@/components/TextMenu";
 import { useGames } from "@/data/games";
+import { localeTag, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import {
   DEFAULT_HISTORY_STATE,
@@ -26,17 +27,17 @@ export const Route = createFileRoute("/")({
 });
 
 /** The day a game started, as 26/11/14 */
-const STARTED_ON = new Intl.DateTimeFormat("zh-CN", {
+const STARTED_ON = new Intl.DateTimeFormat(localeTag, {
   year: "2-digit",
   month: "numeric",
   day: "numeric",
 });
 
 /** Its day of the week, as 周六 */
-const STARTED_WEEKDAY = new Intl.DateTimeFormat("zh-CN", { weekday: "short" });
+const STARTED_WEEKDAY = new Intl.DateTimeFormat(localeTag, { weekday: "short" });
 
 /** The time it started, as 21:05 */
-const STARTED_AT = new Intl.DateTimeFormat("zh-CN", {
+const STARTED_AT = new Intl.DateTimeFormat(localeTag, {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
@@ -50,25 +51,25 @@ const ROLES: readonly { readonly role: Role; readonly label: string }[] = [
 ];
 
 const STAGES: readonly { readonly value: HistoryStage; readonly label: string }[] = [
-  { value: "all", label: "全部" },
-  { value: "pending", label: "未结清" },
-  { value: "complete", label: "已结清" },
+  { value: "all", label: t.gamePages.list.all },
+  { value: "pending", label: t.gamePages.list.unsettled },
+  { value: "complete", label: t.gamePages.list.settled },
 ];
 
 const PERIODS: readonly { readonly value: HistoryPeriod; readonly label: string }[] = [
-  { value: "all", label: "全部" },
-  { value: "week", label: "过去一周" },
-  { value: "month", label: "过去一个月" },
+  { value: "all", label: t.gamePages.list.all },
+  { value: "week", label: t.gamePages.list.pastWeek },
+  { value: "month", label: t.gamePages.list.pastMonth },
 ];
 
 /** Each currency is shown by its mark alone, and named after the animal for a reader. */
 const CURRENCY_NAMES: readonly { readonly value: Currency; readonly name: string }[] = [
-  { value: "CNY", name: "熊猫" },
-  { value: "AUD", name: "袋鼠" },
+  { value: "CNY", name: t.gamePages.list.panda },
+  { value: "AUD", name: t.gamePages.list.kangaroo },
 ];
 
 const CURRENCIES = [
-  { value: "all" as const, label: "全部" },
+  { value: "all" as const, label: t.gamePages.list.all },
   ...CURRENCY_NAMES.map(({ value, name }) => ({
     value,
     name,
@@ -100,7 +101,7 @@ function GameRow({ game }: { game: Game }) {
         <span className="flex shrink-0 items-center gap-2.5">
           {owed && (
             <span className="rounded bg-highlight/15 px-1.5 py-0.5 text-xs font-medium text-highlight">
-              未结清
+              {t.gamePages.list.unsettled}
             </span>
           )}
           <span className="flex flex-col items-end text-sm leading-tight text-muted tabular-nums">
@@ -185,15 +186,15 @@ function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
     <div className="mb-2 rounded-xl border border-line px-2.5 text-sm">
       <div className="flex items-center gap-4">
         <TextMenu
-          label="对局时间"
-          caption="对局时间"
+          label={t.gamePages.list.played}
+          caption={t.gamePages.list.played}
           options={PERIODS}
           value={view.period}
           onChange={(period) => onChange({ period })}
         />
         <TextMenu
-          label="积分类型"
-          caption="积分类型"
+          label={t.gamePages.list.currency}
+          caption={t.gamePages.list.currency}
           options={CURRENCIES}
           value={view.currency}
           onChange={(currency) => onChange({ currency })}
@@ -201,8 +202,12 @@ function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
       </div>
       {/* Every option starts on. Switching one off leaves out the games that have it */}
       {/* biome-ignore lint/a11y/useSemanticElements: a fieldset does not lay its legend out in a line */}
-      <div role="group" aria-label="对局设置" className="flex min-h-11 items-center">
-        <span className="w-14 shrink-0 text-muted">对局设置</span>
+      <div
+        role="group"
+        aria-label={t.gamePages.list.options}
+        className="flex min-h-11 items-center"
+      >
+        <span className="w-14 shrink-0 text-muted">{t.gamePages.list.options}</span>
         {GAME_OPTIONS.map((option) => {
           const on = view.options.includes(option);
           const { label, className } = OPTION_MARKS[option];
@@ -228,7 +233,9 @@ function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
         <button
           type="button"
           aria-pressed={allOptions}
-          aria-label={allOptions ? "关闭全部设置" : "开启全部设置"}
+          aria-label={
+            allOptions ? t.gamePages.list.turnAllOptionsOff : t.gamePages.list.turnAllOptionsOn
+          }
           onClick={() => onChange({ options: allOptions ? [] : GAME_OPTIONS })}
           className={cn(optionSwitch, "-mr-2 ml-auto", allOptions ? "text-text" : "text-muted")}
         >
@@ -262,7 +269,7 @@ function HistorySection({ games }: { games: readonly Game[] }) {
     return (
       <section>
         <FoldHeading
-          title="历史对局"
+          title={t.gamePages.list.pastGames}
           count={games.length}
           open={false}
           onToggle={() => setOpen(true)}
@@ -293,14 +300,14 @@ function HistorySection({ games }: { games: readonly Game[] }) {
             onClick={() => setOpen(false)}
             className="min-h-11 pl-1"
           >
-            历史对局
+            {t.gamePages.list.pastGames}
           </button>
         </h2>
         <span aria-hidden className="px-1.5 text-muted">
           ·
         </span>
         <TextMenu
-          label="对局状态"
+          label={t.gamePages.list.status}
           options={stages}
           value={view.stage}
           onChange={(stage) => change({ stage })}
@@ -309,7 +316,7 @@ function HistorySection({ games }: { games: readonly Game[] }) {
           {/* Filled while the filters are on show, and gold while any of them is set */}
           <button
             type="button"
-            aria-label="筛选"
+            aria-label={t.gamePages.list.filter}
             aria-expanded={filtering}
             onClick={() => setState({ ...state, filtering: !filtering })}
             className={cn(
@@ -322,7 +329,11 @@ function HistorySection({ games }: { games: readonly Game[] }) {
           </button>
           <button
             type="button"
-            aria-label={view.newestFirst ? "按时间排序：最新在前" : "按时间排序：最早在前"}
+            aria-label={
+              view.newestFirst
+                ? t.gamePages.list.sortedByTimeNewestFirst
+                : t.gamePages.list.sortedByTimeOldestFirst
+            }
             onClick={() => change({ newestFirst: !view.newestFirst })}
             className={cn(iconButton, !view.newestFirst && "text-highlight")}
           >
@@ -335,7 +346,7 @@ function HistorySection({ games }: { games: readonly Game[] }) {
           {/* Pulled out so its chevron lines up with the ones on the sections above */}
           <button
             type="button"
-            aria-label="收起历史对局"
+            aria-label={t.gamePages.list.collapsePastGames}
             onClick={() => setOpen(false)}
             className={cn(iconButton, "-mr-1")}
           >
@@ -352,7 +363,7 @@ function HistorySection({ games }: { games: readonly Game[] }) {
         </ul>
       ) : (
         <p className="px-1 py-2 text-sm text-muted">
-          {games.length > 0 ? "没有符合条件的牌局" : "暂无牌局"}
+          {games.length > 0 ? t.gamePages.list.noGamesMatch : t.gamePages.list.noGamesYet}
         </p>
       )}
     </section>
@@ -368,19 +379,17 @@ function HostGames() {
     <div className="flex flex-col gap-2 pt-4 pb-6">
       {games.length === 0 && (
         <div className="space-y-2 px-1 py-6 text-center">
-          <p className="text-lg font-medium">还没有牌局</p>
-          <p className="text-sm text-muted">
-            点下方的「开局」，记录每位玩家的 Buy-in、补码和离桌，散局时自动算出谁该转给谁多少。
-          </p>
+          <p className="text-lg font-medium">{t.gamePages.list.noGamesYet2}</p>
+          <p className="text-sm text-muted">{t.gamePages.list.tapNewGameBelowToRecord}</p>
         </div>
       )}
       <GameSection
-        title="进行中"
+        title={t.gamePages.list.inProgress}
         games={games.filter((game) => game.status === "open")}
         storageKey="games-list.open"
       />
       <GameSection
-        title="结算中"
+        title={t.gamePages.list.settling}
         games={games.filter((game) => game.status === "settling")}
         storageKey="games-list.settling"
       />
@@ -393,7 +402,7 @@ function PlayerGames() {
   return (
     <section className="flex flex-col items-center gap-3 py-16 text-center">
       <InDevelopment milestone="M7" />
-      <p className="max-w-sm text-muted">以玩家身份参加的牌局会显示在这里。</p>
+      <p className="max-w-sm text-muted">{t.gamePages.list.gamesYouPlayInAsA}</p>
     </section>
   );
 }
@@ -402,7 +411,7 @@ function SessionsPage() {
   const [role, setRole] = useState<Role>("host");
 
   return (
-    <Page title="牌局">
+    <Page title={t.gamePages.list.game}>
       <div className="grid grid-cols-2 gap-2">
         {ROLES.map((item) => (
           <button

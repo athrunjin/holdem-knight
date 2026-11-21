@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 /** Something to do from the list other than picking an option: an icon with a name for a reader. */
@@ -105,7 +106,7 @@ export function TextMenu<T extends string>({
           {/* A tap anywhere else puts the list away */}
           <button
             type="button"
-            aria-label="收起"
+            aria-label={t.ui.textMenu.collapse}
             tabIndex={-1}
             onClick={() => setOpen(false)}
             className="fixed inset-0 z-10 cursor-default"

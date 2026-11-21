@@ -16,6 +16,7 @@ import { ChevronDown, UserPen } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/insurance/Modal";
 import { MiniSwitch } from "@/components/MiniSwitch";
+import { t } from "@/i18n";
 import { type CardSort, DEFAULT_SORT, nextSort } from "@/lib/card-sort";
 import { breakable, formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
@@ -109,10 +110,10 @@ function SettleButton({ armed, onClick }: { armed: boolean; onClick: () => void 
         )}
       >
         <span className="invisible col-start-1 row-start-1" aria-hidden>
-          结算并下桌
+          {t.game.ledgerPlayers.cashOutLeave}
         </span>
         <span className="col-start-1 row-start-1 text-center">
-          {armed ? "确认结算" : "结算并下桌"}
+          {armed ? t.game.ledgerPlayers.confirm : t.game.ledgerPlayers.cashOutLeave}
         </span>
         {armed && (
           <span
@@ -120,7 +121,7 @@ function SettleButton({ armed, onClick }: { armed: boolean; onClick: () => void 
             style={{ animationDuration: `${ARMED_MS}ms` }}
             className="absolute -inset-px grid animate-drain place-items-center rounded-[inherit] bg-accent text-accent-text"
           >
-            确认结算
+            {t.game.ledgerPlayers.confirm}
           </span>
         )}
       </span>
@@ -261,7 +262,7 @@ export function LedgerPlayers({
           onClick={() => onRebuy(playerId)}
           className={cn(cellButtonClass, "-mx-0.5 text-xs text-highlight")}
         >
-          补码
+          {t.common.rebuy}
         </button>
       ) : (
         dash("text-center")
@@ -272,7 +273,7 @@ export function LedgerPlayers({
     return (
       <button
         type="button"
-        aria-label={`输入${nameOf(playerId)}的 Buy-in，现在 ${count} 个`}
+        aria-label={t.game.ledgerPlayers.enterSBuyInsNow(nameOf(playerId), count)}
         onClick={() => onEditHands(playerId)}
         className={cn(cellButtonClass, "-mx-0.5", flash(playerId))}
       >
@@ -294,7 +295,7 @@ export function LedgerPlayers({
     return (
       <StackField
         chips={stackChips}
-        label={`${nameOf(playerId)}的筹码`}
+        label={t.game.ledgerPlayers.sChips(nameOf(playerId))}
         className={flash(playerId)}
         onCommit={(chips) => onSetStack(playerId, chips)}
       />
@@ -380,14 +381,14 @@ export function LedgerPlayers({
         <Link
           to="/games/$gameId/insurance"
           params={{ gameId }}
-          aria-label="算保险"
+          aria-label={t.game.ledgerPlayers.insure}
           className={cn(insuranceNameClass, "min-h-11")}
         >
           <InsuranceName />
         </Link>
         {!seat ? (
           <>
-            {join(INSURANCE_PLAYER_ID, "保险 Buy-in")}
+            {join(INSURANCE_PLAYER_ID, t.game.ledgerPlayers.insuranceBuyIn)}
             {dash("text-center")}
             {dash("text-right")}
             {dash("text-right")}
@@ -398,11 +399,11 @@ export function LedgerPlayers({
             {!seat.seated && editable ? (
               <button
                 type="button"
-                aria-label="保险回桌"
+                aria-label={t.game.ledgerPlayers.insuranceRejoins}
                 onClick={() => onReturn(INSURANCE_PLAYER_ID)}
                 className={cn(cellButtonClass, "col-span-2 text-highlight")}
               >
-                回桌
+                {t.common.rejoined}
               </button>
             ) : (
               <>
@@ -435,7 +436,12 @@ export function LedgerPlayers({
     );
     const rowClass = cn(columnsClass, "min-h-11 w-full text-left text-xs");
     return editable ? (
-      <button type="button" aria-label="修改抽水" onClick={onRake} className={rowClass}>
+      <button
+        type="button"
+        aria-label={t.game.ledgerPlayers.editRake}
+        onClick={onRake}
+        className={rowClass}
+      >
         {cells}
       </button>
     ) : (
@@ -464,7 +470,7 @@ export function LedgerPlayers({
       ) : host ? (
         hands(host)
       ) : (
-        join(ORGANIZER_PLAYER_ID, "组织者加入牌局")
+        join(ORGANIZER_PLAYER_ID, t.game.ledgerPlayers.hostJoinsTheGame)
       ),
       chipsCell: hostLeft ? (
         <span className={cn(figureClass, "text-center text-muted")}>
@@ -512,7 +518,7 @@ export function LedgerPlayers({
             onClick={() => onReturn(ORGANIZER_PLAYER_ID)}
             className="flex min-h-11 items-center"
           >
-            <span className={cn(pillClass, "border-line")}>回桌</span>
+            <span className={cn(pillClass, "border-line")}>{t.common.rejoined}</span>
           </button>
         )),
     };
@@ -533,20 +539,23 @@ export function LedgerPlayers({
     <>
       {showOrganizer && (
         <div className="mt-3 flex flex-col gap-2">
-          <ColumnTitles first="组织者" firstNote={host && !host.seated ? "(已下桌)" : undefined} />
+          <ColumnTitles
+            first={t.game.ledgerPlayers.host}
+            firstNote={host && !host.seated ? t.game.ledgerPlayers.left : undefined}
+          />
           {organizerCard()}
         </div>
       )}
 
       {(seated.length > 0 || addPlayer) && (
-        <section aria-label="桌上玩家" className="mt-3 flex flex-col gap-2">
+        <section aria-label={t.game.ledgerPlayers.atTheTable} className="mt-3 flex flex-col gap-2">
           <div className="-mb-2 flex min-h-11 items-center justify-between gap-2">
             <div className="flex items-center">
-              <h2 className="font-semibold">桌上玩家 ({seatedCount})</h2>
+              <h2 className="font-semibold">{t.game.ledgerPlayers.atTheTable2(seatedCount)}</h2>
               {editable && (
                 <button
                   type="button"
-                  aria-label="玩家管理"
+                  aria-label={t.game.ledgerPlayers.managePlayers}
                   onClick={() => setManaging(true)}
                   className="grid size-11 place-items-center text-muted"
                 >
@@ -556,9 +565,15 @@ export function LedgerPlayers({
             </div>
             {seated.length > 0 && (
               <div className="flex items-center gap-3">
-                {hasFees && <MiniSwitch label="含费" checked={withFees} onChange={setWithFees} />}
+                {hasFees && (
+                  <MiniSwitch
+                    label={t.game.ledgerPlayers.withCharges}
+                    checked={withFees}
+                    onChange={setWithFees}
+                  />
+                )}
                 <MiniSwitch
-                  label="详细模式"
+                  label={t.game.ledgerPlayers.detailedView}
                   checked={seated.every((p) => isOpen(p.playerId))}
                   onChange={(on) => {
                     setToggled(new Set());
@@ -570,7 +585,7 @@ export function LedgerPlayers({
           </div>
           {seated.length > 0 && (
             <ColumnTitles
-              first="玩家"
+              first={t.common.player}
               sort={sort}
               onSort={(column) => setSort(nextSort(sort, column))}
             />
@@ -584,14 +599,16 @@ export function LedgerPlayers({
 
       {/* Removing, swapping and adding players: the screen is still being designed */}
       {managing && (
-        <Modal title="玩家管理" onClose={() => setManaging(false)}>
-          <p className="text-sm text-muted">移除、替换和新增玩家的界面还在设计中。</p>
+        <Modal title={t.game.ledgerPlayers.managePlayers} onClose={() => setManaging(false)}>
+          <p className="text-sm text-muted">
+            {t.game.ledgerPlayers.removingReplacingAndAddingPlayersIs}
+          </p>
           <button
             type="button"
             onClick={() => setManaging(false)}
             className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
           >
-            关闭
+            {t.common.close}
           </button>
         </Modal>
       )}
@@ -607,7 +624,8 @@ export function LedgerPlayers({
                 onClick={() => setLeftOpen(!leftOpen)}
                 className="flex min-h-11 items-center gap-1 text-sm text-muted"
               >
-                已结算 ({left.length})
+                {t.game.ledgerPlayers.cashedOut}
+                {left.length})
                 <ChevronDown
                   className={cn("size-4 transition-transform", leftOpen && "rotate-180")}
                   aria-hidden
@@ -620,7 +638,7 @@ export function LedgerPlayers({
                 onClick={onReturnAll}
                 className="min-h-11 pl-2 text-xs text-highlight"
               >
-                全部回桌
+                {t.game.ledgerPlayers.allRejoin}
               </button>
             )}
           </div>
@@ -631,7 +649,7 @@ export function LedgerPlayers({
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{nameOf(playerId)}</p>
                     <p className="truncate text-xs">
-                      Buy-in {money(boughtChips)} · 带出 {money(cashedOutChips)}
+                      {t.game.ledgerPlayers.buyInCashOut(money(boughtChips), money(cashedOutChips))}
                     </p>
                   </div>
                   <span
@@ -642,11 +660,11 @@ export function LedgerPlayers({
                   {editable && (
                     <button
                       type="button"
-                      aria-label={`${nameOf(playerId)}回桌`}
+                      aria-label={t.game.ledgerPlayers.rejoins(nameOf(playerId))}
                       onClick={() => onReturn(playerId)}
                       className={actionClass}
                     >
-                      回桌
+                      {t.common.rejoined}
                     </button>
                   )}
                 </li>

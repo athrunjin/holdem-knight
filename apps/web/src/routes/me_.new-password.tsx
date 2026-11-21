@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { AuthPage, FormIssue, PasswordField, SubmitButton } from "@/components/account/AuthParts";
 import { type AuthIssue, setPassword as saveNewPassword } from "@/data/auth";
-import { messages, useMessages } from "@/i18n";
+import { t } from "@/i18n";
 
 export const Route = createFileRoute("/me_/new-password")({
   component: NewPasswordPage,
@@ -11,7 +11,6 @@ export const Route = createFileRoute("/me_/new-password")({
 
 /** The last step of a reset: the code has signed the account in, and it now takes a new password. */
 function NewPasswordPage() {
-  const m = useMessages();
   const navigate = Route.useNavigate();
   const [password, setPassword] = useState("");
   const [passwordIssue, setPasswordIssue] = useState<string>();
@@ -21,7 +20,7 @@ function NewPasswordPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const chosen = parsePassword(password);
-    setPasswordIssue(chosen.ok ? undefined : messages().account.passwordIssue[chosen.issue]);
+    setPasswordIssue(chosen.ok ? undefined : t.account.passwordIssue[chosen.issue]);
     setIssue(undefined);
     if (!chosen.ok) return;
 
@@ -36,9 +35,9 @@ function NewPasswordPage() {
   }
 
   return (
-    <AuthPage title={m.account.newPasswordPage.title} audience="accounts" onSubmit={handleSubmit}>
+    <AuthPage title={t.account.newPasswordPage.title} audience="accounts" onSubmit={handleSubmit}>
       <PasswordField
-        label={m.account.newPasswordWithRule}
+        label={t.account.newPasswordWithRule}
         fresh
         value={password}
         issue={passwordIssue}
@@ -48,7 +47,7 @@ function NewPasswordPage() {
         }}
       />
       <FormIssue issue={issue} />
-      <SubmitButton busy={busy}>{m.common.save}</SubmitButton>
+      <SubmitButton busy={busy}>{t.common.save}</SubmitButton>
     </AuthPage>
   );
 }

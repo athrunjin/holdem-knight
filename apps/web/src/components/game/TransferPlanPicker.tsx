@@ -1,5 +1,6 @@
 import { Check, ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 export interface TransferPlan {
@@ -41,7 +42,7 @@ export function TransferPlanPicker({
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`转账方案：${current?.label ?? ""}`}
+        aria-label={t.game.transferPlanPicker.transfers(current?.label ?? "")}
         disabled={disabled}
         onClick={() => (locked ? onLocked?.() : setOpen(!open))}
         className="flex min-h-11 max-w-full items-center gap-0.5 text-sm text-muted disabled:opacity-60"
@@ -57,14 +58,14 @@ export function TransferPlanPicker({
           {/* A tap anywhere else puts the list away */}
           <button
             type="button"
-            aria-label="收起"
+            aria-label={t.game.transferPlanPicker.collapse}
             tabIndex={-1}
             onClick={() => setOpen(false)}
             className="fixed inset-0 z-10 cursor-default"
           />
           <div
             role="menu"
-            aria-label="转账方案"
+            aria-label={t.game.transferPlanPicker.transfers2}
             // Near the foot of the page, so it is brought clear of the tab bar as it opens
             ref={(menu) => menu?.scrollIntoView({ block: "nearest", behavior: "smooth" })}
             className="absolute top-full left-0 z-20 max-h-72 w-max scroll-mb-24 max-w-[min(18rem,calc(100vw-2rem))] min-w-44 overflow-y-auto rounded-xl border border-line bg-surface py-1 shadow-lg"

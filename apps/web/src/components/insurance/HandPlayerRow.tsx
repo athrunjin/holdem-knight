@@ -2,6 +2,7 @@ import type { Card, InsuranceHandPlayer } from "@holdem-knight/core";
 import { RotateCcw, X } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
 import { TextMenu } from "@/components/TextMenu";
+import { t } from "@/i18n";
 import { formatCardText } from "@/lib/cards";
 import { cn } from "@/lib/cn";
 import { selectOnFocus } from "@/lib/number-input";
@@ -76,7 +77,7 @@ function ChipsField({
       inputMode="numeric"
       autoComplete="off"
       enterKeyHint="done"
-      aria-label={`${name}的筹码`}
+      aria-label={t.insurance.handPlayerRow.sChips(name)}
       value={draft ?? chipText(chips)}
       onFocus={(event) => {
         found.current = chips;
@@ -125,7 +126,9 @@ export function HoleCards({
             key={place}
             type="button"
             aria-label={
-              card === undefined ? `选择${name}的手牌` : `更换${name}的${formatCardText(card)}`
+              card === undefined
+                ? t.insurance.handPlayerRow.pickSHoleCards(name)
+                : t.insurance.handPlayerRow.changeS(name, formatCardText(card))
             }
             onClick={() => onPick(card === undefined ? undefined : place)}
             className="grid h-11 w-10 place-items-center"
@@ -174,7 +177,7 @@ export function HandPlayerRow({ name, player, note, edits, children }: HandPlaye
       <div className="relative min-w-0 flex-1">
         {edits ? (
           <TextMenu
-            label="玩家"
+            label={t.common.player}
             options={[
               ...edits.seats.map((seat) => ({
                 value: seat.id,

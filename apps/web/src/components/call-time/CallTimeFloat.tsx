@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { type PointerEvent, useEffect, useRef, useState } from "react";
+import { t } from "@/i18n";
 import { callTimeActions, useCallTime } from "@/lib/call-time";
 import { CallTimeDial } from "./CallTimeDial";
 
@@ -129,7 +130,9 @@ export function CallTimeFloat() {
     <button
       type="button"
       aria-label={
-        done ? "Call Time 时间到，回到倒计时" : `Call Time 剩余 ${seconds} 秒，回到倒计时`
+        done
+          ? t.callTime.callTimeFloat.callTimeIsUpBackTo
+          : t.callTime.callTimeFloat.callTimeSLeftBackTo(seconds)
       }
       onPointerDown={handleDown}
       onPointerMove={handleMove}

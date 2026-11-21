@@ -1,5 +1,3 @@
-import { useSyncExternalStore } from "react";
-
 import { en } from "./en";
 import { type Messages, zh } from "./zh";
 
@@ -48,57 +46,38 @@ const resolve = (picked: LanguageChoice): Language =>
     ? deviceLanguage(typeof navigator === "undefined" ? [] : navigator.languages)
     : picked;
 
-let choice: LanguageChoice = storedChoice();
-let language: Language = resolve(choice);
-const listeners = new Set<() => void>();
+const choice: LanguageChoice = storedChoice();
+const language: Language = resolve(choice);
 
-/** Tells the browser what the page is written in, for readers, hyphenation and its own offers to translate. */
-function mark() {
-  if (typeof document !== "undefined") document.documentElement.lang = LANGUAGES[language].tag;
-}
-mark();
+// Tells the browser what the page is written in, for readers and its own offers to translate
+if (typeof document !== "undefined") document.documentElement.lang = LANGUAGES[language].tag;
 
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
+/** The language the interface is in, for as long as the page is open. */
+export const currentLanguage: Language = language;
 
-/** Changes the language at once and keeps the choice in this browser. */
+/** What was picked: a language, or the device's. */
+export const languageChoice: LanguageChoice = choice;
+
+/**
+ * The interface's text in the language in use. It is settled when the page loads, so it can be
+ * read anywhere: in a component, in a helper, in a constant at the top of a file.
+ */
+export const t: Messages = LANGUAGES[language].catalog;
+
+/** The language tag for formatting dates and numbers as the interface reads. */
+export const localeTag: string = LANGUAGES[language].tag;
+
+/**
+ * Keeps the choice in this browser and loads the page again in it. A language is changed rarely,
+ * and starting over means no text anywhere is left in the old one.
+ */
 export function setLanguageChoice(next: LanguageChoice) {
-  choice = next;
-  language = resolve(next);
   try {
     if (next === "device") localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, next);
   } catch {
-    // Without storage the choice still holds until the page is left
+    // Without storage there is nowhere to keep a choice, so the device goes on deciding
+    return;
   }
-  mark();
-  for (const listener of listeners) listener();
-}
-
-export const currentLanguage = (): Language => language;
-
-/**
- * The interface's text in the language in use, for code outside components: what a form answers
- * with, what goes on a shared image. Components take it from `useMessages`.
- */
-export const messages = (): Messages => LANGUAGES[language].catalog;
-
-/** The language tag for formatting dates and numbers as the interface reads. */
-export const localeTag = (): string => LANGUAGES[language].tag;
-
-export function useLanguage(): Language {
-  return useSyncExternalStore(subscribe, currentLanguage);
-}
-
-export function useLanguageChoice(): LanguageChoice {
-  return useSyncExternalStore(subscribe, () => choice);
-}
-
-/** The interface's text in the language in use. The component renders again when it changes. */
-export function useMessages(): Messages {
-  return LANGUAGES[useLanguage()].catalog;
+  window.location.reload();
 }

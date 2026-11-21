@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { SaveNameDialog } from "@/components/SaveNameDialog";
 import { newOddsTable, useOddsTables, useSaveOddsTable } from "@/data/insurance";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { datedName } from "@/lib/dated-name";
 import { formatOddsText } from "@/lib/number-input";
@@ -70,7 +71,7 @@ export function OddsTableEditor({ odds, tableId, onApply }: OddsTableEditorProps
           onClick={() => setOpen(!open)}
           className="flex min-h-11 items-center gap-1 font-medium"
         >
-          赔率表
+          {t.common.oddsTable}
           <ChevronDown
             className={cn("size-5 text-muted transition-transform", open && "rotate-180")}
             aria-hidden
@@ -95,7 +96,7 @@ export function OddsTableEditor({ odds, tableId, onApply }: OddsTableEditorProps
               onClick={() => setStep("demo")}
               className="min-h-11 shrink-0 rounded-xl border border-line px-3 text-sm font-medium"
             >
-              查看demo
+              {t.insurance.oddsTableEditor.seeADemo}
             </button>
             <button
               type="button"
@@ -103,11 +104,11 @@ export function OddsTableEditor({ odds, tableId, onApply }: OddsTableEditorProps
               onClick={() => setStep("apply")}
               className="min-h-11 flex-1 rounded-xl bg-accent font-semibold text-accent-text disabled:bg-line disabled:text-muted"
             >
-              确认
+              {t.common.confirm}
             </button>
             <button
               type="button"
-              aria-label="收起赔率表"
+              aria-label={t.insurance.oddsTableEditor.collapseTheOddsTable}
               onClick={() => setOpen(false)}
               className="grid size-11 shrink-0 place-items-center rounded-xl border border-line text-muted"
             >
@@ -118,22 +119,22 @@ export function OddsTableEditor({ odds, tableId, onApply }: OddsTableEditorProps
       )}
 
       {step === "apply" && (
-        <Modal title="应用赔率表" onClose={() => setStep(null)}>
-          <p>是否应用到本局？</p>
+        <Modal title={t.insurance.oddsTableEditor.applyOddsTable} onClose={() => setStep(null)}>
+          <p>{t.insurance.oddsTableEditor.applyToThisGame}</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setStep(null)}
               className="min-h-11 rounded-xl border border-line font-medium"
             >
-              取消
+              {t.common.cancel}
             </button>
             <button
               type="button"
               onClick={handleApply}
               className="min-h-11 rounded-xl bg-accent font-semibold text-accent-text"
             >
-              确认
+              {t.common.confirm}
             </button>
           </div>
         </Modal>
@@ -141,9 +142,9 @@ export function OddsTableEditor({ odds, tableId, onApply }: OddsTableEditorProps
 
       {step === "save" && (
         <SaveNameDialog
-          title="保存为赔率表，下次快速应用？"
-          label="赔率表名称，同名会覆盖"
-          initialName={datedName("赔率表", new Set(saved.map((t) => t.name)))}
+          title={t.insurance.oddsTableEditor.saveAsAnOddsTableTo}
+          label={t.insurance.oddsTableEditor.oddsTableNameAnExistingName}
+          initialName={datedName(t.common.oddsTable, new Set(saved.map((t) => t.name)))}
           saving={saveTable.isPending}
           saveFailed={saveTable.isError}
           onSave={handleSave}
@@ -152,14 +153,14 @@ export function OddsTableEditor({ odds, tableId, onApply }: OddsTableEditorProps
       )}
 
       {step === "demo" && (
-        <Modal title="查看demo" onClose={() => setStep(null)}>
-          <p className="py-6 text-center text-muted">开发中</p>
+        <Modal title={t.insurance.oddsTableEditor.seeADemo} onClose={() => setStep(null)}>
+          <p className="py-6 text-center text-muted">{t.insurance.oddsTableEditor.inProgress}</p>
           <button
             type="button"
             onClick={() => setStep(null)}
             className="min-h-11 w-full rounded-xl border border-line font-medium"
           >
-            关闭
+            {t.common.close}
           </button>
         </Modal>
       )}

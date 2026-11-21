@@ -10,7 +10,7 @@ import {
   textLinkClass,
 } from "@/components/account/AuthParts";
 import { type AuthIssue, resendCode, signIn } from "@/data/auth";
-import { messages, useMessages } from "@/i18n";
+import { t } from "@/i18n";
 import { keepPendingCode } from "@/lib/pending-code";
 
 export const Route = createFileRoute("/me_/sign-in")({
@@ -18,7 +18,6 @@ export const Route = createFileRoute("/me_/sign-in")({
 });
 
 function SignInPage() {
-  const m = useMessages();
   const navigate = Route.useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,9 +31,9 @@ function SignInPage() {
     const address = parseEmail(email);
     // Only that it was typed: an older account may have a password today's rule would refuse
     const typed = parsePassword(password);
-    setEmailIssue(address.ok ? undefined : messages().account.emailIssue[address.issue]);
+    setEmailIssue(address.ok ? undefined : t.account.emailIssue[address.issue]);
     setPasswordIssue(
-      !typed.ok && typed.issue === "empty" ? messages().account.passwordIssue.empty : undefined,
+      !typed.ok && typed.issue === "empty" ? t.account.passwordIssue.empty : undefined,
     );
     setIssue(undefined);
     if (!address.ok || password === "") return;
@@ -54,7 +53,7 @@ function SignInPage() {
   }
 
   return (
-    <AuthPage title={m.common.signIn} audience="guests" onSubmit={handleSubmit}>
+    <AuthPage title={t.common.signIn} audience="guests" onSubmit={handleSubmit}>
       <EmailField
         value={email}
         issue={emailIssue}
@@ -72,13 +71,13 @@ function SignInPage() {
         }}
       />
       <FormIssue issue={issue} />
-      <SubmitButton busy={busy}>{m.common.signIn}</SubmitButton>
+      <SubmitButton busy={busy}>{t.common.signIn}</SubmitButton>
       <div className="flex justify-between">
         <Link to="/me/reset" className={textLinkClass}>
-          {m.account.signInPage.forgot}
+          {t.account.signInPage.forgot}
         </Link>
         <Link to="/me/sign-up" className={textLinkClass}>
-          {m.account.signInPage.toSignUp}
+          {t.account.signInPage.toSignUp}
         </Link>
       </div>
     </AuthPage>
