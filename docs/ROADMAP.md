@@ -78,6 +78,16 @@ Ahead of accounts, in guest mode: players who share a name, numbered records, av
 
 - Leave room for plans and entitlements (monthly / per game), no payments yet
 
+## Before a first release
+
+The first hosted project and its sending domain wait until these are done, in the organizer's order of 2026-11-21:
+
+- [x] Dark whatever the device is set to
+- [x] The interface in English as well as Chinese, with a language setting on 我的 ([ADR 0047](adr/0047-interface-text-in-typed-catalogs.md))
+- Sharing: an image of a game's whole result, and one for each player's own
+- Insurance: how it ties into the game, its flow, and its settlement screen, once the organizer has thought them through
+- The host's pages, the figures above all: earnings by kind, transfers received or not, a player's history
+
 ## M7 and beyond
 
 - Player app: a link to a game's result for players without an account. Signed-in players are covered by M6

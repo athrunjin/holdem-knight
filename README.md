@@ -25,6 +25,7 @@ It works on phones, tablets and computers, and can be added to the home screen t
 | Form          | PWA (packaged with Capacitor for the app stores later)                    |
 | Front end     | React 19 + TypeScript + Vite + TanStack Router                            |
 | UI            | Tailwind CSS v4 (components owned in the repo, in the style of shadcn/ui) |
+| Languages     | Chinese and English, in typed catalogs under `apps/web/src/i18n`          |
 | State         | Zustand (UI state) + TanStack Query (remote data)                         |
 | Local storage | Dexie / IndexedDB (guest mode)                                            |
 | Back end      | Supabase (from M6; can be deployed per region)                            |

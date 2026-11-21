@@ -67,7 +67,7 @@ export const gamePages: Messages["gamePages"] = {
     makeImage: "Make image",
     transfers2: "Transfers",
     couldntMakeTheImageTryAgain: "Couldn’t make the image. Try again.",
-    editResult2: "Edit result",
+    editResult: "Edit result",
     transfersHaveBeenMarkedDeleteThose:
       "Transfers have been marked. Delete those marks and edit the result?",
   },

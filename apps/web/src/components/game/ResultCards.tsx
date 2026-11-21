@@ -120,7 +120,7 @@ export function TotalLine({
   return (
     <div className={cn(columnsClass, "min-h-11 border-t border-accent")}>
       <span className={cn(labelClass, "justify-between font-semibold")}>
-        {t.game.resultCards.total2}
+        {t.game.resultCards.total}
         {action}
       </span>
       <span className="text-right whitespace-nowrap">
@@ -424,7 +424,7 @@ function Summary({
         ))}
       </p>
       <span className="flex shrink-0 items-center gap-1 text-muted">
-        {t.game.resultCards.total2}
+        {t.game.resultCards.total}
         <TotalChip total={card.total} currency={currency} />
       </span>
     </div>

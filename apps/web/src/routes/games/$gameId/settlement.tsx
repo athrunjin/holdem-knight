@@ -623,7 +623,7 @@ function SettlementResult({
               onClick={handleRevise}
               className="relative min-h-12 min-w-0 flex-1 rounded-xl border border-line px-4 font-medium disabled:opacity-60"
             >
-              {t.gamePages.settlement.editResult2}
+              {t.gamePages.settlement.editResult}
               {nudge?.target === "revise" && <NudgeRing at={nudge.at} />}
             </button>
           ) : (
@@ -706,7 +706,7 @@ function SettlementResult({
       </section>
 
       {revising && (
-        <Modal title={t.gamePages.settlement.editResult2} onClose={() => setRevising(false)}>
+        <Modal title={t.gamePages.settlement.editResult} onClose={() => setRevising(false)}>
           <p className="text-sm">{t.gamePages.settlement.transfersHaveBeenMarkedDeleteThose}</p>
           <button
             type="button"

@@ -66,7 +66,7 @@ export const gamePages = {
     makeImage: "生成图片",
     transfers2: "积分管理",
     couldntMakeTheImageTryAgain: "图片生成失败，请重试。",
-    editResult2: "修改对局结果",
+    editResult: "修改对局结果",
     transfersHaveBeenMarkedDeleteThose: "已有积分转移被记录，是否删除并修改对局结果？",
   },
   newGame: {

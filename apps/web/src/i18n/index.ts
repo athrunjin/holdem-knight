@@ -52,9 +52,6 @@ const language: Language = resolve(choice);
 // Tells the browser what the page is written in, for readers and its own offers to translate
 if (typeof document !== "undefined") document.documentElement.lang = LANGUAGES[language].tag;
 
-/** The language the interface is in, for as long as the page is open. */
-export const currentLanguage: Language = language;
-
 /** What was picked: a language, or the device's. */
 export const languageChoice: LanguageChoice = choice;
 

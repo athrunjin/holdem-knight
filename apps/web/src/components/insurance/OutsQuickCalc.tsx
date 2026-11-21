@@ -167,8 +167,11 @@ function OutsDialog({
   const tiesMax = Math.min(unseen - outs, tiesSold ? maxOuts : unseen);
   const valid = outs + ties >= 1 && outs <= outsMax && ties <= tiesMax;
 
-  // Selected, so the first digit replaces the starting count
+  // Focused and selected as the dialog opens, so the first digit replaces the starting count.
+  // Opening puts the focus on the dialog's first control, the minus button, and a selection in a
+  // field without the focus neither shows nor takes what is typed.
   useEffect(() => {
+    inputRef.current?.focus();
     inputRef.current?.select();
   }, []);
 

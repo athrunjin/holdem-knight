@@ -12,7 +12,6 @@ export const me = {
   },
   account: {
     rename: "改昵称",
-    name: "昵称",
     renameFailed: "保存失败，请重试",
     code: "账户编号",
     copyCode: "复制账户编号",

@@ -15,7 +15,6 @@ export const me: Messages["me"] = {
   },
   account: {
     rename: "Rename",
-    name: "Name",
     renameFailed: "Couldn’t save. Try again.",
     code: "Account ID",
     copyCode: "Copy account ID",

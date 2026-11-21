@@ -1579,6 +1579,16 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. The language follows the device, as the organizer chose. English for the game's own words follows common cash-game usage, checked against poker glossaries: rebuy for 补码, cash-out for 带出, Fee for 台费 and Wage for 工资, short so the pages keep the layout made for Chinese, net for 水上/下, Kangaroo pts and Panda pts for the two currencies. Checked with the catalogs' tests and in the browser preview in both languages: starting a game with every section on, the game page, 我的 and the tools. At 393 wide the English first pushed the game page's 结算 button off the screen and overlapped two labels in the rake settings; shorter words put both right, with the Chinese layout unchanged. The insurance flow inside a game and the shared image have not been looked at in English.
 - Tracking: PR #99, [ADR 0047](adr/0047-interface-text-in-typed-catalogs.md)
 
+### #I-081 The outs field selected as its dialog opens
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-21
+- Source: the organizer, using Outs数速算 on a phone
+- Problem: tapping the player behind opened the dialog for their outs with nothing selected, so the count shown had to be tapped before a new one could be typed over it.
+- Proposal: the outs field takes the focus and is selected as the dialog opens. It was selected before, but the dialog had put the focus on its minus button, where a selection neither shows nor takes what is typed.
+- Decision: do. Checked in the browser preview: the field has the focus and its count is selected. Not checked on a phone, where the keyboard may still wait for a tap.
+- Tracking: PR #99
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

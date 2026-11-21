@@ -292,7 +292,7 @@ export const game = {
     sortBy: (a: string | number, b: string | number) => `按${a}排序${b}`,
     net: "水上/下",
     waived: "已免",
-    total2: "合计",
+    total: "合计",
     gameSummary: "对局总览",
     details: "明细",
     host: "组织者",

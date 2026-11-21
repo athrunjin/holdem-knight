@@ -301,7 +301,7 @@ export const game: Messages["game"] = {
     sortBy: (a, b) => `Sort by ${a}${b}`,
     net: "Net",
     waived: "Waived",
-    total2: "Total",
+    total: "Total",
     gameSummary: "Game summary",
     details: "Details",
     host: "Host",
