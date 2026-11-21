@@ -12,9 +12,10 @@ import {
   unseenCards,
 } from "@holdem-knight/core";
 import { ArrowUpDown, Minus, Plus } from "lucide-react";
-import { type Ref, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { selectOnFocus } from "@/lib/number-input";
 import { HandPlayerRow, type StandingNote } from "./HandPlayerRow";
 import {
   DeadMoney,
@@ -81,7 +82,6 @@ function CardStepper({
   text,
   min,
   max,
-  inputRef,
   onChange,
 }: {
   id: string;
@@ -89,7 +89,6 @@ function CardStepper({
   text: string;
   min: number;
   max: number;
-  inputRef?: Ref<HTMLInputElement>;
   onChange: (text: string) => void;
 }) {
   const value = parseChips(text) ?? 0;
@@ -111,12 +110,14 @@ function CardStepper({
         </button>
         <div className="flex min-h-11 w-28 items-center gap-1 rounded-xl border border-line bg-surface px-3 focus-within:border-highlight">
           <input
-            ref={inputRef}
             id={id}
             type="text"
             inputMode="numeric"
             autoComplete="off"
             value={text}
+            // Nothing is selected as the dialog opens. A tap on a count selects it, so the first
+            // digit typed replaces it
+            onFocus={(event) => selectOnFocus(event.currentTarget)}
             onChange={(event) => onChange(cardCount(event.target.value))}
             className="min-w-0 flex-1 bg-transparent text-center text-lg font-semibold tabular-nums outline-none"
           />
@@ -158,7 +159,6 @@ function OutsDialog({
 }) {
   const [text, setText] = useState(String(entry?.outs ?? 4));
   const [tieText, setTieText] = useState(String(entry?.ties ?? 0));
-  const inputRef = useRef<HTMLInputElement>(null);
   const outs = parseChips(text) ?? 0;
   const ties = parseChips(tieText) ?? 0;
   // Each kind of card is priced by its own count, so each has the odds table to itself. Tie cards
@@ -166,14 +166,6 @@ function OutsDialog({
   const outsMax = Math.min(unseen - ties, maxOuts);
   const tiesMax = Math.min(unseen - outs, tiesSold ? maxOuts : unseen);
   const valid = outs + ties >= 1 && outs <= outsMax && ties <= tiesMax;
-
-  // Focused and selected as the dialog opens, so the first digit replaces the starting count.
-  // Opening puts the focus on the dialog's first control, the minus button, and a selection in a
-  // field without the focus neither shows nor takes what is typed.
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, []);
 
   return (
     <Modal title={t.insurance.outsQuickCalc.sOuts(name)} onClose={onCancel}>
@@ -190,7 +182,6 @@ function OutsDialog({
           text={text}
           min={0}
           max={outsMax}
-          inputRef={inputRef}
           onChange={setText}
         />
         <CardStepper
