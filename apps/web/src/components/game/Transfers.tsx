@@ -16,19 +16,16 @@ interface TransfersProps {
   nameOf: (playerId: string) => string;
   /** While a save is under way. */
   disabled: boolean;
+  /** While an image is being made. */
+  sharing: boolean;
+  /** Shares the image of one transfer's payer, or of the whole game when none is named. */
+  onShare: (transfer?: Transfer) => void;
   onChoosePlan: (collectorId: string | undefined) => void;
   /** Marks transfers as made, or as not made again. Only called once the results are confirmed. */
   onMark: (transfers: readonly Transfer[], done: boolean) => void;
   /** Takes a tap on a tick before the results are confirmed. */
   onUnsettled: () => void;
 }
-
-type Notice = "share" | "locked";
-
-const NOTICE_TITLE: Record<Notice, string> = {
-  share: t.game.transfers.shareTransfers,
-  locked: t.game.transfers.cantSwitchPlans,
-};
 
 /**
  * The transfers of the chosen plan, set out like a bill. The line over them names the plan, and
@@ -44,16 +41,18 @@ export function Transfers({
   collectorId,
   nameOf,
   disabled,
+  sharing,
+  onShare,
   onChoosePlan,
   onMark,
   onUnsettled,
 }: TransfersProps) {
-  const [notice, setNotice] = useState<Notice>();
+  const [locked, setLocked] = useState(false);
   const { currency } = game;
   const settled = game.status === "settled";
   const made = settled ? transfers.filter((t) => isTransferDone(game, t)) : [];
   const allDone = transfers.length > 0 && made.length === transfers.length;
-  const close = () => setNotice(undefined);
+  const close = () => setLocked(false);
 
   const mark = (marked: readonly Transfer[], done: boolean) =>
     settled ? onMark(marked, done) : onUnsettled();
@@ -69,7 +68,7 @@ export function Transfers({
             disabled={disabled}
             // A plan with a transfer already made stays: another plan would ask for it again
             locked={made.length > 0}
-            onLocked={() => setNotice("locked")}
+            onLocked={() => setLocked(true)}
             onChange={onChoosePlan}
           />
         </div>
@@ -77,7 +76,8 @@ export function Transfers({
           <>
             <ShareButton
               label={t.game.transfers.shareAllTransfers}
-              onClick={() => setNotice("share")}
+              disabled={sharing}
+              onClick={() => onShare()}
             />
             <DoneButton
               label={t.game.transfers.allReceived}
@@ -122,7 +122,8 @@ export function Transfers({
                 <div className="-ml-1.5 flex shrink-0">
                   <ShareButton
                     label={t.game.transfers.share(pair)}
-                    onClick={() => setNotice("share")}
+                    disabled={sharing}
+                    onClick={() => onShare(transfer)}
                   />
                   <DoneButton
                     label={t.game.transfers.done(pair)}
@@ -147,16 +148,9 @@ export function Transfers({
         </Link>
       </div>
 
-      {notice && (
-        <Modal title={NOTICE_TITLE[notice]} onClose={close}>
-          {notice === "share" && (
-            <p className="text-sm text-muted">{t.game.transfers.thisIsStillBeingBuilt}</p>
-          )}
-          {notice === "locked" && (
-            <p className="text-sm text-muted">
-              {t.game.transfers.someTransfersAreMarkedDoneUntick}
-            </p>
-          )}
+      {locked && (
+        <Modal title={t.game.transfers.cantSwitchPlans} onClose={close}>
+          <p className="text-sm text-muted">{t.game.transfers.someTransfersAreMarkedDoneUntick}</p>
           <button
             type="button"
             onClick={close}
@@ -170,13 +164,22 @@ export function Transfers({
   );
 }
 
-function ShareButton({ label, onClick }: { label: string; onClick: () => void }) {
+function ShareButton({
+  label,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       aria-label={label}
+      disabled={disabled}
       onClick={onClick}
-      className="flex size-11 shrink-0 items-center justify-end pr-1.5 text-muted"
+      className="flex size-11 shrink-0 items-center justify-end pr-1.5 text-muted disabled:opacity-60"
     >
       <Share2 className="size-4" strokeWidth={1.75} aria-hidden />
     </button>

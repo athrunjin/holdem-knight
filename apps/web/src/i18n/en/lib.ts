@@ -70,9 +70,4 @@ ${b} game settings use it. Games started from them will follow the new values.`,
     andAreReservedNamesChooseAnother: (a, b) =>
       `“${a}” and “${b}” are reserved names. Choose another`,
   },
-  settlementImage: {
-    result: "Result",
-    buyIns: "Buy-ins",
-    net: "Net",
-  },
 };

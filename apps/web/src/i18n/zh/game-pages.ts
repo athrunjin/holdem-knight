@@ -42,25 +42,10 @@ export const gamePages = {
     coverTheDifference: "补齐差额",
     keepTheDifference: "收取差额",
     difference: "差额",
-    theDifferenceStaysWithTheCollector: "，差额留在代收人手上",
-    differenceLeftAsIs: (a: string | number, b: string | number) => `未处理差额 ${a}${b}`,
-    covers: "补齐",
-    winningsAreOverByTakenOff: (a: string | number, b: string | number) =>
-      `水上多 ${a}，由 ${b} 位赢家按水上比例扣减`,
-    lossesAreOverByTakenOff: (a: string | number, b: string | number) =>
-      `水下多 ${a}，由 ${b} 位输家按水下比例少付`,
-    insuranceListedOnItsOwn: (a: string | number) => `保险 ${a}，单独列出`,
-    insuranceCountedTo: (a: string | number, b: string | number) => `保险 ${a}，计入 ${b}`,
-    and: "和",
-    countedTo: (a: string | number, b: string | number, c: string | number) =>
-      `${a} ${b}，计入 ${c}`,
-    rakeCountedTo: (a: string | number, b: string | number) => `抽水 ${a}，计入 ${b}`,
     collector2: (a: string | number) => `代收人：${a}`,
-    holdemKnightSettlement: "Hold’em Knight · 结算",
-    blinds: (a: string | number, b: string | number, c: string | number) =>
-      `${a} · 盲注 ${b} / ${c}`,
     transfers: (a: string | number) => `转账方案 · ${a}`,
     settlementPng: (a: string | number) => `结算-${a}.png`,
+    playerSettlementPng: (a: string | number, b: string | number) => `结算-${a}-${b}.png`,
     confirmSettlement: "确认结算",
     backToTheTable: "返回牌桌",
     makeImage: "生成图片",

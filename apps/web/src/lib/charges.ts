@@ -259,16 +259,6 @@ export function chargeRuleSections(
   return sections;
 }
 
-/** The same rules as lines of their own, each naming its subject, then what time counts. */
-export function chargeRuleNotes(game: Pick<Game, "wage" | "tableFee">, currency: Currency) {
-  const sections = chargeRuleSections(game, currency);
-  if (sections.length === 0) return [];
-  const named = sections.flatMap(({ title, lines }) =>
-    lines.map((line, i) => (i === 0 ? `${title}${line}` : line)),
-  );
-  return [...named, CHARGE_CLOCK_RULE];
-}
-
 /** Each player's table fee and wages still charged, 0 when there is none or it was waived. */
 export function chargesByPlayer(charges: readonly Charge[]) {
   const byPlayer = new Map<string, { tableFee: number; wage: number }>();

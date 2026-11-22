@@ -67,9 +67,4 @@ export const lib = {
     andAreReservedNamesChooseAnother: (a: string | number, b: string | number) =>
       `「${a}」和「${b}」是保留名称，请换一个名字`,
   },
-  settlementImage: {
-    result: "结果",
-    buyIns: "手",
-    net: "水上/下",
-  },
 };

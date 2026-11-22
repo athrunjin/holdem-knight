@@ -29,6 +29,7 @@ import {
   settlementOutcome,
   settleTransfers,
   summarizeByPlayer,
+  type Transfer,
   transferCollector,
   waiveCharge,
   ZERO,
@@ -48,6 +49,7 @@ import {
   type ResultLine,
 } from "@/components/game/ResultCards";
 import { SettlementSummary } from "@/components/game/SettlementSummary";
+import { imageCard, imageHeader, imageRecord } from "@/components/game/settlementImage";
 import type { TransferPlan } from "@/components/game/TransferPlanPicker";
 import { Transfers } from "@/components/game/Transfers";
 import { InfoButton } from "@/components/InfoButton";
@@ -57,14 +59,15 @@ import { organizerNameOf } from "@/data";
 import { useGame, useSaveGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
-import { localeTag, t } from "@/i18n";
-import { CHARGE_CLOCK_RULE, chargeClock, chargeRuleNotes, chargeRuleSections } from "@/lib/charges";
+import { t } from "@/i18n";
+import { CHARGE_CLOCK_RULE, chargeClock, chargeRuleSections } from "@/lib/charges";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
 import { gameInitialsOf, gameNameOf } from "@/lib/player-name";
-import { renderSettlementImage } from "@/lib/settlement-image";
+import { type ImageSeat, renderSettlementImage } from "@/lib/settlement-image";
 import { shareFile } from "@/lib/share";
+import { netTone } from "@/lib/tone";
 
 export const Route = createFileRoute("/games/$gameId/settlement")({
   component: SettlementPage,
@@ -250,17 +253,15 @@ function SettlementResult({
   nudge,
   onNudge,
 }: SettlementResultProps) {
-  const { difference, unresolved } = outcome;
+  const { difference } = outcome;
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   const insured = attributeInsurance(outcome.nets, game.insuranceOwner);
-  const { insuranceNet, ownerId } = insured;
+  const { ownerId } = insured;
   // The rake is always the organizer's, as a share of the results like insurance
   const rakeSeat = ledger.find((p) => p.playerId === RAKE_PLAYER_ID);
-  const rakeNet = netOf(outcome.nets, RAKE_PLAYER_ID);
-  const ruleNotes = chargeRuleNotes(game, game.currency);
   const charged = applyCharges(attributeRake(insured.nets), charges);
   const { nets } = charged;
-  const { currency, status, smallBlindChips, bigBlindChips, handChips, createdAt } = game;
+  const { currency, status, handChips, createdAt } = game;
   // An organizer who plays has chips under the organizer's own ID, and stays on the organizer's card
   const host = ledger.find((p) => p.playerId === ORGANIZER_COLLECTOR);
   const saveGame = useSaveGame();
@@ -288,8 +289,6 @@ function SettlementResult({
 
   const point = (target: Nudge["target"]) => onNudge({ target, at: Date.now() });
 
-  const insuranceText = formatGameMoney(insuranceNet, currency, "exceptZero");
-  const chargesText = formatGameMoney(charged.total, currency);
   const separateInsurance = ownerId === INSURANCE_PLAYER_ID;
 
   /** The transfers of the plan a game has, which may be this game with another plan chosen. */
@@ -452,24 +451,21 @@ function SettlementResult({
       : splitLine("split", t.gamePages.settlement.splitTheDifference, covered);
   const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
   // The insurance seat sits on the organizer's card as on the game page, when its result is theirs
-  const insuranceRow = seat && ownerId === ORGANIZER_COLLECTOR && (
-    <InsuranceRow
-      hands={handChips === undefined ? "—" : String(seat.boughtChips / handChips)}
-      chips={seat.cashedOutChips.toLocaleString("zh-CN")}
-      netChips={seat.cashedOutChips - seat.boughtChips}
-      amount={insuranceBefore}
-      currency={currency}
-    />
-  );
+  const insuranceSeat = seat &&
+    ownerId === ORGANIZER_COLLECTOR && {
+      hands: handChips === undefined ? "—" : String(seat.boughtChips / handChips),
+      chips: seat.cashedOutChips.toLocaleString("zh-CN"),
+      netChips: seat.cashedOutChips - seat.boughtChips,
+      amount: insuranceBefore,
+    };
   // The rake seat sits under the insurance seat, as on the game page, with what it took before
   // any split. Its share of a split is one of the organizer's lines
-  const rakeRow = rakeSeat && (
-    <RakeRow
-      chips={rakeSeat.cashedOutChips}
-      amount={netOf(chipNets, RAKE_PLAYER_ID)}
-      currency={currency}
-    />
-  );
+  const rakeTaken = rakeSeat && {
+    chips: rakeSeat.cashedOutChips,
+    amount: netOf(chipNets, RAKE_PLAYER_ID),
+  };
+  const insuranceRow = insuranceSeat && <InsuranceRow {...insuranceSeat} currency={currency} />;
+  const rakeRow = rakeTaken && <RakeRow {...rakeTaken} currency={currency} />;
   // What an organizer can receive besides insurance, always in this order
   // then the shares of a split: their own as a player, the insurance seat's and the rake's
   const organizerLines: ResultLine[] = [
@@ -506,45 +502,6 @@ function SettlementResult({
           },
         ];
 
-  function imbalanceNote() {
-    if (difference === 0) return undefined;
-    const size = formatGameMoney(cents(Math.abs(difference)), currency);
-    if (unresolved !== 0) {
-      const holder = collectorId ? t.gamePages.settlement.theDifferenceStaysWithTheCollector : "";
-      return t.gamePages.settlement.differenceLeftAsIs(size, holder);
-    }
-    if (game.imbalanceHandling === "organizer") {
-      return `${nameOf(ORGANIZER_COLLECTOR)} ${difference > 0 ? t.gamePages.settlement.covers : t.common.keeps} ${size}`;
-    }
-    // Everyone who takes a share, the seats included
-    const count = outcome.nets.filter((p) => p.net !== netOf(chipNets, p.playerId)).length;
-    return difference > 0
-      ? t.gamePages.settlement.winningsAreOverByTakenOff(size, count)
-      : t.gamePages.settlement.lossesAreOverByTakenOff(size, count);
-  }
-  function insuranceNote() {
-    if (!seat || insuranceNet === 0) return undefined;
-    if (separateInsurance) return t.gamePages.settlement.insuranceListedOnItsOwn(insuranceText);
-    return t.gamePages.settlement.insuranceCountedTo(insuranceText, nameOf(ownerId));
-  }
-  function chargesNote() {
-    if (charged.total === 0) return undefined;
-    const kinds = [game.tableFee && t.common.timeCharge, game.wage && t.common.dealerWage]
-      .filter(Boolean)
-      .join(t.gamePages.settlement.and);
-    return t.gamePages.settlement.countedTo(kinds, chargesText, nameOf(charged.recipientId));
-  }
-  function rakeNote() {
-    if (rakeNet === 0) return undefined;
-    return t.gamePages.settlement.rakeCountedTo(
-      formatGameMoney(rakeNet, currency),
-      nameOf(ORGANIZER_COLLECTOR),
-    );
-  }
-  const notes = [imbalanceNote(), insuranceNote(), rakeNote(), chargesNote()].filter(
-    (text) => text !== undefined,
-  );
-
   // The plans in the order they are listed: the optimal one, the organizer, then the players
   const plans: TransferPlan[] = [
     { collectorId: undefined, label: t.gamePages.settlement.fewestTransfers },
@@ -553,44 +510,116 @@ function SettlementResult({
       .map((id) => ({ collectorId: id, label: t.gamePages.settlement.collector2(nameOf(id)) })),
   ];
 
-  async function handleShare() {
+  /** The seats on the organizer's card, as the image draws them. */
+  function seatsInImage(): ImageSeat[] {
+    const money = (amount: number) =>
+      formatGameAmount(cents(amount), currency, amount === 0 ? "auto" : "exceptZero");
+    return [
+      ...(insuranceSeat
+        ? [
+            {
+              kind: "insurance" as const,
+              name: t.common.insurance,
+              hands: insuranceSeat.hands,
+              chips: insuranceSeat.chips,
+              net: {
+                text: formatSignedChips(insuranceSeat.netChips),
+                tone: netTone(insuranceSeat.netChips),
+              },
+              amount: { text: money(insuranceSeat.amount), tone: "highlight" as const },
+            },
+          ]
+        : []),
+      ...(rakeTaken
+        ? [
+            {
+              kind: "rake" as const,
+              name: t.common.rake,
+              hands: "",
+              chips: rakeTaken.chips.toLocaleString("zh-CN"),
+              net: { text: formatSignedChips(rakeTaken.chips), tone: "win" as const },
+              amount: { text: money(rakeTaken.amount), tone: "win" as const },
+            },
+          ]
+        : []),
+    ];
+  }
+
+  /**
+   * Shares an image laid out like this page. With no one named it is the whole game: every card
+   * folded, then the transfers. For one player it is the game's header, their card opened with
+   * their Buy-in record, and only the transfers they are part of.
+   */
+  async function handleShare(personId?: string) {
     setSharing(true);
     setShareFailed(false);
     try {
-      const date = new Date(createdAt);
+      const person = playerCards.find(({ id }) => id === personId);
+      const isOrganizer = (card: ResultCard) => card.id === ORGANIZER_COLLECTOR;
+      const inImage = (card: ResultCard) =>
+        imageCard(card, game, {
+          ...(isOrganizer(card) && { seats: seatsInImage() }),
+          // Only the opened card of one person lists the record
+          ...(person &&
+            card.record !== undefined && { record: imageRecord(game, events, card.id) }),
+        });
+      const shown = person
+        ? transfers.filter(({ from, to }) => from === person.id || to === person.id)
+        : transfers;
       const image = await renderSettlementImage({
-        title: t.gamePages.settlement.holdemKnightSettlement,
-        subtitle: t.gamePages.settlement.blinds(
-          date.toLocaleDateString(localeTag),
-          smallBlindChips,
-          bigBlindChips,
-        ),
-        transferTitle: t.gamePages.settlement.transfers(planName),
-        transfers: transfers.map(({ from, to, amount }) => ({
-          from: nameOf(from),
-          to: nameOf(to),
-          amount: formatGameMoney(amount, currency),
-        })),
-        notes: [...notes, ...ruleNotes],
-        results: [...playerCards, ...organizerCard].map(
-          ({ name, hands, chips, netChips, total }) => ({
-            name,
-            hands,
-            chips,
-            net: netChips === undefined ? "—" : formatSignedChips(netChips),
-            amount: formatGameAmount(total, currency, "exceptZero"),
-            outcome: Math.sign(total),
-          }),
-        ),
+        header: imageHeader(game, ledger, chipDifference(ledger)),
+        heading: person ? undefined : t.game.resultCards.gameSummary,
+        groups: person
+          ? [
+              {
+                title: t.common.player,
+                cards: [inImage(person)],
+              },
+            ]
+          : [
+              { title: t.game.resultCards.host, cards: organizerCard.map(inImage) },
+              { title: t.common.player, cards: playerCards.map(inImage) },
+            ].filter(({ cards }) => cards.length > 0),
+        expanded: person !== undefined,
+        transfers: {
+          title: t.gamePages.settlement.transfers(planName),
+          rows: shown.map(({ from, to, amount }) => ({
+            from: nameOf(from),
+            to: nameOf(to),
+            amount: formatGameMoney(amount, currency),
+          })),
+        },
       });
+      const date = new Date(createdAt);
       const day = [date.getFullYear(), date.getMonth() + 1, date.getDate()].join("-");
-      await shareFile(image, t.gamePages.settlement.settlementPng(day));
+      await shareFile(
+        image,
+        person
+          ? t.gamePages.settlement.playerSettlementPng(day, person.name)
+          : t.gamePages.settlement.settlementPng(day),
+      );
     } catch {
       setShareFailed(true);
     } finally {
       setSharing(false);
     }
   }
+
+  /** A share button on the total line of a player's opened card, for the image of their result. */
+  const withShare = (card: ResultCard): ResultCard => ({
+    ...card,
+    action: (
+      <button
+        type="button"
+        aria-label={t.game.transfers.share(card.name)}
+        disabled={sharing}
+        onClick={() => handleShare(card.id)}
+        className="-my-1 flex size-11 shrink-0 items-center justify-center text-muted disabled:opacity-60"
+      >
+        <Share2 className="size-4" strokeWidth={1.75} aria-hidden />
+      </button>
+    ),
+  });
 
   function revise() {
     setRevising(false);
@@ -611,7 +640,11 @@ function SettlementResult({
 
   return (
     <>
-      <ResultCards organizer={organizerCard[0]} cards={playerCards} currency={currency} />
+      <ResultCards
+        organizer={organizerCard[0]}
+        cards={playerCards.map(withShare)}
+        currency={currency}
+      />
 
       {/* The step that closes the game comes first, set apart from the cards by a rule */}
       <div className="mt-5 border-t border-line pt-4">
@@ -660,7 +693,7 @@ function SettlementResult({
           <button
             type="button"
             disabled={sharing}
-            onClick={handleShare}
+            onClick={() => handleShare()}
             className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line px-2 font-medium disabled:opacity-60"
           >
             <Share2 className="size-5 shrink-0" strokeWidth={1.75} aria-hidden />
@@ -698,6 +731,12 @@ function SettlementResult({
             collectorId={collectorId}
             nameOf={nameOf}
             disabled={saveGame.isPending}
+            sharing={sharing}
+            // A transfer's image is the player's own result, to send to them: the payer's, or
+            // the receiver's where the organizer is the one who pays
+            onShare={(transfer?: Transfer) =>
+              handleShare(transfer?.from === ORGANIZER_COLLECTOR ? transfer.to : transfer?.from)
+            }
             onChoosePlan={(next) => saveGame.mutate(filed(chooseCollector(game, next)))}
             onMark={(marked, done) => saveGame.mutate(filed(markTransfers(game, marked, done)))}
             onUnsettled={() => point("confirm")}
