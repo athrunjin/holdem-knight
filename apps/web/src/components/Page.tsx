@@ -27,8 +27,9 @@ export function Page({
     <div
       className={cn("mx-auto w-full px-4 md:px-8", centered ? "max-w-md md:max-w-lg" : "max-w-3xl")}
     >
-      <header className={cn("flex min-h-16 items-center justify-between gap-4 pt-4 md:pt-8")}>
-        <div className="min-w-0 shrink-0">
+      {/* Actions that do not fit beside the title go under it, at the right */}
+      <header className="flex min-h-16 flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-4 md:pt-8">
+        <div className="max-w-full min-w-0 shrink-0">
           <div className="flex flex-wrap items-baseline gap-x-2">
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{title}</h1>
             {titleNote}

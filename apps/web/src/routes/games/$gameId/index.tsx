@@ -291,7 +291,9 @@ function GameLedger({ game }: { game: Game }) {
       titleNote={<GameBlindsCash game={game} />}
       subtitle={<GameOptionLine game={game} settings={editable ? { kind: "edit" } : undefined} />}
       actions={
-        <div className="flex shrink-0 items-center gap-2">
+        // Takes the room left of the title's line. Short of it, the button goes under the clock;
+        // with no room for the clock either, both go under the title
+        <div className="flex min-w-26 flex-1 flex-wrap items-center justify-end gap-2">
           <GameTimer
             timer={game.timer}
             editable={editable}

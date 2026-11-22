@@ -4,7 +4,7 @@ import { Settings } from "lucide-react";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { formatGameAmount } from "@/lib/currency";
+import { formatGameMoney } from "@/lib/currency";
 import { GAME_OPTIONS, type GameOption, hasOption } from "@/lib/game-history";
 import type { Tone } from "@/lib/tone";
 
@@ -40,16 +40,19 @@ export function GameTitle({ game }: { game: Game }) {
   return `${game.smallBlindChips} / ${game.bigBlindChips}`;
 }
 
+/** What the blinds are worth in the game's currency, spaced like the title and without needless cents. */
+export function blindsCash(game: Game) {
+  const { smallBlindChips, bigBlindChips, currency, chipRatio } = game;
+  const cash = (chips: number) => formatGameMoney(chipsToCents(chips, chipRatio), currency);
+  return `${cash(smallBlindChips)} / ${cash(bigBlindChips)}`;
+}
+
 /** Beside a game page's title: the currency, then what the blinds are worth in it. */
 export function GameBlindsCash({ game }: { game: Game }) {
-  const { smallBlindChips, bigBlindChips, currency, chipRatio } = game;
-  const cash = (chips: number) => formatGameAmount(chipsToCents(chips, chipRatio), currency);
   return (
     <p className="flex items-center gap-1 text-sm whitespace-nowrap text-muted tabular-nums">
-      <CurrencyIcon currency={currency} className="size-4.5" />
-      <span>
-        {cash(smallBlindChips)}/{cash(bigBlindChips)}
-      </span>
+      <CurrencyIcon currency={game.currency} className="size-4.5" />
+      <span>{blindsCash(game)}</span>
     </p>
   );
 }

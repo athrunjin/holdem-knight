@@ -7,7 +7,7 @@ import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { organizerNameOf } from "@/data";
 import { localeTag, t } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { formatGameAmount } from "@/lib/currency";
+import { formatGameMoney } from "@/lib/currency";
 
 /** One of the three boxes under a game page's header, with its text centered. */
 const tileClass =
@@ -71,7 +71,7 @@ export function Tile({ label, children }: { label: string; children: ReactNode }
  * A figure that always fits its box on one line: type as large as the text around it while the
  * figure is short, and smaller in step with its length, measured against the box. `lead` is a
  * one-character word before it, in the same type. Six digits with cents fit a third of a 393 wide
- * phone.
+ * phone. Cents show only where there are some.
  */
 function Figure({ text, lead }: { text: string; lead?: string }) {
   // A character of these figures is at most 0.58 of the type size wide; the word and its gap, 1.3
@@ -97,7 +97,7 @@ function useCashOrChips(game: Pick<Game, "chipRatio" | "currency">) {
   const show = (chips: number) =>
     inChips
       ? chips.toLocaleString("zh-CN")
-      : formatGameAmount(chipsToCents(chips, game.chipRatio), game.currency);
+      : formatGameMoney(chipsToCents(chips, game.chipRatio), game.currency);
   const markClass = "absolute top-1 right-1 size-3 text-muted";
   return {
     show,

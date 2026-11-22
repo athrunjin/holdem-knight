@@ -11,7 +11,7 @@ import {
 import { organizerNameOf } from "@/data";
 import { t } from "@/i18n";
 import { formatSignedChips } from "@/lib/chips";
-import { formatGameAmount } from "@/lib/currency";
+import { formatGameAmount, formatGameMoney } from "@/lib/currency";
 import type {
   ImageCard,
   ImageHeader,
@@ -21,7 +21,7 @@ import type {
 } from "@/lib/settlement-image";
 import { netTone } from "@/lib/tone";
 import { buyInRecordOf, RECORD_ACTIONS, type RecordRow, timeOf } from "./BuyInRecord";
-import { buyInBigBlinds, gameOptions } from "./GameOptions";
+import { blindsCash, buyInBigBlinds, gameOptions } from "./GameOptions";
 import { formatStart } from "./GameTiles";
 import { formatElapsed } from "./GameTimer";
 import { type ResultCard, type ResultLine, summaryItems } from "./ResultCards";
@@ -39,7 +39,7 @@ export function imageHeader(
   difference: number,
 ): ImageHeader {
   const { smallBlindChips, bigBlindChips, handChips, chipRatio, currency, timer } = game;
-  const cash = (chips: number) => formatGameAmount(chipsToCents(chips, chipRatio), currency);
+  const cash = (chips: number) => formatGameMoney(chipsToCents(chips, chipRatio), currency);
   const people = ledger.filter(
     (p) => p.playerId !== INSURANCE_PLAYER_ID && p.playerId !== RAKE_PLAYER_ID,
   );
@@ -50,7 +50,7 @@ export function imageHeader(
   return {
     title: `${smallBlindChips} / ${bigBlindChips}`,
     currency,
-    blindsCash: `${cash(smallBlindChips)}/${cash(bigBlindChips)}`,
+    blindsCash: blindsCash(game),
     buyIn: handChips === undefined ? undefined : `${buyInBigBlinds(handChips, bigBlindChips)}BB`,
     options: gameOptions(game),
     host: organizerNameOf(game),
