@@ -1607,7 +1607,7 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Problem: with records in the ledger, the blinds could still be changed, though a cash game is played at one level and the Buy-in, the rake's cap and the insurance's rounding are all counted in blinds.
 - Proposal: once the ledger has records the blinds are locked with the currency, the ratio and the Buy-in, and the basic settings take no saved setting. Insurance and rake stay as they were: once either has taken anything in it cannot be turned off, and its rule can still change. Wages and the table fee can change or be turned off at any time.
 - Decision: do. `updateGameSettings` in `core` keeps the blinds, and keeps insurance and rake on where they have been used, whatever the form sends.
-- Tracking: branch `fix/lock-blinds-mid-game`
+- Tracking: PR #101
 
 ## Not doing or deferred
 
