@@ -379,6 +379,22 @@ export function Line({ line, currency }: { line: ResultLine; currency: Currency 
   );
 }
 
+/** What a folded card lists under its row: each group's total, or that it was waived. */
+export function summaryItems(card: Pick<ResultCard, "lines">, currency: Currency) {
+  return SUMMARY_GROUPS.flatMap((group) => {
+    const lines = card.lines.filter((l) => l.group === group && l.amount !== undefined);
+    if (lines.length === 0) return [];
+    const due = lines.filter((l) => !l.waiver?.waived);
+    const amount = due.reduce((total, l) => total + (l.amount ?? 0), 0);
+    const tone = lines[0]?.tone ?? "charge";
+    const value =
+      due.length === 0
+        ? t.game.resultCards.waived
+        : formatGameAmount(cents(amount), currency, "exceptZero");
+    return [{ group, value, tone }];
+  });
+}
+
 /**
  * A collapsed card's line: each group's total from the left, then 合计 at the right with the final
  * result picked out, as large as the amount over it, since that row shows only what the chips come
@@ -394,18 +410,7 @@ function Summary({
   /** A faint rule over the line, where a pinned row sits above it. */
   divided: boolean;
 }) {
-  const items = SUMMARY_GROUPS.flatMap((group) => {
-    const lines = card.lines.filter((l) => l.group === group && l.amount !== undefined);
-    if (lines.length === 0) return [];
-    const due = lines.filter((l) => !l.waiver?.waived);
-    const amount = due.reduce((total, l) => total + (l.amount ?? 0), 0);
-    const tone = lines[0]?.tone ?? "charge";
-    const value =
-      due.length === 0
-        ? t.game.resultCards.waived
-        : formatGameAmount(cents(amount), currency, "exceptZero");
-    return [{ group, value, tone }];
-  });
+  const items = summaryItems(card, currency);
   // With no items the row over the line already shows the result, unless it has none from chips
   if (items.length === 0 && card.base !== undefined) return null;
 

@@ -84,7 +84,7 @@ The first hosted project and its sending domain wait until these are done, in th
 
 - [x] Dark whatever the device is set to
 - [x] The interface in English as well as Chinese, with a language setting on 我的 ([ADR 0047](adr/0047-interface-text-in-typed-catalogs.md))
-- Sharing: an image of a game's whole result, and one for each player's own
+- [x] Sharing: an image of a game's whole result, and one for each player's own, both laid out like the settlement page
 - Insurance: how it ties into the game, its flow, and its settlement screen, once the organizer has thought them through
 - The host's pages, the figures above all: earnings by kind, transfers received or not, a player's history
 

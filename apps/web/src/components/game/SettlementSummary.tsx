@@ -25,20 +25,14 @@ interface SettlementSummaryProps {
 }
 
 /**
- * The top of the settlement page: the game's blinds, date and host, its totals, and how a chip
- * difference is handled, as small text over the balance box that opens the choices.
+ * The ways to handle a chip difference, each with a name short enough to sit over the balance
+ * box; the box under it has the amount.
  */
-export function SettlementSummary({ game, ledger, difference, onLocked }: SettlementSummaryProps) {
-  const saveGame = useSaveGame();
-  const { timer } = game;
-  const settled = game.status === "settled";
-  const people = ledger.filter(
-    (p) => p.playerId !== INSURANCE_PLAYER_ID && p.playerId !== RAKE_PLAYER_ID,
-  );
-  const { boughtChips } = ledgerTotals(people);
-  const elapsed = timer && formatElapsed(timerElapsedMs(timer, game.settledAt ?? Date.now()));
-  // Short enough to sit over the balance box; the box under it has the amount
-  const choices: readonly (readonly [ImbalanceHandling, string])[] = [
+export function imbalanceChoices(
+  game: Pick<Game, "organizerId">,
+  difference: number,
+): readonly (readonly [ImbalanceHandling, string])[] {
+  return [
     [
       "split",
       t.game.settlementSummary.splitByShareOf(
@@ -51,6 +45,22 @@ export function SettlementSummary({ game, ledger, difference, onLocked }: Settle
     ],
     ["ignore", t.game.settlementSummary.leaveAsIs],
   ];
+}
+
+/**
+ * The top of the settlement page: the game's blinds, date and host, its totals, and how a chip
+ * difference is handled, as small text over the balance box that opens the choices.
+ */
+export function SettlementSummary({ game, ledger, difference, onLocked }: SettlementSummaryProps) {
+  const saveGame = useSaveGame();
+  const { timer } = game;
+  const settled = game.status === "settled";
+  const people = ledger.filter(
+    (p) => p.playerId !== INSURANCE_PLAYER_ID && p.playerId !== RAKE_PLAYER_ID,
+  );
+  const { boughtChips } = ledgerTotals(people);
+  const elapsed = timer && formatElapsed(timerElapsedMs(timer, game.settledAt ?? Date.now()));
+  const choices = imbalanceChoices(game, difference);
   const chosen = choices.find(([handling]) => handling === game.imbalanceHandling)?.[1];
   // Small highlighted text at the end of the line; its 44px target reaches up from it
   const lineClass = "-mt-8 min-h-11 items-end text-xs leading-none text-highlight";

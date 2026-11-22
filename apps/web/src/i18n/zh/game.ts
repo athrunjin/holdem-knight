@@ -332,7 +332,6 @@ export const game = {
     transfers2: "转账方案",
   },
   transfers: {
-    shareTransfers: "分享转账",
     cantSwitchPlans: "不能切换方案",
     shareAllTransfers: "分享全部转账",
     allReceived: "全部收到",
@@ -344,7 +343,6 @@ export const game = {
     inAllReceived: (a: string | number, b: string | number, c: string | number) =>
       `共 ${a} 笔（已收 ${b} / ${c}）`,
     backToTheMainView: "返回主界面",
-    thisIsStillBeingBuilt: "这个功能还在开发中。",
     someTransfersAreMarkedDoneUntick: "存在已完成的转账。取消勾选后才能切换方案。",
   },
   chargeLines: {

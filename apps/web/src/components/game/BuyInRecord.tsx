@@ -4,21 +4,22 @@ import { type ReactNode, useState } from "react";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
+import { TONE_CLASS, type Tone } from "@/lib/tone";
 import { columnsClass } from "./ResultCards";
 
 /** What happened, in the color it is told apart by. */
-const ACTIONS = {
-  sit: [t.game.buyInRecord.satDown, "text-highlight"],
-  add: [t.common.rebuy, "text-win"],
-  back: [t.game.buyInRecord.chipsBack, "text-loss"],
-  away: [t.game.buyInRecord.left, "text-muted"],
-  return: [t.common.rejoined, "text-muted"],
-  out: [t.game.buyInRecord.cashOut, "text-highlight"],
-} as const;
+export const RECORD_ACTIONS = {
+  sit: [t.game.buyInRecord.satDown, "highlight"],
+  add: [t.common.rebuy, "win"],
+  back: [t.game.buyInRecord.chipsBack, "loss"],
+  away: [t.game.buyInRecord.left, "muted"],
+  return: [t.common.rejoined, "muted"],
+  out: [t.game.buyInRecord.cashOut, "highlight"],
+} as const satisfies Record<string, readonly [string, Tone]>;
 
-interface RecordRow {
+export interface RecordRow {
   readonly id: string;
-  readonly action: keyof typeof ACTIONS;
+  readonly action: keyof typeof RECORD_ACTIONS;
   readonly at: number;
   /** The Buy-ins this row moved. */
   readonly moved?: string;
@@ -43,7 +44,7 @@ function Marked({ out, children }: { out?: boolean; children: ReactNode }) {
   );
 }
 
-function timeOf(at: number) {
+export function timeOf(at: number) {
   const time = new Date(at);
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${pad(time.getHours())}:${pad(time.getMinutes())}`;
@@ -69,7 +70,7 @@ function RecordLine({
   /** Makes the whole line a button that folds the record. */
   onFold?: (() => void) | undefined;
 }) {
-  const [action, tone] = ACTIONS[row.action];
+  const [action, tone] = RECORD_ACTIONS[row.action];
   const day = new Date(row.at).getDate();
   const sameDay = previous !== undefined && day === new Date(previous.at).getDate();
   return (
@@ -90,7 +91,7 @@ function RecordLine({
           {sameDay ? "" : t.game.buyInRecord.dayOfMonth(day)}
         </span>
         <span className="hidden w-9.5 shrink-0 text-muted @[22.5rem]:block">{timeOf(row.at)}</span>
-        <span className={cn("font-medium", tone)}>{action}</span>
+        <span className={cn("font-medium", TONE_CLASS[tone])}>{action}</span>
         {row.moved && <span className="pl-1">{row.moved}</span>}
       </span>
       <span className="text-center">{row.total}</span>
@@ -109,23 +110,23 @@ interface BuyInRecordProps {
   leaving?: { readonly chips: number; readonly at: number };
 }
 
-/**
- * A player's Buy-ins under their row on a settlement card: a folding line with what they bought,
- * a line for each time they sat down, topped up, handed back or stepped away, and what they took
- * out. It sits in the card's columns: Buy-ins under Buy-in, chips under 筹码, cash under 金额.
- *
- * Text starts where a charge's text does, after its box, and what happened starts one time's width
- * further in, so 带入 and 带出 line up with 上桌 and 补码. A card under 22.5rem, on phones
- * narrower than about 400px, has no room for that width before the Buy-in column, so what would
- * fill it moves to the 水上/下 column, which these lines leave empty. The card must be a container.
- */
-export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProps) {
-  const { handChips, chipRatio: ratio, currency } = game;
-  /** Buy-ins where the game counts them, chips where it does not. */
-  const count = (value: number) =>
+/** Buy-ins where the game counts them, chips where it does not. */
+function countOf(handChips: number | undefined) {
+  return (value: number) =>
     handChips === undefined ? value.toLocaleString("zh-CN") : String(value / handChips);
-  const cash = (chips: number) => formatGameAmount(chipsToCents(chips, ratio), currency);
+}
 
+/**
+ * A player's Buy-in record as plain rows, for the card and for the image of it: each time they sat
+ * down, topped up, handed back or stepped away, what they hold after it, and what they took out.
+ */
+export function buyInRecordOf(
+  { handChips }: Pick<Game, "handChips">,
+  events: readonly LedgerEvent[],
+  playerId: string,
+  leaving?: BuyInRecordProps["leaving"],
+) {
+  const count = countOf(handChips);
   const entries = gameRecord(events).filter((entry) => entry.playerId === playerId);
   let held = 0;
   let left = leaving;
@@ -156,6 +157,24 @@ export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProp
     }
   });
   const timesBought = rows.filter((r) => r.action === "sit" || r.action === "add").length;
+  return { rows, held, left, timesBought };
+}
+
+/**
+ * A player's Buy-ins under their row on a settlement card: a folding line with what they bought,
+ * a line for each time they sat down, topped up, handed back or stepped away, and what they took
+ * out. It sits in the card's columns: Buy-ins under Buy-in, chips under 筹码, cash under 金额.
+ *
+ * Text starts where a charge's text does, after its box, and what happened starts one time's width
+ * further in, so 带入 and 带出 line up with 上桌 and 补码. A card under 22.5rem, on phones
+ * narrower than about 400px, has no room for that width before the Buy-in column, so what would
+ * fill it moves to the 水上/下 column, which these lines leave empty. The card must be a container.
+ */
+export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProps) {
+  const { handChips, chipRatio: ratio, currency } = game;
+  const count = countOf(handChips);
+  const cash = (chips: number) => formatGameAmount(chipsToCents(chips, ratio), currency);
+  const { rows, held, left, timesBought } = buyInRecordOf(game, events, playerId, leaving);
   // Folded on arrival, however short the record
   const [open, setOpen] = useState(false);
 

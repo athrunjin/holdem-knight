@@ -23,7 +23,7 @@ export function GameTiles({ children }: { children: ReactNode }) {
 }
 
 /** `2026-11-09 周一 19:00` in local time. */
-function formatStart(time: number) {
+export function formatStart(time: number) {
   const date = new Date(time);
   const pad = (value: number) => String(value).padStart(2, "0");
   const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;

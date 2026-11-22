@@ -6,16 +6,21 @@ import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
 import { GAME_OPTIONS, type GameOption, hasOption } from "@/lib/game-history";
+import type { Tone } from "@/lib/tone";
 
 /** What a game can charge or offer: each one's name, and its color while it is on. */
-export const OPTION_MARKS: Record<GameOption, { label: string; className: string }> = {
-  insurance: { label: t.game.gameOptions.insuranceTag, className: "text-highlight" },
-  wage: { label: t.common.dealerWage, className: "text-win" },
-  tableFee: { label: t.common.timeCharge, className: "text-win" },
-  rake: { label: t.common.rake, className: "text-win" },
+export const OPTION_MARKS: Record<GameOption, { label: string; tone: Tone; className: string }> = {
+  insurance: {
+    label: t.game.gameOptions.insuranceTag,
+    tone: "highlight",
+    className: "text-highlight",
+  },
+  wage: { label: t.common.dealerWage, tone: "win", className: "text-win" },
+  tableFee: { label: t.common.timeCharge, tone: "win", className: "text-win" },
+  rake: { label: t.common.rake, tone: "win", className: "text-win" },
 };
 
-function gameOptions(game: Game) {
+export function gameOptions(game: Game) {
   return GAME_OPTIONS.map((option) => ({ ...OPTION_MARKS[option], on: hasOption(game, option) }));
 }
 
@@ -50,7 +55,7 @@ export function GameBlindsCash({ game }: { game: Game }) {
 }
 
 /** Display only, so a Buy-in that is not a whole number of big blinds rounds to one decimal. */
-function buyInBigBlinds(handChips: number, bigBlindChips: number) {
+export function buyInBigBlinds(handChips: number, bigBlindChips: number) {
   return (handChips / bigBlindChips).toLocaleString("zh-CN", { maximumFractionDigits: 1 });
 }
 

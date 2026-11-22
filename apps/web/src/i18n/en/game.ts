@@ -341,7 +341,6 @@ export const game: Messages["game"] = {
     transfers2: "Transfers",
   },
   transfers: {
-    shareTransfers: "Share transfers",
     cantSwitchPlans: "Can’t switch plans",
     shareAllTransfers: "Share all transfers",
     allReceived: "All received",
@@ -352,7 +351,6 @@ export const game: Messages["game"] = {
     done: (a) => `${a} done`,
     inAllReceived: (a, b, c) => `${a} in all (${b} / ${c} received)`,
     backToTheMainView: "Back to the main view",
-    thisIsStillBeingBuilt: "This is still being built.",
     someTransfersAreMarkedDoneUntick:
       "Some transfers are marked done. Untick them to switch plans.",
   },
