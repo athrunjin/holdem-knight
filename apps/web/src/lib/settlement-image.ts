@@ -8,9 +8,9 @@ import { t } from "@/i18n";
 import type { Tone } from "@/lib/tone";
 
 /**
- * Draws a settlement as a PNG laid out like the settlement page: the game's header, its settings
- * and totals, then the result cards and the transfers. It draws on a canvas instead of taking a
- * picture of the page, because the libraries that do that tend to lose fonts and images on iOS
+ * Draws a settlement as a PNG laid out like the settlement page: the game's header, its totals,
+ * then the result cards and the transfers. It draws on a canvas instead of taking a picture of
+ * the page, because the libraries that do that tend to lose fonts and images on iOS
  * Safari. Sizes below are the page's own, in CSS pixels at a phone's width, and scaled up at the end.
  */
 
@@ -20,7 +20,7 @@ export interface ImageText {
   readonly tone: Tone;
 }
 
-/** The top of the page: the title lines, the settings, whose game it is, and the three boxes. */
+/** The top of the page: the title lines, whose game it is, and the three boxes. */
 export interface ImageHeader {
   /** The blinds in chips. */
   readonly title: string;
@@ -34,11 +34,6 @@ export interface ImageHeader {
     readonly label: string;
     readonly tone: Tone;
     readonly on: boolean;
-  }[];
-  /** The game's rules in brief: one label, then rows of settings. */
-  readonly rules: readonly {
-    readonly label: string;
-    readonly rows: readonly (readonly string[])[];
   }[];
   readonly host: string;
   readonly start: string;
@@ -331,34 +326,6 @@ export async function renderSettlementImage(data: SettlementImageData): Promise<
     const emblemWidth = (48 * EMBLEM.width) / EMBLEM.height;
     front.push((ctx) => ctx.drawImage(emblem, RIGHT - emblemWidth, 18, emblemWidth, 48));
     y = 84;
-  }
-
-  // The game's settings, as the page shows them once opened
-  if (header.rules.length > 0) {
-    const top = y;
-    const right = RIGHT - 12;
-    y += 8;
-    for (const { label, rows } of header.rules) {
-      const start = PAD + 12 + write(label, PAD + 12, y + 8, { size: 12, color: COLOR.muted }) + 8;
-      for (const items of rows) {
-        let x = start;
-        for (const item of items) {
-          const width = widthOf(item, 12);
-          // Each setting stays whole when the row wraps
-          if (x > start && x + width > right) {
-            x = start;
-            y += 16;
-          }
-          write(item, x, y + 8, { size: 12, maxWidth: right - x });
-          x += width + 8;
-        }
-        y += 16;
-      }
-      y += 4;
-    }
-    y += 4;
-    box(PAD, top, WIDTH - PAD * 2, y - top);
-    y += 12;
   }
 
   // Whose game it is and when it started, then how a difference was handled

@@ -1,5 +1,4 @@
 import {
-  type Charge,
   chipsToCents,
   type Game,
   INSURANCE_PLAYER_ID,
@@ -11,7 +10,6 @@ import {
 } from "@holdem-knight/core";
 import { organizerNameOf } from "@/data";
 import { t } from "@/i18n";
-import { gameRuleLines } from "@/lib/charges";
 import { formatSignedChips } from "@/lib/chips";
 import { formatGameAmount } from "@/lib/currency";
 import type {
@@ -34,11 +32,10 @@ import { imbalanceChoices } from "./SettlementSummary";
  * two say the same thing: the page's components draw it in the browser, and the image on a canvas.
  */
 
-/** The top of the settlement page: the title lines, the opened settings, the host and the boxes. */
+/** The top of the settlement page: the title lines, the host and the boxes. */
 export function imageHeader(
   game: Game,
   ledger: readonly PlayerLedger[],
-  charges: readonly Charge[],
   difference: number,
 ): ImageHeader {
   const { smallBlindChips, bigBlindChips, handChips, chipRatio, currency, timer } = game;
@@ -56,7 +53,6 @@ export function imageHeader(
     blindsCash: `${cash(smallBlindChips)}/${cash(bigBlindChips)}`,
     buyIn: handChips === undefined ? undefined : `${buyInBigBlinds(handChips, bigBlindChips)}BB`,
     options: gameOptions(game),
-    rules: gameRuleLines(game, charges, currency),
     host: organizerNameOf(game),
     start: formatStart(game.createdAt),
     handling: difference === 0 ? undefined : handling,

@@ -547,14 +547,14 @@ function SettlementResult({
 
   /**
    * Shares an image laid out like this page. With no one named it is the whole game: every card
-   * folded, then the transfers. For one person it is the game's header, their card opened with
+   * folded, then the transfers. For one player it is the game's header, their card opened with
    * their Buy-in record, and only the transfers they are part of.
    */
   async function handleShare(personId?: string) {
     setSharing(true);
     setShareFailed(false);
     try {
-      const person = [...organizerCard, ...playerCards].find(({ id }) => id === personId);
+      const person = playerCards.find(({ id }) => id === personId);
       const isOrganizer = (card: ResultCard) => card.id === ORGANIZER_COLLECTOR;
       const inImage = (card: ResultCard) =>
         imageCard(card, game, {
@@ -567,12 +567,12 @@ function SettlementResult({
         ? transfers.filter(({ from, to }) => from === person.id || to === person.id)
         : transfers;
       const image = await renderSettlementImage({
-        header: imageHeader(game, ledger, charges, chipDifference(ledger)),
+        header: imageHeader(game, ledger, chipDifference(ledger)),
         heading: person ? undefined : t.game.resultCards.gameSummary,
         groups: person
           ? [
               {
-                title: isOrganizer(person) ? t.game.resultCards.host : t.common.player,
+                title: t.common.player,
                 cards: [inImage(person)],
               },
             ]
@@ -605,7 +605,7 @@ function SettlementResult({
     }
   }
 
-  /** A share button on the total line of someone's opened card, for the image of their result. */
+  /** A share button on the total line of a player's opened card, for the image of their result. */
   const withShare = (card: ResultCard): ResultCard => ({
     ...card,
     action: (
@@ -641,7 +641,7 @@ function SettlementResult({
   return (
     <>
       <ResultCards
-        organizer={organizerCard[0] && withShare(organizerCard[0])}
+        organizer={organizerCard[0]}
         cards={playerCards.map(withShare)}
         currency={currency}
       />
@@ -732,8 +732,11 @@ function SettlementResult({
             nameOf={nameOf}
             disabled={saveGame.isPending}
             sharing={sharing}
-            // A transfer's image is the payer's own result, to send to whoever has to pay
-            onShare={(transfer?: Transfer) => handleShare(transfer?.from)}
+            // A transfer's image is the player's own result, to send to them: the payer's, or
+            // the receiver's where the organizer is the one who pays
+            onShare={(transfer?: Transfer) =>
+              handleShare(transfer?.from === ORGANIZER_COLLECTOR ? transfer.to : transfer?.from)
+            }
             onChoosePlan={(next) => saveGame.mutate(filed(chooseCollector(game, next)))}
             onMark={(marked, done) => saveGame.mutate(filed(markTransfers(game, marked, done)))}
             onUnsettled={() => point("confirm")}
