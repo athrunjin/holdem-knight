@@ -275,12 +275,8 @@ describe("updateGameSettings", () => {
     });
   });
 
-  it("changes only blinds once the ledger has events", () => {
-    expect(updateGameSettings(game, next, { hasLedgerEvents: true })).toEqual({
-      ...game,
-      smallBlindChips: next.smallBlindChips,
-      bigBlindChips: next.bigBlindChips,
-    });
+  it("keeps the currency, ratio, Buy-in and blinds once the ledger has events", () => {
+    expect(updateGameSettings(game, next, { hasLedgerEvents: true })).toEqual(game);
   });
 
   it("replaces the saved configs the settings were taken from", () => {
@@ -299,9 +295,11 @@ describe("updateGameSettings", () => {
     expect(updateGameSettings(game, renamed, { hasLedgerEvents: true }).sources).toEqual({
       rake: "r1",
     });
-    // Only the blinds differ, which the ledger does not lock
+    // With the blinds changed too: they are locked like the rest
     const blinds = { ...DEFAULT_GAME_SETTINGS, bigBlindChips: 4, sources: { basics: "b1" } };
-    expect(updateGameSettings(game, blinds, { hasLedgerEvents: true }).sources).toEqual({
+    expect("sources" in updateGameSettings(game, blinds, { hasLedgerEvents: true })).toBe(false);
+    const same = { ...DEFAULT_GAME_SETTINGS, sources: { basics: "b1" } };
+    expect(updateGameSettings(game, same, { hasLedgerEvents: true }).sources).toEqual({
       basics: "b1",
     });
   });
@@ -318,5 +316,28 @@ describe("updateGameSettings", () => {
     const cleared = updateGameSettings(charged, next, { hasLedgerEvents: true });
     expect(cleared).not.toHaveProperty("tableFee");
     expect(cleared).not.toHaveProperty("wage");
+  });
+
+  it("keeps insurance and rake on once they have taken anything in, with any new rule", () => {
+    const rake = { percent: 5 } as NonNullable<GameSettings["rake"]>;
+    const insurance = { odds: [] } as unknown as NonNullable<GameSettings["insurance"]>;
+    const used = { hasLedgerEvents: true, insuranceUsed: true, rakeUsed: true };
+    const on = updateGameSettings(
+      game,
+      { ...next, rake, insurance, sources: { rake: "r1", insurance: "i1" } },
+      { hasLedgerEvents: true },
+    );
+    // Turned off in the settings, they stay as the game has them
+    const kept = updateGameSettings(on, next, used);
+    expect(kept).toMatchObject({ rake, insurance, sources: { rake: "r1", insurance: "i1" } });
+    // A new rule is taken
+    const changed = { ...rake, percent: 3 };
+    expect(updateGameSettings(on, { ...next, rake: changed, insurance }, used).rake).toEqual(
+      changed,
+    );
+    // Unused, they turn off
+    const off = updateGameSettings(on, next, { hasLedgerEvents: true });
+    expect(off).not.toHaveProperty("rake");
+    expect(off).not.toHaveProperty("insurance");
   });
 });

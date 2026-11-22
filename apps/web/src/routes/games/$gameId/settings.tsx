@@ -25,10 +25,14 @@ function GameSettingsPage() {
   const saveGame = useSaveGameSettings();
 
   if (!game || hasLedgerEvents === undefined || !events) return null;
+  const insuranceUsed = insuranceActive(events);
+  const rakeUsed = rakeChips(events) > 0;
 
   function handleSubmit(settings: GameSettings) {
     if (!game || hasLedgerEvents === undefined) return;
-    saveGame.mutate(updateGameSettings(game, settings, { hasLedgerEvents }), {
+    if (!events) return;
+    const locks = { hasLedgerEvents, insuranceUsed, rakeUsed };
+    saveGame.mutate(updateGameSettings(game, settings, locks), {
       onSuccess: () => navigate({ to: "/games/$gameId", params: { gameId }, replace: true }),
     });
   }
@@ -38,13 +42,13 @@ function GameSettingsPage() {
       <GameSettingsForm
         initial={toGameSettingsForm(game)}
         submitLabel={t.common.save}
-        ratioLocked={hasLedgerEvents}
+        basicsLocked={hasLedgerEvents}
         showBuyIn={!hasLedgerEvents || game.handChips !== undefined}
         showInsurance={game.handChips !== undefined}
         initialInsurance={game.insurance}
         lastInsurance={game.insurance}
         lastInsuranceLabel={t.gamePages.settings.thisGamesInsuranceSettings}
-        insuranceLocked={insuranceActive(events)}
+        insuranceLocked={insuranceUsed}
         initialTableFee={game.tableFee}
         lastTableFee={game.tableFee}
         lastTableFeeLabel={t.gamePages.settings.thisGamesTimeChargeSettings}
@@ -57,7 +61,7 @@ function GameSettingsPage() {
         lastBasics={game}
         lastBasicsLabel={t.gamePages.settings.thisGamesBasics}
         lastSources={game.sources}
-        rakeLocked={rakeChips(events) > 0}
+        rakeLocked={rakeUsed}
         saving={saveGame.isPending}
         saveFailed={saveGame.isError}
         onSubmit={handleSubmit}

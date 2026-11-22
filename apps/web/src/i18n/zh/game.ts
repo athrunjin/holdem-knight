@@ -165,7 +165,7 @@ export const game = {
     bigBlindsInOneBuyIn: "一个买入的大盲数",
     currencyInOneBuyIn: "一个买入的积分",
     chipsInOneBuyIn: "一个买入的筹码",
-    theLedgerAlreadyHasRecordsSo: "已有账本记录，积分、比例和 Buy-in 不能再修改。",
+    theLedgerAlreadyHasRecordsSo: "已有账本记录，积分、比例、盲注和 Buy-in 不能再修改。",
     someValuesArentValidCheckThe: "有无效的数值，请检查标出的项后再试。",
     saveGameSettings: "保存全局设置",
   },

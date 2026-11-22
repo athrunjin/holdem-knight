@@ -1597,7 +1597,17 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Problem: the shared image was a plain table that looked nothing like the settlement page, there was no image of one player's own result, and the share buttons on the transfers only said the feature was still being built.
 - Proposal: both images follow the settlement page. The whole game: the header, the host line and the three boxes, every card folded with its summary line, 水上/下 kept, then the transfers. One player: the same top, their card opened with the whole Buy-in record and every line, and only the transfers they are part of. The settings are not listed in either. A share button sits on the 合计 line of each player's opened card, not the organizer's; a transfer's share button gives the image of the player in it, the payer's or the receiver's where the organizer pays, and 分享全部转账 the whole game's.
 - Decision: do. The image is still drawn on a canvas, not taken from the page, since the libraries that do that tend to lose fonts and images on iOS Safari; it reads the same helpers the page's components read, so the two say the same thing. Checked in the browser preview with a game that has insurance, wages, a table fee, rake and a chip difference. Not yet checked on a phone, or in English.
-- Tracking: branch `feat/share-images`
+- Tracking: PR #100
+
+### #I-083 Blinds that stay as they are once a game has records
+
+- Type: rule
+- Date: proposed, decided and completed 2026-11-23
+- Source: the organizer: what can be changed during a game was too loose
+- Problem: with records in the ledger, the blinds could still be changed, though a cash game is played at one level and the Buy-in, the rake's cap and the insurance's rounding are all counted in blinds.
+- Proposal: once the ledger has records the blinds are locked with the currency, the ratio and the Buy-in, and the basic settings take no saved setting. Insurance and rake stay as they were: once either has taken anything in it cannot be turned off, and its rule can still change. Wages and the table fee can change or be turned off at any time.
+- Decision: do. `updateGameSettings` in `core` keeps the blinds, and keeps insurance and rake on where they have been used, whatever the form sends.
+- Tracking: PR #101
 
 ## Not doing or deferred
 
@@ -1613,5 +1623,5 @@ Records discussions of feature and process improvements: what was proposed, how 
   - If needed later, add "adjust chips per hand", affecting only later buy-ins and leaving existing records in chips.
   - This is close to how tournaments work: blinds rise by level, while the rebuy stack is set before the start.
     That comes from general knowledge; how other apps handle it hasn't been checked.
-- Decision: defer. Blinds rarely change, so this isn't a priority for now.
+- Decision: defer. Blinds rarely change, so this isn't a priority for now. Since #I-083 the blinds cannot change once a game has records, so the question does not come up.
 - Tracking: no issue yet
