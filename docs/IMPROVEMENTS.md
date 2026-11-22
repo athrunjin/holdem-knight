@@ -1617,7 +1617,7 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Problem: a finished hand sets stacks outright, an undo took back what each event had changed at the time, and a stack stops at 0. So a hand undone after more play scrambled stacks typed since; one undone after a settle attempt lost the seat's change; an undo tried again after a failed save reversed the hand twice; a hand finished after a settle attempt recorded the premium but not the pot; adjusting Buy-ins could take back the hand bought for a premium; and insurance could be turned off with a hand open, which could then be neither finished nor dropped. Most of these left the table balance at 0.
 - Proposal: undoing a hand takes back its insurance and the hands bought for a premium, and restores a stack only while nothing has changed it since; what is already reversed is skipped; the seat comes back first; a hand bought for a premium goes only with its hand; settlement cannot start, and insurance cannot be turned off, while a hand is open.
 - Decision: do, as [ADR 0048](adr/0048-undoing-an-insurance-hand-keeps-later-stacks.md). The rules are in `core` with unit tests and a property test. Checked in the browser preview: the block on settling and the locked switch. The undo itself was checked by tests, not through the page.
-- Tracking: branch `fix/insurance-ledger-link`
+- Tracking: PR #102
 
 ## Not doing or deferred
 
