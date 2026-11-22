@@ -9,6 +9,10 @@ export const gamePages: Messages["gamePages"] = {
     removeFromThisGame: (a) => `Remove ${a} from this game?`,
     settle: "Settle",
     viewSettlement: "View settlement",
+    anInsuranceHandIsUnfinished: "An insurance hand is unfinished",
+    finishOrDropItBeforeSettling:
+      "Its result and insurance are not in the game yet. Finish or drop the hand before settling.",
+    goToInsurance: "Go to insurance",
   },
   insurance: {
     thisChangeAppliesToThisGame:
@@ -16,7 +20,10 @@ export const gamePages: Messages["gamePages"] = {
     thisBetAlreadyHasAResult:
       "This bet already has a result. Editing it undoes that result. Continue?",
     undoThisBetItsWinOr: "Undo this bet? Its win or loss is undone with it.",
-    undoThisHandsInsuranceItsWin: "Undo this hand’s insurance? Its win or loss is undone with it.",
+    undoThisHandsInsuranceItsWin:
+      "Undo this hand’s insurance? The hand’s result and its insurance are undone with it.",
+    undoThisHandKeepingStacks: (names) =>
+      `Undo this hand’s insurance? Its insurance and any hand bought for a premium are undone. ${names} changed chips after this hand, so their chips stay as they are now.`,
     insuranceChipsPL: (a, b) => `Insurance chips ${a} · P/L ${b}`,
     backToTheGame: "Back to the game",
     insuranceIsOffForThisGame: "Insurance is off for this game. It can be turned on in settings.",

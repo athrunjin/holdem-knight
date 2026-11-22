@@ -10,6 +10,7 @@ import {
   ruleAtStakes,
   summarizeByPlayer,
   toInsuranceRuleForm,
+  undoInsuranceHand,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
@@ -152,7 +153,7 @@ function GameInsurance({ game }: { game: Game }) {
     ) {
       return false;
     }
-    undoInsurance.mutate(record);
+    undoInsurance.mutate({ record, handChips });
     return true;
   }
 
@@ -161,12 +162,20 @@ function GameInsurance({ game }: { game: Game }) {
   }
 
   function handleUndo(record: InsuranceRecord) {
-    if (window.confirm(t.gamePages.insurance.undoThisBetItsWinOr)) undoInsurance.mutate(record);
+    if (window.confirm(t.gamePages.insurance.undoThisBetItsWinOr))
+      undoInsurance.mutate({ record, handChips });
   }
 
   function handleUndoHand(hand: InsuranceHand) {
-    if (window.confirm(t.gamePages.insurance.undoThisHandsInsuranceItsWin))
-      undoHand.mutate(hand.id);
+    // Players whose chips changed after the hand keep them, which the question says
+    const kept = [...new Set(undoInsuranceHand(events, hand.id, handChips).keptPlayerIds)].map(
+      nameOf,
+    );
+    const question =
+      kept.length > 0
+        ? t.gamePages.insurance.undoThisHandKeepingStacks(kept.join(t.common.listSeparator))
+        : t.gamePages.insurance.undoThisHandsInsuranceItsWin;
+    if (window.confirm(question)) undoHand.mutate({ handId: hand.id, handChips });
   }
 
   const failed =
@@ -177,7 +186,9 @@ function GameInsurance({ game }: { game: Game }) {
     saveHand.isError ||
     enterStack.isError ||
     finishHand.isError ||
-    undoHand.isError;
+    undoHand.isError ||
+    // Dropping a hand can write to the ledger too
+    discardHand.isError;
 
   return (
     <Page
@@ -237,7 +248,7 @@ function GameInsurance({ game }: { game: Game }) {
             handStore={{
               save: saveHand.mutate,
               enterStack: (playerId, chips) => enterStack.mutate({ playerId, chips }),
-              discard: discardHand.mutate,
+              discard: (handId: string) => discardHand.mutate({ handId, handChips }),
               finish: async (hand) => {
                 if (handChips === undefined) return;
                 await finishHand.mutateAsync({ hand, handChips });

@@ -8,12 +8,17 @@ export const gamePages = {
     removeFromThisGame: (a: string | number) => `把 ${a} 移出这局？`,
     settle: "结算",
     viewSettlement: "查看结算",
+    anInsuranceHandIsUnfinished: "有一手保险没做完",
+    finishOrDropItBeforeSettling: "这手的输赢和保险还没有记到牌局里。请先完成或放弃这手，再结算。",
+    goToInsurance: "去保险页",
   },
   insurance: {
     thisChangeAppliesToThisGame: "这个修改会应用到本局，之后的保险都按新设置计算。继续？",
     thisBetAlreadyHasAResult: "这笔保险已开奖，修改会撤销它的结果。继续？",
     undoThisBetItsWinOr: "撤销这笔保险？它的盈亏也会一起撤销。",
-    undoThisHandsInsuranceItsWin: "撤销这手保险？它的盈亏会一起撤销。",
+    undoThisHandsInsuranceItsWin: "撤销这手保险？这手的输赢和保险盈亏会一起撤销。",
+    undoThisHandKeepingStacks: (names: string) =>
+      `撤销这手保险？保险盈亏和为保费买入的手数会撤销。${names} 在这手之后改过筹码，筹码保持现在的数，不会还原。`,
     insuranceChipsPL: (a: string | number, b: string | number) => `保险筹码 ${a} · 盈亏 ${b}`,
     backToTheGame: "返回牌局",
     insuranceIsOffForThisGame: "这局没有开启保险，可以在设置里开启。",

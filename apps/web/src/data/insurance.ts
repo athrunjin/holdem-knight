@@ -6,6 +6,7 @@ import {
   type InsuranceBuyEvent,
   type InsuranceHand,
   type InsuranceRecord,
+  type InsuranceUndo,
   insuranceSeatChange,
   insuranceTopUp,
   type LedgerEvent,
@@ -15,6 +16,8 @@ import {
   type SavedInsuranceRule,
   type SavedOddsTable,
   summarizeByPlayer,
+  undoInsurance,
+  undoInsuranceHand,
 } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -140,6 +143,38 @@ function reseat(gameId: string, events: readonly LedgerEvent[], occurredAt: numb
   ];
 }
 
+/** An undo worked out in `core`, as events: the reversals together, then the stacks that stay. */
+function undoEvents(gameId: string, undo: InsuranceUndo): LedgerEvent[] {
+  const occurredAt = Date.now();
+  return [
+    ...undo.reversedEventIds.map(
+      (reversedEventId): LedgerEvent => ({
+        ...newEventMeta(gameId, occurredAt),
+        type: "reversal",
+        reversedEventId,
+      }),
+    ),
+    ...(undo.seatTopUpChips > 0
+      ? [
+          {
+            ...newEventMeta(gameId, occurredAt),
+            type: "rebuy" as const,
+            playerId: INSURANCE_PLAYER_ID,
+            chips: undo.seatTopUpChips,
+          },
+        ]
+      : []),
+    // A moment later, as a stack set in the same change as a hand taken back would move with it
+    ...undo.keptStacks.map(
+      (stack): LedgerEvent => ({
+        ...newEventMeta(gameId, occurredAt + 1),
+        type: "stack_set",
+        ...stack,
+      }),
+    ),
+  ];
+}
+
 function ledgerScope(gameId: string) {
   return { id: `ledger-${gameId}` };
 }
@@ -199,12 +234,36 @@ export function useEnterStack(gameId: string) {
   });
 }
 
+/** The size of a hand in this game, for the whole hands the seat buys to give results back. */
+interface HandUndoInput {
+  readonly handId: string;
+  readonly handChips: number | undefined;
+}
+
+interface RecordUndoInput {
+  readonly record: InsuranceRecord;
+  readonly handChips: number | undefined;
+}
+
+/**
+ * Drops a hand. One whose money reached the ledger before its own save failed still reads as open,
+ * so what it wrote is taken back with it and never left behind with nothing to show it.
+ */
 export function useDiscardInsuranceHand(gameId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     scope: ledgerScope(gameId),
-    mutationFn: (id: string) => repository.insuranceHands.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: handsKey(gameId) }),
+    mutationFn: async ({ handId, handChips }: HandUndoInput) => {
+      const id = handId;
+      const events = await repository.ledger.listByGame(gameId);
+      const written = undoEvents(gameId, undoInsuranceHand(events, id, handChips));
+      if (written.length > 0) await repository.ledger.appendAll(written);
+      await repository.insuranceHands.remove(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ledger", gameId] });
+      queryClient.invalidateQueries({ queryKey: handsKey(gameId) });
+    },
   });
 }
 
@@ -311,25 +370,18 @@ export function useFinishInsuranceHand(gameId: string) {
   });
 }
 
-/** Takes a finished hand back whole. Hands added to pay it stay bought. */
+/**
+ * Takes a finished hand back, by the rules of `undoInsuranceHand`. Hands the seat added to pay it
+ * stay bought. Asked again after a failure half way, it takes back only what is still there.
+ */
 export function useUndoInsuranceHand(gameId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     scope: ledgerScope(gameId),
-    mutationFn: async (handId: string) => {
+    mutationFn: async ({ handId, handChips }: HandUndoInput) => {
       const events = await repository.ledger.listByGame(gameId);
-      const occurredAt = Date.now();
-      await repository.ledger.appendAll(
-        events
-          .filter((e) => belongsToHand(e, handId))
-          .map(
-            ({ id }): LedgerEvent => ({
-              ...newEventMeta(gameId, occurredAt),
-              type: "reversal",
-              reversedEventId: id,
-            }),
-          ),
-      );
+      const written = undoEvents(gameId, undoInsuranceHand(events, handId, handChips));
+      if (written.length > 0) await repository.ledger.appendAll(written);
       await repository.insuranceHands.remove(handId);
     },
     onSuccess: () => {
@@ -412,15 +464,10 @@ export function useUndoInsurance(gameId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     scope: ledgerScope(gameId),
-    mutationFn: async ({ purchase, settleId }: InsuranceRecord) => {
-      const occurredAt = Date.now();
-      await repository.ledger.appendAll(
-        [settleId, purchase.id].flatMap((reversedEventId): LedgerEvent[] =>
-          reversedEventId
-            ? [{ ...newEventMeta(gameId, occurredAt), type: "reversal", reversedEventId }]
-            : [],
-        ),
-      );
+    mutationFn: async ({ record, handChips }: RecordUndoInput) => {
+      const events = await repository.ledger.listByGame(gameId);
+      const written = undoEvents(gameId, undoInsurance(events, record, handChips));
+      if (written.length > 0) await repository.ledger.appendAll(written);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ledger", gameId] }),
   });

@@ -11,6 +11,7 @@ import {
   RAKE_PLAYER_ID,
   type RakeEvent,
   type ReversalEvent,
+  type StackSetEvent,
 } from "../domain";
 import { RULE_30 } from "../insurance";
 import { cents } from "../money";
@@ -32,6 +33,8 @@ import {
   recentPlayers,
   soleBuyIn,
   summarizeByPlayer,
+  undoInsurance,
+  undoInsuranceHand,
 } from "./ledger";
 
 const base = { organizerId: "me", gameId: "g1", occurredAt: 1 };
@@ -302,6 +305,24 @@ describe("adjustHands", () => {
         expect(summarizeByPlayer(next)[0]?.boughtChips).toBe(target * hand);
       }),
     );
+  });
+});
+
+describe("adjustHands with a hand bought for a premium", () => {
+  it("never takes back the hand an insurance hand bought", () => {
+    const events = [
+      chip("1", "buy_in", "a", 200),
+      { ...chip("2", "rebuy", "a", 200), handId: "h1" },
+    ];
+    expect(adjustHands(events, "a", 200, { to: 1 })).toEqual({ reversedEventIds: [] });
+    const more = [...events, chip("3", "rebuy", "a", 200)];
+    expect(adjustHands(more, "a", 200, { to: 1 })).toEqual({ reversedEventIds: ["3"] });
+    // A first buy-in of two hands cut to one is recorded again as a buy-in
+    const two = [chip("1", "buy_in", "a", 400), { ...chip("2", "rebuy", "a", 200), handId: "h1" }];
+    expect(adjustHands(two, "a", 200, { to: 2 })).toEqual({
+      reversedEventIds: ["1"],
+      buy: { type: "buy_in", chips: 200 },
+    });
   });
 });
 
@@ -693,6 +714,196 @@ describe("insurance", () => {
     expect(insuranceTopUp(1000, 1000, 500)).toBe(0);
     expect(insuranceTopUp(1000, 1001, 500)).toBe(500);
     expect(insuranceTopUp(200, 1300, 500)).toBe(1500);
+  });
+
+  describe("taking insurance back", () => {
+    const set = (id: string, playerId: string, chips: number, handId?: string): StackSetEvent => ({
+      ...base,
+      id,
+      type: "stack_set",
+      playerId,
+      chips,
+      ...(handId !== undefined && { handId }),
+    });
+    /** The events an undo appends: the reversals together, then the stacks that stay. */
+    const undone = (events: readonly LedgerEvent[], undo: ReturnType<typeof undoInsuranceHand>) => {
+      const at = Math.max(...events.map((e) => e.occurredAt)) + 1;
+      return [
+        ...events,
+        ...undo.reversedEventIds.map((id) => later(reversal(`r-${id}-${at}`, id), at)),
+        ...(undo.seatTopUpChips > 0
+          ? [later(chip(`t-${at}`, "rebuy", seat, undo.seatTopUpChips), at)]
+          : []),
+        ...undo.keptStacks.map((k) =>
+          later(set(`k-${k.playerId}-${at}`, k.playerId, k.chips), at + 1),
+        ),
+      ];
+    };
+    const table = [...start, chip("b", "buy_in", "b", 1000)];
+    /** A and B all in for 1,000 each. A wins, having paid 100 for a cover that missed. */
+    const hand = [
+      later({ ...buy("pa", "a", 100, 350), handId: "h1" }, 10),
+      later({ ...settle("sa", "pa", "a", 0), handId: "h1" }, 10),
+      later(set("ha", "a", 1900, "h1"), 11),
+      later(set("hb", "b", 0, "h1"), 11),
+    ];
+    const played = [...table, ...hand];
+
+    it("restores every stack while nothing has changed since the hand", () => {
+      expect(stacks(played)).toEqual({ insurance: 1100, a: 1900, b: 0 });
+      const undo = undoInsuranceHand(played, "h1", 1000);
+      expect(undo.keptPlayerIds).toEqual([]);
+      expect(stacks(undone(played, undo))).toEqual({ insurance: 1000, a: 1000, b: 1000 });
+    });
+
+    it("does nothing more when asked a second time", () => {
+      const once = undone(played, undoInsuranceHand(played, "h1", 1000));
+      expect(undoInsuranceHand(once, "h1", 1000).reversedEventIds).toEqual([]);
+      const single = [
+        ...start,
+        later(buy("p", "a", 100, 350), 2),
+        later(settle("m", "p", "a", 0), 3),
+      ];
+      const [record] = insuranceRecords(single);
+      if (!record) throw new Error("no record");
+      const back = undone(single, undoInsurance(single, record, 1000));
+      expect(stacks(back)).toEqual({ insurance: 1000, a: 1000 });
+      expect(undoInsurance(back, record, 1000).reversedEventIds).toEqual([]);
+    });
+
+    it("leaves a stack typed or bought since the hand as it is, and still takes the insurance back", () => {
+      const since = [
+        ...played,
+        later(chip("b2", "rebuy", "b", 1000), 20),
+        later(set("ta", "a", 2500), 21),
+        later(set("tb", "b", 400), 22),
+      ];
+      const undo = undoInsuranceHand(since, "h1", 1000);
+      expect(undo.keptPlayerIds).toEqual(["a", "b"]);
+      expect(stacks(undone(since, undo))).toEqual({ insurance: 1000, a: 2500, b: 400 });
+    });
+
+    it("takes back a hand bought for a premium without moving a stack typed since", () => {
+      // B lost the pot and bought a hand to pay 100 for a cover that missed
+      const short = [
+        ...table,
+        later({ ...chip("rb", "rebuy", "b", 1000), handId: "h2" }, 10),
+        later({ ...buy("pb", "b", 100, 350), handId: "h2" }, 10),
+        later({ ...settle("sb", "pb", "b", 0), handId: "h2" }, 10),
+        later(set("ha", "a", 2000, "h2"), 11),
+        later(set("hb", "b", 900, "h2"), 11),
+      ];
+      expect(stacks(undone(short, undoInsuranceHand(short, "h2", 1000)))).toEqual({
+        insurance: 1000,
+        a: 1000,
+        b: 1000,
+      });
+      const since = [...short, later(set("tb", "b", 400), 20)];
+      const after = summarizeByPlayer(undone(since, undoInsuranceHand(since, "h2", 1000)));
+      expect(after.find((p) => p.playerId === "b")).toMatchObject({
+        boughtChips: 1000,
+        stackChips: 400,
+      });
+      // A's stack was not touched after the hand, so it goes back
+      expect(after.find((p) => p.playerId === "a")?.stackChips).toBe(1000);
+      expect(after.find((p) => p.playerId === seat)?.stackChips).toBe(1000);
+    });
+
+    it("brings the seat back first after a settle attempt, so the change is not lost", () => {
+      const out = [
+        ...played,
+        later(chip("oa", "cash_out", "a", 1900), 30),
+        later(chip("ob", "cash_out", "b", 0), 30),
+        later(chip("os", "cash_out", seat, 1100), 30),
+      ];
+      const after = summarizeByPlayer(undone(out, undoInsuranceHand(out, "h1", 1000)));
+      expect(after.find((p) => p.playerId === seat)).toMatchObject({
+        seated: true,
+        stackChips: 1000,
+      });
+      // The players left with their chips counted, which stay
+      expect(after.find((p) => p.playerId === "a")).toMatchObject({ cashedOutChips: 1900 });
+
+      const single = [
+        ...start,
+        later(buy("p", "a", 100, 350), 2),
+        later(settle("m", "p", "a", 0), 3),
+        later(chip("os", "cash_out", seat, 1100), 30),
+      ];
+      const [record] = insuranceRecords(single);
+      if (!record) throw new Error("no record");
+      expect(stacks(undone(single, undoInsurance(single, record, 1000))).insurance).toBe(1000);
+    });
+
+    it("restores two hands undone newest first", () => {
+      const second = [
+        ...played,
+        chip("c", "buy_in", "c", 1000),
+        later(set("h2a", "a", 2900, "h2"), 21),
+        later(set("h2c", "c", 0, "h2"), 21),
+      ];
+      const first = undone(second, undoInsuranceHand(second, "h2", 1000));
+      expect(stacks(first)).toEqual({ insurance: 1100, a: 1900, b: 0, c: 1000 });
+      const undo = undoInsuranceHand(first, "h1", 1000);
+      expect(undo.keptPlayerIds).toEqual([]);
+      const back = summarizeByPlayer(undone(first, undo));
+      expect(Object.fromEntries(back.map((p) => [p.playerId, p.stackChips]))).toEqual({
+        insurance: 1000,
+        a: 1000,
+        b: 1000,
+        c: 1000,
+      });
+      expect(ledgerTotals(back).balanceChips).toBe(0);
+    });
+
+    it("restores a stack when the player left after the hand and came back", () => {
+      const away = [
+        ...played,
+        later(chip("oa", "cash_out", "a", 1900), 30),
+        later(reversal("ra", "oa"), 31),
+      ];
+      expect(stacks(undone(away, undoInsuranceHand(away, "h1", 1000))).a).toBe(1000);
+    });
+
+    it("has the seat buy hands to give back more than it holds", () => {
+      // A hit since has emptied the seat, which then gives back a premium of 100
+      const emptied = [
+        ...played,
+        later(buy("p2", "b", 50, 1150), 20),
+        later(settle("s2", "p2", "b", 1150), 21),
+      ];
+      expect(stacks(emptied).insurance).toBe(0);
+      const undo = undoInsuranceHand(emptied, "h1", 1000);
+      expect(undo.seatTopUpChips).toBe(1000);
+      const seatAfter = summarizeByPlayer(undone(emptied, undo)).find((p) => p.playerId === seat);
+      // Bought 2,000 and holding 900: down the 1,100 it paid out less the premium it kept
+      expect(seatAfter).toMatchObject({ boughtChips: 2000, stackChips: 900, netChips: -1100 });
+    });
+
+    it("restores any hand exactly when undone at once", () => {
+      fc.assert(
+        fc.property(
+          fc.integer({ min: 0, max: 5000 }),
+          fc.integer({ min: 0, max: 5000 }),
+          fc.integer({ min: 1, max: 500 }),
+          // No more than the seat holds: it is topped up before it pays more
+          fc.integer({ min: 0, max: 1000 }),
+          fc.boolean(),
+          (endA, endB, premium, payout, shortB) => {
+            const events = [
+              ...table,
+              ...(shortB ? [later({ ...chip("rb", "rebuy", "b", 1000), handId: "h" }, 10)] : []),
+              later({ ...buy("px", "a", premium, payout), handId: "h" }, 10),
+              later({ ...settle("sx", "px", "a", payout), handId: "h" }, 10),
+              later(set("ha", "a", endA, "h"), 11),
+              later(set("hb", "b", endB, "h"), 11),
+            ];
+            const back = summarizeByPlayer(undone(events, undoInsuranceHand(events, "h", 1000)));
+            expect(back).toEqual(summarizeByPlayer(table));
+          },
+        ),
+      );
+    });
   });
 
   describe("insuranceSeatChange", () => {

@@ -9,6 +9,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { GameSettingsForm } from "@/components/game/GameSettingsForm";
 import { Page } from "@/components/Page";
 import { useGame, useHasLedgerEvents, useSaveGameSettings } from "@/data/games";
+import { useInsuranceHands } from "@/data/insurance";
 import { useLedger } from "@/data/ledger";
 import { t } from "@/i18n";
 
@@ -22,10 +23,13 @@ function GameSettingsPage() {
   const { data: game } = useGame(gameId);
   const { data: hasLedgerEvents } = useHasLedgerEvents(gameId);
   const { data: events } = useLedger(gameId);
+  const { data: hands } = useInsuranceHands(gameId);
   const saveGame = useSaveGameSettings();
 
-  if (!game || hasLedgerEvents === undefined || !events) return null;
-  const insuranceUsed = insuranceActive(events);
+  if (!game || hasLedgerEvents === undefined || !events || !hands) return null;
+  // A hand under way counts too: with insurance off it could be neither finished nor dropped
+  const insuranceUsed =
+    insuranceActive(events) || (hands ?? []).some((hand) => hand.status === "open");
   const rakeUsed = rakeChips(events) > 0;
 
   function handleSubmit(settings: GameSettings) {
