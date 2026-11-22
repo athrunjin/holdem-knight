@@ -51,10 +51,14 @@ describe("reloadAfterRelease", () => {
   afterEach(() => {
     sessionStorage.clear();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("repairs the offline cache and reloads once, and leaves a second failure to show", async () => {
     vi.useFakeTimers();
+    // The host does not have the file. Without this the repair asks the network for it, and the
+    // test waits on however long that takes to fail
+    vi.stubGlobal("fetch", async () => new Response("", { status: 404 }));
     const reload = vi.fn();
     const { storage, store } = fakeCaches({ "https://x.test/assets/new-1.js": "text/html" });
     const target = new EventTarget() as unknown as Window;
