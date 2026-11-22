@@ -101,13 +101,13 @@ The palette is the app's design tokens in `apps/web/src/styles.css`, with no new
 
 | Token | Value | Use |
 | --- | --- | --- |
-| felt-950 | `#0E1B16` | Deepest base: dark-mode page background; text on light backgrounds |
+| felt-950 | `#0E1B16` | Deepest base: the app's page background; text on light backgrounds |
 | felt-900 | `#13241E` | Splash and share image background; manifest `theme_color`; helmet |
 | felt-800 | `#1A3129` | Dark cards |
 | felt-700 | `#1D5C47` | Primary brand green: app icon background; emblem stems on light backgrounds |
 | felt-500 | `#3F9A78` | Accent green in dark mode |
 | felt-100 | `#E3EBE6` | Light dividers and textures |
-| felt-50 | `#F2F5F2` | Light-mode page background |
+| felt-50 | `#F2F5F2` | Light page background, outside the app |
 | bone | `#F3EFE2` | Stems and text on dark backgrounds |
 | chip-gold | `#D6B04C` | **The only accent**: diamond, helmet visor, wordmark dot |
 | chip-gold-deep | `#9A7A22` | Gold text on light backgrounds |

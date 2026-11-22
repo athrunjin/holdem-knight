@@ -12,6 +12,7 @@ import {
 } from "@holdem-knight/core";
 import { SquarePen } from "lucide-react";
 import { useId, useRef, useState } from "react";
+import { t } from "@/i18n";
 import { formatCardText } from "@/lib/cards";
 import { formatSignedChips, netColor } from "@/lib/chips";
 import { cn } from "@/lib/cn";
@@ -132,7 +133,11 @@ function CoverRow({
       <span className={rowNameClass}>
         {label}
         {note && <span className="block text-xs whitespace-nowrap text-muted">{note}</span>}
-        {option.capped && <span className="block text-xs text-highlight">已到上限</span>}
+        {option.capped && (
+          <span className="block text-xs text-highlight">
+            {t.insurance.potInsurance.atTheLimit}
+          </span>
+        )}
       </span>
       <span className="font-semibold text-highlight">{chipText(option.premiumChips)}</span>
       <span>{chipText(option.payoutChips)}</span>
@@ -177,7 +182,7 @@ function potParts(
     ...live.filter(({ tone }) => tone !== "leader"),
     // The main pot always lists dead money, even at zero; a side pot only when it holds some
     ...(potIndex === 0 || deadChips > 0
-      ? [{ key: "dead-money", tone: "dead" as const, label: "死钱", chips: deadChips }]
+      ? [{ key: "dead-money", tone: "dead" as const, label: t.common.deadMoney, chips: deadChips }]
       : []),
   ];
 }
@@ -201,17 +206,19 @@ function OfferHeading({
     <div className="flex min-h-6 items-center justify-between gap-2">
       <span className="min-w-0 truncate text-base leading-6 font-semibold tabular-nums">
         {name} · {count}
-        {outsTotal !== undefined && <span className="text-muted"> / {outsTotal}</span>} 张
+        {outsTotal !== undefined && <span className="text-muted"> / {outsTotal}</span>}{" "}
+        {t.insurance.potInsurance.cardsUnit}
         {oddsHundredths !== undefined && (
           <>
-            <span className="text-muted"> | </span>赔 {formatOddsText(formatOdds(oddsHundredths))}
+            <span className="text-muted"> | </span>
+            {t.insurance.potInsurance.pays} {formatOddsText(formatOdds(oddsHundredths))}
           </>
         )}
       </span>
       {onManage !== undefined && (
         <button
           type="button"
-          aria-label="管理 Outs"
+          aria-label={t.insurance.potInsurance.manageOuts}
           disabled={!onManage || locked}
           onClick={onManage ?? undefined}
           className="-my-2.5 -mr-2 grid size-11 shrink-0 place-items-center text-highlight disabled:text-muted disabled:opacity-40"
@@ -232,7 +239,7 @@ interface Pick {
 // The stake cover is picked on arrival, so an offer opens on a price and not on a blank
 const FIRST_PICK: Pick = { choice: "stake", customText: "" };
 
-const KIND_TEXT: Record<OfferKind, string> = { overtake: "反超", tie: "平分" };
+const KIND_TEXT: Record<OfferKind, string> = { overtake: t.common.outdraw, tie: t.common.tie };
 const PART_TEXT = { 1: "I", 2: "II" } as const;
 
 type PricedQuote = Extract<InsuranceQuote, { ok: true }>;
@@ -252,16 +259,23 @@ function coverView(
 ) {
   const { oddsHundredths, maxPremiumChips, stake, halfPot, fullPot } = quote;
   const smaller: readonly { id: Choice; label: string; note?: string; option: QuoteOption }[] = [
-    { id: "stake", label: "保本", ...(halfPot ? {} : { note: "即半池" }), option: stake },
-    ...(halfPot ? [{ id: "half" as const, label: "半池", option: halfPot }] : []),
+    {
+      id: "stake",
+      label: t.insurance.potInsurance.stakeBack,
+      ...(halfPot ? {} : { note: t.insurance.potInsurance.halfPot }),
+      option: stake,
+    },
+    ...(halfPot
+      ? [{ id: "half" as const, label: t.insurance.potInsurance.halfPot2, option: halfPot }]
+      : []),
   ];
   const most = Math.max(...smaller.map(({ option }) => option.premiumChips));
   const standard = [
     ...smaller,
     ...(kind === "overtake"
-      ? [{ id: "full" as const, label: "满池", option: fullPot }]
+      ? [{ id: "full" as const, label: t.insurance.potInsurance.fullPot, option: fullPot }]
       : fullPot.premiumChips > most
-        ? [{ id: "full" as const, label: "封顶", option: fullPot }]
+        ? [{ id: "full" as const, label: t.insurance.potInsurance.cap, option: fullPot }]
         : []),
   ];
   const locked = decision !== undefined;
@@ -277,7 +291,8 @@ function coverView(
       ? priceOption(input, oddsHundredths, customPremium)
       : undefined;
   const chosen = shown === "custom" ? customOption : standard.find((r) => r.id === shown)?.option;
-  const chosenLabel = shown === "custom" ? "自定义" : standard.find((r) => r.id === shown)?.label;
+  const chosenLabel =
+    shown === "custom" ? t.common.custom : standard.find((r) => r.id === shown)?.label;
   return {
     standard,
     locked,
@@ -349,10 +364,10 @@ function CoverTable({
       <fieldset disabled={locked} className="mt-2">
         <div className="grid grid-cols-[1fr_repeat(4,3.6rem)] gap-1 px-2 text-right text-xs text-muted">
           <span />
-          <span>保费</span>
-          <span>赔付</span>
-          <span>中了到手</span>
-          <span>没中到手</span>
+          <span>{t.insurance.potInsurance.premium}</span>
+          <span>{t.insurance.potInsurance.payout}</span>
+          <span>{t.insurance.potInsurance.ifItHits}</span>
+          <span>{t.insurance.potInsurance.ifItMisses}</span>
         </div>
         {standard.map(({ id, label, note, option }) => (
           <CoverRow
@@ -385,7 +400,7 @@ function CoverTable({
             locked && shown !== "custom" && "opacity-50 grayscale",
           )}
         >
-          <span className={rowNameClass}>自定义</span>
+          <span className={rowNameClass}>{t.common.custom}</span>
           {/* No box of its own: a dash like the cells after it until a premium is typed */}
           <input
             ref={customRef}
@@ -396,7 +411,7 @@ function CoverTable({
             enterKeyHint="done"
             // A dash while the row is not being typed in, like the cells after it
             placeholder={customFocused ? "" : "—"}
-            aria-label={`自定义保费，1 到 ${maxPremiumChips} 的整数`}
+            aria-label={t.insurance.potInsurance.customPremiumAWholeNumberFrom(maxPremiumChips)}
             value={customValue}
             onFocus={(event) => {
               setCustomFocused(true);
@@ -469,7 +484,9 @@ function CoverTable({
             }
             className="min-h-12 rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-60"
           >
-            {chosen ? `确认投保 · 保费 ${chipText(chosen.premiumChips)}` : "确认投保"}
+            {chosen
+              ? t.insurance.potInsurance.insurePremium(chipText(chosen.premiumChips))
+              : t.insurance.potInsurance.insure}
           </button>
           <button
             type="button"
@@ -477,7 +494,7 @@ function CoverTable({
             onClick={() => decisions.decline(decisionKey)}
             className="min-h-12 rounded-xl border border-line px-4 font-medium disabled:opacity-60"
           >
-            不购买
+            {t.insurance.potInsurance.dontBuy}
           </button>
         </div>
       )}
@@ -528,7 +545,7 @@ function Block({ label, parts, potChips, offers, saving, decisions }: PotCoverPr
 
   return (
     <section
-      aria-label={`${label}保险`}
+      aria-label={t.insurance.potInsurance.insurance(label)}
       className="mt-3 rounded-xl border border-line bg-surface p-3"
     >
       {/*
@@ -625,7 +642,11 @@ export function PotInsurance({
   const cardsText = (cards: readonly number[]) => cards.map(formatCardText).join(" ");
   return (
     <PotCover
-      label={pot.leaders.length > 1 ? `${label} · ${nameOf(leader.playerId)} 并列领先` : label}
+      label={
+        pot.leaders.length > 1
+          ? t.insurance.potInsurance.tiedForTheLead(label, nameOf(leader.playerId))
+          : label
+      }
       parts={potParts(first, nameOf)}
       potChips={pot.amountChips}
       offers={offers.map((offer): PotCoverOffer => {
@@ -652,9 +673,11 @@ export function PotInsurance({
           // next, under each cover of the kind
           outsLines: [
             ...(outs.length > 0 ? [cardsText(outs)] : []),
-            ...(skippedOuts.length > 0 ? [`弃买 : ${cardsText(skippedOuts)}`] : []),
+            ...(skippedOuts.length > 0
+              ? [t.insurance.potInsurance.declined(cardsText(skippedOuts))]
+              : []),
             ...(lead && unsold.length > 0
-              ? [`平分 ${unsold.length} 张（不计入）：${cardsText(unsold)}`]
+              ? [t.insurance.potInsurance.tieOnNotCounted(unsold.length, cardsText(unsold))]
               : []),
           ],
         };

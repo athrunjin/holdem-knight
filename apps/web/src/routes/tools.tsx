@@ -11,6 +11,7 @@ import { useState } from "react";
 import { NO_STAKES, RakeSettingsPanel } from "@/components/game/ChargeSettings";
 import { RakeDialog, type RakeEntry } from "@/components/game/RakeDialog";
 import { Page } from "@/components/Page";
+import { t } from "@/i18n";
 import { useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/tools")({
@@ -102,12 +103,12 @@ function ToolsPage() {
   const [raking, setRaking] = useState(false);
 
   return (
-    <Page title="工具">
+    <Page title={t.tools.tools.tools}>
       <ul className="grid grid-cols-3 gap-2">
         <li>
           <Link to="/tools/insurance" className={toolClass}>
             <ToolIcon icon={Calculator} />
-            保险计算
+            {t.tools.tools.insuranceCalculator}
           </Link>
         </li>
         <li>
@@ -120,7 +121,7 @@ function ToolsPage() {
           <button type="button" onClick={() => setRaking(true)} className={toolClass}>
             {/* The rake seat's mark on the game page */}
             <ToolIcon icon={HandCoins} />
-            抽水计算
+            {t.tools.tools.rakeCalculator}
           </button>
         </li>
       </ul>

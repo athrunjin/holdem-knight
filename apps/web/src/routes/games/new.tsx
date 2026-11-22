@@ -24,6 +24,7 @@ import { currentOrganizerId } from "@/data";
 import { useConfigLibrary } from "@/data/config-library";
 import { useGameConfigs } from "@/data/game-configs";
 import { useGames, useStartGame } from "@/data/games";
+import { t } from "@/i18n";
 import { deviceTimeZone } from "@/lib/charges";
 
 export const Route = createFileRoute("/games/new")({
@@ -111,7 +112,7 @@ function NewGamePage() {
 
   return (
     <Page
-      title={picking ? "选择玩家" : "开局设置"}
+      title={picking ? t.gamePages.newGame.choosePlayers : t.gamePages.newGame.newGame}
       centered
       actions={
         picking ? (
@@ -121,7 +122,7 @@ function NewGamePage() {
             className="flex min-h-11 items-center gap-0.5 text-sm text-muted"
           >
             <ChevronLeft className="size-4" aria-hidden />
-            设置
+            {t.common.settings}
           </button>
         ) : (
           <GameConfigPicker
@@ -169,7 +170,7 @@ function NewGamePage() {
               wage: wage.source,
               rake: rake.source,
             }}
-            submitLabel="下一步：选择玩家"
+            submitLabel={t.gamePages.newGame.nextChoosePlayers}
             saving={false}
             saveFailed={false}
             onSubmit={showStep}

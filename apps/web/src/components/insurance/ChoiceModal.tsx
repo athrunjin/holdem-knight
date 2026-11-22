@@ -1,5 +1,6 @@
 import { Check, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { Modal } from "./Modal";
 
@@ -47,12 +48,14 @@ export function ChoiceModal({
                 {icon}
                 <span className="truncate">{name}</span>
               </span>
-              {selectedId === id && <Check className="size-5 shrink-0" aria-label="当前选中" />}
+              {selectedId === id && (
+                <Check className="size-5 shrink-0" aria-label={t.insurance.choiceModal.selected} />
+              )}
             </button>
             {removable && onRemove && (
               <button
                 type="button"
-                aria-label={`删除 ${name}`}
+                aria-label={t.insurance.choiceModal.delete(name)}
                 onClick={() => onRemove(id)}
                 className="grid min-h-12 w-12 shrink-0 place-items-center text-muted"
               >
@@ -67,7 +70,7 @@ export function ChoiceModal({
         onClick={onClose}
         className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
       >
-        关闭
+        {t.common.close}
       </button>
     </Modal>
   );

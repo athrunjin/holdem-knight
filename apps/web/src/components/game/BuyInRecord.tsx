@@ -1,18 +1,19 @@
 import { chipsToCents, type Game, gameRecord, type LedgerEvent } from "@holdem-knight/core";
 import { ChevronRight, LogIn, LogOut } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
 import { columnsClass } from "./ResultCards";
 
 /** What happened, in the color it is told apart by. */
 const ACTIONS = {
-  sit: ["上桌", "text-highlight"],
-  add: ["补码", "text-win"],
-  back: ["退码", "text-loss"],
-  away: ["离桌", "text-muted"],
-  return: ["回桌", "text-muted"],
-  out: ["带出", "text-highlight"],
+  sit: [t.game.buyInRecord.satDown, "text-highlight"],
+  add: [t.common.rebuy, "text-win"],
+  back: [t.game.buyInRecord.chipsBack, "text-loss"],
+  away: [t.game.buyInRecord.left, "text-muted"],
+  return: [t.common.rejoined, "text-muted"],
+  out: [t.game.buyInRecord.cashOut, "text-highlight"],
 } as const;
 
 interface RecordRow {
@@ -77,7 +78,7 @@ function RecordLine({
       {...(onFold && {
         role: "button",
         tabIndex: 0,
-        "aria-label": "收起带入记录",
+        "aria-label": t.game.buyInRecord.collapseTheBuyInRecord,
         onClick: onFold,
         onKeyDown: (event) => {
           if (event.key === "Enter" || event.key === " ") onFold();
@@ -86,7 +87,7 @@ function RecordLine({
     >
       <span className="flex items-center whitespace-nowrap">
         <span className="w-6 shrink-0 text-[0.625rem] tracking-tight text-muted">
-          {sameDay ? "" : `${day}日`}
+          {sameDay ? "" : t.game.buyInRecord.dayOfMonth(day)}
         </span>
         <span className="hidden w-9.5 shrink-0 text-muted @[22.5rem]:block">{timeOf(row.at)}</span>
         <span className={cn("font-medium", tone)}>{action}</span>
@@ -161,7 +162,9 @@ export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProp
   // Spaced only while one digit, so two digits still fit the width of a time
   const times = (
     <>
-      共<span className={cn(timesBought < 10 && "px-0.5")}>{timesBought}</span>次
+      {t.game.buyInRecord.timesBefore}
+      <span className={cn(timesBought < 10 && "px-0.5")}>{timesBought}</span>
+      {t.game.buyInRecord.timesAfter}
     </>
   );
 
@@ -182,7 +185,7 @@ export function BuyInRecord({ game, events, playerId, leaving }: BuyInRecordProp
           </span>
           {/* As wide as a line's time whatever it holds, so 带入 starts where 上桌 and 带出 do */}
           <span className="hidden w-9.5 shrink-0 @[22.5rem]:block">{times}</span>
-          <span className="font-medium text-win">带入</span>
+          <span className="font-medium text-win">{t.game.buyInRecord.boughtIn}</span>
         </span>
         <span className="text-center">{handChips === undefined ? "—" : count(held)}</span>
         <span className="text-center">

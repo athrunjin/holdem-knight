@@ -3,18 +3,15 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import {
   AuthPage,
-  EMAIL_ISSUE_TEXT,
   EmailField,
   FormIssue,
-  NAME_ISSUE_TEXT,
-  PASSWORD_ISSUE_TEXT,
-  PASSWORD_RULE,
   PasswordField,
   SubmitButton,
   textLinkClass,
 } from "@/components/account/AuthParts";
 import { TextField } from "@/components/TextField";
 import { type AuthIssue, signUp } from "@/data/auth";
+import { t } from "@/i18n";
 import { keepPendingCode } from "@/lib/pending-code";
 
 export const Route = createFileRoute("/me_/sign-up")({
@@ -42,10 +39,10 @@ function SignUpPage() {
     const address = parseEmail(email);
     const chosen = parsePassword(password);
     setIssues({
-      ...(!shown.ok && { name: NAME_ISSUE_TEXT[shown.issue] }),
-      ...(!address.ok && { email: EMAIL_ISSUE_TEXT[address.issue] }),
-      ...(!chosen.ok && { password: PASSWORD_ISSUE_TEXT[chosen.issue] }),
-      ...(!agreed && { agreed: "请先确认年龄并同意协议" }),
+      ...(!shown.ok && { name: t.account.nameIssue[shown.issue] }),
+      ...(!address.ok && { email: t.account.emailIssue[address.issue] }),
+      ...(!chosen.ok && { password: t.account.passwordIssue[chosen.issue] }),
+      ...(!agreed && { agreed: t.account.signUpPage.agreeFirst }),
     });
     setIssue(undefined);
     if (!shown.ok || !address.ok || !chosen.ok || !agreed) return;
@@ -64,10 +61,10 @@ function SignUpPage() {
   const clear = (field: keyof typeof issues) => setIssues({ ...issues, [field]: undefined });
 
   return (
-    <AuthPage title="注册" audience="guests" onSubmit={handleSubmit}>
+    <AuthPage title={t.common.signUp} audience="guests" onSubmit={handleSubmit}>
       <TextField
         id="display-name"
-        label="昵称"
+        label={t.account.name}
         value={name}
         issue={issues.name}
         inputMode="text"
@@ -86,7 +83,7 @@ function SignUpPage() {
         }}
       />
       <PasswordField
-        label={`密码，${PASSWORD_RULE}`}
+        label={t.account.passwordWithRule}
         fresh
         value={password}
         issue={issues.password}
@@ -110,14 +107,15 @@ function SignUpPage() {
             className="m-3 size-5 shrink-0 accent-(--accent)"
           />
           <p className="pt-2.5 text-sm text-muted">
-            <label htmlFor="agreed">我已年满 18 岁，并同意</label>
+            <label htmlFor="agreed">{t.account.signUpPage.agree}</label>
             <Link to="/me/terms" className="text-highlight">
-              用户协议
+              {t.account.terms}
             </Link>
-            和
+            {t.account.signUpPage.and}
             <Link to="/me/privacy" className="text-highlight">
-              隐私政策
+              {t.account.privacy}
             </Link>
+            {t.account.signUpPage.agreeEnd}
           </p>
         </div>
         {issues.agreed && (
@@ -127,9 +125,9 @@ function SignUpPage() {
         )}
       </div>
       <FormIssue issue={issue} />
-      <SubmitButton busy={busy}>发送验证码</SubmitButton>
+      <SubmitButton busy={busy}>{t.account.sendCode}</SubmitButton>
       <Link to="/me/sign-in" className={`${textLinkClass} self-center`}>
-        已有账户？登录
+        {t.account.signUpPage.toSignIn}
       </Link>
     </AuthPage>
   );

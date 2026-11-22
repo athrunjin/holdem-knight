@@ -1,6 +1,7 @@
 import { parseInsuranceRule, withOdds } from "@holdem-knight/core";
 import { ArrowLeftRight } from "lucide-react";
 import { ConfigMenu } from "@/components/ConfigMenu";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useSettledChange } from "@/lib/settled-change";
 import type { InsuranceMode } from "./InsuranceCalculator";
@@ -9,8 +10,8 @@ import { type InsuranceChoice, InsuranceSettings, useInsuranceConfigs } from "./
 import { OddsTableMenu } from "./OddsTableMenu";
 
 const MODES = [
-  { id: "cards", label: "选牌计算" },
-  { id: "outs", label: "Outs数速算" },
+  { id: "cards", label: t.insurance.insuranceHeader.pickCards },
+  { id: "outs", label: t.insurance.insuranceHeader.quickOuts },
 ] as const;
 
 /**
@@ -43,11 +44,11 @@ export function ModeTitle({
   ));
   return (
     <span className="flex items-center whitespace-nowrap">
-      <span className="sr-only">保险计算：</span>
+      <span className="sr-only">{t.insurance.insuranceHeader.insurance}</span>
       {cards}
       <button
         type="button"
-        aria-label="切换计算方式"
+        aria-label={t.insurance.insuranceHeader.switchHowItsWorkedOut}
         onClick={() => onChange(mode === "cards" ? "outs" : "cards")}
         className="grid h-11 w-9 shrink-0 place-items-center text-highlight"
       >
@@ -99,7 +100,7 @@ export function InsuranceSetup({
     <div className="contents" {...(settleTyping && settled.containerProps)}>
       <div className="flex items-center justify-between gap-4">
         <ConfigMenu
-          label="保险设置"
+          label={t.insurance.insuranceHeader.insuranceSettings}
           choices={configs.rules.map(({ id, name }) => ({ id, name }))}
           selectedId={configs.selectedId}
           modified={configs.modified}

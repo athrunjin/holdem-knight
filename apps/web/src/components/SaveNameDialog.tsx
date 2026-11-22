@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { FormDialog } from "@/components/game/FormDialog";
 import { TextField } from "@/components/TextField";
+import { t } from "@/i18n";
 
 interface SaveNameDialogProps {
   title: string;
@@ -33,13 +34,13 @@ export function SaveNameDialog({
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const trimmed = name.trim();
-    setIssue(trimmed === "" ? "请输入名称" : onSave(trimmed));
+    setIssue(trimmed === "" ? t.common.enterAName : onSave(trimmed));
   }
 
   return (
     <FormDialog
       title={title}
-      submitLabel="保存"
+      submitLabel={t.common.save}
       saving={saving}
       saveFailed={saveFailed}
       focusCancel

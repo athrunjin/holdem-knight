@@ -23,33 +23,18 @@
 }
 
 :root {
-  --bg: var(--color-felt-50);
-  --surface: #ffffff;
-  --text: #15211c;
-  --muted: #5b6b64;
-  --line: #d3ddd7;
-  --accent: var(--color-felt-700);
-  --accent-text: var(--color-bone);
-  --highlight: var(--color-chip-gold-deep);
-  --win: #1d7a57;
-  --loss: #b3392f;
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: var(--color-felt-950);
-    --surface: var(--color-felt-900);
-    --text: #e7ede9;
-    --muted: #93a59d;
-    --line: #26413a;
-    --accent: var(--color-felt-500);
-    --accent-text: var(--color-felt-950);
-    --highlight: var(--color-chip-gold);
-    --win: #5cc79f;
-    --loss: #ef8a7f;
-    color-scheme: dark;
-  }
+  /* Dark is the only mode: the app looks the same whatever the device is set to */
+  --bg: var(--color-felt-950);
+  --surface: var(--color-felt-900);
+  --text: #e7ede9;
+  --muted: #93a59d;
+  --line: #26413a;
+  --accent: var(--color-felt-500);
+  --accent-text: var(--color-felt-950);
+  --highlight: var(--color-chip-gold);
+  --win: #5cc79f;
+  --loss: #ef8a7f;
+  color-scheme: dark;
 }
 
 @theme {

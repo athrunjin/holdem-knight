@@ -64,6 +64,7 @@ import {
   useSaveChargeRule,
 } from "@/data/charge-rules";
 import { useConfigFollowers } from "@/data/game-configs";
+import { t } from "@/i18n";
 import { RAKE_ROUNDING_NAMES, ROUNDING_NAMES } from "@/lib/charges";
 import { cn } from "@/lib/cn";
 import { removalQuestion, updateQuestion } from "@/lib/config-text";
@@ -90,12 +91,12 @@ export const DEFAULT_PRESET = "default";
 export const CUSTOM_PRESET = "custom";
 
 const ISSUE_TEXT: Record<ChargeIssue, string> = {
-  invalid: "请输入有效的数字",
-  "not-positive": "必须大于 0",
-  "same-hours": "开始和结束不能相同",
-  overlap: "时段不能重叠，合计不能超过 24 小时",
-  "not-rising": "后一段的小时数要比前一段大",
-  "too-many": `分段合计不能超过 ${MAX_WAGE_SEGMENTS_IN_ALL} 个`,
+  invalid: t.game.chargeSettings.enterAValidNumber,
+  "not-positive": t.game.chargeSettings.mustBeMoreThan0,
+  "same-hours": t.game.chargeSettings.startAndEndCantBeThe,
+  overlap: t.game.chargeSettings.periodsCantOverlapOrAddUp,
+  "not-rising": t.game.chargeSettings.eachStepNeedsMoreHoursThan,
+  "too-many": t.game.chargeSettings.atMostStepsInAll(MAX_WAGE_SEGMENTS_IN_ALL),
 };
 
 const issueText = (issue: ChargeIssue | undefined) => issue && ISSUE_TEXT[issue];
@@ -148,10 +149,10 @@ type ChargeKind = SavedChargeRule["kind"];
  * it, as in 默认工资设置, so they are told apart from the other sections' and the whole setup's.
  */
 export const CONFIG_NAMES: Record<ChargeKind, string> = {
-  basics: "基础设置",
-  table_fee: "台费设置",
-  wage: "工资设置",
-  rake: "抽水设置",
+  basics: t.game.chargeSettings.basics,
+  table_fee: t.game.chargeSettings.timeChargeSettings,
+  wage: t.game.chargeSettings.dealerWageSettings,
+  rake: t.game.chargeSettings.rakeSettings,
 };
 
 /**
@@ -191,7 +192,11 @@ export function useChargePresets<Rule, Form>(
     currency !== undefined && setIn(r) !== undefined && setIn(r) !== currency;
   const choices: Preset<Form>[] = [
     ...(lastShown ? [{ id: LAST_PRESET, name: lastLabel, form: toForm(last) }] : []),
-    { id: DEFAULT_PRESET, name: `默认${CONFIG_NAMES[kind]}`, form: toForm(fallback) },
+    {
+      id: DEFAULT_PRESET,
+      name: t.game.chargeSettings.default(CONFIG_NAMES[kind]),
+      form: toForm(fallback),
+    },
     ...[...saved.filter((r) => !foreign(r)), ...saved.filter(foreign)].map((r) => {
       const mark = setIn(r);
       return {
@@ -262,7 +267,7 @@ export function PresetPicker<Form>({
       onRemove={(id) => {
         const preset = choices.find((choice) => choice.id === id);
         const using = followers({ section: SECTION_OF_KIND[kind], id });
-        if (preset && window.confirm(removalQuestion("设置", preset.name, using))) {
+        if (preset && window.confirm(removalQuestion(t.common.settings, preset.name, using))) {
           removeRule.mutate(id);
         }
       }}
@@ -326,7 +331,7 @@ export function SaveChargeConfig({
 
   function handleSave(name: string) {
     const rule = read();
-    if (!rule) return "设置里有无效的数值";
+    if (!rule) return t.game.chargeSettings.someSettingsArentValid;
     const existing = all.find((r) => r.kind === kind && r.name === name);
     const fields = fieldsOf(rule);
     const saved = existing
@@ -353,7 +358,7 @@ export function SaveChargeConfig({
             onClick={handleUpdate}
             className="min-h-11 min-w-0 truncate text-sm font-medium text-highlight disabled:opacity-60"
           >
-            更新「{base.name}」
+            {t.game.chargeSettings.update(base.name)}
           </button>
         )}
         {(visible || naming) && (
@@ -362,19 +367,23 @@ export function SaveChargeConfig({
             onClick={() => setNaming(true)}
             className="min-h-11 shrink-0 text-sm font-medium text-highlight"
           >
-            {updating ? "另存为" : `保存${named}`}
+            {updating ? t.game.chargeSettings.saveAs : t.game.chargeSettings.save(named)}
           </button>
         )}
       </div>
       {saveRule.isError && !naming && (
         <p role="alert" className="text-right text-sm text-highlight">
-          保存失败，请重试。
+          {t.common.couldntSaveTryAgain}
         </p>
       )}
       {naming && (
         <SaveNameDialog
-          title={`保存${named}，下次快速应用？`}
-          label={note ? `名称，同名会覆盖；${note}` : "名称，同名会覆盖"}
+          title={t.game.chargeSettings.saveTheseToApplyQuicklyNext(named)}
+          label={
+            note
+              ? t.game.chargeSettings.nameAnExistingNameIsOverwritten(note)
+              : t.game.chargeSettings.nameAnExistingNameIsOverwritten2
+          }
           initialName={datedName(named, new Set(takenNames))}
           saving={saveRule.isPending}
           saveFailed={saveRule.isError}
@@ -446,10 +455,14 @@ function InlineNumber({
 }
 
 const hourName = (hour: number) =>
-  hour === 0 ? "0点（凌晨）" : hour === 12 ? "12点（中午）" : `${hour}点`;
+  hour === 0
+    ? t.game.chargeSettings.n000Midnight
+    : hour === 12
+      ? t.game.chargeSettings.n1200Noon
+      : t.game.chargeSettings.n00(hour);
 const HOURS = Array.from({ length: 24 }, (_, hour) => ({ id: String(hour), name: hourName(hour) }));
 const NO_END = "";
-const NO_END_NAME = "不选择截止时间";
+const NO_END_NAME = t.game.chargeSettings.noEndTime;
 
 /** A whole hour from a list, or for an end, no end at all. */
 function HourPicker({
@@ -471,14 +484,14 @@ function HourPicker({
     ...(allowNoEnd ? [{ id: NO_END, name: NO_END_NAME }] : []),
     ...HOURS.filter(({ id }) => id !== except),
   ];
-  const name = value === NO_END ? "不截止" : hourName(Number(value));
+  const name = value === NO_END ? t.game.chargeSettings.noEnd : hourName(Number(value));
 
   return (
     <>
       <button
         type="button"
         aria-haspopup="dialog"
-        aria-label={`${title}：${value === NO_END ? NO_END_NAME : name}`}
+        aria-label={`${title}${t.common.colon}${value === NO_END ? NO_END_NAME : name}`}
         onClick={() => setOpen(true)}
         className="flex min-h-11 items-center gap-0.5 font-medium"
       >
@@ -568,14 +581,14 @@ export function TableFeeSettings({
   return (
     <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
-        label="台费"
-        info="每位玩家每局收一次，只计对局计时器运行时的在桌时间，结算时计入组织者"
+        label={t.common.timeCharge}
+        info={t.game.chargeSettings.chargedOncePerPlayerPerGame}
         checked={enabled}
         accessory={
           enabled && (
             <PresetPicker
               kind="table_fee"
-              title="台费设置"
+              title={t.game.chargeSettings.timeChargeSettings}
               choices={choices}
               source={selectedId}
               modified={modified}
@@ -590,17 +603,21 @@ export function TableFeeSettings({
           <div className="flex min-h-11 items-center justify-between gap-3">
             <span className="flex items-center gap-2">
               <label htmlFor="table-fee-amount" className="font-medium">
-                基础台费
+                {t.game.chargeSettings.baseCharge}
               </label>
-              {minutes === 0 && <span className="text-xs text-highlight">上桌就收</span>}
+              {minutes === 0 && (
+                <span className="text-xs text-highlight">
+                  {t.game.chargeSettings.chargedOnSittingDown}
+                </span>
+              )}
             </span>
             <InlineNumber
               id="table-fee-amount"
-              label="基础台费"
+              label={t.game.chargeSettings.baseCharge}
               value={form.amount}
               invalid={shown.amount !== undefined}
               prefix={CURRENCY_INFO[currency].symbol}
-              suffix="/ 人 / 台"
+              suffix={t.game.chargeSettings.playerGame}
               minChars={6}
               format={formatMoneyText}
               onChange={(amount) => setForm({ amount })}
@@ -609,8 +626,10 @@ export function TableFeeSettings({
           {shown.amount && <p className="text-sm text-highlight">{issueText(shown.amount)}</p>}
           {/* Fixed at 5 minutes; a game set up with another time keeps it */}
           <Toggle
-            label={`在桌满 ${minutes > 0 ? minutes : DEFAULT_TABLE_FEE.minMinutes} 分钟收`}
-            detail="防止误添加玩家产生台费"
+            label={t.game.chargeSettings.chargedAfterMinAtTheTable(
+              minutes > 0 ? minutes : DEFAULT_TABLE_FEE.minMinutes,
+            )}
+            detail={t.game.chargeSettings.keepsAPlayerAddedByMistake}
             checked={minutes > 0}
             onChange={(on) =>
               setForm({ minMinutes: on ? String(DEFAULT_TABLE_FEE.minMinutes) : "0" })
@@ -637,10 +656,10 @@ export function TableFeeSettings({
 
 /** How the unit reads after 精确到 at setup. */
 const SETUP_UNIT_NAMES: Record<WageUnitMinutes, string> = {
-  1: "每分钟",
-  15: "每15分",
-  30: "每30分",
-  60: "每小时",
+  1: t.game.chargeSettings.perMinute,
+  15: t.game.chargeSettings.per15Min,
+  30: t.game.chargeSettings.per30Min,
+  60: t.game.chargeSettings.perHour,
 };
 
 const UNIT_OPTIONS = WAGE_UNITS.map((unit) => ({
@@ -654,10 +673,10 @@ const ROUNDING_OPTIONS = WAGE_ROUNDINGS.map((mode) => ({
 }));
 
 const ROUNDING_INFO = [
-  "每位玩家的在桌时间，从坐下起按「精确到」的时长切成一段一段，只计对局计时器运行的时间。最后不满一段的超出部分：",
-  "四舍五入：满半段算一段，不满半段不收。",
-  "向上取整：不满一段也算一段。",
-  "向下取整：不满一段不收。",
+  t.game.chargeSettings.eachPlayersTimeAtTheTable,
+  t.game.chargeSettings.roundHalfABlockOrMore,
+  t.game.chargeSettings.roundUpAnyPartOfA,
+  t.game.chargeSettings.roundDownAPartOfA,
 ].join("\n");
 
 /**
@@ -751,14 +770,14 @@ export function WageSettings({
   return (
     <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
-        label="工资"
-        info="按每位玩家的在桌时长计算，计时器暂停时不计，结算时计入组织者"
+        label={t.common.dealerWage}
+        info={t.game.chargeSettings.workedOutFromEachPlayersTime}
         checked={enabled}
         accessory={
           enabled && (
             <PresetPicker
               kind="wage"
-              title="工资设置"
+              title={t.game.chargeSettings.dealerWageSettings}
               choices={choices}
               source={selectedId}
               modified={modified}
@@ -772,15 +791,15 @@ export function WageSettings({
         <>
           <div className="flex min-h-11 items-center justify-between gap-3">
             <label htmlFor="wage-hourly" className="font-medium">
-              基础薪资
+              {t.game.chargeSettings.baseRate}
             </label>
             <InlineNumber
               id="wage-hourly"
-              label="基础薪资"
+              label={t.game.chargeSettings.baseRate}
               value={form.hourly}
               invalid={shown.hourly !== undefined}
               prefix={symbol}
-              suffix="/小时"
+              suffix={t.game.chargeSettings.hr}
               format={formatMoneyText}
               onChange={(hourly) => setForm({ hourly })}
             />
@@ -789,8 +808,8 @@ export function WageSettings({
 
           <div className="-mt-2 flex flex-wrap items-center justify-between gap-x-3 text-sm">
             <TextMenu
-              label="精确到"
-              caption="精确到"
+              label={t.game.chargeSettings.countBy}
+              caption={t.game.chargeSettings.countBy}
               options={UNIT_OPTIONS}
               value={String(form.unitMinutes)}
               onChange={(unit) => setForm({ unitMinutes: Number(unit) as WageUnitMinutes })}
@@ -798,11 +817,11 @@ export function WageSettings({
             />
             <span className="flex items-center">
               <span className="mr-1 flex items-center text-xs text-muted">
-                <InfoButton title="超出部分" text={ROUNDING_INFO} inline />
-                超出部分
+                <InfoButton title={t.game.chargeSettings.leftover} text={ROUNDING_INFO} inline />
+                {t.game.chargeSettings.leftover}
               </span>
               <TextMenu
-                label="取整方式"
+                label={t.game.chargeSettings.rounding}
                 options={ROUNDING_OPTIONS}
                 value={form.rounding}
                 onChange={(rounding) => setForm({ rounding })}
@@ -818,7 +837,7 @@ export function WageSettings({
             onClick={() => setSegmentsOpen(!expanded)}
             className="flex min-h-11 w-full items-center justify-between font-medium"
           >
-            分段薪资
+            {t.game.chargeSettings.steppedRates}
             <ChevronDown
               className={cn("size-5 text-muted transition-transform", expanded && "rotate-180")}
               aria-hidden
@@ -828,15 +847,17 @@ export function WageSettings({
           {expanded && (
             <div className="flex flex-col gap-1 pb-2">
               {form.timeOn && form.afterOn && (
-                <p className="text-sm text-highlight">两项都开启时，取先到来的较大值。</p>
+                <p className="text-sm text-highlight">
+                  {t.game.chargeSettings.withBothOnWhicheverHigherRate}
+                </p>
               )}
               {shown.segments && (
                 <p className="text-sm text-highlight">{issueText(shown.segments)}</p>
               )}
 
               <Toggle
-                label="根据时间"
-                info="按开局所在地的时间。开局时已在时段内，从开局起就按该时段算；否则从下一次到达开始时间算起。"
+                label={t.game.chargeSettings.byTimeOfDay}
+                info={t.game.chargeSettings.byTheTimeWhereTheGame}
                 checked={form.timeOn}
                 onChange={(on) => switchKind("time", on)}
               />
@@ -846,19 +867,19 @@ export function WageSettings({
                     {time.map((row, i) => (
                       // biome-ignore lint/suspicious/noArrayIndexKey: rows are places in a chain
                       <li key={i} className="flex flex-wrap items-center gap-x-1 text-sm">
-                        <span className="text-muted">从</span>
+                        <span className="text-muted">{t.game.chargeSettings.from}</span>
                         {i === 0 ? (
                           <HourPicker
-                            title="开始时间"
+                            title={t.game.chargeSettings.startTime}
                             value={row.fromHour}
                             onChange={(fromHour) => setTime(i, { fromHour })}
                           />
                         ) : (
                           <span className="font-medium">{hourName(Number(row.fromHour))}</span>
                         )}
-                        <span className="text-muted">到</span>
+                        <span className="text-muted">{t.game.chargeSettings.to}</span>
                         <HourPicker
-                          title="截止时间"
+                          title={t.game.chargeSettings.endTime}
                           value={row.toHour}
                           allowNoEnd={i === time.length - 1}
                           except={row.fromHour}
@@ -868,7 +889,7 @@ export function WageSettings({
                           {/* Before the rate, so every rate lines up on the right with the base rate */}
                           {i > 0 && (
                             <SmallButton
-                              label={`删除第 ${i + 1} 段`}
+                              label={t.game.chargeSettings.deleteStep(i + 1)}
                               onClick={() => setForm({ timeSegments: time.slice(0, i) })}
                             >
                               <X className="size-4" aria-hidden />
@@ -876,11 +897,11 @@ export function WageSettings({
                           )}
                           <InlineNumber
                             id={`wage-time-${i}`}
-                            label={`第 ${i + 1} 段时薪`}
+                            label={t.game.chargeSettings.hourlyRateOfStep(i + 1)}
                             value={row.hourly}
                             invalid={shown[`time-${i}-hourly`] !== undefined}
                             prefix={symbol}
-                            suffix="/小时"
+                            suffix={t.game.chargeSettings.hr}
                             format={formatMoneyText}
                             onChange={(hourly) => setTime(i, { hourly })}
                           />
@@ -897,7 +918,7 @@ export function WageSettings({
                   )}
                   {canAddTime && (
                     <SmallButton
-                      label="增加时段"
+                      label={t.game.chargeSettings.addAPeriod}
                       onClick={() =>
                         setForm({
                           timeSegments: [
@@ -914,8 +935,8 @@ export function WageSettings({
               )}
 
               <Toggle
-                label="根据时长"
-                info="按对局计时器的时间算，暂停不算"
+                label={t.game.chargeSettings.byTimePlayed}
+                info={t.game.chargeSettings.byTheGameClockPausesDont}
                 checked={form.afterOn}
                 onChange={(on) => switchKind("after", on)}
               />
@@ -925,22 +946,22 @@ export function WageSettings({
                     {after.map((row, i) => (
                       // biome-ignore lint/suspicious/noArrayIndexKey: rows are places in a list
                       <li key={i} className="flex items-center gap-x-1 text-sm">
-                        <span className="text-muted">开局</span>
+                        <span className="text-muted">{t.game.chargeSettings.start}</span>
                         <InlineNumber
                           id={`wage-after-hours-${i}`}
-                          label={`第 ${i + 1} 段开局小时数`}
+                          label={t.game.chargeSettings.hoursIntoTheGameForStep(i + 1)}
                           value={row.afterHours}
                           invalid={shown[`after-${i}-afterHours`] !== undefined}
                           wholeNumber
                           minChars={2}
                           onChange={(afterHours) => setAfter(i, { afterHours })}
                         />
-                        <span className="text-muted">小时后</span>
+                        <span className="text-muted">{t.game.chargeSettings.hrIn}</span>
                         <span className="ml-auto flex items-center">
                           {/* Before the rate, so every rate lines up on the right with the base rate */}
                           {i > 0 && (
                             <SmallButton
-                              label={`删除第 ${i + 1} 段`}
+                              label={t.game.chargeSettings.deleteStep(i + 1)}
                               onClick={() =>
                                 setForm({ afterSegments: after.filter((_, j) => j !== i) })
                               }
@@ -950,11 +971,11 @@ export function WageSettings({
                           )}
                           <InlineNumber
                             id={`wage-after-${i}`}
-                            label={`第 ${i + 1} 段时薪`}
+                            label={t.game.chargeSettings.hourlyRateOfStep(i + 1)}
                             value={row.hourly}
                             invalid={shown[`after-${i}-hourly`] !== undefined}
                             prefix={symbol}
-                            suffix="/小时"
+                            suffix={t.game.chargeSettings.hr}
                             format={formatMoneyText}
                             onChange={(hourly) => setAfter(i, { hourly })}
                           />
@@ -964,12 +985,14 @@ export function WageSettings({
                   </ul>
                   {(shown.after || after.some((_, i) => shown[`after-${i}-afterHours`])) && (
                     <p className="text-sm text-highlight">
-                      {shown.after ? issueText(shown.after) : "小时数请填 1–48 的整数"}
+                      {shown.after
+                        ? issueText(shown.after)
+                        : t.game.chargeSettings.hoursMustBeAWholeNumber}
                     </p>
                   )}
                   {canAddAfter && (
                     <SmallButton
-                      label="增加开局时间段"
+                      label={t.game.chargeSettings.addAStep}
                       onClick={() => {
                         const last = after.at(-1);
                         const hours = Number(last?.afterHours ?? DEFAULT_AFTER_HOURS);
@@ -1017,12 +1040,12 @@ const RAKE_ROUNDING_OPTIONS = RAKE_ROUNDINGS.map((mode) => ({
 }));
 
 const RAKE_ROUNDING_INFO = [
-  "每手抽水按比例算出后，不满一个最小筹码面值的零头：",
-  "· 四舍五入：满半个面值进一个，不满半个舍去",
-  "· 向下取整：零头舍去",
-  "· 向上取整：有零头就进一个",
-  "封顶也按最小筹码面值向下取整，所以取整后的抽水不会超过封顶。",
-  "关闭取整时，按整个筹码向下取整。",
+  t.game.chargeSettings.afterEachHandsRakeIsWorked,
+  t.game.chargeSettings.roundHalfAChipOrMore,
+  t.game.chargeSettings.roundDownThePartIsDropped,
+  t.game.chargeSettings.roundUpAnyPartGoesUp,
+  t.game.chargeSettings.theCapIsRoundedDownTo,
+  t.game.chargeSettings.withRoundingOffTheRakeIs,
 ].join("\n");
 
 /** The game's blinds and chip ratio as typed, for showing rake amounts in chips and points. */
@@ -1123,7 +1146,7 @@ function RakeAmountFigures({
   return (
     <span className="contents font-medium">
       <FigureInput
-        label={`${label}（${mark}）`}
+        label={`${label}${t.common.openParen}${mark}${t.common.closeParen}`}
         value={unit === blind ? amount : blinds === null ? "" : blindText(blinds)}
         onChange={(text) => onChange(blind, text)}
         invalid={invalid}
@@ -1133,10 +1156,10 @@ function RakeAmountFigures({
         <span aria-hidden className="text-xl leading-none">
           ⇔
         </span>
-        <span className="sr-only">即</span>
+        <span className="sr-only">{t.common.equals}</span>
       </Join>
       <FigureInput
-        label={`${label}（${inPoints ? "积分" : "筹码"}）`}
+        label={`${label}${t.common.openParen}${inPoints ? t.game.chargeSettings.currency : t.common.chips}${t.common.closeParen}`}
         value={right}
         onChange={typeRight}
         onBlur={() => setDraft(null)}
@@ -1148,7 +1171,10 @@ function RakeAmountFigures({
       />
       <button
         type="button"
-        aria-label={`${label}显示${inPoints ? "积分" : "筹码"}，点击切换`}
+        aria-label={t.game.chargeSettings.showingAsTapToSwitch(
+          label,
+          inPoints ? t.game.chargeSettings.currency : t.common.chips,
+        )}
         onClick={() => {
           setDraft(null);
           setInPoints(!inPoints);
@@ -1200,10 +1226,10 @@ function MaxPotLine({
   // A row of the rake grid: its caption, then the pot under the chips above it
   return (
     <span className="contents font-medium">
-      <Caption>等值最大底池:</Caption>
+      <Caption>{t.game.chargeSettings.equalToAPotOf}</Caption>
       <span className="col-start-6">
         <FigureInput
-          label="等值最大底池（筹码）"
+          label={t.game.chargeSettings.equalToAPotOfChips}
           value={draft ?? (maxPot ? String(maxPot) : "")}
           onChange={typePot}
           onBlur={() => setDraft(null)}
@@ -1333,7 +1359,7 @@ function RakeFields({
     <span className="contents font-medium">
       <span className="col-start-6">
         <FigureInput
-          label={`${label}（筹码）`}
+          label={t.game.chargeSettings.chips(label)}
           value={amount}
           onChange={onAmount}
           tidy={chipsText}
@@ -1350,12 +1376,12 @@ function RakeFields({
     <>
       <div className="flex min-h-11 items-center justify-between gap-3">
         <label htmlFor="rake-percent" className="font-medium">
-          比例
+          {t.game.chargeSettings.ratio}
         </label>
         <span className="flex items-center">
           <InlineNumber
             id="rake-percent"
-            label="抽水比例"
+            label={t.game.chargeSettings.rake}
             value={form.percent}
             invalid={shown.percent !== undefined}
             suffix="%"
@@ -1369,7 +1395,7 @@ function RakeFields({
             onChange={(percent) => setForm({ percent })}
           />
           <TextMenu
-            label="抽水比例快速选择"
+            label={t.game.chargeSettings.quickRake}
             options={PERCENT_OPTIONS}
             value={PERCENT_OPTIONS.find((o) => Number(o.value) === Number(form.percent))?.value}
             onChange={(percent) => setForm({ percent })}
@@ -1380,7 +1406,7 @@ function RakeFields({
       </div>
       {shown.percent && (
         <p role="alert" className="text-right text-sm text-highlight">
-          比例要大于 0、小于 100，最多两位小数
+          {t.game.chargeSettings.mustBeMoreThan0And}
         </p>
       )}
 
@@ -1391,9 +1417,9 @@ function RakeFields({
       */}
       <div className={FIGURE_GRID}>
         <span className={titleCell}>
-          <span className={figureTitleClass(form.capOn)}>封顶</span>
+          <span className={figureTitleClass(form.capOn)}>{t.game.chargeSettings.cap}</span>
           <MiniSwitch
-            label="封顶"
+            label={t.game.chargeSettings.cap}
             hideLabel
             checked={form.capOn}
             onChange={(capOn) => setForm({ capOn })}
@@ -1401,10 +1427,10 @@ function RakeFields({
         </span>
         {form.capOn && (
           <>
-            <Caption>单笔最多收:</Caption>
+            <Caption>{t.game.chargeSettings.atMostPerPot}</Caption>
             {chipsOnly ? (
               chipsFigure(
-                "封顶",
+                t.game.chargeSettings.cap,
                 form.capAmount,
                 shown.capAmount !== undefined,
                 (capAmount) => setForm({ capUnit: "chips", capAmount }),
@@ -1414,7 +1440,7 @@ function RakeFields({
               )
             ) : (
               <RakeAmountFigures
-                label="封顶"
+                label={t.game.chargeSettings.cap}
                 blind="bigBlinds"
                 use="cap"
                 unit={form.capUnit}
@@ -1435,14 +1461,14 @@ function RakeFields({
 
         {takesNothing && (
           <p role="alert" className="col-span-full pb-1 text-right text-xs text-highlight">
-            封顶不到一个最小筹码面值，这样每手抽水都是 0
+            {t.game.chargeSettings.theCapIsUnderOneSmallest}
           </p>
         )}
 
         <span className={titleCell}>
-          <span className={figureTitleClass(form.roundOn)}>取整</span>
+          <span className={figureTitleClass(form.roundOn)}>{t.game.chargeSettings.rounding2}</span>
           <MiniSwitch
-            label="取整"
+            label={t.game.chargeSettings.rounding2}
             hideLabel
             checked={form.roundOn}
             onChange={(roundOn) => setForm({ roundOn })}
@@ -1450,16 +1476,16 @@ function RakeFields({
         </span>
         {form.roundOn && (
           <>
-            <Caption>最小筹码面值:</Caption>
+            <Caption>{t.game.chargeSettings.smallestChip}</Caption>
             {chipsOnly ? (
               chipsFigure(
-                "最小筹码面值",
+                t.game.chargeSettings.smallestChip2,
                 form.roundAmount,
                 shown.roundAmount !== undefined,
                 (roundAmount) => setForm({ roundUnit: "chips", roundAmount }),
                 <span className="justify-self-end">
                   <TextMenu
-                    label="最小筹码面值快速选择"
+                    label={t.game.chargeSettings.quickSmallestChip}
                     options={SMALLEST_CHIP_PICKS}
                     value={
                       SMALLEST_CHIP_PICKS.find((pick) => pick.value === form.roundAmount.trim())
@@ -1473,7 +1499,7 @@ function RakeFields({
               )
             ) : (
               <RakeAmountFigures
-                label="最小筹码面值"
+                label={t.game.chargeSettings.smallestChip2}
                 blind="smallBlinds"
                 use="smallestChip"
                 unit={form.roundUnit}
@@ -1485,13 +1511,13 @@ function RakeFields({
               />
             )}
             <Caption>
-              <InfoButton title="超出部分" text={RAKE_ROUNDING_INFO} inline />
-              超出部分:
+              <InfoButton title={t.game.chargeSettings.leftover} text={RAKE_ROUNDING_INFO} inline />
+              {t.game.chargeSettings.leftover2}
             </Caption>
             {/* Its chevron sits under the chip mark above */}
             <span className="col-span-5 col-start-3 justify-self-end">
               <TextMenu
-                label="超出部分"
+                label={t.game.chargeSettings.leftover}
                 options={RAKE_ROUNDING_OPTIONS}
                 value={form.rounding}
                 onChange={(rounding) => setForm({ rounding })}
@@ -1505,16 +1531,19 @@ function RakeFields({
 
       <div className="flex min-h-11 items-center justify-between gap-3">
         <span className="flex items-center text-sm text-muted">
-          保险报价先扣除抽水
+          {t.game.chargeSettings.takeRakeBeforeQuotingInsurance}
           <InfoButton
-            title="保险报价先扣除抽水"
-            text={
-              "开启后，算保险时先从底池扣除这一手的抽水，再按剩下的底池报价。\n这项还在开发中，暂时不能开启。"
-            }
+            title={t.game.chargeSettings.takeRakeBeforeQuotingInsurance}
+            text={t.game.chargeSettings.whenOnAHandsRakeComes}
           />
         </span>
         {/* Not in effect yet, so held off whatever a rule from before has kept */}
-        <MiniSwitch label="开发中" checked={false} disabled onChange={() => undefined} />
+        <MiniSwitch
+          label={t.game.chargeSettings.inProgress}
+          checked={false}
+          disabled
+          onChange={() => undefined}
+        />
       </div>
 
       <SaveChargeConfig
@@ -1523,7 +1552,7 @@ function RakeFields({
         visible={presets.isNew(form)}
         base={presets.base}
         modified={presets.modified}
-        {...(chipsOnly && { note: "封顶和最小筹码面值沿用原设置的盲注数值" })}
+        {...(chipsOnly && { note: t.game.chargeSettings.theCapAndTheSmallestChip })}
         read={() => presets.kept(form)}
         onSaved={(id) => onChange({ ...value, source: id, form: presets.afterSaving(form) })}
       />
@@ -1552,16 +1581,16 @@ export function RakeSettings({
   return (
     <section className="flex flex-col gap-1 rounded-xl border border-line bg-surface px-4 py-2">
       <Toggle
-        label="抽水"
-        {...(locked && { detail: "这局已有抽水记录，不能关闭" })}
-        info="按每手底池的比例计算，抽水只计入组织者（Host）"
+        label={t.common.rake}
+        {...(locked && { detail: t.game.chargeSettings.thisGameAlreadyHasRakeRecorded })}
+        info={t.game.chargeSettings.aPercentageOfEachPotRake}
         checked={enabled}
         disabled={locked}
         accessory={
           enabled && (
             <PresetPicker
               kind="rake"
-              title="抽水设置"
+              title={t.game.chargeSettings.rakeSettings}
               choices={presets.choices}
               source={presets.selectedId}
               modified={presets.modified}
@@ -1623,7 +1652,7 @@ export function RakeSettingsPanel({
   stakes,
   chipsOnly = false,
   lastRule,
-  lastRuleLabel = "上次抽水设置",
+  lastRuleLabel = t.game.chargeSettings.lastRakeSettings,
   lastSource,
   defaultOpen,
   onChange,
@@ -1642,12 +1671,12 @@ export function RakeSettingsPanel({
   return (
     <div className="flex flex-col gap-1" {...settled.containerProps}>
       <div className="-mt-2 -mr-3 flex items-center gap-1.5">
-        <h2 className="shrink-0 text-lg font-semibold">抽水计算</h2>
+        <h2 className="shrink-0 text-lg font-semibold">{t.game.chargeSettings.rakeCalculator}</h2>
         <span aria-hidden className="text-muted">
           ·
         </span>
         <ConfigMenu
-          label="抽水设置"
+          label={t.game.chargeSettings.rakeSettings}
           choices={presets.choices.map(({ id, name, removable }) => ({
             id,
             name,
@@ -1661,7 +1690,7 @@ export function RakeSettingsPanel({
         />
         <button
           type="button"
-          aria-label="展开抽水设置"
+          aria-label={t.game.chargeSettings.showRakeSettings}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
           className="ml-auto grid size-11 shrink-0 place-items-center text-muted"

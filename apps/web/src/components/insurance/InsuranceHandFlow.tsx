@@ -23,6 +23,7 @@ import {
 } from "@holdem-knight/core";
 import { Plus, RotateCcw } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import { t } from "@/i18n";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { BOARD_PLACES, CardFace } from "./CardFace";
@@ -70,7 +71,7 @@ interface InsuranceHandFlowProps {
   seat: SeatChips | undefined;
 }
 
-const STREET_TEXT = { turn: "转牌", river: "河牌" } as const;
+const STREET_TEXT = { turn: t.common.turn, river: t.common.river } as const;
 
 /** The hand with the dead money it starts with, marked as not yet set. */
 const withPresetPools = (hand: InsuranceHand): InsuranceHand => ({
@@ -136,7 +137,11 @@ function StreetCards({
   return (
     <button
       type="button"
-      aria-label={empty ? `选择${label}` : `修改${label}`}
+      aria-label={
+        empty
+          ? t.insurance.insuranceHandFlow.select(label)
+          : t.insurance.insuranceHandFlow.edit(label)
+      }
       disabled={disabled}
       onClick={onPick}
       className={cn(frame, "disabled:opacity-40")}
@@ -181,33 +186,45 @@ function SettleStep({
   const result = handResult(hand);
   return (
     <section className="mt-3 rounded-xl border border-line bg-surface p-3">
-      <h2 className="font-semibold">{STREET_TEXT[street]}保险结算</h2>
-      {purchases.length === 0 && <p className="mt-1 text-sm text-muted">这条街没有投保。</p>}
+      <h2 className="font-semibold">
+        {t.insurance.insuranceHandFlow.insuranceSettlement(STREET_TEXT[street])}
+      </h2>
+      {purchases.length === 0 && (
+        <p className="mt-1 text-sm text-muted">
+          {t.insurance.insuranceHandFlow.noInsuranceOnThisStreet}
+        </p>
+      )}
       <ul className="divide-y divide-line">
         {purchases.map((purchase) => (
           <li key={purchase.id} className="py-2">
             <p className="flex items-baseline justify-between gap-2">
               <span className="min-w-0 truncate font-medium">{nameOf(purchase.playerId)}</span>
               <span className={cn("shrink-0 font-semibold", purchase.hit && "text-highlight")}>
-                {purchase.hit ? `命中 · 赔付 ${chipText(purchase.payoutChips)}` : "未中"}
+                {purchase.hit
+                  ? t.insurance.insuranceHandFlow.hitPayout(chipText(purchase.payoutChips))
+                  : t.insurance.insuranceHandFlow.missed}
               </span>
             </p>
             <p className="text-sm text-muted tabular-nums">
-              {purchase.tie ? `平分 ${purchase.outs.length} 张` : `${purchase.outs.length} outs`} ·
-              保费 {chipText(purchase.premiumChips)}
+              {purchase.tie
+                ? t.insurance.insuranceHandFlow.tieOn(purchase.outs.length)
+                : `${purchase.outs.length} outs`}{" "}
+              {t.insurance.insuranceHandFlow.premium} {chipText(purchase.premiumChips)}
             </p>
           </li>
         ))}
       </ul>
       {last && (
         <p className="mt-2 border-t border-line pt-2 text-sm">
-          本手保费 {chipText(result.premiumChips)} · 赔付 {chipText(result.payoutChips)} · 保险盈亏{" "}
+          {t.insurance.insuranceHandFlow.premiumThisHand} {chipText(result.premiumChips)}{" "}
+          {t.insurance.insuranceHandFlow.payout} {chipText(result.payoutChips)}{" "}
+          {t.insurance.insuranceHandFlow.insurancePL}{" "}
           <span className="font-semibold">{formatSignedChips(result.seatChips)}</span>
         </p>
       )}
       <div className="mt-3 grid grid-cols-2 gap-2">
         <button type="button" onClick={onChangeCard} className={secondaryClass}>
-          改这张牌
+          {t.insurance.insuranceHandFlow.changeThisCard}
         </button>
         <button
           type="button"
@@ -215,7 +232,7 @@ function SettleStep({
           onClick={onConfirm}
           className="min-h-11 rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40"
         >
-          确认结算
+          {t.insurance.insuranceHandFlow.confirm}
         </button>
       </div>
     </section>
@@ -225,14 +242,18 @@ function SettleStep({
 /** What a hand still needs before its insurance can be priced, in the order it is entered. */
 function missingParts(hand: InsuranceHand, nameOf: (id: string) => string): string[] {
   return [
-    ...(hand.board.length < 3 ? ["翻牌"] : []),
-    ...(hand.players.length < MIN_PLAYERS ? ["两位玩家"] : []),
+    ...(hand.board.length < 3 ? [t.insurance.insuranceHandFlow.flop] : []),
+    ...(hand.players.length < MIN_PLAYERS ? [t.insurance.insuranceHandFlow.twoPlayers] : []),
     ...hand.players.flatMap((player) => {
       const parts = [
-        ...(player.cover || player.chips > 0 ? [] : ["筹码"]),
-        ...(player.cards.length === 2 ? [] : ["手牌"]),
+        ...(player.cover || player.chips > 0 ? [] : [t.common.chips]),
+        ...(player.cards.length === 2 ? [] : [t.insurance.insuranceHandFlow.holeCards]),
       ];
-      return parts.length > 0 ? [`${nameOf(player.playerId)}（${parts.join("、")}）`] : [];
+      return parts.length > 0
+        ? [
+            `${nameOf(player.playerId)}${t.common.openParen}${parts.join(t.common.listSeparator)}${t.common.closeParen}`,
+          ]
+        : [];
     }),
   ];
 }
@@ -267,7 +288,7 @@ export function InsuranceHandFlow({
   const [notice, setNotice] = useState<string>();
 
   const hand = withFirstPlayers(kept, seats);
-  const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? "未知玩家";
+  const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? t.common.unknownPlayer;
   const totals = potTotals(handPotEntries(hand));
   const street = nextStreet(hand.board);
 
@@ -321,7 +342,7 @@ export function InsuranceHandFlow({
   }
 
   function discard() {
-    if (!window.confirm("放弃这手保险？已录入的内容不会保留。")) return;
+    if (!window.confirm(t.insurance.insuranceHandFlow.dropThisHandsInsuranceWhatWas)) return;
     store?.discard(hand.id);
     reset();
   }
@@ -363,7 +384,12 @@ export function InsuranceHandFlow({
         skippedOuts: {},
         splitOuts: {},
       });
-    else setNotice(store ? "桌上没有更多玩家了。" : "玩家已经加满了。");
+    else
+      setNotice(
+        store
+          ? t.insurance.insuranceHandFlow.noMorePlayersAtTheTable
+          : t.insurance.insuranceHandFlow.noRoomForMorePlayers,
+      );
   }
 
   /** Counted chips are the player's true stack, so they go to the table once typing is done. */
@@ -440,7 +466,7 @@ export function InsuranceHandFlow({
       {
         key: "dead-money",
         tone: "dead",
-        label: "死钱",
+        label: t.common.deadMoney,
         chips: totals.deadChips,
         onSelect: editable ? () => deadRef.current?.focus() : undefined,
       },
@@ -465,13 +491,20 @@ export function InsuranceHandFlow({
   const marks = playerMarks(hand.players.map((p) => nameOf(p.playerId)));
   const flopCards = hand.board.slice(0, 3);
   const targets: CardTarget[] = [
-    { id: "flop", label: "翻牌", count: 3, cards: flopCards, mark: "翻", tone: "board" },
+    {
+      id: "flop",
+      label: t.insurance.insuranceHandFlow.flop,
+      count: 3,
+      cards: flopCards,
+      mark: t.insurance.insuranceHandFlow.flopShort,
+      tone: "board",
+    },
     {
       id: "turn",
-      label: "转牌",
+      label: t.common.turn,
       count: 1,
       cards: hand.board.slice(3, 4),
-      mark: "转",
+      mark: t.insurance.insuranceHandFlow.turnShort,
       tone: "board",
       // The turn comes after a whole flop
       disabled: flopCards.length < 3,
@@ -495,12 +528,12 @@ export function InsuranceHandFlow({
       {hand.step !== "summary" && (
         <>
           <section aria-labelledby="hand-pot-title" className="mt-1">
-            <SectionTitle id="hand-pot-title" title="底池信息" />
+            <SectionTitle id="hand-pot-title" title={t.insurance.insuranceHandFlow.pot} />
             <div className="relative flex flex-wrap items-stretch justify-center gap-1.5">
               {/* The arrow sits at the end of the flop's own name, and clears the board only */}
               <div className="relative flex">
                 <StreetCards
-                  label="翻牌"
+                  label={t.insurance.insuranceHandFlow.flop}
                   cards={flopCards}
                   count={3}
                   onPick={editable ? () => pickFor("flop") : undefined}
@@ -508,7 +541,7 @@ export function InsuranceHandFlow({
                 {editable && (
                   <button
                     type="button"
-                    aria-label="清空翻牌和转牌"
+                    aria-label={t.insurance.insuranceHandFlow.clearTheFlopAndTurn}
                     onClick={() => {
                       heldTurn.current = undefined;
                       saveBoard([]);
@@ -520,7 +553,9 @@ export function InsuranceHandFlow({
                 )}
               </div>
               <StreetCards
-                label={hand.board.length > 3 ? "转牌" : "转牌·可选"}
+                label={
+                  hand.board.length > 3 ? t.common.turn : t.insurance.insuranceHandFlow.turnOptional
+                }
                 cards={hand.board.slice(3, 4)}
                 count={1}
                 optional
@@ -528,7 +563,7 @@ export function InsuranceHandFlow({
                 onPick={editable ? () => pickFor("turn") : undefined}
               />
               {hand.board.length === 5 && (
-                <StreetCards label="河牌" cards={hand.board.slice(4)} count={1} />
+                <StreetCards label={t.common.river} cards={hand.board.slice(4)} count={1} />
               )}
               <span aria-hidden className="mx-1 w-px self-stretch bg-line" />
               <DeadMoney
@@ -557,9 +592,14 @@ export function InsuranceHandFlow({
           </section>
 
           <section aria-labelledby="hand-players-title" className="mt-3">
-            <SectionTitle id="hand-players-title" title="池内玩家" />
+            <SectionTitle
+              id="hand-players-title"
+              title={t.insurance.insuranceHandFlow.playersInThePot}
+            />
             {seats.length < MIN_PLAYERS && (
-              <p className="mb-2 text-sm text-muted">桌上至少要有两位玩家，才能算保险。</p>
+              <p className="mb-2 text-sm text-muted">
+                {t.insurance.insuranceHandFlow.insuranceNeedsAtLeastTwoPlayers}
+              </p>
             )}
             <ul className="flex flex-col gap-2">
               {hand.players.map((player, index) => {
@@ -600,13 +640,15 @@ export function InsuranceHandFlow({
                                 index < MIN_PLAYERS
                                   ? {
                                       kind: "reset",
-                                      label: `清空${nameOf(playerId)}的手牌`,
+                                      label: t.insurance.insuranceHandFlow.clearSHoleCards(
+                                        nameOf(playerId),
+                                      ),
                                       onSelect: () =>
                                         update(withPlayer(playerId, { cards: [], cover: false })),
                                     }
                                   : {
                                       kind: "remove",
-                                      label: `删除${nameOf(playerId)}`,
+                                      label: t.insurance.insuranceHandFlow.delete(nameOf(playerId)),
                                       onSelect: () =>
                                         update({
                                           ...hand,
@@ -630,7 +672,7 @@ export function InsuranceHandFlow({
               })}
             </ul>
             {editable && (
-              <RoundAction label="添加玩家" onSelect={addPlayer}>
+              <RoundAction label={t.insurance.insuranceHandFlow.addAPlayer} onSelect={addPlayer}>
                 <Plus className="size-4" aria-hidden />
               </RoundAction>
             )}
@@ -660,15 +702,21 @@ export function InsuranceHandFlow({
 
       {(entering || hand.step === "buy") && (
         <section aria-labelledby="hand-insurance-title" className="mt-3">
-          <SectionTitle id="hand-insurance-title" title="保险信息" />
+          <SectionTitle id="hand-insurance-title" title={t.insurance.insuranceHandFlow.insurance} />
           {!pricing && (
             <p className="text-sm text-muted">
               {missing.length > 0
-                ? `还差：${missing.join("、")}。填好后这里直接显示保险。`
-                : "只能有一位玩家 Cover，至少两位玩家才能算保险。"}
+                ? t.insurance.insuranceHandFlow.stillNeededInsuranceShowsHereOnce(
+                    missing.join(t.common.listSeparator),
+                  )
+                : t.insurance.insuranceHandFlow.onlyOnePlayerCanCoverAnd}
             </p>
           )}
-          {pricing && !street && <p className="text-sm text-muted">公共牌已发完，没有保险可买。</p>}
+          {pricing && !street && (
+            <p className="text-sm text-muted">
+              {t.insurance.insuranceHandFlow.theBoardIsCompleteSoThere}
+            </p>
+          )}
           {pricing && street && (
             <>
               {blocks.map(({ first, group }) => (
@@ -688,7 +736,7 @@ export function InsuranceHandFlow({
                 onClick={() => update({ ...hand, step: "deal" })}
                 className={cn(primaryClass, "mt-3")}
               >
-                记录{STREET_TEXT[street]}
+                {t.insurance.insuranceHandFlow.record(STREET_TEXT[street])}
               </button>
             </>
           )}
@@ -724,14 +772,17 @@ export function InsuranceHandFlow({
           onClick={discard}
           className="mt-2 min-h-11 w-full rounded-xl text-sm text-muted"
         >
-          放弃这手
+          {t.insurance.insuranceHandFlow.dropThisHand}
         </button>
       )}
 
       {managed && (
         <OutsManager
-          title={`${potName(managed.potIndex, potCount)} ${managed.kind === "tie" ? "平分" : "反超"} Outs 管理`}
-          kindText={managed.kind === "tie" ? "平分" : "反超"}
+          title={t.insurance.insuranceHandFlow.outs(
+            potName(managed.potIndex, potCount),
+            managed.kind === "tie" ? t.common.tie : t.common.outdraw,
+          )}
+          kindText={managed.kind === "tie" ? t.common.tie : t.common.outdraw}
           cards={managed.allOuts}
           plan={{
             skipped: managed.skippedOuts,
@@ -778,7 +829,10 @@ export function InsuranceHandFlow({
               label: STREET_TEXT[street],
               count: 1,
               cards: dealt === undefined ? [] : [dealt],
-              mark: street === "turn" ? "转" : "河",
+              mark:
+                street === "turn"
+                  ? t.insurance.insuranceHandFlow.turnShort
+                  : t.insurance.insuranceHandFlow.riverShort,
               tone: "board",
             },
           ]}

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { type ChangeEvent, useRef, useState } from "react";
 import { repository } from "@/data";
 import { parseBackup, serializeBackup } from "@/data/backup";
+import { t } from "@/i18n";
 import { shareFile } from "@/lib/share";
 
 const buttonClass = "min-h-12 rounded-xl border border-line px-4 font-medium disabled:opacity-60";
@@ -14,7 +15,7 @@ type Status = { tone: "ok" | "error"; text: string };
  * before changing devices or clearing the browser, or the account's, as a copy to keep.
  */
 export function BackupSection({ account }: { account: boolean }) {
-  const here = account ? "账户里" : "本机";
+  const text = t.me.backup;
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -41,8 +42,10 @@ export function BackupSection({ account }: { account: boolean }) {
         `holdem-knight-backup-${day}.json`,
       );
     } catch (error) {
-      const reason = error instanceof Error ? `（${error.name}）` : "";
-      setStatus({ tone: "error", text: `导出失败${reason}，请重试。` });
+      setStatus({
+        tone: "error",
+        text: text.exportFailed(error instanceof Error ? error.name : ""),
+      });
     } finally {
       setBusy(false);
     }
@@ -59,10 +62,7 @@ export function BackupSection({ account }: { account: boolean }) {
       if (!parsed.ok) {
         setStatus({
           tone: "error",
-          text:
-            parsed.issue === "newer-version"
-              ? "这个备份来自更新的版本，请先刷新应用。"
-              : "文件无法识别，请选择 Hold’em Knight 导出的备份。",
+          text: parsed.issue === "newer-version" ? text.newerVersion : text.unreadable,
         });
         return;
       }
@@ -72,9 +72,11 @@ export function BackupSection({ account }: { account: boolean }) {
       setStatus({
         tone: "ok",
         text:
-          result.skipped > 0
-            ? `恢复完成：新增 ${result.added} 条，跳过 ${result.skipped} 条${here}已有的记录。`
-            : `恢复完成：新增 ${result.added} 条记录。`,
+          result.skipped === 0
+            ? text.restored(result.added)
+            : account
+              ? text.restoredSkippingAccount(result.added, result.skipped)
+              : text.restoredSkippingGuest(result.added, result.skipped),
       });
     } catch (error) {
       setStatus({
@@ -82,9 +84,11 @@ export function BackupSection({ account }: { account: boolean }) {
         text:
           error instanceof ForeignOrganizerError
             ? account
-              ? "这个备份不是这个账户导出的，不能恢复到账户里。"
-              : "这个备份属于其他账户，不能恢复。"
-            : `恢复失败，${here}的数据没有改动。`,
+              ? text.foreignAccount
+              : text.foreignGuest
+            : account
+              ? text.failedAccount
+              : text.failedGuest,
       });
     } finally {
       setBusy(false);
@@ -93,15 +97,11 @@ export function BackupSection({ account }: { account: boolean }) {
 
   return (
     <section className="mt-4 rounded-2xl border border-line bg-surface p-5">
-      <p className="font-medium">数据备份</p>
-      <p className="mt-1 text-sm text-muted">
-        {account
-          ? "导出账户里的全部记录，留作备份。恢复只新增记录，不会覆盖账户里已有的数据。"
-          : "换手机或清理浏览器数据后，本机记录会丢失。定期导出备份，需要时再恢复。恢复只新增记录，不会覆盖本机已有的数据。"}
-      </p>
+      <p className="font-medium">{text.title}</p>
+      <p className="mt-1 text-sm text-muted">{account ? text.bodyAccount : text.bodyGuest}</p>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <button type="button" disabled={busy} onClick={handleExport} className={buttonClass}>
-          导出备份
+          {text.export}
         </button>
         <button
           type="button"
@@ -109,14 +109,14 @@ export function BackupSection({ account }: { account: boolean }) {
           onClick={() => fileInput.current?.click()}
           className={buttonClass}
         >
-          恢复备份
+          {text.restore}
         </button>
       </div>
       <input
         ref={fileInput}
         type="file"
         accept="application/json,.json"
-        aria-label="选择备份文件"
+        aria-label={text.chooseFile}
         onChange={handleImport}
         className="hidden"
       />

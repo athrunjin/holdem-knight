@@ -10,6 +10,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Modal } from "@/components/insurance/Modal";
 import { RollingNumber } from "@/components/RollingNumber";
+import { localeTag, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { selectOnFocus } from "@/lib/number-input";
 
@@ -36,13 +37,17 @@ const RECENT_ENTRIES = 3;
 /** How a rake was put in: from a pot, added by hand, or the total typed over. */
 type EntryInput = "pot" | "added" | "set";
 
-const INPUT_NAMES: Record<EntryInput, string> = { pot: "底池", added: "增量", set: "修改" };
+const INPUT_NAMES: Record<EntryInput, string> = {
+  pot: t.game.rakeDialog.pot,
+  added: t.game.rakeDialog.added,
+  set: t.game.rakeDialog.edit,
+};
 
 /** Rakes from before `typedOver` was kept count a fall as typed over, as nothing else lowers it. */
 const inputOf = ({ potChips, typedOver, chips }: RakeEntry): EntryInput =>
   potChips !== undefined ? "pot" : typedOver || chips < 0 ? "set" : "added";
 
-const ENTRY_TIME = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" });
+const ENTRY_TIME = new Intl.DateTimeFormat(localeTag, { hour: "2-digit", minute: "2-digit" });
 
 interface RakeDialogProps {
   /** The rake recorded so far, in chips */
@@ -228,7 +233,7 @@ export function RakeDialog({
 
       <div className="mt-3 grid grid-cols-[minmax(0,5fr)_auto_minmax(0,6fr)_auto_minmax(0,5fr)] items-center gap-x-1 gap-y-1 text-center">
         <label htmlFor="rake-pot" className="col-span-5 text-sm text-muted">
-          输入底池计算新增
+          {t.game.rakeDialog.enterAPotToWorkOut}
         </label>
         <input
           id="rake-pot"
@@ -244,11 +249,11 @@ export function RakeDialog({
         />
 
         {/* The pot gives the rake under it; the captions of the row of three share its line */}
-        <span className="col-start-1 mt-1 text-sm text-muted">当前已有</span>
+        <span className="col-start-1 mt-1 text-sm text-muted">{t.game.rakeDialog.soFar}</span>
         <span className="col-start-3 text-lg leading-none text-muted" aria-hidden>
           ⇓
         </span>
-        <span className="col-start-5 mt-1 text-sm text-muted">更新后</span>
+        <span className="col-start-5 mt-1 text-sm text-muted">{t.game.rakeDialog.after}</span>
 
         {/* The saved rake rolls over the field until it is tapped to be typed over */}
         <div className="relative col-start-1">
@@ -256,7 +261,7 @@ export function RakeDialog({
             type="text"
             inputMode="numeric"
             autoComplete="off"
-            aria-label="当前已有抽水，点击修改"
+            aria-label={t.game.rakeDialog.rakeSoFarTapToEdit}
             value={currentText ?? String(currentChips)}
             aria-invalid={invalid(currentText ?? "", null)}
             onChange={(event) => {
@@ -292,8 +297,8 @@ export function RakeDialog({
           type="text"
           inputMode="numeric"
           autoComplete="off"
-          aria-label="新增抽水"
-          placeholder="手动输入新增"
+          aria-label={t.game.rakeDialog.newRake}
+          placeholder={t.game.rakeDialog.typeTheRakeToAdd}
           value={addText}
           aria-invalid={invalid(addText, 0)}
           onChange={(event) => handleAdd(event.target.value)}
@@ -319,7 +324,9 @@ export function RakeDialog({
           )}
         </p>
 
-        <span className="col-start-1 self-start text-xs text-muted">点击修改</span>
+        <span className="col-start-1 self-start text-xs text-muted">
+          {t.game.rakeDialog.tapToEdit}
+        </span>
         <button
           type="button"
           disabled={!pending || saving}
@@ -332,13 +339,13 @@ export function RakeDialog({
             armed && "animate-flash ring-2 ring-highlight",
           )}
         >
-          更新
+          {t.game.rakeDialog.update}
         </button>
       </div>
 
       {saveFailed && (
         <p role="alert" className="mt-3 text-center text-sm text-highlight">
-          保存失败，请重试。
+          {t.common.couldntSaveTryAgain}
         </p>
       )}
 
@@ -349,9 +356,9 @@ export function RakeDialog({
           onClick={handleUndo}
           className="flex min-h-14 flex-col items-center justify-center rounded-xl border border-line px-4 disabled:opacity-40"
         >
-          <span className="font-medium">撤销</span>
+          <span className="font-medium">{t.game.rakeDialog.undo}</span>
           <span className="text-[11px] leading-tight text-muted tabular-nums">
-            退回至：{undoTo === undefined ? "—" : undoTo.toLocaleString("zh-CN")}
+            {t.game.rakeDialog.backTo(undoTo === undefined ? "—" : undoTo.toLocaleString("zh-CN"))}
           </span>
         </button>
         <BackButton armed={armed} onClick={handleBack} />
@@ -369,7 +376,7 @@ export function RakeDialog({
  * the right, so the text changes color where the green ends.
  */
 function BackButton({ armed, onClick }: { armed: boolean; onClick: () => void }) {
-  const label = armed ? "不保存该更新并返回" : "返回";
+  const label = armed ? t.game.rakeDialog.discardThisUpdateAndGoBack : t.common.back;
   return (
     <button
       type="button"
@@ -405,13 +412,13 @@ interface RecordsProps {
  */
 function RakeRecords({ entries, rule, blinds }: RecordsProps) {
   const [showingAll, setShowingAll] = useState(false);
-  const title = `记录 (${entries.length})`;
+  const title = t.game.rakeDialog.log(entries.length);
   return (
     <section className="mt-4">
       <button
         type="button"
         onClick={() => setShowingAll(true)}
-        aria-label={`${title}，点击查看全部`}
+        aria-label={t.game.rakeDialog.tapToSeeAll(title)}
         className="flex min-h-11 items-center gap-1.5 text-sm font-medium text-highlight"
       >
         <ScrollText className="size-4" aria-hidden />
@@ -419,14 +426,14 @@ function RakeRecords({ entries, rule, blinds }: RecordsProps) {
       </button>
       <RecordsTable entries={entries} rule={rule} blinds={blinds} limit={RECENT_ENTRIES} />
       {showingAll && (
-        <Modal title={`抽水${title}`} onClose={() => setShowingAll(false)}>
+        <Modal title={t.game.rakeDialog.rake(title)} onClose={() => setShowingAll(false)}>
           <RecordsTable entries={entries} rule={rule} blinds={blinds} />
           <form method="dialog">
             <button
               type="submit"
               className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
             >
-              返回
+              {t.common.back}
             </button>
           </form>
         </Modal>
@@ -463,11 +470,11 @@ function RecordsTable({ entries, rule, blinds, limit }: RecordsProps & { limit?:
     <table className="w-full table-fixed text-sm tabular-nums">
       <thead>
         <tr className="border-b border-line">
-          <th className={cn(head, "w-[18%] text-left")}>时间</th>
-          <th className={cn(head, "w-[16%] text-left")}>输入</th>
-          <th className={cn(head, "text-right")}>底池</th>
-          <th className={cn(head, "text-right")}>变化</th>
-          <th className={cn(head, "text-right")}>总抽水</th>
+          <th className={cn(head, "w-[18%] text-left")}>{t.game.rakeDialog.time}</th>
+          <th className={cn(head, "w-[16%] text-left")}>{t.game.rakeDialog.entered}</th>
+          <th className={cn(head, "text-right")}>{t.game.rakeDialog.pot}</th>
+          <th className={cn(head, "text-right")}>{t.game.rakeDialog.change}</th>
+          <th className={cn(head, "text-right")}>{t.game.rakeDialog.totalRake}</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-line">

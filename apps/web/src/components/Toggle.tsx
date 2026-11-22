@@ -1,6 +1,7 @@
 import { Info } from "lucide-react";
 import { type ReactNode, useId, useState } from "react";
 import { Modal } from "@/components/insurance/Modal";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 interface ToggleProps {
@@ -38,7 +39,7 @@ export function Toggle({
       {info && (
         <button
           type="button"
-          aria-label={`${label}说明`}
+          aria-label={t.ui.toggle.about(label)}
           onClick={() => setShowInfo(true)}
           className="-my-1 grid size-9 shrink-0 place-items-center text-muted"
         >
@@ -76,7 +77,7 @@ export function Toggle({
             onClick={() => setShowInfo(false)}
             className="mt-3 min-h-11 w-full rounded-xl border border-line font-medium"
           >
-            知道了
+            {t.ui.toggle.gotIt}
           </button>
         </Modal>
       )}

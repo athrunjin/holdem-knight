@@ -4,7 +4,7 @@ import { type FormEvent, useRef, useState } from "react";
 import { TextField } from "@/components/TextField";
 import { signOut } from "@/data/auth";
 import { useAccount, useRenameAccount } from "@/data/session";
-import { NAME_ISSUE_TEXT } from "./AuthParts";
+import { t } from "@/i18n";
 
 const rowClass = "flex min-h-11 items-center justify-between gap-3";
 
@@ -47,7 +47,7 @@ function AccountCode({ code }: { code: string }) {
     <dd className="flex min-w-0 items-center">
       {state !== "idle" && (
         <span role="status" className="mr-2 text-xs text-muted">
-          {state === "copied" ? "已复制" : "复制失败，请手动抄写"}
+          {state === "copied" ? t.me.account.copied : t.me.account.copyFailed}
         </span>
       )}
       <span ref={shown} className="font-medium tabular-nums select-all">
@@ -55,7 +55,7 @@ function AccountCode({ code }: { code: string }) {
       </span>
       <button
         type="button"
-        aria-label="复制账户编号"
+        aria-label={t.me.account.copyCode}
         onClick={handleCopy}
         className="-mr-3 grid size-11 shrink-0 place-items-center text-muted"
       >
@@ -85,7 +85,7 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
     event.preventDefault();
     const shown = parseDisplayName(editing ?? "");
     if (!shown.ok) {
-      setNameIssue(NAME_ISSUE_TEXT[shown.issue]);
+      setNameIssue(t.account.nameIssue[shown.issue]);
       return;
     }
     rename.mutate(shown.value, { onSuccess: () => setEditing(undefined) });
@@ -106,16 +106,16 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
             }}
             className="min-h-11 shrink-0 text-sm font-medium text-highlight disabled:opacity-60"
           >
-            改昵称
+            {t.me.account.rename}
           </button>
         </div>
       ) : (
         <form onSubmit={handleRename} noValidate className="flex flex-col gap-3">
           <TextField
             id="display-name"
-            label="昵称"
+            label={t.account.name}
             value={editing}
-            issue={nameIssue ?? (rename.isError ? "保存失败，请重试" : undefined)}
+            issue={nameIssue ?? (rename.isError ? t.me.account.renameFailed : undefined)}
             inputMode="text"
             selectOnFocus
             onChange={(next) => {
@@ -125,14 +125,14 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
           />
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => setEditing(undefined)} className={buttonClass}>
-              取消
+              {t.common.cancel}
             </button>
             <button
               type="submit"
               disabled={rename.isPending}
               className="min-h-11 rounded-xl bg-accent px-4 font-semibold text-accent-text disabled:opacity-60"
             >
-              保存
+              {t.common.save}
             </button>
           </div>
         </form>
@@ -140,23 +140,21 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
 
       <dl className="mt-2 divide-y divide-line text-sm">
         <div className={rowClass}>
-          <dt className="shrink-0 text-muted">账户编号</dt>
+          <dt className="shrink-0 text-muted">{t.me.account.code}</dt>
           {account ? <AccountCode code={account.code} /> : <dd />}
         </div>
         <div className={rowClass}>
-          <dt className="shrink-0 text-muted">邮箱</dt>
+          <dt className="shrink-0 text-muted">{t.me.account.email}</dt>
           <dd className="min-w-0 truncate">{email}</dd>
         </div>
       </dl>
       {isError && (
         <p role="alert" className="mt-2 text-sm text-highlight">
-          账户信息没有读出来，请检查网络后重试。
+          {t.me.account.unread}
         </p>
       )}
 
-      <p className="mt-3 text-sm text-muted">
-        已登录。牌局和玩家记录保存在云端的账户里，需要联网才能读写。这台设备上登录前的游客记录没有带进账户，退出登录后还在。
-      </p>
+      <p className="mt-3 text-sm text-muted">{t.me.account.note}</p>
       <button
         type="button"
         disabled={leaving}
@@ -167,7 +165,7 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
         }}
         className={`${buttonClass} mt-4 w-full`}
       >
-        退出登录
+        {t.common.signOut}
       </button>
     </section>
   );

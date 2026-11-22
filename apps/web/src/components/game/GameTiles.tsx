@@ -5,6 +5,7 @@ import { type ReactNode, useState } from "react";
 import { ChipStack } from "@/components/ChipStack";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { organizerNameOf } from "@/data";
+import { localeTag, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
 
@@ -26,7 +27,7 @@ function formatStart(time: number) {
   const date = new Date(time);
   const pad = (value: number) => String(value).padStart(2, "0");
   const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  const weekday = date.toLocaleDateString("zh-CN", { weekday: "short" });
+  const weekday = date.toLocaleDateString(localeTag, { weekday: "short" });
   return `${day} ${weekday} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
@@ -100,7 +101,7 @@ function useCashOrChips(game: Pick<Game, "chipRatio" | "currency">) {
   const markClass = "absolute top-1 right-1 size-3 text-muted";
   return {
     show,
-    hint: `，点按切换为${inChips ? "金额" : "筹码"}`,
+    hint: t.game.gameTiles.tapToShow(inChips ? t.common.amount : t.common.chips),
     toggle: () => setInChips(!inChips),
     mark: (
       <span aria-hidden>
@@ -124,7 +125,9 @@ export function BuyInTile({ game, boughtChips }: { game: TileGame; boughtChips: 
     <button type="button" onClick={toggle} className={cn(tileClass, "relative")}>
       {mark}
       <span className={labelClass}>
-        总 Buy-in{handChips !== undefined && ` · ${boughtChips / handChips}`}
+        {t.game.gameTiles.totalBuyIn(
+          handChips === undefined ? "" : ` · ${boughtChips / handChips}`,
+        )}
       </span>
       <span className="block">
         <Figure text={show(boughtChips)} />
@@ -144,7 +147,7 @@ export function BalanceTile({ game, balanceChips }: { game: TileGame; balanceChi
   if (balanceChips === 0) {
     return (
       <div className={cn(tileClass, "flex items-center justify-center gap-1 text-win")}>
-        <span className="font-semibold whitespace-nowrap">筹码配平</span>
+        <span className="font-semibold whitespace-nowrap">{t.game.gameTiles.chipBalance}</span>
         <Check className="size-4 shrink-0" aria-hidden />
       </div>
     );
@@ -153,11 +156,14 @@ export function BalanceTile({ game, balanceChips }: { game: TileGame; balanceChi
     <button type="button" onClick={toggle} className={cn(tileClass, "relative text-loss")}>
       {mark}
       <span className="flex items-center justify-center text-xs whitespace-nowrap">
-        未配平
+        {t.game.gameTiles.notBalanced}
         <X className="ml-0.5 size-3.5" aria-hidden />
       </span>
       <span className="block">
-        <Figure text={show(Math.abs(balanceChips))} lead={balanceChips > 0 ? "多" : "少"} />
+        <Figure
+          text={show(Math.abs(balanceChips))}
+          lead={balanceChips > 0 ? t.game.gameTiles.over : t.game.gameTiles.short}
+        />
       </span>
       <span className="sr-only">{hint}</span>
     </button>
@@ -182,7 +188,7 @@ export function TableActionsTile({
         className={cn(actionClass, !insuranceOn && "text-muted")}
       >
         <Calculator className="size-4" aria-hidden />
-        算保险
+        {t.game.gameTiles.insure}
       </Link>
       <span className="my-2 w-px bg-line" aria-hidden />
       <Link to="/games/$gameId/call-time" params={{ gameId }} className={actionClass}>

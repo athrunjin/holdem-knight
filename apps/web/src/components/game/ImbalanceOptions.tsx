@@ -1,4 +1,5 @@
 import type { ImbalanceHandling } from "@holdem-knight/core";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 interface ImbalanceOptionsProps {
@@ -20,9 +21,17 @@ function imbalanceChoices(
   organizerName: string,
 ): readonly (readonly [ImbalanceHandling, string])[] {
   return [
-    ["organizer", `${organizerName} ${differenceChips > 0 ? "承担" : "收取"} ${cash}`],
-    ["split", `按水${differenceChips > 0 ? "上" : "下"}比例分摊`],
-    ["ignore", "不做处理"],
+    [
+      "organizer",
+      `${organizerName} ${differenceChips > 0 ? t.game.imbalanceOptions.covers : t.common.keeps} ${cash}`,
+    ],
+    [
+      "split",
+      t.game.imbalanceOptions.splitByShareOf(
+        differenceChips > 0 ? t.game.imbalanceOptions.winnings : t.game.imbalanceOptions.losses,
+      ),
+    ],
+    ["ignore", t.game.imbalanceOptions.leaveAsIs],
   ];
 }
 
@@ -39,7 +48,7 @@ export function ImbalanceOptions({
 
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="sr-only">差额处理方式</legend>
+      <legend className="sr-only">{t.game.imbalanceOptions.howToHandleTheDifference}</legend>
       {options.map(([handling, label]) => (
         <button
           key={handling}

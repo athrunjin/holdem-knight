@@ -2,6 +2,7 @@ import type { InsuranceHandPlayer } from "@holdem-knight/core";
 import { RotateCcw } from "lucide-react";
 import { type ReactNode, type Ref, useId, useRef, useState } from "react";
 import { ChipStack } from "@/components/ChipStack";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { selectOnFocus } from "@/lib/number-input";
 import type { InsuranceSeat } from "./InsuranceCalculator";
@@ -140,7 +141,9 @@ export function DeadMoney({
     preset ? "border-dashed border-win/50 text-win" : "border-line bg-surface",
   );
   const stack = <ChipStack lit={chips > 0} />;
-  const name = <span className={cn("text-xs leading-4", !preset && "text-muted")}>死钱</span>;
+  const name = (
+    <span className={cn("text-xs leading-4", !preset && "text-muted")}>{t.common.deadMoney}</span>
+  );
   const amountClass = "h-[22px] text-base leading-[22px] font-semibold tabular-nums";
   if (!edits) {
     return (
@@ -162,7 +165,7 @@ export function DeadMoney({
         inputMode="numeric"
         autoComplete="off"
         enterKeyHint="done"
-        aria-label="死钱"
+        aria-label={t.common.deadMoney}
         value={text}
         // As wide as what it holds, so the frame fits the amount
         style={{ width: `${Math.max(1, text.length)}ch` }}

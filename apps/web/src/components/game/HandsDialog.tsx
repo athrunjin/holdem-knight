@@ -1,6 +1,7 @@
 import { type ChipRatio, type Currency, chipsToCents, parseChips } from "@holdem-knight/core";
 import { ArrowRight } from "lucide-react";
 import { type FormEvent, useState } from "react";
+import { t } from "@/i18n";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
@@ -50,7 +51,7 @@ export function HandsDialog({
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!valid) {
-      setIssue("请输入大于 0 的整数 Buy-in");
+      setIssue(t.game.handsDialog.enterAWholeNumberOfBuy);
     } else if (review && !confirming) {
       if (changed) setConfirming(true);
     } else {
@@ -66,12 +67,15 @@ export function HandsDialog({
       <FormDialog
         title={
           <>
-            {review.name} <span className={tone}>{by > 0 ? "增加" : "减少"}</span> {Math.abs(by)} 个
-            Buy-in
+            {review.name}{" "}
+            <span className={tone}>
+              {by > 0 ? t.game.handsDialog.more : t.game.handsDialog.less}
+            </span>{" "}
+            {Math.abs(by)} {t.game.handsDialog.buyIns}
           </>
         }
-        submitLabel="确认"
-        back={{ label: "返回", onBack: () => setConfirming(false) }}
+        submitLabel={t.common.confirm}
+        back={{ label: t.common.back, onBack: () => setConfirming(false) }}
         saving={saving}
         saveFailed={saveFailed}
         onSubmit={handleSubmit}
@@ -80,7 +84,7 @@ export function HandsDialog({
         <div>
           <div
             role="img"
-            aria-label={`${review.currentHands} 个 Buy-in 变为 ${hands} 个`}
+            aria-label={t.game.handsDialog.buyInsBecome(review.currentHands, hands)}
             className="flex items-end justify-center gap-4 text-3xl font-semibold tabular-nums"
           >
             <span className="text-muted">{review.currentHands}</span>
@@ -95,10 +99,12 @@ export function HandsDialog({
           </div>
           {/* Only this change. The stack follows it too, but that is not this step's news */}
           <p className="mt-2 text-center text-sm text-muted">
-            筹码量{" "}
+            {t.game.handsDialog.chips}{" "}
             <span className={cn("tabular-nums", tone)}>
-              {formatSignedChips(by * handChips)}（
-              {formatGameAmount(chipsToCents(by * handChips, ratio), currency, "exceptZero")}）
+              {formatSignedChips(by * handChips)}
+              {t.common.openParen}
+              {formatGameAmount(chipsToCents(by * handChips, ratio), currency, "exceptZero")}
+              {t.common.closeParen}
             </span>
           </p>
         </div>
@@ -109,7 +115,7 @@ export function HandsDialog({
   return (
     <FormDialog
       title={title}
-      submitLabel="确定"
+      submitLabel={t.common.ok}
       canSubmit={review ? changed : true}
       saving={saving}
       saveFailed={saveFailed}
@@ -127,7 +133,10 @@ export function HandsDialog({
         {issue && <p className="mt-1 text-sm text-highlight">{issue}</p>}
         {valid && (
           <p className="mt-1 text-sm text-muted">
-            {(hands * handChips).toLocaleString("zh-CN")} 筹码，{money(hands * handChips)}
+            {t.game.handsDialog.chips2(
+              (hands * handChips).toLocaleString("zh-CN"),
+              money(hands * handChips),
+            )}
           </p>
         )}
         {onRemove && (
@@ -136,7 +145,7 @@ export function HandsDialog({
             onClick={onRemove}
             className="mt-1 inline-flex min-h-11 items-center text-sm text-highlight"
           >
-            移出这局
+            {t.game.handsDialog.removeFromThisGame}
           </button>
         )}
       </div>

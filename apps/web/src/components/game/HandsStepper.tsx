@@ -1,6 +1,7 @@
 import { parseChips } from "@holdem-knight/core";
 import type { Ref } from "react";
 import { TextField } from "@/components/TextField";
+import { t } from "@/i18n";
 
 const stepClass = "size-12 shrink-0 rounded-xl border border-line text-xl font-semibold";
 
@@ -20,7 +21,7 @@ export function HandsStepper({ value, inputRef, onChange }: HandsStepperProps) {
     <div className="flex items-end gap-2">
       <button
         type="button"
-        aria-label="减 1 个 Buy-in"
+        aria-label={t.game.handsStepper.oneBuyInLess}
         onClick={() => step(-1)}
         className={stepClass}
       >
@@ -32,7 +33,7 @@ export function HandsStepper({ value, inputRef, onChange }: HandsStepperProps) {
           label="Buy-in"
           value={value}
           issue={undefined}
-          suffix="个"
+          suffix={t.game.handsStepper.buyInUnit}
           inputMode="numeric"
           selectOnFocus
           {...(inputRef ? { inputRef } : {})}
@@ -41,7 +42,7 @@ export function HandsStepper({ value, inputRef, onChange }: HandsStepperProps) {
       </div>
       <button
         type="button"
-        aria-label="加 1 个 Buy-in"
+        aria-label={t.game.handsStepper.oneBuyInMore}
         onClick={() => step(1)}
         className={stepClass}
       >

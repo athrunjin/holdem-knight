@@ -1,6 +1,7 @@
 import { type ChipRatio, type Currency, chipsToCents, parseChips } from "@holdem-knight/core";
 import { type FormEvent, useState } from "react";
 import { TextField } from "@/components/TextField";
+import { t } from "@/i18n";
 import { formatGameMoney } from "@/lib/currency";
 import { FormDialog } from "./FormDialog";
 
@@ -35,9 +36,9 @@ export function ChipAmountDialog({
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (chips === null) {
-      setIssue("请输入整数筹码数");
+      setIssue(t.game.chipAmountDialog.enterAWholeNumberOfChips);
     } else if (chips === 0) {
-      setIssue("必须大于 0");
+      setIssue(t.game.chipAmountDialog.mustBeMoreThan0);
     } else {
       onSubmit(chips);
     }
@@ -55,16 +56,16 @@ export function ChipAmountDialog({
       <div>
         <TextField
           id="chips"
-          label="筹码数"
+          label={t.game.chipAmountDialog.chips}
           value={value}
           issue={issue}
-          suffix="筹码"
+          suffix={t.common.chips}
           inputMode="numeric"
           onChange={setValue}
         />
         {chips !== null && (
           <p className="mt-1 text-sm text-muted">
-            等于 {formatGameMoney(chipsToCents(chips, ratio), currency)}
+            {t.game.chipAmountDialog.equals(formatGameMoney(chipsToCents(chips, ratio), currency))}
           </p>
         )}
       </div>

@@ -1,6 +1,7 @@
 import { parseOdds } from "@holdem-knight/core";
 import { Plus, X } from "lucide-react";
 import { useId } from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatOddsText, selectOnFocus } from "@/lib/number-input";
 
@@ -41,7 +42,7 @@ export function OddsGrid({ draft, onChange, readOnly = false }: OddsGridProps) {
               {!readOnly && i === last && last > 0 && (
                 <button
                   type="button"
-                  aria-label={`删除 ${i + 1} outs`}
+                  aria-label={t.insurance.oddsGrid.deleteOuts(i + 1)}
                   onClick={() => onChange(draft.slice(0, -1))}
                   className="relative z-10 -my-3 -mr-1.5 grid h-11 w-8 place-items-center"
                 >
@@ -74,7 +75,7 @@ export function OddsGrid({ draft, onChange, readOnly = false }: OddsGridProps) {
         <div className="flex items-end">
           <button
             type="button"
-            aria-label="增加一行"
+            aria-label={t.insurance.oddsGrid.addARow}
             onClick={() => onChange([...draft, draft.at(-1) ?? "1"])}
             className="grid min-h-11 w-full place-items-center rounded-lg border border-dashed border-line text-muted"
           >

@@ -1,5 +1,6 @@
 import type { CallTimePhase } from "@holdem-knight/core";
 import type { ReactNode } from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 const RADIUS = 46;
@@ -32,7 +33,7 @@ export function CallTimeDial({ phase, fraction, stroke, className, children }: C
       )}
     >
       <svg viewBox="0 0 100 100" className="absolute inset-0 size-full -rotate-90" aria-hidden>
-        <title>倒计时</title>
+        <title>{t.callTime.callTimeDial.countdown}</title>
         <circle
           cx="50"
           cy="50"

@@ -6,6 +6,7 @@ import {
   type PlayerChargeStatus,
   sum,
 } from "@holdem-knight/core";
+import { t } from "@/i18n";
 import { formatClock, formatSeatTime } from "@/lib/charges";
 import { formatGameMoney } from "@/lib/currency";
 import type { ResultLine } from "./ResultCards";
@@ -41,7 +42,10 @@ export function chargeLines(
   const billedMs = status.wageParts.reduce((all, part) => all + part.minutes, 0) * 60_000;
   const time: ResultLine = {
     key: "time",
-    label: `在桌 ${formatClock(status.seatedMs)}${wage ? ` · 计费 ${formatSeatTime(billedMs)}` : ""}`,
+    label: t.game.chargeLines.atTheTable(
+      formatClock(status.seatedMs),
+      wage ? t.game.chargeLines.charged(formatSeatTime(billedMs)) : "",
+    ),
     tone: "charge",
     note: true,
   };
@@ -52,7 +56,7 @@ export function chargeLines(
       label,
       amount: cents(-amount),
       tone: "charge",
-      group: kind === "wage" ? "工资" : "台费",
+      group: kind === "wage" ? t.common.dealerWage : t.common.timeCharge,
       waiver: {
         waived,
         disabled,
@@ -68,17 +72,25 @@ export function chargeLines(
       line(
         c,
         c.hourly === undefined || c.minutes === undefined
-          ? "工资"
-          : `工资 ${money(c.hourly)}/时 × ${formatSeatTime(c.minutes * 60_000)}`,
+          ? t.common.dealerWage
+          : t.game.chargeLines.dealerWageHr(money(c.hourly), formatSeatTime(c.minutes * 60_000)),
       ),
     );
   const fee = own.find((c) => c.kind === "table_fee");
-  if (fee) return [time, ...wages, line(fee, `台费 ${money(fee.amount)}/人`)];
+  if (fee)
+    return [time, ...wages, line(fee, t.game.chargeLines.timeChargePlayer(money(fee.amount)))];
   if (!tableFee) return [time, ...wages];
   const short = live
-    ? `台费 ${money(tableFee.amount)}/人 · 未满 差 ${Math.ceil(status.tableFeeShortMs / 60_000)} 分`
-    : `台费 ${money(tableFee.amount)}/人 · 未满 ${tableFee.minMinutes} 分钟`;
-  return [time, ...wages, { key: "table_fee", label: short, tone: "charge", group: "台费" }];
+    ? t.game.chargeLines.timeChargePlayerMinShort(
+        money(tableFee.amount),
+        Math.ceil(status.tableFeeShortMs / 60_000),
+      )
+    : t.game.chargeLines.timeChargePlayerUnderMin(money(tableFee.amount), tableFee.minMinutes);
+  return [
+    time,
+    ...wages,
+    { key: "table_fee", label: short, tone: "charge", group: t.common.timeCharge },
+  ];
 }
 
 /**
@@ -94,7 +106,7 @@ export function organizerIncomeLines(
 ): ResultLine[] {
   const due = (kind: Charge["kind"]) =>
     receives ? charges.filter((c) => c.kind === kind && !c.waived) : [];
-  const line = (group: "工资" | "台费", label: string, list: readonly Charge[]): ResultLine => {
+  const line = (group: string, label: string, list: readonly Charge[]): ResultLine => {
     const amount = sum(list.map((c) => c.amount));
     const shown = { key: group, label, group, tone: "charge" as const };
     return amount === 0 ? shown : { ...shown, amount };
@@ -102,7 +114,11 @@ export function organizerIncomeLines(
   const fees = due("table_fee");
   const price = game.tableFee && formatGameMoney(cents(game.tableFee.amount), game.currency);
   return [
-    line("工资", "工资", due("wage")),
-    line("台费", price ? `台费 ${price}/人 × ${fees.length}` : "台费", fees),
+    line(t.common.dealerWage, t.common.dealerWage, due("wage")),
+    line(
+      t.common.timeCharge,
+      price ? t.game.chargeLines.timeChargePlayer2(price, fees.length) : t.common.timeCharge,
+      fees,
+    ),
   ];
 }

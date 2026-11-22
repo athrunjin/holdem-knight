@@ -36,6 +36,7 @@ import {
 } from "@/components/insurance/InsuranceSettings";
 import { TextMenu } from "@/components/TextMenu";
 import { useConfigLibrary } from "@/data/config-library";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import {
@@ -55,7 +56,10 @@ import {
 import { chipsText, FigureInput, Join, Mark, pointsInputText, pointsText } from "./SetupFigures";
 
 /** What each currency is called as game points, after its mark. */
-const POINTS_NAMES: Record<Currency, string> = { AUD: "袋鼠分", CNY: "熊猫分" };
+const POINTS_NAMES: Record<Currency, string> = {
+  AUD: t.game.gameSettingsForm.kangarooPts,
+  CNY: t.game.gameSettingsForm.pandaPts,
+};
 
 /** A currency is listed as its mark and points name, and shown as its mark alone once chosen. */
 const CURRENCY_OPTIONS = CURRENCIES.map((currency) => ({
@@ -114,7 +118,7 @@ function QuickRow<T extends string>({
       </div>
       {/* Wider than its chevron for a thumb, reaching into the row's padding */}
       <TextMenu
-        label={`${label}快速选择`}
+        label={t.game.gameSettingsForm.quick(label)}
         options={picks.map((pick) => ({ ...pick, chosen: <></> }))}
         value={value}
         onChange={onPick}
@@ -230,20 +234,20 @@ export function GameSettingsForm({
   showInsurance = true,
   initialInsurance,
   lastInsurance,
-  lastInsuranceLabel = "上次保险设置",
+  lastInsuranceLabel = t.game.gameSettingsForm.lastInsuranceSettings,
   insuranceLocked = false,
   initialTableFee,
   lastTableFee,
-  lastTableFeeLabel = "上次台费设置",
+  lastTableFeeLabel = t.game.gameSettingsForm.lastTimeChargeSettings,
   initialWage,
   lastWage,
-  lastWageLabel = "上次工资设置",
+  lastWageLabel = t.game.gameSettingsForm.lastDealerWageSettings,
   initialRake,
   lastRake,
-  lastRakeLabel = "上次抽水设置",
+  lastRakeLabel = t.game.gameSettingsForm.lastRakeSettings,
   rakeLocked = false,
   lastBasics,
-  lastBasicsLabel = "上次基础设置",
+  lastBasicsLabel = t.game.gameSettingsForm.lastBasics,
   lastSources,
   saving,
   saveFailed,
@@ -436,10 +440,10 @@ export function GameSettingsForm({
         <div className="rounded-xl border border-line bg-surface">
           {/* Always open, so with no switch; its preset sits where the others' do */}
           <div className="flex min-h-12 items-center justify-between gap-3 px-4 pt-1">
-            <span className="font-medium">基础设置</span>
+            <span className="font-medium">{t.game.gameSettingsForm.basics}</span>
             <PresetPicker
               kind="basics"
-              title="基础设置"
+              title={t.game.gameSettingsForm.basics}
               choices={basicsPresets.choices}
               source={basicsPresets.selectedId}
               modified={basicsPresets.modified}
@@ -449,8 +453,8 @@ export function GameSettingsForm({
           <div>
             {/* The whole row opens the list, which hangs under the mark at its right */}
             <TextMenu
-              label="积分"
-              caption="积分"
+              label={t.game.gameSettingsForm.currency}
+              caption={t.game.gameSettingsForm.currency}
               options={CURRENCY_OPTIONS}
               value={values.currency}
               onChange={(currency) => editValues({ ...values, currency })}
@@ -460,14 +464,14 @@ export function GameSettingsForm({
               captionClassName="mr-auto font-medium text-text"
             />
             <QuickRow
-              label="比例"
+              label={t.game.gameSettingsForm.ratio}
               disabled={ratioLocked}
               picks={RATIO_PICKS.map(({ chips: n, label }) => ({ value: String(n), label }))}
               value={ratioAmount === 100 && ratioChips !== null ? String(ratioChips) : undefined}
               onPick={(n) => editValues({ ...values, ratioChips: n, ratioAmount: "1.00" })}
             >
               <FigureInput
-                label="比例筹码"
+                label={t.game.gameSettingsForm.ratioChips}
                 value={values.ratioChips}
                 onChange={setValue("ratioChips")}
                 tidy={chipsText}
@@ -478,7 +482,7 @@ export function GameSettingsForm({
               <Mark>{chipMark}</Mark>
               <Join>=</Join>
               <FigureInput
-                label="比例积分"
+                label={t.game.gameSettingsForm.ratioCurrency}
                 value={values.ratioAmount}
                 onChange={setValue("ratioAmount")}
                 tidy={pointsInputText}
@@ -489,7 +493,7 @@ export function GameSettingsForm({
               <Mark>{pointsMark}</Mark>
             </QuickRow>
             <QuickRow
-              label="盲注"
+              label={t.game.gameSettingsForm.blinds}
               picks={BLIND_PICKS.map(({ label }) => ({ value: label, label }))}
               value={
                 smallBlind !== null && bigBlind !== null ? `${smallBlind}/${bigBlind}` : undefined
@@ -500,7 +504,7 @@ export function GameSettingsForm({
               }}
             >
               <FigureInput
-                label="小盲"
+                label={t.game.gameSettingsForm.sb}
                 value={values.smallBlindChips}
                 onChange={setValue("smallBlindChips")}
                 tidy={chipsText}
@@ -511,7 +515,7 @@ export function GameSettingsForm({
               <Mark>SB</Mark>
               <Join>/</Join>
               <FigureInput
-                label="大盲"
+                label={t.game.gameSettingsForm.bb}
                 value={values.bigBlindChips}
                 onChange={setValue("bigBlindChips")}
                 tidy={chipsText}
@@ -531,7 +535,9 @@ export function GameSettingsForm({
                 accessory={
                   <button
                     type="button"
-                    aria-label={`右侧显示${buyInInPoints ? "积分" : "筹码"}，点击切换`}
+                    aria-label={t.game.gameSettingsForm.theRightSideShowsTapTo(
+                      buyInInPoints ? t.game.gameSettingsForm.currency : t.common.chips,
+                    )}
                     onClick={() => {
                       setHandDraft(null);
                       setBuyInInPoints(!buyInInPoints);
@@ -554,7 +560,7 @@ export function GameSettingsForm({
                 onPick={(bigBlinds) => editValues({ ...values, buyInBigBlinds: bigBlinds })}
               >
                 <FigureInput
-                  label="一个买入的大盲数"
+                  label={t.game.gameSettingsForm.bigBlindsInOneBuyIn}
                   value={values.buyInBigBlinds}
                   onChange={setValue("buyInBigBlinds")}
                   tidy={chipsText}
@@ -567,10 +573,14 @@ export function GameSettingsForm({
                   <span aria-hidden className="text-xl leading-none">
                     ⇔
                   </span>
-                  <span className="sr-only">即</span>
+                  <span className="sr-only">{t.common.equals}</span>
                 </Join>
                 <FigureInput
-                  label={buyInInPoints ? "一个买入的积分" : "一个买入的筹码"}
+                  label={
+                    buyInInPoints
+                      ? t.game.gameSettingsForm.currencyInOneBuyIn
+                      : t.game.gameSettingsForm.chipsInOneBuyIn
+                  }
                   value={
                     handDraft ??
                     (buyInInPoints
@@ -611,7 +621,9 @@ export function GameSettingsForm({
           </div>
         </div>
         {ratioLocked && (
-          <p className="mt-2 text-sm text-muted">已有账本记录，积分、比例和 Buy-in 不能再修改。</p>
+          <p className="mt-2 text-sm text-muted">
+            {t.game.gameSettingsForm.theLedgerAlreadyHasRecordsSo}
+          </p>
         )}
       </div>
 
@@ -665,12 +677,12 @@ export function GameSettingsForm({
 
       {saveFailed && (
         <p role="alert" className="text-sm text-highlight">
-          保存失败，请重试。
+          {t.common.couldntSaveTryAgain}
         </p>
       )}
       {tried && entered === null && (
         <p role="alert" className="text-sm text-highlight">
-          有无效的数值，请检查标出的项后再试。
+          {t.game.gameSettingsForm.someValuesArentValidCheckThe}
         </p>
       )}
 
@@ -684,7 +696,7 @@ export function GameSettingsForm({
             }}
             className="min-h-12 rounded-xl border border-line px-2 text-sm font-medium text-highlight"
           >
-            保存全局设置
+            {t.game.gameSettingsForm.saveGameSettings}
           </button>
         )}
         <button

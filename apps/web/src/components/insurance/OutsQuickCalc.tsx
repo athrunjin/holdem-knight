@@ -12,8 +12,10 @@ import {
   unseenCards,
 } from "@holdem-knight/core";
 import { ArrowUpDown, Minus, Plus } from "lucide-react";
-import { type Ref, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { selectOnFocus } from "@/lib/number-input";
 import { HandPlayerRow, type StandingNote } from "./HandPlayerRow";
 import {
   DeadMoney,
@@ -46,12 +48,12 @@ interface OutsQuickCalcProps {
 }
 
 const STREETS: readonly { readonly id: InsuranceStreet; readonly label: string }[] = [
-  { id: "turn", label: "转牌" },
-  { id: "river", label: "河牌" },
+  { id: "turn", label: t.common.turn },
+  { id: "river", label: t.common.river },
 ];
 
 /** The pen is there as in the other way of working, but what it opens is still to come. */
-const comingSoon = () => window.alert("功能开发中");
+const comingSoon = () => window.alert(t.insurance.outsQuickCalc.beingBuilt);
 
 const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
 
@@ -80,7 +82,6 @@ function CardStepper({
   text,
   min,
   max,
-  inputRef,
   onChange,
 }: {
   id: string;
@@ -88,7 +89,6 @@ function CardStepper({
   text: string;
   min: number;
   max: number;
-  inputRef?: Ref<HTMLInputElement>;
   onChange: (text: string) => void;
 }) {
   const value = parseChips(text) ?? 0;
@@ -101,7 +101,7 @@ function CardStepper({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          aria-label={`${label}减一`}
+          aria-label={t.insurance.outsQuickCalc.oneLess(label)}
           disabled={value <= min}
           onClick={() => step(-1)}
           className={stepClass}
@@ -110,20 +110,22 @@ function CardStepper({
         </button>
         <div className="flex min-h-11 w-28 items-center gap-1 rounded-xl border border-line bg-surface px-3 focus-within:border-highlight">
           <input
-            ref={inputRef}
             id={id}
             type="text"
             inputMode="numeric"
             autoComplete="off"
             value={text}
+            // Nothing is selected as the dialog opens. A tap on a count selects it, so the first
+            // digit typed replaces it
+            onFocus={(event) => selectOnFocus(event.currentTarget)}
             onChange={(event) => onChange(cardCount(event.target.value))}
             className="min-w-0 flex-1 bg-transparent text-center text-lg font-semibold tabular-nums outline-none"
           />
-          <span className="text-muted">张</span>
+          <span className="text-muted">{t.insurance.outsQuickCalc.cardsUnit}</span>
         </div>
         <button
           type="button"
-          aria-label={`${label}加一`}
+          aria-label={t.insurance.outsQuickCalc.oneMore(label)}
           disabled={value >= max}
           onClick={() => step(1)}
           className={stepClass}
@@ -157,7 +159,6 @@ function OutsDialog({
 }) {
   const [text, setText] = useState(String(entry?.outs ?? 4));
   const [tieText, setTieText] = useState(String(entry?.ties ?? 0));
-  const inputRef = useRef<HTMLInputElement>(null);
   const outs = parseChips(text) ?? 0;
   const ties = parseChips(tieText) ?? 0;
   // Each kind of card is priced by its own count, so each has the odds table to itself. Tie cards
@@ -166,13 +167,8 @@ function OutsDialog({
   const tiesMax = Math.min(unseen - outs, tiesSold ? maxOuts : unseen);
   const valid = outs + ties >= 1 && outs <= outsMax && ties <= tiesMax;
 
-  // Selected, so the first digit replaces the starting count
-  useEffect(() => {
-    inputRef.current?.select();
-  }, []);
-
   return (
-    <Modal title={`${name} 的 Outs`} onClose={onCancel}>
+    <Modal title={t.insurance.outsQuickCalc.sOuts(name)} onClose={onCancel}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -182,16 +178,19 @@ function OutsDialog({
       >
         <CardStepper
           id="quick-outs"
-          label="反超牌"
+          label={t.insurance.outsQuickCalc.outs}
           text={text}
           min={0}
           max={outsMax}
-          inputRef={inputRef}
           onChange={setText}
         />
         <CardStepper
           id="quick-ties"
-          label={tiesSold ? "平分牌" : "平分牌（不算 outs）"}
+          label={
+            tiesSold
+              ? t.insurance.outsQuickCalc.tieCards
+              : t.insurance.outsQuickCalc.tieCardsNotCountedAsOuts
+          }
           text={tieText}
           min={0}
           max={tiesMax}
@@ -203,14 +202,14 @@ function OutsDialog({
             onClick={onCancel}
             className="min-h-11 rounded-xl border border-line font-medium"
           >
-            取消
+            {t.common.cancel}
           </button>
           <button
             type="submit"
             disabled={!valid}
             className="min-h-11 rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40"
           >
-            确认
+            {t.common.confirm}
           </button>
         </div>
       </form>
@@ -241,7 +240,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
   // Dead money's field, where a tap on dead money in the pot's legend lands
   const deadRef = useRef<HTMLInputElement>(null);
 
-  const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? "未知玩家";
+  const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? t.common.unknownPlayer;
   const streetText = STREETS.find(({ id }) => id === street)?.label ?? "";
   // The first two of the table, with the chips they have there
   const players = edited ?? nextPlayers([], seats, MIN_PLAYERS);
@@ -337,10 +336,11 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       playerId: leaderId,
       decisionKey: keyOf("overtake"),
       onManage: comingSoon,
-      name: "反超",
+      name: t.common.outdraw,
       count: entry.outs,
       // Tie cards a rule does not sell are still named, so nobody takes them for outs
-      outsLines: !tiesSold && entry.ties > 0 ? [`平分 ${entry.ties} 张（不计入）`] : [],
+      outsLines:
+        !tiesSold && entry.ties > 0 ? [t.insurance.outsQuickCalc.tieOnNotCounted(entry.ties)] : [],
     };
     if (!tiesSold || entry.ties === 0) return [overtake];
     const tie: PotCoverOffer = {
@@ -355,7 +355,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       playerId: leaderId,
       decisionKey: keyOf("tie"),
       onManage: comingSoon,
-      name: "平分",
+      name: t.common.tie,
       count: entry.ties,
     };
     return entry.outs > 0 ? [overtake, tie] : [tie];
@@ -401,11 +401,11 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
           {
             key: "dead",
             tone: "dead",
-            label: "死钱",
+            label: t.common.deadMoney,
             chips: totals.deadChips,
             note:
               chances && chances.ties > 0
-                ? `平分 ${chances.ties} · ${percentText(chances.tie)}`
+                ? t.insurance.outsQuickCalc.tie(chances.ties, percentText(chances.tie))
                 : undefined,
             onSelect: locked ? undefined : () => deadRef.current?.focus(),
           },
@@ -414,24 +414,28 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
 
   // What the pot still needs before it can be priced, in the order it is entered
   const missing = [
-    ...(players.length < MIN_PLAYERS ? ["两位玩家"] : []),
+    ...(players.length < MIN_PLAYERS ? [t.insurance.outsQuickCalc.twoPlayers] : []),
     ...players.flatMap((player, index) => {
       const needs = [
-        ...(staked(player) ? [] : ["筹码"]),
+        ...(staked(player) ? [] : [t.common.chips]),
         ...(index === trailer && trailerEntry === undefined ? ["Outs"] : []),
       ];
-      return needs.length > 0 ? [`${nameOf(player.playerId)}（${needs.join("、")}）`] : [];
+      return needs.length > 0
+        ? [
+            `${nameOf(player.playerId)}${t.common.openParen}${needs.join(t.common.listSeparator)}${t.common.closeParen}`,
+          ]
+        : [];
     }),
   ];
 
   return (
     <>
       <section aria-labelledby="quick-pot-title" className="mt-1">
-        <SectionTitle id="quick-pot-title" title="底池信息" />
+        <SectionTitle id="quick-pot-title" title={t.insurance.outsQuickCalc.pot} />
         <div className="relative flex flex-wrap items-stretch justify-center gap-1.5">
           {!locked && (
             <SectionReset
-              label="清空底池信息"
+              label={t.insurance.outsQuickCalc.clearThePot}
               onReset={() => {
                 setStreet("turn");
                 setDead(PRESET_DEAD);
@@ -440,7 +444,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
           )}
           {/* Framed like a street of the board, with the card the insurance is on picked inside */}
           <fieldset className="flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 border-line bg-surface px-2 pt-2 pb-1">
-            <legend className="sr-only">保哪张牌</legend>
+            <legend className="sr-only">{t.insurance.outsQuickCalc.whichCardToInsure}</legend>
             <span className="flex gap-1">
               {STREETS.map(({ id, label }) => (
                 <button
@@ -461,7 +465,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
               ))}
             </span>
             <span aria-hidden className="text-xs whitespace-nowrap text-muted">
-              保哪张牌
+              {t.insurance.outsQuickCalc.whichCardToInsure}
             </span>
           </fieldset>
           <span aria-hidden className="mx-1 w-px self-stretch bg-line" />
@@ -483,9 +487,11 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       </section>
 
       <section aria-labelledby="quick-players-title" className="mt-3">
-        <SectionTitle id="quick-players-title" title="池内玩家" />
+        <SectionTitle id="quick-players-title" title={t.insurance.outsQuickCalc.playersInThePot} />
         {seats.length < MIN_PLAYERS && (
-          <p className="mb-2 text-sm text-muted">桌上至少要有两位玩家，才能算保险。</p>
+          <p className="mb-2 text-sm text-muted">
+            {t.insurance.outsQuickCalc.insuranceNeedsAtLeastTwoPlayers}
+          </p>
         )}
         <ul className="flex flex-col gap-2">
           {players.map((player, index) => {
@@ -523,7 +529,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
                           onCover: (cover) => setCover(side, cover),
                           lead: {
                             kind: "reset",
-                            label: `清空${name}的 Outs`,
+                            label: t.insurance.outsQuickCalc.clearSOuts(name),
                             onSelect: () => {
                               setSideOuts(side, undefined);
                               setEdited(withSide(side, { cover: false }));
@@ -536,13 +542,13 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
                   {side === leader ? (
                     <span className="grid h-11 w-20 shrink-0 place-items-center">
                       <span className="rounded-lg bg-accent px-2.5 py-1 text-sm font-bold text-accent-text">
-                        领先
+                        {t.common.ahead}
                       </span>
                     </span>
                   ) : (
                     <button
                       type="button"
-                      aria-label={`填写${name}的 Outs`}
+                      aria-label={t.insurance.outsQuickCalc.enterSOuts(name)}
                       disabled={locked}
                       onClick={() => setEditingOuts(true)}
                       className={cn(
@@ -564,18 +570,21 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
           })}
         </ul>
         {players.length === MIN_PLAYERS && !locked && (
-          <RoundAction label="切换领先" onSelect={() => setLeader(trailer)}>
+          <RoundAction
+            label={t.insurance.outsQuickCalc.switchWhoIsAhead}
+            onSelect={() => setLeader(trailer)}
+          >
             <ArrowUpDown className="size-4" aria-hidden />
           </RoundAction>
         )}
       </section>
 
       <section aria-labelledby="quick-insurance-title" className="mt-3">
-        <SectionTitle id="quick-insurance-title" title="保险信息" />
+        <SectionTitle id="quick-insurance-title" title={t.insurance.outsQuickCalc.insurance} />
         {ready && parts ? (
           <>
             <PotCover
-              label="主池"
+              label={t.insurance.outsQuickCalc.mainPot}
               parts={parts}
               potChips={totals.effectiveChips}
               offers={offers}
@@ -588,20 +597,25 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
               onClick={() => setRecording(true)}
               className="mt-3 min-h-12 w-full rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40"
             >
-              记录{streetText}
+              {t.insurance.outsQuickCalc.record(streetText)}
             </button>
           </>
         ) : (
           <p className="text-sm text-muted">
             {missing.length > 0
-              ? `还差：${missing.join("、")}。填好后这里直接显示保险。`
-              : "只能有一位玩家 Cover，至少两位玩家才能算保险。"}
+              ? t.insurance.outsQuickCalc.stillNeededInsuranceShowsHereOnce(
+                  missing.join(t.common.listSeparator),
+                )
+              : t.insurance.outsQuickCalc.onlyOnePlayerCanCoverAnd}
           </p>
         )}
       </section>
 
       {recording && (
-        <Modal title={`${streetText}击中保险？`} onClose={() => setRecording(false)}>
+        <Modal
+          title={t.insurance.outsQuickCalc.didHit(streetText)}
+          onClose={() => setRecording(false)}
+        >
           <div className="flex flex-col gap-2">
             {/* With both kinds of card on sale, a hit says which kind came */}
             {offers.map(({ kind, name }) => (
@@ -611,7 +625,9 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
                 onClick={() => record(kind)}
                 className="min-h-12 rounded-xl bg-accent font-semibold text-accent-text"
               >
-                {offers.length > 1 ? `击中${name}` : "击中"}
+                {offers.length > 1
+                  ? t.insurance.outsQuickCalc.hit(name)
+                  : t.insurance.outsQuickCalc.hit2}
               </button>
             ))}
             <button
@@ -619,7 +635,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
               onClick={() => record(undefined)}
               className="min-h-12 rounded-xl border border-line font-medium"
             >
-              未击中
+              {t.insurance.outsQuickCalc.missed}
             </button>
           </div>
         </Modal>
@@ -627,7 +643,9 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
 
       {editingOuts && (
         <OutsDialog
-          name={trailerPlayer ? nameOf(trailerPlayer.playerId) : "落后一方"}
+          name={
+            trailerPlayer ? nameOf(trailerPlayer.playerId) : t.insurance.outsQuickCalc.playerBehind
+          }
           entry={trailerEntry}
           unseen={unseenCards(street)}
           maxOuts={rule.oddsHundredths.length}

@@ -1,29 +1,30 @@
 import { gameRecord, type LedgerEvent, type RecordKind } from "@holdem-knight/core";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { localeTag, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 const RECORD_LABEL: Record<RecordKind, string> = {
   buy_in: "Buy-in",
-  rebuy: "补码",
-  reduce: "退回 Buy-in",
-  remove: "移出",
-  cash_out: "离桌",
-  return: "回桌",
-  stack_set: "改筹码",
-  stack_undo: "撤销改筹码",
-  insurance_buy: "买保险",
-  insurance_hit: "保险命中",
-  insurance_miss: "保险未中",
-  insurance_undo: "撤销保险",
-  rake: "抽水",
-  rake_undo: "撤销抽水",
+  rebuy: t.common.rebuy,
+  reduce: t.game.ledgerLog.buyInReturned,
+  remove: t.game.ledgerLog.removed,
+  cash_out: t.game.ledgerLog.left,
+  return: t.common.rejoined,
+  stack_set: t.game.ledgerLog.chipsChanged,
+  stack_undo: t.game.ledgerLog.chipChangeUndone,
+  insurance_buy: t.game.ledgerLog.insuranceBought,
+  insurance_hit: t.game.ledgerLog.insuranceHit,
+  insurance_miss: t.game.ledgerLog.insuranceMissed,
+  insurance_undo: t.game.ledgerLog.insuranceUndone,
+  rake: t.common.rake,
+  rake_undo: t.game.ledgerLog.rakeUndone,
 };
 
 /** Long lists get a second collapse button at the bottom, so nobody has to scroll back up. */
 const BOTTOM_CLOSE_FROM = 6;
 
-const TIME = new Intl.DateTimeFormat("zh-CN", {
+const TIME = new Intl.DateTimeFormat(localeTag, {
   month: "2-digit",
   day: "2-digit",
   hour: "2-digit",
@@ -56,7 +57,8 @@ export function LedgerLog({ events, nameOf }: LedgerLogProps) {
           onClick={() => setOpen(!open)}
           className="flex min-h-11 w-full items-center gap-1 text-sm text-muted"
         >
-          牌局记录 ({entries.length})
+          {t.game.ledgerLog.gameLog}
+          {entries.length})
           <ChevronDown
             className={cn("size-4 transition-transform", open && "rotate-180")}
             aria-hidden
@@ -66,13 +68,13 @@ export function LedgerLog({ events, nameOf }: LedgerLogProps) {
       {open && (
         <>
           <label className="block">
-            <span className="sr-only">查看玩家</span>
+            <span className="sr-only">{t.game.ledgerLog.showAPlayer}</span>
             <select
               value={playerId}
               onChange={(event) => setPlayerId(event.target.value)}
               className="min-h-11 w-full rounded-lg border border-line bg-surface px-2 text-sm"
             >
-              <option value="">全部玩家</option>
+              <option value="">{t.game.ledgerLog.allPlayers}</option>
               {playerIds.map((id) => (
                 <option key={id} value={id}>
                   {nameOf(id)}
@@ -102,7 +104,7 @@ export function LedgerLog({ events, nameOf }: LedgerLogProps) {
               onClick={() => setOpen(false)}
               className="flex min-h-11 w-full items-center justify-center text-xs text-highlight"
             >
-              收起牌局记录
+              {t.game.ledgerLog.collapseTheGameLog}
             </button>
           )}
         </>

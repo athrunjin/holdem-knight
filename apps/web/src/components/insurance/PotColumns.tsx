@@ -1,4 +1,5 @@
 import type { PotBreakdown } from "@holdem-knight/core";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { PotHeading } from "./PotShares";
 
@@ -16,8 +17,8 @@ const MAX_HEIGHT_RATIO = 5;
 
 /** The main pot, then the side pots: numbered only when there is more than one of them. */
 export function potName(index: number, count: number) {
-  if (index === 0) return "主池";
-  return count > 2 ? `边池 ${index}` : "边池";
+  if (index === 0) return t.insurance.potColumns.mainPot;
+  return count > 2 ? t.insurance.potColumns.sidePot(index) : t.insurance.potColumns.sidePot2;
 }
 
 interface Slice {
@@ -41,7 +42,14 @@ function slices(pot: PotBreakdown, nameOf: (id: string) => string): Slice[] {
     ...players.filter(({ tone }) => tone === "leader"),
     ...players.filter(({ tone }) => tone !== "leader"),
     ...(pot.deadChips > 0
-      ? [{ key: "dead-money", label: "死钱", chips: pot.deadChips, tone: "dead" as const }]
+      ? [
+          {
+            key: "dead-money",
+            label: t.common.deadMoney,
+            chips: pot.deadChips,
+            tone: "dead" as const,
+          },
+        ]
       : []),
   ];
 }
@@ -76,8 +84,11 @@ export function PotColumns({
   const heightOf = (chips: number) =>
     (Math.max(chips, largest / MAX_HEIGHT_RATIO) / largest) * FULL_HEIGHT;
   return (
-    <section aria-label="总底池" className="rounded-xl border border-line bg-surface p-3">
-      <PotHeading title="总底池" chips={total} />
+    <section
+      aria-label={t.insurance.potColumns.totalPot}
+      className="rounded-xl border border-line bg-surface p-3"
+    >
+      <PotHeading title={t.insurance.potColumns.totalPot} chips={total} />
       {/*
         Three rows shared by every column: the pot drawn, its name, and what is said of its outs.
         So the columns stand on one line and the names sit on another, however many lines of
@@ -99,7 +110,7 @@ export function PotColumns({
               losing them. A fixed height here cut parts off the bottom of small pots.
             */}
               <ul
-                aria-label={`${potName(index, pots.length)}的组成`}
+                aria-label={t.insurance.potColumns.whatMakesUpThe(potName(index, pots.length))}
                 // Square corners: the parts are stacked blocks
                 className="flex flex-col gap-0.5 overflow-hidden"
                 style={{ minHeight: heightOf(pot.amountChips) }}
@@ -122,7 +133,7 @@ export function PotColumns({
                     </span>
                     {tone === "leader" && (
                       <span className="flex items-center justify-between gap-1 text-[11px] font-normal">
-                        <span>领先</span>
+                        <span>{t.common.ahead}</span>
                         <span className="tabular-nums">{chance}</span>
                       </span>
                     )}
@@ -141,7 +152,7 @@ export function PotColumns({
                 {tiesSold && pot.tieOuts > 0 && (
                   <span className="mt-0.5 block">
                     {pot.tieOuts} Outs / {percentText(pot.tieOuts / pot.unseenCards, 2)}
-                    <span className="whitespace-nowrap">（平分）</span>
+                    <span className="whitespace-nowrap">{t.insurance.potColumns.tie}</span>
                   </span>
                 )}
               </p>

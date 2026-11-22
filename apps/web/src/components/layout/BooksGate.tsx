@@ -3,6 +3,7 @@ import { Fragment, type ReactNode, useEffect, useState, useSyncExternalStore } f
 import { Page } from "@/components/Page";
 import { retryBooks, useBooks } from "@/data";
 import { signOut } from "@/data/auth";
+import { t } from "@/i18n";
 
 const buttonClass = "min-h-12 rounded-xl px-4 font-medium disabled:opacity-60";
 
@@ -18,7 +19,7 @@ function Opening() {
     <div aria-busy className="grid min-h-[50dvh] place-items-center px-4">
       {slow && (
         <p role="status" className="text-sm text-muted">
-          正在打开账户…
+          {t.shell.books.opening}
         </p>
       )}
     </div>
@@ -34,12 +35,10 @@ function Unreachable() {
   const [leaving, setLeaving] = useState(false);
 
   return (
-    <Page title="连不上账户" centered>
+    <Page title={t.shell.books.unreachableTitle} centered>
       <section className="rounded-2xl border border-line bg-surface p-5">
-        <p className="font-medium">账户里的记录现在读不出来</p>
-        <p className="mt-1 text-sm text-muted">
-          登录后的牌局和玩家记录保存在云端，需要联网才能读写。请检查网络后重试。
-        </p>
+        <p className="font-medium">{t.shell.books.unreachableHeading}</p>
+        <p className="mt-1 text-sm text-muted">{t.shell.books.unreachableBody}</p>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -51,19 +50,17 @@ function Unreachable() {
             }}
             className={`${buttonClass} border border-line`}
           >
-            退出登录
+            {t.common.signOut}
           </button>
           <button
             type="button"
             onClick={retryBooks}
             className={`${buttonClass} bg-accent font-semibold text-accent-text`}
           >
-            重试
+            {t.common.retry}
           </button>
         </div>
-        <p className="mt-3 text-sm text-muted">
-          退出登录后可以继续用这台设备上的游客记录，它们不会进入账户。
-        </p>
+        <p className="mt-3 text-sm text-muted">{t.shell.books.unreachableNote}</p>
       </section>
     </Page>
   );
@@ -92,16 +89,14 @@ function ReadFailure({ account }: { account: boolean }) {
       className="mx-auto mt-3 flex w-[calc(100%-2rem)] max-w-3xl items-center gap-3 rounded-xl border border-line bg-surface py-1 pr-1 pl-4 text-sm"
     >
       <p className="min-w-0 flex-1 py-2 text-highlight">
-        {account
-          ? "云端的记录没有读出来，这一页可能不完整。请检查网络。"
-          : "记录没有读出来，这一页可能不完整。"}
+        {account ? t.shell.books.readFailedAccount : t.shell.books.readFailedGuest}
       </p>
       <button
         type="button"
         onClick={() => queryClient.refetchQueries({ type: "active", predicate: failed })}
         className="min-h-11 shrink-0 rounded-lg px-3 font-medium"
       >
-        重试
+        {t.common.retry}
       </button>
     </div>
   );

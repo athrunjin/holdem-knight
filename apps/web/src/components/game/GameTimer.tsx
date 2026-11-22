@@ -1,6 +1,7 @@
 import { type GameTimer as Timer, timerElapsedMs } from "@holdem-knight/core";
 import { Clock, Pause, Play } from "lucide-react";
 import { useEffect, useState } from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 const pillClass =
@@ -64,7 +65,10 @@ export function GameTimer({ timer, editable, saving, onToggle }: GameTimerProps)
   return (
     <button
       type="button"
-      aria-label={`${running ? "暂停" : "继续"}计时，已进行 ${elapsed}`}
+      aria-label={t.game.gameTimer.theClockPlayed(
+        running ? t.game.gameTimer.pause : t.game.gameTimer.resume,
+        elapsed ?? "",
+      )}
       disabled={saving}
       onClick={onToggle}
       className={cn(pillClass, running ? "text-win" : "text-highlight")}

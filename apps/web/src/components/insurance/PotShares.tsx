@@ -1,5 +1,6 @@
 import { ArrowLeftRight } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
 export interface PotShare {
@@ -97,7 +98,7 @@ export function PotLegend({
               <span className="flex items-baseline gap-1">
                 <span className="truncate">{label}</span>
                 {tone === "leader" && !plain && (
-                  <span className="shrink-0 text-xs text-accent">领先</span>
+                  <span className="shrink-0 text-xs text-accent">{t.common.ahead}</span>
                 )}
               </span>
               {note && (
@@ -126,7 +127,7 @@ export function PotLegend({
             {onSelect ? (
               <button
                 type="button"
-                aria-label={`修改${label}`}
+                aria-label={t.insurance.potShares.edit(label)}
                 onClick={onSelect}
                 className={cn(rowClass, "active:bg-line")}
               >
@@ -295,12 +296,17 @@ export function PotShares({ parts, look = "ring" }: { parts: readonly PotShare[]
   const shown = picked ?? look;
   const total = parts.reduce((sum, { chips }) => sum + chips, 0);
   return (
-    <section aria-label="有效总底池" className="rounded-xl border border-line bg-surface p-3">
-      <PotHeading title="有效总底池" chips={total}>
+    <section
+      aria-label={t.insurance.potShares.effectivePot}
+      className="rounded-xl border border-line bg-surface p-3"
+    >
+      <PotHeading title={t.insurance.potShares.effectivePot} chips={total}>
         {/* A small icon after the name, with a 44px place to tap that takes no room from the line */}
         <button
           type="button"
-          aria-label={shown === "ring" ? "换成横条" : "换成圆圈"}
+          aria-label={
+            shown === "ring" ? t.insurance.potShares.showAsBars : t.insurance.potShares.showAsRings
+          }
           onClick={() => setPicked(shown === "ring" ? "bar" : "ring")}
           className="-my-2.5 grid size-11 shrink-0 place-items-center text-highlight"
         >

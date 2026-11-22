@@ -2,16 +2,17 @@ import { chipsToCents, type Game } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameAmount } from "@/lib/currency";
 import { GAME_OPTIONS, type GameOption, hasOption } from "@/lib/game-history";
 
 /** What a game can charge or offer: each one's name, and its color while it is on. */
 export const OPTION_MARKS: Record<GameOption, { label: string; className: string }> = {
-  insurance: { label: "保险", className: "text-highlight" },
-  wage: { label: "工资", className: "text-win" },
-  tableFee: { label: "台费", className: "text-win" },
-  rake: { label: "抽水", className: "text-win" },
+  insurance: { label: t.game.gameOptions.insuranceTag, className: "text-highlight" },
+  wage: { label: t.common.dealerWage, className: "text-win" },
+  tableFee: { label: t.common.timeCharge, className: "text-win" },
+  rake: { label: t.common.rake, className: "text-win" },
 };
 
 function gameOptions(game: Game) {
@@ -87,14 +88,14 @@ export function GameOptionLine({
         <span key={label} className={on ? cn("font-medium", className) : "text-muted line-through"}>
           {/* A reader hears which options are off, which the strike only shows */}
           {label}
-          {!on && <span className="sr-only">（未开启）</span>}
+          {!on && <span className="sr-only">{t.game.gameOptions.off}</span>}
         </span>
       ))}
       {settings?.kind === "edit" && (
         <Link
           to="/games/$gameId/settings"
           params={{ gameId }}
-          aria-label="修改设置"
+          aria-label={t.game.gameOptions.editSettings}
           className={settingsClass}
         >
           {icon}
@@ -103,7 +104,7 @@ export function GameOptionLine({
       {settings?.kind === "view" && (
         <button
           type="button"
-          aria-label="查看设置"
+          aria-label={t.game.gameOptions.viewSettings}
           aria-expanded={settings.open}
           onClick={settings.onToggle}
           className={cn(settingsClass, settings.open && "text-highlight")}

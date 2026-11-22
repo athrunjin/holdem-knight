@@ -2,6 +2,7 @@ import type { GameSettings } from "@holdem-knight/core";
 import { type FormEvent, useState } from "react";
 import { TextField } from "@/components/TextField";
 import { newGameConfig, useGameConfigs, useSaveGameConfig } from "@/data/game-configs";
+import { t } from "@/i18n";
 import { FormDialog } from "./FormDialog";
 
 interface SaveGameConfigDialogProps {
@@ -35,7 +36,7 @@ export function SaveGameConfigDialog({
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (trimmed === "") {
-      setIssue("请输入名称");
+      setIssue(t.common.enterAName);
       return;
     }
     const config = taken ? { ...taken, settings } : newGameConfig(trimmed, settings);
@@ -44,8 +45,8 @@ export function SaveGameConfigDialog({
 
   return (
     <FormDialog
-      title="保存全局设置"
-      submitLabel="保存"
+      title={t.game.saveGameConfigDialog.saveGameSettings}
+      submitLabel={t.common.save}
       saving={saveConfig.isPending}
       saveFailed={saveConfig.isError}
       focusCancel={currentName !== undefined}
@@ -54,7 +55,7 @@ export function SaveGameConfigDialog({
     >
       <TextField
         id="config-name"
-        label="全局设置名称"
+        label={t.game.saveGameConfigDialog.nameOfTheGameSettings}
         value={name}
         issue={issue}
         inputMode="text"
@@ -66,7 +67,7 @@ export function SaveGameConfigDialog({
       />
       {taken && !issue && (
         <p role="status" className="mt-1 text-sm text-highlight">
-          已有同名的全局设置，保存会覆盖它。
+          {t.game.saveGameConfigDialog.gameSettingsWithThisNameExist}
         </p>
       )}
     </FormDialog>
