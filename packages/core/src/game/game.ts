@@ -137,7 +137,9 @@ export interface NewGameMeta {
   readonly timeZone?: string;
 }
 
-type GameOptions = Pick<GameSettings, "insurance" | "tableFee" | "wage" | "rake">;
+type GameOptions = {
+  readonly [K in "insurance" | "tableFee" | "wage" | "rake"]?: GameSettings[K] | undefined;
+};
 
 /** Only the options that are on, so a game never stores a key set to undefined. */
 function optionsOf({ insurance, tableFee, wage, rake }: GameOptions) {
@@ -150,7 +152,11 @@ function optionsOf({ insurance, tableFee, wage, rake }: GameOptions) {
 }
 
 /** Only the sources that are set, or nothing, so a game never stores an empty record of them. */
-function sourcesOf({ sources }: { readonly sources?: SettingsSources | undefined }) {
+function sourcesOf({
+  sources,
+}: {
+  readonly sources?: { readonly [K in keyof SettingsSources]?: string | undefined } | undefined;
+}) {
   const set = Object.fromEntries(
     Object.entries(sources ?? {}).filter(([, id]) => id !== undefined),
   );
@@ -253,17 +259,28 @@ export function chooseImbalanceHandling(game: Game, imbalanceHandling: Imbalance
   return { ...game, imbalanceHandling };
 }
 
+/** What a game's ledger already holds, which decides the settings that can still change. */
+export interface SettingsLocks {
+  readonly hasLedgerEvents: boolean;
+  /** Insurance has been bought in this game and not all taken back. */
+  readonly insuranceUsed?: boolean;
+  /** Rake has been taken in this game. */
+  readonly rakeUsed?: boolean;
+}
+
 /**
  * Updates game settings. Ledger events record chips and amounts come from the ratio,
  * so the currency and chip ratio cannot change once events exist, or existing amounts would change too.
- * Chips per hand are fixed too, or "3 hands" would mean different things within a game.
- * Options can always change: table fees and wages are only worked out at settlement.
+ * Chips per hand are fixed too, or "3 hands" would mean different things within a game, and so
+ * are the blinds: a game is played at one level.
+ * Table fees and wages can always change, as they are only worked out at settlement. Insurance and
+ * rake that have taken anything in stay on, with whatever rule the settings give them.
  * The saved configs the settings were taken from are replaced with the new settings' own.
  */
 export function updateGameSettings(
   game: Game,
   settings: GameSettings,
-  { hasLedgerEvents }: { readonly hasLedgerEvents: boolean },
+  { hasLedgerEvents, insuranceUsed = false, rakeUsed = false }: SettingsLocks,
 ): Game {
   const {
     insurance: _,
@@ -273,21 +290,32 @@ export function updateGameSettings(
     sources: _sources,
     ...rest
   } = game;
-  const { smallBlindChips, bigBlindChips } = settings;
   if (!hasLedgerEvents) return { ...rest, ...withHandChips(settings) };
+  // An option that cannot be turned off keeps the game's own rule, and the config it came from
+  const keepInsurance = insuranceUsed && !settings.insurance;
+  const keepRake = rakeUsed && !settings.rake;
   // The locked settings stay the game's own, so a basic settings config holds only where they agree
   const basicsHold =
     game.currency === settings.currency &&
+    game.smallBlindChips === settings.smallBlindChips &&
+    game.bigBlindChips === settings.bigBlindChips &&
     game.chipRatio.chips === settings.chipRatio.chips &&
     game.chipRatio.amount === settings.chipRatio.amount &&
     game.buyInBigBlinds === settings.buyInBigBlinds;
-  const { basics: _basics, ...otherSources } = settings.sources ?? {};
+  const { basics, ...otherSources } = settings.sources ?? {};
+  const insurance = keepInsurance ? game.insurance : settings.insurance;
+  const rake = keepRake ? game.rake : settings.rake;
   return {
     ...rest,
-    smallBlindChips,
-    bigBlindChips,
-    ...optionsOf(settings),
-    ...sourcesOf({ sources: basicsHold ? settings.sources : otherSources }),
+    ...optionsOf({ tableFee: settings.tableFee, wage: settings.wage, insurance, rake }),
+    ...sourcesOf({
+      sources: {
+        ...otherSources,
+        ...(basicsHold && basics !== undefined && { basics }),
+        ...(keepInsurance && { insurance: game.sources?.insurance }),
+        ...(keepRake && { rake: game.sources?.rake }),
+      },
+    }),
   };
 }
 

@@ -171,7 +171,7 @@ export const game: Messages["game"] = {
     currencyInOneBuyIn: "Currency in one buy-in",
     chipsInOneBuyIn: "Chips in one buy-in",
     theLedgerAlreadyHasRecordsSo:
-      "The ledger already has records, so the currency, the ratio and the buy-in can’t be changed.",
+      "The ledger already has records, so the currency, the ratio, the blinds and the buy-in can’t be changed.",
     someValuesArentValidCheckThe:
       "Some values aren’t valid. Check the marked fields and try again.",
     saveGameSettings: "Save settings",

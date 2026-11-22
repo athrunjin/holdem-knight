@@ -133,8 +133,8 @@ function QuickRow<T extends string>({
 interface GameSettingsFormProps {
   initial: FormValues;
   submitLabel: string;
-  /** Whether the currency and chip ratio are locked */
-  ratioLocked?: boolean;
+  /** Once the ledger has records the basic settings stay as they are: currency, ratio, blinds and Buy-in */
+  basicsLocked?: boolean;
   /** Hides the buy-in setting for older games that already record chips */
   showBuyIn?: boolean;
   /** Insurance needs whole hands, so older games that record chips cannot use it */
@@ -229,7 +229,7 @@ function basicsOf(form: FormValues): BasicSettings | null {
 export function GameSettingsForm({
   initial,
   submitLabel,
-  ratioLocked = false,
+  basicsLocked = false,
   showBuyIn = true,
   showInsurance = true,
   initialInsurance,
@@ -273,14 +273,9 @@ export function GameSettingsForm({
     setValues(next);
     setBasicsSource(basicsPresets.editedSource);
   };
-  /** A preset's values, apart from those the ledger has locked. */
   function pickBasics(id: string, form: FormValues) {
     setBasicsSource(id);
-    setValues(
-      ratioLocked
-        ? { ...values, smallBlindChips: form.smallBlindChips, bigBlindChips: form.bigBlindChips }
-        : form,
-    );
+    setValues(form);
   }
   const [insurance, setInsurance] = useState(() =>
     initialInsuranceChoice(initialInsurance, lastInsurance),
@@ -441,14 +436,17 @@ export function GameSettingsForm({
           {/* Always open, so with no switch; its preset sits where the others' do */}
           <div className="flex min-h-12 items-center justify-between gap-3 px-4 pt-1">
             <span className="font-medium">{t.game.gameSettingsForm.basics}</span>
-            <PresetPicker
-              kind="basics"
-              title={t.game.gameSettingsForm.basics}
-              choices={basicsPresets.choices}
-              source={basicsPresets.selectedId}
-              modified={basicsPresets.modified}
-              onPick={(preset) => pickBasics(preset.id, preset.form)}
-            />
+            {/* Locked, there is nothing a saved setting could change */}
+            {!basicsLocked && (
+              <PresetPicker
+                kind="basics"
+                title={t.game.gameSettingsForm.basics}
+                choices={basicsPresets.choices}
+                source={basicsPresets.selectedId}
+                modified={basicsPresets.modified}
+                onPick={(preset) => pickBasics(preset.id, preset.form)}
+              />
+            )}
           </div>
           <div>
             {/* The whole row opens the list, which hangs under the mark at its right */}
@@ -459,13 +457,13 @@ export function GameSettingsForm({
               value={values.currency}
               onChange={(currency) => editValues({ ...values, currency })}
               align="right"
-              disabled={ratioLocked}
+              disabled={basicsLocked}
               className="min-h-12 w-full px-4 py-1 font-medium"
               captionClassName="mr-auto font-medium text-text"
             />
             <QuickRow
               label={t.game.gameSettingsForm.ratio}
-              disabled={ratioLocked}
+              disabled={basicsLocked}
               picks={RATIO_PICKS.map(({ chips: n, label }) => ({ value: String(n), label }))}
               value={ratioAmount === 100 && ratioChips !== null ? String(ratioChips) : undefined}
               onPick={(n) => editValues({ ...values, ratioChips: n, ratioAmount: "1.00" })}
@@ -477,7 +475,7 @@ export function GameSettingsForm({
                 tidy={chipsText}
                 invalid={positive(ratioChips)}
                 wholeNumber
-                disabled={ratioLocked}
+                disabled={basicsLocked}
               />
               <Mark>{chipMark}</Mark>
               <Join>=</Join>
@@ -488,12 +486,13 @@ export function GameSettingsForm({
                 tidy={pointsInputText}
                 invalid={positive(ratioAmount)}
                 wide
-                disabled={ratioLocked}
+                disabled={basicsLocked}
               />
               <Mark>{pointsMark}</Mark>
             </QuickRow>
             <QuickRow
               label={t.game.gameSettingsForm.blinds}
+              disabled={basicsLocked}
               picks={BLIND_PICKS.map(({ label }) => ({ value: label, label }))}
               value={
                 smallBlind !== null && bigBlind !== null ? `${smallBlind}/${bigBlind}` : undefined
@@ -505,6 +504,7 @@ export function GameSettingsForm({
             >
               <FigureInput
                 label={t.game.gameSettingsForm.sb}
+                disabled={basicsLocked}
                 value={values.smallBlindChips}
                 onChange={setValue("smallBlindChips")}
                 tidy={chipsText}
@@ -516,6 +516,7 @@ export function GameSettingsForm({
               <Join>/</Join>
               <FigureInput
                 label={t.game.gameSettingsForm.bb}
+                disabled={basicsLocked}
                 value={values.bigBlindChips}
                 onChange={setValue("bigBlindChips")}
                 tidy={chipsText}
@@ -551,7 +552,7 @@ export function GameSettingsForm({
                     )}
                   </button>
                 }
-                disabled={ratioLocked}
+                disabled={basicsLocked}
                 picks={BUY_IN_PICKS.map(({ bigBlinds, label }) => ({
                   value: String(bigBlinds),
                   label,
@@ -566,7 +567,7 @@ export function GameSettingsForm({
                   tidy={chipsText}
                   invalid={positive(buyIn)}
                   wholeNumber
-                  disabled={ratioLocked}
+                  disabled={basicsLocked}
                 />
                 <Mark>BB</Mark>
                 <Join>
@@ -602,7 +603,7 @@ export function GameSettingsForm({
                   tidy={buyInInPoints ? pointsInputText : chipsText}
                   wide
                   wholeNumber={!buyInInPoints}
-                  disabled={ratioLocked}
+                  disabled={basicsLocked}
                 />
                 <Mark>{buyInInPoints ? pointsMark : chipMark}</Mark>
               </QuickRow>
@@ -620,7 +621,7 @@ export function GameSettingsForm({
             />
           </div>
         </div>
-        {ratioLocked && (
+        {basicsLocked && (
           <p className="mt-2 text-sm text-muted">
             {t.game.gameSettingsForm.theLedgerAlreadyHasRecordsSo}
           </p>
