@@ -1,7 +1,7 @@
 import { chipsToCents, type Game } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { Calculator, Check, Timer, X } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { ChipStack } from "@/components/ChipStack";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { organizerNameOf } from "@/data";
@@ -91,20 +91,52 @@ function Figure({ text, lead }: { text: string; lead?: string }) {
 /**
  * A figure a tap on its box switches between cash, shown first, and chips. The box's top right
  * corner shows which, as the currency's mark or a chip, set over the box so it keeps its size.
+ * Where the label reaches the corner the mark is left out, and the tap still switches.
  */
 function useCashOrChips(game: Pick<Game, "chipRatio" | "currency">) {
   const [inChips, setInChips] = useState(false);
+  const [crowded, setCrowded] = useState(false);
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const markRef = useRef<HTMLSpanElement>(null);
+
+  // Measured, since the label's length and the box's width both vary. `invisible` keeps the
+  // mark's place, so the measure does not change with the answer
+  useLayoutEffect(() => {
+    const label = labelRef.current;
+    const mark = markRef.current;
+    const box = label?.parentElement;
+    if (!label || !mark || !box) return;
+    const measure = () => {
+      const range = document.createRange();
+      range.selectNodeContents(label);
+      const text = range.getBoundingClientRect();
+      const corner = mark.getBoundingClientRect();
+      // A little air between the two counts as touching
+      setCrowded(text.right + 2 > corner.left && text.top < corner.bottom);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => observer.disconnect();
+    // After every render: the label changes with the ledger, and the box may only now be shown
+  });
+
   const show = (chips: number) =>
     inChips
       ? chips.toLocaleString("zh-CN")
       : formatGameMoney(chipsToCents(chips, game.chipRatio), game.currency);
-  const markClass = "absolute top-1 right-1 size-3 text-muted";
+  const markClass = "size-3 text-muted";
   return {
     show,
+    labelRef,
     hint: t.game.gameTiles.tapToShow(inChips ? t.common.amount : t.common.chips),
     toggle: () => setInChips(!inChips),
     mark: (
-      <span aria-hidden>
+      <span
+        ref={markRef}
+        aria-hidden
+        className={cn("absolute top-1 right-1 flex", crowded && "invisible")}
+      >
         {inChips ? (
           <ChipStack ground="var(--surface)" className={markClass} />
         ) : (
@@ -119,12 +151,12 @@ type TileGame = Pick<Game, "chipRatio" | "currency" | "handChips">;
 
 /** Everything bought in: how many Buy-ins, then their cash value or, after a tap, their chips. */
 export function BuyInTile({ game, boughtChips }: { game: TileGame; boughtChips: number }) {
-  const { show, hint, toggle, mark } = useCashOrChips(game);
+  const { show, labelRef, hint, toggle, mark } = useCashOrChips(game);
   const { handChips } = game;
   return (
     <button type="button" onClick={toggle} className={cn(tileClass, "relative")}>
       {mark}
-      <span className={labelClass}>
+      <span ref={labelRef} className={labelClass}>
         {t.game.gameTiles.totalBuyIn(
           handChips === undefined ? "" : ` · ${boughtChips / handChips}`,
         )}
@@ -143,7 +175,7 @@ export function BuyInTile({ game, boughtChips }: { game: TileGame; boughtChips: 
  * switches that figure between cash and chips, apart from the Buy-in box.
  */
 export function BalanceTile({ game, balanceChips }: { game: TileGame; balanceChips: number }) {
-  const { show, hint, toggle, mark } = useCashOrChips(game);
+  const { show, labelRef, hint, toggle, mark } = useCashOrChips(game);
   if (balanceChips === 0) {
     return (
       <div className={cn(tileClass, "flex items-center justify-center gap-1 text-win")}>
@@ -155,7 +187,7 @@ export function BalanceTile({ game, balanceChips }: { game: TileGame; balanceChi
   return (
     <button type="button" onClick={toggle} className={cn(tileClass, "relative text-loss")}>
       {mark}
-      <span className="flex items-center justify-center text-xs whitespace-nowrap">
+      <span ref={labelRef} className="flex items-center justify-center text-xs whitespace-nowrap">
         {t.game.gameTiles.notBalanced}
         <X className="ml-0.5 size-3.5" aria-hidden />
       </span>

@@ -11,6 +11,11 @@ interface PageProps {
   centered?: boolean;
   /** Actions to the right of the title */
   actions?: ReactNode;
+  /**
+   * Keeps the title and the actions at the top of the header where the actions take two lines,
+   * so neither moves as the second line comes and goes. The actions set their own offset.
+   */
+  actionsFromTop?: boolean;
   children: ReactNode;
 }
 
@@ -21,6 +26,7 @@ export function Page({
   subtitle,
   centered = false,
   actions,
+  actionsFromTop = false,
   children,
 }: PageProps) {
   return (
@@ -28,7 +34,12 @@ export function Page({
       className={cn("mx-auto w-full px-4 md:px-8", centered ? "max-w-md md:max-w-lg" : "max-w-3xl")}
     >
       {/* Actions that do not fit beside the title go under it, at the right */}
-      <header className="flex min-h-16 flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-4 md:pt-8">
+      <header
+        className={cn(
+          "flex min-h-16 flex-wrap justify-between gap-x-4 gap-y-2 pt-4 md:pt-8",
+          actionsFromTop ? "items-start" : "items-center",
+        )}
+      >
         <div className="max-w-full min-w-0 shrink-0">
           <div className="flex flex-wrap items-baseline gap-x-2">
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{title}</h1>
