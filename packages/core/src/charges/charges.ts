@@ -25,8 +25,6 @@ import { type SeatSession, seatedMs, seatSessions, withinRuns } from "./seat-tim
 const MINUTE = 60_000;
 const QUARTER = 15 * MINUTE;
 const HOUR = 60 * MINUTE;
-/** How far back a time segment with no end still counts as begun when the game starts. */
-const OPEN_SEGMENT_LOOK_BACK = 12 * HOUR;
 
 /** Wages at one rate: the whole minutes charged at it and what they come to. */
 export interface WagePartCharge {
@@ -255,9 +253,10 @@ export function localHourBefore(
 /**
  * When each segment applies under a rule with `rounding` (ADR 0027). Time segments switch when the
  * local clock really shows their hours, so a daylight saving night is an hour shorter or longer.
- * A game that starts inside the segments begins in them: inside their hours when the last one has
- * an end, or within 12 hours of the first one's start when it has none. Otherwise they begin the
- * next time the first one's hour comes round.
+ * A game that starts inside the hours of a segment with an end begins in it. A last segment with no
+ * end is never begun already: a rate "from midnight" rises when the game first crosses midnight,
+ * not for a game started the morning after. Otherwise the segments begin the next time the first
+ * one's hour comes round.
  */
 export function localWageWindows(
   rule: WageRule,
@@ -280,14 +279,14 @@ export function localWageWindows(
   let timeWindows: WageWindow[] = [];
   if (first) {
     const begun = chainFrom(localHourBefore(gameStart, first.fromHour, minuteOfDay));
-    const start = begun[0]?.from ?? gameStart;
-    const end = begun.at(-1)?.to ?? gameStart;
-    const inside = Number.isFinite(end)
-      ? gameStart < end
-      : gameStart - start <= OPEN_SEGMENT_LOOK_BACK;
-    timeWindows = inside
-      ? begun
-      : chainFrom(localHourAfter(gameStart, first.fromHour, minuteOfDay));
+    const last = begun.at(-1);
+    // A last segment with no end has no hours to be inside: it counts only once its hour comes
+    const end = last === undefined ? gameStart : Number.isFinite(last.to) ? last.to : last.from;
+    timeWindows =
+      gameStart < end
+        ? begun
+        : // From a millisecond back, so a game started on the hour itself begins there
+          chainFrom(localHourAfter(gameStart - 1, first.fromHour, minuteOfDay));
   }
   return [...timeWindows, ...gameTimeWindows(rule, gameStart, runs)];
 }

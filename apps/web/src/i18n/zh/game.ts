@@ -68,7 +68,7 @@ export const game = {
     withBothOnWhicheverHigherRate: "两项都开启时，取先到来的较大值。",
     byTimeOfDay: "根据时间",
     byTheTimeWhereTheGame:
-      "按开局所在地的时间。开局时已在时段内，从开局起就按该时段算；否则从下一次到达开始时间算起。",
+      "按开局所在地的时间。开局时已在有结束时间的时段内，从开局起就按该时段算；没有结束时间的时段（如 0 点后），要等开局后第一次到达开始时间才算。",
     from: "从",
     startTime: "开始时间",
     to: "到",
