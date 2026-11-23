@@ -55,30 +55,25 @@ const STREETS = ["turn", "river"] as const;
  * player who bought, the figure is what the cover came to, with whether it hit; one who was ahead
  * and bought nothing, by choice or with too many outs to be sold a cover, is said not to buy, and
  * one who was behind is said to be. For the insurance itself the figure is its own side of every
- * cover, with whoever it paid named under it.
+ * cover on the street.
  */
 function streetLines(
   hand: InsuranceHand,
   street: (typeof STREETS)[number],
   playerId: string | undefined,
-  nameOf: (id: string) => string,
 ): readonly [ReactNode, ReactNode] {
   const { handSummary: text } = t.insurance;
   const word = (content: ReactNode) => <span className={cn(FIGURE, "text-muted")}>{content}</span>;
+  const hitWord = (hit: boolean) => (
+    <span key="word" className={cn(FIGURE, hit ? "text-highlight" : "text-muted")}>
+      {hit ? text.hit : text.missed}
+    </span>
+  );
   if (streetEntered(hand, street)) return [word("—"), null];
   const bought = streetInsurance(hand, street, playerId);
   if (playerId === undefined) {
     if (!bought) return [<Figure key="figure" chips={0} />, null];
-    const paid = bought.paidPlayerIds.map(nameOf).join(t.common.listSeparator);
-    return [
-      <Figure key="figure" chips={-bought.chips} />,
-      <span
-        key="word"
-        className={cn(FIGURE, "truncate", bought.hit ? "text-highlight" : "text-muted")}
-      >
-        {bought.hit ? text.paidTo(paid) : text.missed}
-      </span>,
-    ];
+    return [<Figure key="figure" chips={-bought.chips} />, hitWord(bought.hit)];
   }
   if (!bought) {
     return [
@@ -86,12 +81,7 @@ function streetLines(
       null,
     ];
   }
-  return [
-    <Figure key="figure" chips={bought.chips} />,
-    <span key="word" className={cn(FIGURE, bought.hit ? "text-highlight" : "text-muted")}>
-      {bought.hit ? text.hit : text.missed}
-    </span>,
-  ];
+  return [<Figure key="figure" chips={bought.chips} />, hitWord(bought.hit)];
 }
 
 /**
@@ -101,7 +91,6 @@ function streetLines(
 function RowTop({
   hand,
   playerId,
-  nameOf,
   name,
   under,
   totalChips,
@@ -109,13 +98,12 @@ function RowTop({
   hand: InsuranceHand;
   /** Missing for the insurance's own row. */
   playerId?: string;
-  nameOf: (id: string) => string;
   name: ReactNode;
   /** Under the name: a player's hole cards. */
   under?: ReactNode;
   totalChips: number;
 }) {
-  const [turn, river] = STREETS.map((street) => streetLines(hand, street, playerId, nameOf));
+  const [turn, river] = STREETS.map((street) => streetLines(hand, street, playerId));
   return (
     <div className={cn(ROW, "items-end gap-y-1")}>
       {name}
@@ -217,17 +205,15 @@ function PlayerRow({
   /** Whether these chips go to the game, and how that is changed. Missing where they cannot. */
   sync: { readonly on: boolean; readonly onChange: (on: boolean) => void } | undefined;
 }) {
-  const { playerId, cover, insuranceChips, potShares, refundChips, stackChips } = result;
+  const { playerId, cover, insuranceChips, netChips, potShares, refundChips, stackChips } = result;
   const cards = hand.players.find((p) => p.playerId === playerId)?.cards ?? [];
   const stackAfter = buyIn?.stackChips ?? stackChips;
   const { handSummary: text, potColumns } = t.insurance;
-  const notApplicable = <span className="text-muted">{text.notApplicable}</span>;
   return (
     <li className="border-t border-line px-3 pt-2 pb-1">
       <RowTop
         hand={hand}
         playerId={playerId}
-        nameOf={nameOf}
         name={<span className="truncate text-sm font-semibold">{nameOf(playerId)}</span>}
         under={cards.map((card) => <SmallCard key={card} card={card} />)}
         totalChips={insuranceChips}
@@ -251,21 +237,13 @@ function PlayerRow({
           </ChipLine>
         );
       })}
-      {/* Chips that were never in the betting. A cover has more behind than the hand knows */}
-      <ChipLine
-        mark={
-          cover ? <span className={cn(MARK, "rounded-full bg-win text-bg")}>C</span> : undefined
-        }
-        label={text.chipsBehind}
-      >
-        {cover ? (
-          notApplicable
-        ) : (
-          <span className={cn(refundChips === 0 && "text-muted")}>{chipText(refundChips)}</span>
-        )}
-      </ChipLine>
+      {/* Chips that were never in the betting, where there are any */}
+      {!cover && refundChips > 0 && (
+        <ChipLine label={text.chipsBehind}>{chipText(refundChips)}</ChipLine>
+      )}
       {/* The chips the player ends with, set a little apart, and before them whether they go
-          to the game */}
+          to the game. A cover has more behind than the hand knows, so has what the hand won or
+          lost them instead, and nothing to send */}
       <div className="mt-1 flex min-h-11 items-center justify-end gap-3 text-sm whitespace-nowrap">
         {sync && stackAfter !== null && (
           <label className="flex min-h-11 items-center gap-1.5">
@@ -279,9 +257,15 @@ function PlayerRow({
           </label>
         )}
         <span className="flex items-baseline gap-2">
-          <span className="text-muted">{text.totalChips}</span>
+          <span className="text-muted">
+            {stackAfter === null ? text.totalNet : text.totalChips}
+          </span>
           {stackAfter === null ? (
-            notApplicable
+            <span
+              className={cn("text-base font-semibold tabular-nums", TONE_CLASS[netTone(netChips)])}
+            >
+              {formatSignedChips(netChips)}
+            </span>
           ) : (
             <span className="text-base font-semibold tabular-nums">{chipText(stackAfter)}</span>
           )}
@@ -299,15 +283,47 @@ function PlayerRow({
 const stepClass =
   "grid h-11 w-9 shrink-0 place-items-center text-lg font-semibold text-highlight disabled:text-muted disabled:opacity-40";
 
+/** A box before one of the insurance's figures: whether that figure goes to the game. */
+function SyncBox({
+  label,
+  on,
+  onChange,
+}: {
+  label: string;
+  on: boolean;
+  onChange: (on: boolean) => void;
+}) {
+  return (
+    <label className="grid h-11 w-6 shrink-0 place-items-center">
+      <input
+        type="checkbox"
+        aria-label={label}
+        checked={on}
+        onChange={(event) => onChange(event.target.checked)}
+        className="size-4 accent-[var(--accent)]"
+      />
+    </label>
+  );
+}
+
+/** One of the insurance's figures after the hand, and whether it goes to the game. */
+interface SeatSync {
+  readonly on: boolean;
+  readonly onChange: (on: boolean) => void;
+}
+
 /**
  * The insurance's own figures after the hand, each to be put right in place and neither moving the
  * other: its Buy-ins, a tap on − or + taking or adding one, and its chips, which a tap selects
- * whole to type over.
+ * whole to type over. Each has a box before it for whether it goes to the game; one left out
+ * stays in the game as it was.
  */
 function SeatFigures({
   hands,
   canTakeOne,
   chips,
+  syncHands,
+  syncChips,
   onStep,
   onChips,
 }: {
@@ -315,6 +331,8 @@ function SeatFigures({
   /** False at one Buy-in. */
   canTakeOne: boolean;
   chips: number;
+  syncHands: SeatSync;
+  syncChips: SeatSync;
   onStep: (by: number) => void;
   onChips: (chips: number) => void;
 }) {
@@ -325,51 +343,71 @@ function SeatFigures({
   return (
     <div className="flex min-h-11 items-center justify-between gap-2 text-xs">
       <span className="flex items-center text-muted">
-        {text.totalBuyIn}
-        <button
-          type="button"
-          aria-label={t.game.handsStepper.oneBuyInLess}
-          disabled={!canTakeOne}
-          onClick={() => onStep(-1)}
-          className={cn(stepClass, "ml-1")}
-        >
-          −
-        </button>
-        <span className="min-w-5 text-center text-sm font-semibold text-text tabular-nums">
-          {hands}
-        </span>
-        <button
-          type="button"
-          aria-label={t.game.handsStepper.oneBuyInMore}
-          onClick={() => onStep(1)}
-          className={stepClass}
-        >
-          +
-        </button>
-      </span>
-      <label className="flex min-h-11 items-center gap-1 text-muted">
-        {text.chips}
-        <input
-          aria-label={text.insuranceChips}
-          inputMode="numeric"
-          value={shown}
-          // As wide as what it holds, with nothing drawn around it
-          style={{ width: `${Math.max(1, shown.length)}ch` }}
-          onFocus={(event) => {
-            setTyped(String(chips));
-            selectOnFocus(event.currentTarget);
-          }}
-          onChange={(event) => setTyped(numberTyped(event.target.value, true))}
-          onBlur={() => {
-            const next = typed === undefined ? null : parseChips(typed);
-            if (next !== null && next !== chips) onChips(next);
-            setTyped(undefined);
-          }}
-          onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
-          className="h-9 min-w-0 bg-transparent text-right text-[0.8125rem] font-semibold text-text tabular-nums outline-none"
+        <SyncBox
+          label={text.syncThe(text.totalBuyIn)}
+          on={syncHands.on}
+          onChange={syncHands.onChange}
         />
-        <Pencil className="size-3 shrink-0 text-highlight" strokeWidth={1.75} aria-hidden />
-      </label>
+        <span
+          inert={!syncHands.on}
+          className={cn("flex items-center", !syncHands.on && "opacity-40")}
+        >
+          {text.totalBuyIn}
+          <button
+            type="button"
+            aria-label={t.game.handsStepper.oneBuyInLess}
+            disabled={!canTakeOne}
+            onClick={() => onStep(-1)}
+            className={cn(stepClass, "ml-1")}
+          >
+            −
+          </button>
+          <span className="min-w-5 text-center text-sm font-semibold text-text tabular-nums">
+            {hands}
+          </span>
+          <button
+            type="button"
+            aria-label={t.game.handsStepper.oneBuyInMore}
+            onClick={() => onStep(1)}
+            className={stepClass}
+          >
+            +
+          </button>
+        </span>
+      </span>
+      <span className="flex items-center text-muted">
+        <SyncBox
+          label={text.syncThe(text.insuranceChips)}
+          on={syncChips.on}
+          onChange={syncChips.onChange}
+        />
+        <label
+          inert={!syncChips.on}
+          className={cn("flex min-h-11 items-center gap-1", !syncChips.on && "opacity-40")}
+        >
+          {text.chips}
+          <input
+            aria-label={text.insuranceChips}
+            inputMode="numeric"
+            value={shown}
+            // As wide as what it holds, with nothing drawn around it
+            style={{ width: `${Math.max(1, shown.length)}ch` }}
+            onFocus={(event) => {
+              setTyped(String(chips));
+              selectOnFocus(event.currentTarget);
+            }}
+            onChange={(event) => setTyped(numberTyped(event.target.value, true))}
+            onBlur={() => {
+              const next = typed === undefined ? null : parseChips(typed);
+              if (next !== null && next !== chips) onChips(next);
+              setTyped(undefined);
+            }}
+            onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+            className="h-9 min-w-0 bg-transparent text-right text-[0.8125rem] font-semibold text-text tabular-nums outline-none"
+          />
+          <Pencil className="size-3 shrink-0 text-highlight" strokeWidth={1.75} aria-hidden />
+        </label>
+      </span>
     </div>
   );
 }
@@ -418,6 +456,9 @@ export function HandSummary({
   // where typed over. The two are apart: the Buy-ins are a record put right, not chips moved
   const [extraHands, setExtraHands] = useState(0);
   const [seatTyped, setSeatTyped] = useState<number>();
+  // Each of the two goes to the game unless its box is cleared
+  const [syncSeatBuyIns, setSyncSeatBuyIns] = useState(true);
+  const [syncSeatChips, setSyncSeatChips] = useState(true);
   const seatExtraChips = seat ? extraHands * seat.handChips : 0;
   const seatHands = seat ? (seat.boughtChips + needed) / seat.handChips + extraHands : 0;
   const seatAfter = seatTyped ?? (seat ? seat.stackChips + seatChips + needed : 0);
@@ -430,7 +471,11 @@ export function HandSummary({
       syncPlayerIds: synced.map(({ playerId }) => playerId),
       seatExtraChips,
       // Buy-ins put right leave the chips as they are shown
-      ...((seatTyped !== undefined || extraHands !== 0) && { seatStackChips: seatAfter }),
+      ...((seatTyped !== undefined || extraHands !== 0 || !syncSeatBuyIns) && {
+        seatStackChips: seatAfter,
+      }),
+      syncSeatBuyIns,
+      syncSeatChips,
     });
 
   return (
@@ -481,7 +526,6 @@ export function HandSummary({
           <li className="border-t border-line px-3 pt-2 pb-1">
             <RowTop
               hand={hand}
-              nameOf={nameOf}
               name={
                 <span className="truncate text-sm font-semibold text-highlight">
                   {t.common.insurance}
@@ -494,6 +538,8 @@ export function HandSummary({
                 hands={seatHands}
                 canTakeOne={seatHands > 1}
                 chips={seatAfter}
+                syncHands={{ on: syncSeatBuyIns, onChange: setSyncSeatBuyIns }}
+                syncChips={{ on: syncSeatChips, onChange: setSyncSeatChips }}
                 onStep={(by) => setExtraHands(extraHands + by)}
                 onChips={setSeatTyped}
               />

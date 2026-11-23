@@ -284,6 +284,12 @@ interface FinishInput {
   readonly seatExtraChips: number;
   /** The seat's chips as counted, where they differ from what the hand works out. */
   readonly seatStackChips?: number;
+  /**
+   * Whether the seat's Buy-ins change with the hand, those it needs to pay included, and whether
+   * its chips do. Chips left alone stay what they were before the hand, to be counted at the table.
+   */
+  readonly syncSeatBuyIns: boolean;
+  readonly syncSeatChips: boolean;
 }
 
 /** The hand's money reaches the ledger in one write, and only here. */
@@ -297,6 +303,8 @@ export function useFinishInsuranceHand(gameId: string) {
       syncPlayerIds,
       seatExtraChips,
       seatStackChips,
+      syncSeatBuyIns,
+      syncSeatChips,
     }: FinishInput) => {
       const events = await repository.ledger.listByGame(gameId);
       const written = events.some((e) => belongsToHand(e, hand.id));
@@ -317,7 +325,9 @@ export function useFinishInsuranceHand(gameId: string) {
         const cashOut = latestCashOut(events, INSURANCE_PLAYER_ID);
         const stack = (seat?.stackChips ?? 0) + (cashOut?.chips ?? 0);
         const { premiumChips, payoutChips } = handResult(hand);
-        const topUp = insuranceTopUp(stack + premiumChips, payoutChips, handChips) + seatExtraChips;
+        const topUp = syncSeatBuyIns
+          ? insuranceTopUp(stack + premiumChips, payoutChips, handChips) + seatExtraChips
+          : 0;
         const occurredAt = Date.now();
         const handId = hand.id;
         // Buy-ins given back are taken from the seat's own, latest first, as on the game's page
@@ -337,6 +347,8 @@ export function useFinishInsuranceHand(gameId: string) {
             ? { type: "rebuy" as const, chips: topUp }
             : undefined;
         const seatAfter = stack + premiumChips - payoutChips + (given ? -givenChips : topUp);
+        // Never below nothing, should fewer Buy-ins be left than the hand pays out
+        const seatTarget = syncSeatChips ? (seatStackChips ?? Math.max(0, seatAfter)) : stack;
         await repository.ledger.appendAll([
           ...reseat(gameId, events, occurredAt),
           ...(given?.reversedEventIds ?? []).map(
@@ -367,16 +379,15 @@ export function useFinishInsuranceHand(gameId: string) {
               ...stack,
             }),
           ),
-          // The seat's chips as the organizer counted them, over what the hand works out
-          ...(given || (seatStackChips !== undefined && seatStackChips !== seatAfter)
+          // The seat's chips as the organizer counted them or left them, over what the hand works out
+          ...(given || seatTarget !== seatAfter
             ? [
                 {
                   ...newEventMeta(gameId, occurredAt + 1),
                   type: "stack_set" as const,
                   handId,
                   playerId: INSURANCE_PLAYER_ID,
-                  // Never below nothing, should fewer Buy-ins be left than were asked back
-                  chips: seatStackChips ?? Math.max(0, seatAfter),
+                  chips: seatTarget,
                 },
               ]
             : []),

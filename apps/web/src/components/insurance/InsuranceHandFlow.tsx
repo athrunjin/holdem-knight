@@ -71,6 +71,9 @@ export interface HandFinish {
   readonly seatExtraChips: number;
   /** The insurance's chips as counted, where they differ from what the hand works out. */
   readonly seatStackChips?: number;
+  /** Whether the insurance's Buy-ins after the hand go to the game, and whether its chips do. */
+  readonly syncSeatBuyIns: boolean;
+  readonly syncSeatChips: boolean;
 }
 
 interface InsuranceHandFlowProps {
