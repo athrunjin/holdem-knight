@@ -200,6 +200,11 @@ export interface InsuranceHand {
   /** True while the dead money is the amount a hand starts with, which the organizer has not set. */
   readonly presetPools?: boolean;
   readonly board: readonly number[];
+  /**
+   * How many cards the board had when the hand's insurance began. A street whose card was among
+   * them was entered with the board, and never had insurance.
+   */
+  readonly enteredBoardCards?: number;
   readonly purchases: readonly InsuranceHandPurchase[];
   /** Offers the organizer turned down. */
   readonly declined: readonly string[];

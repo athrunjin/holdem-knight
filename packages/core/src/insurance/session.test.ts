@@ -24,9 +24,11 @@ import {
   premiumBuyIns,
   reviseOffer,
   stakeOf,
+  streetEntered,
   streetInsurance,
-  streetOffered,
+  streetLeaders,
   undoDeal,
+  withEnteredBoard,
 } from "./session";
 
 const c = (text: string): Card => {
@@ -507,9 +509,9 @@ describe("playerHandResults", () => {
       hit: false,
       paidPlayerIds: [],
     });
-    expect(streetOffered(dealt, "turn")).toBe(true);
-    expect(streetOffered(dealt, "river")).toBe(false);
-    expect(streetOffered({ purchases: [], declined: ["river-0-a"] }, "river")).toBe(true);
+    expect(streetLeaders(dealt, "turn")).toEqual(["a"]);
+    expect(streetLeaders(dealt, "river")).toEqual(["a"]);
+    expect(streetLeaders(flop, "river")).toEqual([]);
     expect(streetInsurance(dealt, "river", "a")).toBeUndefined();
     expect(streetInsurance(dealt, "turn", "k")).toBeUndefined();
     const paid = { ...dealt, purchases: dealt.purchases.map((p) => ({ ...p, hit: true })) };
@@ -524,6 +526,16 @@ describe("playerHandResults", () => {
   it("counts a hand as under way from the first cover taken or turned down", () => {
     const flop = hand({ board: river.slice(0, 3), step: "buy" });
     expect(handUnderWay(flop)).toBe(false);
+    // A turn entered with the board never had insurance; one dealt after a decision did
+    const withTurn = { ...flop, board: [...flop.board, c("3c")] };
+    expect(withEnteredBoard(withTurn)).not.toHaveProperty("enteredBoardCards");
+    const begun = withEnteredBoard({ ...withTurn, declined: ["river-0-a"] });
+    expect(begun.enteredBoardCards).toBe(4);
+    expect(streetEntered(begun, "turn")).toBe(true);
+    expect(streetEntered(begun, "river")).toBe(false);
+    expect(withEnteredBoard(dealCard(begun, c("4h"))).enteredBoardCards).toBe(4);
+    expect(withEnteredBoard({ ...begun, declined: [] })).not.toHaveProperty("enteredBoardCards");
+    expect(streetEntered(withEnteredBoard(bought(flop)), "turn")).toBe(false);
     expect(handUnderWay(bought(flop))).toBe(true);
     expect(handUnderWay({ ...flop, declined: ["x"] })).toBe(true);
     expect(handUnderWay({ ...flop, step: "summary" })).toBe(true);
@@ -552,7 +564,8 @@ describe("playerHandResults", () => {
     const [a, k, q] = playerHandResults(hand({ players, board: river }));
     // 300 each in the main pot, 300 more from two in the side pot, and 400 back to the aces
     expect(a).toMatchObject({ potShares: [900, 600], refundChips: 400 });
-    expect(k?.potShares).toEqual([0, 0]);
+    // The kings have nothing in the side pot
+    expect(k?.potShares).toEqual([0, null]);
     expect(q?.potShares).toEqual([0, 0]);
   });
 

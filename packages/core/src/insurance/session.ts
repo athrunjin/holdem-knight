@@ -376,18 +376,39 @@ export interface StreetInsurance {
   readonly paidPlayerIds: readonly string[];
 }
 
+const CARDS_BEFORE = { turn: 3, river: 4 } as const;
+
 /**
- * Whether a street had insurance to decide on: a cover was taken or turned down there. A street
- * whose card was on the board when the hand was entered has neither, like one nobody could insure.
+ * Keeps how much of the board the hand's insurance began with: set once the insurance is under
+ * way, and dropped again if everything decided is taken back and the board is open once more.
  */
-export function streetOffered(
-  hand: Pick<InsuranceHand, "purchases" | "declined">,
+export function withEnteredBoard(hand: InsuranceHand): InsuranceHand {
+  if (!handUnderWay(hand)) {
+    const { enteredBoardCards: _, ...rest } = hand;
+    return rest;
+  }
+  return hand.enteredBoardCards === undefined
+    ? { ...hand, enteredBoardCards: hand.board.length }
+    : hand;
+}
+
+/** Whether a street's card was entered with the board, before any insurance could be sold on it. */
+export function streetEntered(
+  hand: Pick<InsuranceHand, "enteredBoardCards">,
   street: InsuranceHandPurchase["street"],
 ): boolean {
-  return (
-    hand.purchases.some((p) => p.street === street) ||
-    hand.declined.some((key) => key.startsWith(`${street}-`))
-  );
+  return (hand.enteredBoardCards ?? 0) > CARDS_BEFORE[street];
+}
+
+/** Who was ahead in any pot before a street's card, and so could insure it. */
+export function streetLeaders(
+  hand: Pick<InsuranceHand, "players" | "pools" | "board">,
+  street: InsuranceHandPurchase["street"],
+): string[] {
+  const board = hand.board.slice(0, CARDS_BEFORE[street]);
+  if (board.length < CARDS_BEFORE[street]) return [];
+  const pots = handPots({ ...hand, board });
+  return [...new Set(pots.flatMap((pot) => pot.leaders.map((leader) => leader.playerId)))];
 }
 
 /** A player's insurance on one street, or nothing if they bought none there. */
@@ -412,8 +433,11 @@ export interface PlayerHandResult {
   readonly cover: boolean;
   /** Won from the pots, dead money included. */
   readonly potChips: number;
-  /** The same by pot, for every pot more than one player is in, main pot first. */
-  readonly potShares: readonly number[];
+  /**
+   * The same by pot, for every pot more than one player is in, main pot first. Null for a pot the
+   * player has nothing in.
+   */
+  readonly potShares: readonly (number | null)[];
   /** Excess nobody called, which came straight back. */
   readonly refundChips: number;
   /** Payouts less premiums. */
@@ -436,7 +460,7 @@ export function playerHandResults(hand: InsuranceHand): PlayerHandResult[] {
   const won = new Map<string, number>();
   const refunds = new Map<string, number>();
   // One map for each pot more than one player is in
-  const shares: Map<string, number>[] = [];
+  const shares: { readonly playerIds: readonly string[]; readonly won: Map<string, number> }[] = [];
   const add = (totals: Map<string, number>, id: string, chips: number) =>
     totals.set(id, (totals.get(id) ?? 0) + chips);
 
@@ -450,7 +474,7 @@ export function playerHandResults(hand: InsuranceHand): PlayerHandResult[] {
     const share = Math.floor(pot.amountChips / winners.length);
     const odd = pot.amountChips - share * winners.length;
     const inPot = new Map<string, number>();
-    shares.push(inPot);
+    shares.push({ playerIds: pot.playerIds, won: inPot });
     winners.forEach((id, i) => {
       add(won, id, share + (i < odd ? 1 : 0));
       add(inPot, id, share + (i < odd ? 1 : 0));
@@ -469,7 +493,9 @@ export function playerHandResults(hand: InsuranceHand): PlayerHandResult[] {
       playerId,
       cover,
       potChips,
-      potShares: shares.map((inPot) => inPot.get(playerId) ?? 0),
+      potShares: shares.map((pot) =>
+        pot.playerIds.includes(playerId) ? (pot.won.get(playerId) ?? 0) : null,
+      ),
       refundChips,
       insuranceChips,
       netChips: left - stakeOf(player, hand.players),

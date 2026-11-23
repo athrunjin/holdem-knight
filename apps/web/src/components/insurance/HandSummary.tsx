@@ -7,10 +7,11 @@ import {
   parseChips,
   playerHandResults,
   premiumBuyIns,
+  streetEntered,
   streetInsurance,
-  streetOffered,
+  streetLeaders,
 } from "@holdem-knight/core";
-import { Pencil } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { t } from "@/i18n";
 import { formatSignedChips } from "@/lib/chips";
@@ -27,78 +28,114 @@ const chipText = (chips: number) => chips.toLocaleString("zh-CN");
 /** A name, then three figures: each street's insurance, and the column everything is added up in. */
 const ROW = "grid grid-cols-[minmax(0,1.3fr)_repeat(3,minmax(0,1fr))] gap-x-1.5";
 
-const FIGURE = "text-[0.8125rem] whitespace-nowrap tabular-nums";
+/** A figure of the table's upper part, the size of the name beside it. */
+const FIGURE = "text-right text-sm whitespace-nowrap tabular-nums";
 
-/** A signed figure in the color of a win or a loss, with a word under it in small. */
-function Figure({
-  chips,
-  under,
-  strong = false,
-}: {
-  chips: number;
-  under?: ReactNode;
-  strong?: boolean;
-}) {
+/** A signed figure in the color of a win or a loss. */
+function Figure({ chips, strong = false }: { chips: number; strong?: boolean }) {
   return (
-    <span className="flex min-w-0 flex-col items-end">
-      <span
-        className={cn(
-          FIGURE,
-          strong ? "font-semibold" : "font-medium",
-          chips === 0 ? "text-muted" : TONE_CLASS[netTone(chips)],
-        )}
-      >
-        {formatSignedChips(chips)}
-      </span>
-      {under !== undefined && (
-        <span className="max-w-full truncate text-[0.6875rem] text-muted tabular-nums">
-          {under}
-        </span>
+    <span
+      className={cn(
+        FIGURE,
+        strong ? "font-semibold" : "font-medium",
+        chips === 0 ? "text-muted" : TONE_CLASS[netTone(chips)],
       )}
+    >
+      {formatSignedChips(chips)}
     </span>
   );
 }
 
+const STREETS = ["turn", "river"] as const;
+
 /**
- * A street's insurance in the table. A street with no insurance to decide on, as when its card was
- * entered with the board, is struck out; one where nothing was bought reads 0. For the insurance
- * itself the figure is its own side of every cover, with whoever it paid named under it.
+ * A street's insurance as the two lines of its column: the figure, and a word under it.
+ *
+ * A street whose card was entered with the board never had insurance and is struck out. For a
+ * player who bought, the figure is what the cover came to, with whether it hit; one who was ahead
+ * and bought nothing, by choice or with too many outs to be sold a cover, is said not to buy, and
+ * one who was behind is said to be. For the insurance itself the figure is its own side of every
+ * cover, with whoever it paid named under it.
  */
-function StreetFigure({
+function streetLines(
+  hand: InsuranceHand,
+  street: (typeof STREETS)[number],
+  playerId: string | undefined,
+  nameOf: (id: string) => string,
+): readonly [ReactNode, ReactNode] {
+  const { handSummary: text } = t.insurance;
+  const word = (content: ReactNode) => <span className={cn(FIGURE, "text-muted")}>{content}</span>;
+  if (streetEntered(hand, street)) return [word("—"), null];
+  const bought = streetInsurance(hand, street, playerId);
+  if (playerId === undefined) {
+    if (!bought) return [<Figure key="figure" chips={0} />, null];
+    const paid = bought.paidPlayerIds.map(nameOf).join(t.common.listSeparator);
+    return [
+      <Figure key="figure" chips={-bought.chips} />,
+      <span
+        key="word"
+        className={cn(FIGURE, "truncate", bought.hit ? "text-highlight" : "text-muted")}
+      >
+        {bought.hit ? text.paidTo(paid) : text.missed}
+      </span>,
+    ];
+  }
+  if (!bought) {
+    return [
+      word(streetLeaders(hand, street).includes(playerId) ? text.notBuying : text.behind),
+      null,
+    ];
+  }
+  return [
+    <Figure key="figure" chips={bought.chips} />,
+    <span key="word" className={cn(FIGURE, bought.hit ? "text-highlight" : "text-muted")}>
+      {bought.hit ? text.hit : text.missed}
+    </span>,
+  ];
+}
+
+/**
+ * The upper part of a row: on the first line the name, each street's figure and the insurance's
+ * total, and on the second, level with the foot of the hole cards, each street's word.
+ */
+function RowTop({
   hand,
-  street,
   playerId,
   nameOf,
+  name,
+  under,
+  totalChips,
 }: {
   hand: InsuranceHand;
-  street: "turn" | "river";
   /** Missing for the insurance's own row. */
   playerId?: string;
-  nameOf?: (id: string) => string;
+  nameOf: (id: string) => string;
+  name: ReactNode;
+  /** Under the name: a player's hole cards. */
+  under?: ReactNode;
+  totalChips: number;
 }) {
-  if (!streetOffered(hand, street)) {
-    return <span className={cn(FIGURE, "text-right text-muted")}>—</span>;
-  }
-  const bought = streetInsurance(hand, street, playerId);
-  if (!bought) return <Figure chips={0} />;
-  const { handSummary: text } = t.insurance;
-  if (playerId !== undefined) {
-    return (
-      <Figure
-        chips={bought.chips}
-        under={
-          <span className={cn(bought.hit && "text-highlight")}>
-            {bought.hit ? text.hit : text.missed}
-          </span>
-        }
-      />
-    );
-  }
-  const paid = bought.paidPlayerIds.map((id) => nameOf?.(id) ?? "").join(t.common.listSeparator);
+  const [turn, river] = STREETS.map((street) => streetLines(hand, street, playerId, nameOf));
   return (
-    <Figure
-      chips={-bought.chips}
-      under={bought.hit ? <span className="text-highlight">{text.paidTo(paid)}</span> : text.missed}
+    <div className={cn(ROW, "items-end gap-y-1")}>
+      {name}
+      {turn?.[0]}
+      {river?.[0]}
+      <Figure chips={totalChips} strong />
+      <span className="flex min-h-6 gap-0.5 text-xs font-semibold tabular-nums">{under}</span>
+      {turn?.[1] ?? <span />}
+      {river?.[1] ?? <span />}
+      <span />
+    </div>
+  );
+}
+
+/** A line across a row that fades out at both ends, between its insurance and its chips. */
+function Divider() {
+  return (
+    <div
+      aria-hidden
+      className="my-2 h-px bg-linear-to-r from-transparent via-line to-transparent"
     />
   );
 }
@@ -121,13 +158,47 @@ function SmallCard({ card }: { card: number }) {
   );
 }
 
-/** One amount in the last column, named just before it: chips that came from a pot. */
-function AmountLine({ label, chips }: { label: string; chips: number }) {
+const MARK = "grid size-5 shrink-0 place-items-center rounded-full";
+
+/** Whether a pot was won, as a small round mark before its name. */
+function WonMark({ won }: { won: boolean }) {
+  const { handSummary: text } = t.insurance;
   return (
-    <div className={cn(ROW, "items-baseline py-0.5")}>
-      <span className="col-span-3 text-right text-xs text-muted">{label}</span>
-      <span className={cn(FIGURE, "text-right font-medium", chips === 0 && "text-muted")}>
-        {chipText(chips)}
+    <span className={cn(MARK, won ? "bg-win/15 text-win" : "bg-loss/15 text-loss")}>
+      <span className="sr-only">{won ? text.won : text.lost}</span>
+      {won ? (
+        <Check className="size-3.5" strokeWidth={2.5} aria-hidden />
+      ) : (
+        <X className="size-3.5" strokeWidth={2.5} aria-hidden />
+      )}
+    </span>
+  );
+}
+
+/**
+ * One line of a row's lower part: a mark, a name, and in the last column what it adds to the
+ * chips the player ends with.
+ */
+function ChipLine({
+  mark,
+  label,
+  struck = false,
+  children,
+}: {
+  mark?: ReactNode;
+  label: string;
+  /** For a pot the player is not in */
+  struck?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn(ROW, "min-h-7 items-center text-[0.8125rem]")}>
+      <span className="col-span-2 flex items-center gap-1.5">
+        {mark ?? <span className="size-5 shrink-0" />}
+        <span className={cn(struck ? "text-muted line-through" : "text-text")}>{label}</span>
+      </span>
+      <span className="col-span-2 text-right font-medium whitespace-nowrap tabular-nums">
+        {children}
       </span>
     </div>
   );
@@ -136,74 +207,94 @@ function AmountLine({ label, chips }: { label: string; chips: number }) {
 function PlayerRow({
   hand,
   result,
-  name,
+  nameOf,
   buyIn,
   handChips,
   sync,
 }: {
   hand: InsuranceHand;
   result: PlayerHandResult;
-  name: string;
+  nameOf: (id: string) => string;
   buyIn: PremiumBuyIn | undefined;
   handChips: number | undefined;
   /** Whether these chips go to the game, and how that is changed. Missing where they cannot. */
   sync: { readonly on: boolean; readonly onChange: (on: boolean) => void } | undefined;
 }) {
-  const { playerId, insuranceChips, potShares, refundChips, stackChips } = result;
+  const { playerId, cover, insuranceChips, potShares, refundChips, stackChips } = result;
   const cards = hand.players.find((p) => p.playerId === playerId)?.cards ?? [];
   const stackAfter = buyIn?.stackChips ?? stackChips;
   const { handSummary: text, potColumns } = t.insurance;
+  const notApplicable = <span className="text-muted">{text.notApplicable}</span>;
   return (
     <li className="border-t border-line px-3 pt-2 pb-1">
-      <div className={cn(ROW, "items-start")}>
-        <span className="flex min-w-0 flex-col gap-1">
-          <span className="truncate text-sm font-semibold">{name}</span>
-          <span className="flex gap-0.5 text-xs font-semibold tabular-nums">
-            {cards.map((card) => (
-              <SmallCard key={card} card={card} />
-            ))}
-          </span>
-        </span>
-        <StreetFigure hand={hand} street="turn" playerId={playerId} />
-        <StreetFigure hand={hand} street="river" playerId={playerId} />
-        <Figure chips={insuranceChips} strong />
-      </div>
-      {/* Down the last column: what came from each pot, the main pot always and a side pot where
-          it paid, then chips nobody called, which add up with the insurance to what is left */}
-      {potShares.map((chips, index) =>
-        index === 0 || chips > 0 ? (
-          <AmountLine
-            // biome-ignore lint/suspicious/noArrayIndexKey: the pots are in a fixed order
-            key={index}
-            label={index === 0 ? potColumns.mainPot : potColumns.sidePot(index)}
-            chips={chips}
-          />
-        ) : null,
-      )}
-      {refundChips > 0 && <AmountLine label={text.returned} chips={refundChips} />}
-      {/* The chips the player ends with, and whether they go to the game. A cover has more
-          behind than the hand knows, so has neither */}
-      {stackAfter !== null && (
-        <div className={cn(ROW, "min-h-11 items-center")}>
-          <span className="col-span-3 flex items-center justify-between gap-2 text-xs">
-            {sync ? (
-              <label className="flex min-h-11 items-center gap-1.5">
+      <RowTop
+        hand={hand}
+        playerId={playerId}
+        nameOf={nameOf}
+        name={<span className="truncate text-sm font-semibold">{nameOf(playerId)}</span>}
+        under={cards.map((card) => <SmallCard key={card} card={card} />)}
+        totalChips={insuranceChips}
+      />
+      <Divider />
+      {/* Every pot of the hand: what the player took from it, nothing in red where it was lost,
+          and struck out where the player has no chips in it */}
+      {potShares.map((chips, index) => {
+        const label = index === 0 ? potColumns.mainPot : potColumns.sidePot(index);
+        return chips === null ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: the pots are in a fixed order
+          <ChipLine key={index} label={label} struck>
+            <span className="text-muted">{text.notIn}</span>
+          </ChipLine>
+        ) : (
+          // biome-ignore lint/suspicious/noArrayIndexKey: the pots are in a fixed order
+          <ChipLine key={index} mark={<WonMark won={chips > 0} />} label={label}>
+            <span className={chips > 0 ? "text-win" : "text-loss"}>
+              {chips > 0 ? `+${chipText(chips)}` : 0}
+            </span>
+          </ChipLine>
+        );
+      })}
+      {/* Chips that were never in the betting. A cover has more behind than the hand knows */}
+      <ChipLine
+        mark={
+          cover ? (
+            <span className={cn(MARK, "bg-win text-xs font-bold text-bg")}>C</span>
+          ) : undefined
+        }
+        label={text.chipsBehind}
+      >
+        {cover ? (
+          notApplicable
+        ) : (
+          <span className={cn(refundChips === 0 && "text-muted")}>{chipText(refundChips)}</span>
+        )}
+      </ChipLine>
+      {/* The chips the player ends with, and whether they go to the game */}
+      <div className={cn(ROW, "min-h-11 items-center text-[0.8125rem]")}>
+        <span className="col-span-2 flex items-center">
+          {sync && stackAfter !== null && (
+            <label className="flex min-h-11 items-center gap-1.5">
+              <span className="grid size-5 shrink-0 place-items-center">
                 <input
                   type="checkbox"
                   checked={sync.on}
                   onChange={(event) => sync.onChange(event.target.checked)}
-                  className="size-4 shrink-0 accent-[var(--accent)]"
+                  className="size-4 accent-[var(--accent)]"
                 />
-                <span className={cn(!sync.on && "text-muted")}>{text.syncToTheGame}</span>
-              </label>
-            ) : (
-              <span />
-            )}
-            <span className="text-muted">{text.totalChips}</span>
-          </span>
-          <span className={cn(FIGURE, "text-right font-semibold")}>{chipText(stackAfter)}</span>
-        </div>
-      )}
+              </span>
+              <span className={cn(!sync.on && "text-muted")}>{text.syncToTheGame}</span>
+            </label>
+          )}
+        </span>
+        <span className="col-span-2 flex items-baseline justify-end gap-2 whitespace-nowrap">
+          <span className="text-muted">{text.totalChips}</span>
+          {stackAfter === null ? (
+            notApplicable
+          ) : (
+            <span className="font-semibold tabular-nums">{chipText(stackAfter)}</span>
+          )}
+        </span>
+      </div>
       {buyIn && handChips !== undefined && (
         <BuyInNote>
           {text.needsABuyIn(buyIn.buyInChips / handChips, chipText(buyIn.buyInChips))}
@@ -217,8 +308,9 @@ const stepClass =
   "grid h-11 w-9 shrink-0 place-items-center text-lg font-semibold text-highlight disabled:text-muted disabled:opacity-40";
 
 /**
- * The insurance's own figures after the hand, each to be put right in place: its Buy-ins, a tap
- * on − or + taking or adding one, and its chips, which a tap selects whole to type over.
+ * The insurance's own figures after the hand, each to be put right in place and neither moving the
+ * other: its Buy-ins, a tap on − or + taking or adding one, and its chips, which a tap selects
+ * whole to type over.
  */
 function SeatFigures({
   hands,
@@ -228,7 +320,7 @@ function SeatFigures({
   onChips,
 }: {
   hands: number;
-  /** False at one Buy-in, and where one less would leave the insurance owing chips. */
+  /** False at one Buy-in. */
   canTakeOne: boolean;
   chips: number;
   onStep: (by: number) => void;
@@ -331,12 +423,12 @@ export function HandSummary({
   // A premium is short only against the chips the hand leaves, which are set only when synced
   const buyIns = seat ? premiumBuyIns(synced, seat.handChips) : [];
   // Buy-ins added or given back by hand, counted from those the insurance needs, and its chips
-  // where typed over
+  // where typed over. The two are apart: the Buy-ins are a record put right, not chips moved
   const [extraHands, setExtraHands] = useState(0);
   const [seatTyped, setSeatTyped] = useState<number>();
   const seatExtraChips = seat ? extraHands * seat.handChips : 0;
-  const topUp = needed + seatExtraChips;
-  const seatAfter = seat ? seat.stackChips + seatChips + topUp : 0;
+  const seatHands = seat ? (seat.boughtChips + needed) / seat.handChips + extraHands : 0;
+  const seatAfter = seatTyped ?? (seat ? seat.stackChips + seatChips + needed : 0);
   const [confirming, setConfirming] = useState(false);
   const { handSummary: text } = t.insurance;
   const { board } = hand;
@@ -345,7 +437,8 @@ export function HandSummary({
     onConfirm({
       syncPlayerIds: synced.map(({ playerId }) => playerId),
       seatExtraChips,
-      ...(seatTyped !== undefined && { seatStackChips: seatTyped }),
+      // Buy-ins put right leave the chips as they are shown
+      ...((seatTyped !== undefined || extraHands !== 0) && { seatStackChips: seatAfter }),
     });
 
   return (
@@ -376,7 +469,7 @@ export function HandSummary({
                 key={playerId}
                 hand={hand}
                 result={result}
-                name={nameOf(playerId)}
+                nameOf={nameOf}
                 buyIn={buyIns.find((b) => b.playerId === playerId)}
                 handChips={seat?.handChips}
                 sync={
@@ -394,26 +487,22 @@ export function HandSummary({
             );
           })}
           <li className="border-t border-line px-3 pt-2 pb-1">
-            <div className={cn(ROW, "items-start")}>
-              <span className="truncate text-sm font-semibold text-highlight">
-                {t.common.insurance}
-              </span>
-              <StreetFigure hand={hand} street="turn" nameOf={nameOf} />
-              <StreetFigure hand={hand} street="river" nameOf={nameOf} />
-              <Figure chips={seatChips} strong />
-            </div>
+            <RowTop
+              hand={hand}
+              nameOf={nameOf}
+              name={
+                <span className="truncate text-sm font-semibold text-highlight">
+                  {t.common.insurance}
+                </span>
+              }
+              totalChips={seatChips}
+            />
             {seat && (
               <SeatFigures
-                hands={(seat.boughtChips + topUp) / seat.handChips}
-                canTakeOne={
-                  seat.boughtChips + topUp > seat.handChips && seatAfter >= seat.handChips
-                }
-                chips={seatTyped ?? seatAfter}
-                onStep={(by) => {
-                  setExtraHands(extraHands + by);
-                  // The chips follow the Buy-ins again
-                  setSeatTyped(undefined);
-                }}
+                hands={seatHands}
+                canTakeOne={seatHands > 1}
+                chips={seatAfter}
+                onStep={(by) => setExtraHands(extraHands + by)}
                 onChips={setSeatTyped}
               />
             )}

@@ -21,6 +21,7 @@ import {
   reviseOffer,
   type Standings,
   undoDeal,
+  withEnteredBoard,
 } from "@holdem-knight/core";
 import { Plus, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -293,7 +294,9 @@ export function InsuranceHandFlow({
     kept.board.length > 0 ||
     (kept.pools.length > 0 && !kept.presetPools);
 
-  function update(next: InsuranceHand) {
+  function update(changed: InsuranceHand) {
+    // Which streets were on the board before any insurance is kept for the summary
+    const next = withEnteredBoard(changed);
     setHand(next);
     setNotice(undefined);
     store?.save(next);
