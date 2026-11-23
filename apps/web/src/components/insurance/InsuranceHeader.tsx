@@ -71,6 +71,8 @@ interface InsuranceSetupProps {
   onChange: (value: InsuranceChoice) => boolean | undefined;
   /** Hold what is being typed until its field is left, so a change is asked about once */
   settleTyping?: boolean;
+  /** While a hand's insurance is being worked out: shown, and not to be changed */
+  locked?: boolean;
 }
 
 /**
@@ -83,6 +85,7 @@ export function InsuranceSetup({
   stakes,
   onChange: save,
   settleTyping = false,
+  locked = false,
 }: InsuranceSetupProps) {
   const settled = useSettledChange(saved, save);
   const value = settleTyping ? settled.value : saved;
@@ -97,7 +100,12 @@ export function InsuranceSetup({
   });
 
   return (
-    <div className="contents" {...(settleTyping && settled.containerProps)}>
+    <div
+      // A hand is priced by the settings it began with, so they wait for it to end
+      inert={locked}
+      className={locked ? "opacity-50" : "contents"}
+      {...(settleTyping && settled.containerProps)}
+    >
       <div className="flex items-center justify-between gap-4">
         <ConfigMenu
           label={t.insurance.insuranceHeader.insuranceSettings}

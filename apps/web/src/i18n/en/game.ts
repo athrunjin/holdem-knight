@@ -70,7 +70,7 @@ export const game: Messages["game"] = {
     withBothOnWhicheverHigherRate: "With both on, whichever higher rate comes first applies.",
     byTimeOfDay: "By time of day",
     byTheTimeWhereTheGame:
-      "By the time where the game started. A game that starts inside a period is charged at its rate from the start; otherwise from the next time the period begins.",
+      "By the time where the game started. A game that starts inside a period with an end is charged at its rate from the start. A period with no end, such as from midnight, counts only from the first time the game reaches its start.",
     from: "From",
     startTime: "Start time",
     to: "to",

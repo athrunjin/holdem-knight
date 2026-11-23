@@ -10,6 +10,7 @@ import {
   handPotEntries,
   handResult,
   handStandings,
+  handUnderWay,
   type InsuranceHand,
   type InsuranceHandPlayer,
   type InsuranceRule,
@@ -20,13 +21,13 @@ import {
   reviseOffer,
   type Standings,
   undoDeal,
+  withEnteredBoard,
 } from "@holdem-knight/core";
 import { Plus, RotateCcw } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@/i18n";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
-import { BOARD_PLACES, CardFace } from "./CardFace";
 import { type CardTarget, HandCardPicker, playerMarks } from "./HandCardPicker";
 import { HandPlayerRow, HoleCards, type StandingNote } from "./HandPlayerRow";
 import {
@@ -36,6 +37,7 @@ import {
   PRESET_DEAD_CHIPS,
   RoundAction,
   SectionTitle,
+  StreetCards,
 } from "./HandSections";
 import { HandSummary } from "./HandSummary";
 import type { InsuranceSeat } from "./InsuranceCalculator";
@@ -48,16 +50,28 @@ import { type PotShare, PotShares } from "./PotShares";
 /** Keeps the hand. Missing for the standalone calculator, which records nothing. */
 export interface HandStore {
   save: (hand: InsuranceHand) => void;
-  /** A player's counted chips, which update the table at once. */
-  enterStack: (playerId: string, chips: number) => void;
   discard: (handId: string) => void;
-  finish: (hand: InsuranceHand) => Promise<void>;
+  finish: (hand: InsuranceHand, choices: HandFinish) => Promise<void>;
 }
 
 /** The insurance seat now, to show where it will end up. */
 export interface SeatChips {
   readonly stackChips: number;
+  readonly boughtChips: number;
   readonly handChips: number;
+}
+
+/** What the organizer settled on the summary before the hand goes to the game. */
+export interface HandFinish {
+  /** The players whose chips after the hand go to the game. The others keep theirs as they are. */
+  readonly syncPlayerIds: readonly string[];
+  /** Chips the insurance buys beyond what it must to pay, in whole hands. */
+  readonly seatExtraChips: number;
+  /** The insurance's chips as counted, where they differ from what the hand works out. */
+  readonly seatStackChips?: number;
+  /** Whether the insurance's Buy-ins after the hand go to the game, and whether its chips do. */
+  readonly syncSeatBuyIns: boolean;
+  readonly syncSeatChips: boolean;
 }
 
 interface InsuranceHandFlowProps {
@@ -69,6 +83,8 @@ interface InsuranceHandFlowProps {
   createHand: () => InsuranceHand;
   store: HandStore | undefined;
   seat: SeatChips | undefined;
+  /** Told whether the hand's insurance is being worked out, while the settings must stay put. */
+  onUnderWay?: ((underWay: boolean) => void) | undefined;
 }
 
 const STREET_TEXT = { turn: t.common.turn, river: t.common.river } as const;
@@ -97,59 +113,6 @@ const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
 const primaryClass =
   "min-h-12 w-full rounded-xl bg-accent font-semibold text-accent-text disabled:opacity-40";
 const secondaryClass = "min-h-11 w-full rounded-xl border border-line font-medium";
-
-/**
- * One street's cards in a frame, named underneath. A street that must be entered is framed solid;
- * one that may be left out is dashed until it has its card.
- */
-function StreetCards({
-  label,
-  cards,
-  count,
-  optional = false,
-  disabled = false,
-  onPick,
-}: {
-  label: string;
-  cards: readonly Card[];
-  count: number;
-  optional?: boolean;
-  disabled?: boolean;
-  /** Missing once the board can no longer change. */
-  onPick?: (() => void) | undefined;
-}) {
-  const empty = cards.length === 0;
-  const frame = cn(
-    "flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 px-2 pt-2 pb-1",
-    empty && optional ? "border-dashed border-line" : "border-line bg-surface",
-  );
-  const content = (
-    <>
-      <span className="flex gap-1">
-        {BOARD_PLACES.slice(0, count).map((place) => (
-          <CardFace key={place} card={cards[place] ?? null} solid={!optional} />
-        ))}
-      </span>
-      <span className="text-xs whitespace-nowrap text-muted">{label}</span>
-    </>
-  );
-  if (!onPick) return <div className={frame}>{content}</div>;
-  return (
-    <button
-      type="button"
-      aria-label={
-        empty
-          ? t.insurance.insuranceHandFlow.select(label)
-          : t.insurance.insuranceHandFlow.edit(label)
-      }
-      disabled={disabled}
-      onClick={onPick}
-      className={cn(frame, "disabled:opacity-40")}
-    >
-      {content}
-    </button>
-  );
-}
 
 /** A leader's chance to win stands alone. A player behind gets their outs for the next card before it. */
 function standingNote(
@@ -270,6 +233,7 @@ export function InsuranceHandFlow({
   createHand,
   store,
   seat,
+  onUnderWay,
 }: InsuranceHandFlowProps) {
   // A hand carried on from keeps its own dead money; a new one starts with the preset
   const [kept, setHand] = useState(() => open ?? withPresetPools(createHand()));
@@ -288,6 +252,8 @@ export function InsuranceHandFlow({
   const [notice, setNotice] = useState<string>();
 
   const hand = withFirstPlayers(kept, seats);
+  const underWay = handUnderWay(hand);
+  useEffect(() => onUnderWay?.(underWay), [onUnderWay, underWay]);
   const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? t.common.unknownPlayer;
   const totals = potTotals(handPotEntries(hand));
   const street = nextStreet(hand.board);
@@ -329,7 +295,9 @@ export function InsuranceHandFlow({
     kept.board.length > 0 ||
     (kept.pools.length > 0 && !kept.presetPools);
 
-  function update(next: InsuranceHand) {
+  function update(changed: InsuranceHand) {
+    // Which streets were on the board before any insurance is kept for the summary
+    const next = withEnteredBoard(changed);
     setHand(next);
     setNotice(undefined);
     store?.save(next);
@@ -351,11 +319,11 @@ export function InsuranceHandFlow({
     update({ ...hand, step: hand.board.length < 5 ? "buy" : "summary" });
   }
 
-  async function finish() {
+  async function finish(choices: HandFinish) {
     if (store) {
       setFinishing(true);
       try {
-        await store.finish(hand);
+        await store.finish(hand, choices);
         reset();
       } finally {
         setFinishing(false);
@@ -392,13 +360,12 @@ export function InsuranceHandFlow({
       );
   }
 
-  /** Counted chips are the player's true stack, so they go to the table once typing is done. */
-  function commitChips(playerId: string) {
-    const player = hand.players.find((p) => p.playerId === playerId);
+  /**
+   * Chips typed are what the player has in this hand. They reach the game only with the hand, on
+   * its summary, where each player's chips are sent or left as they are.
+   */
+  function commitChips() {
     store?.save(hand);
-    if (player && !player.cover && player.chips > 0) {
-      store?.enterStack(playerId, player.chips);
-    }
   }
 
   /** At most one player covers the others. The chips typed stay as they are under the cover. */
@@ -633,7 +600,7 @@ export function InsuranceHandFlow({
                                 ),
                               // Kept and sent to the table once the field is left, not on every digit
                               onChips: (chips) => setHand(withPlayer(playerId, { chips })),
-                              onChipsDone: () => commitChips(playerId),
+                              onChipsDone: commitChips,
                               onCover: (cover) => setCover(playerId, cover),
                               // The two a hand cannot do without are cleared; the rest go
                               lead:
@@ -761,7 +728,8 @@ export function InsuranceHandFlow({
           recording={store !== undefined}
           seatedIds={seats.map(({ id }) => id)}
           saving={finishing}
-          onBack={() => update({ ...hand, step: "settle" })}
+          // Straight back to the river, to be picked again
+          onBack={() => update(undoDeal(hand))}
           onConfirm={finish}
         />
       )}

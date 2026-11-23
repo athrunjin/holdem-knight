@@ -5,17 +5,18 @@ import {
   type InsuranceRecord,
   type InsuranceRuleForm,
   insuranceRecords,
+  latestCashOut,
   ORGANIZER_PLAYER_ID,
   parseInsuranceRule,
   ruleAtStakes,
   summarizeByPlayer,
   toInsuranceRuleForm,
+  undoInsuranceHand,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
-  type BoughtInsurance,
   InsuranceCalculator,
   type InsuranceMode,
 } from "@/components/insurance/InsuranceCalculator";
@@ -26,9 +27,7 @@ import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import {
   newInsuranceHand,
-  useBuyInsurance,
   useDiscardInsuranceHand,
-  useEnterStack,
   useFinishInsuranceHand,
   useInsuranceHands,
   useInsuranceRules,
@@ -62,13 +61,14 @@ function GameInsurance({ game }: { game: Game }) {
   const { data: events = [] } = useLedger(gameId);
   const { data: players = [] } = usePlayers();
   const saveGame = useSaveGame();
-  const buyInsurance = useBuyInsurance(gameId);
   const settleInsurance = useSettleInsurance(gameId);
   const undoInsurance = useUndoInsurance(gameId);
 
   const navigate = Route.useNavigate();
   const editable = status !== "settled";
   const [mode, setMode] = useState<InsuranceMode>("cards");
+  // A hand's insurance being worked out, while the settings above it must stay put
+  const [underWay, setUnderWay] = useState(false);
   const { data: savedRules = [] } = useInsuranceRules();
   // The settings as changed on this page, shown at once while the game is being saved
   const [edited, setEdited] = useState<Pick<InsuranceChoice, "source" | "form">>();
@@ -119,65 +119,42 @@ function GameInsurance({ game }: { game: Game }) {
     .toReversed();
   const { data: hands } = useInsuranceHands(gameId);
   const saveHand = useSaveInsuranceHand(gameId);
-  const enterStack = useEnterStack(gameId);
   const discardHand = useDiscardInsuranceHand(gameId);
   const finishHand = useFinishInsuranceHand(gameId);
   const undoHand = useUndoInsuranceHand(gameId);
   const finished = hands?.filter((hand) => hand.status === "done") ?? [];
   const openHand = hands?.find((hand) => hand.status === "open");
 
-  async function handleBuy(bought: BoughtInsurance) {
-    const { playerId, option, oddsHundredths, outs, street } = bought;
-    try {
-      return await buyInsurance.mutateAsync({
-        playerId,
-        chips: option.premiumChips,
-        payoutChips: option.payoutChips,
-        outs,
-        ...(bought.tie && { tie: true }),
-        oddsHundredths,
-        street,
-      });
-    } catch {
-      return undefined; // The page shows the failure from the mutation
-    }
-  }
-
-  function handleRevise(purchaseId: string) {
-    const record = records.find(({ purchase }) => purchase.id === purchaseId);
-    if (!record) return true;
-    if (
-      record.status !== "pending" &&
-      !window.confirm(t.gamePages.insurance.thisBetAlreadyHasAResult)
-    ) {
-      return false;
-    }
-    undoInsurance.mutate(record);
-    return true;
-  }
-
   function handleSettle(record: InsuranceRecord, hit: boolean) {
     if (handChips !== undefined) settleInsurance.mutate({ record, hit, handChips });
   }
 
   function handleUndo(record: InsuranceRecord) {
-    if (window.confirm(t.gamePages.insurance.undoThisBetItsWinOr)) undoInsurance.mutate(record);
+    if (window.confirm(t.gamePages.insurance.undoThisBetItsWinOr))
+      undoInsurance.mutate({ record, handChips });
   }
 
   function handleUndoHand(hand: InsuranceHand) {
-    if (window.confirm(t.gamePages.insurance.undoThisHandsInsuranceItsWin))
-      undoHand.mutate(hand.id);
+    // Players whose chips changed after the hand keep them, which the question says
+    const kept = [...new Set(undoInsuranceHand(events, hand.id, handChips).keptPlayerIds)].map(
+      nameOf,
+    );
+    const question =
+      kept.length > 0
+        ? t.gamePages.insurance.undoThisHandKeepingStacks(kept.join(t.common.listSeparator))
+        : t.gamePages.insurance.undoThisHandsInsuranceItsWin;
+    if (window.confirm(question)) undoHand.mutate({ handId: hand.id, handChips });
   }
 
   const failed =
     saveGame.isError ||
-    buyInsurance.isError ||
     settleInsurance.isError ||
     undoInsurance.isError ||
     saveHand.isError ||
-    enterStack.isError ||
     finishHand.isError ||
-    undoHand.isError;
+    undoHand.isError ||
+    // Dropping a hand can write to the ledger too
+    discardHand.isError;
 
   return (
     <Page
@@ -216,36 +193,35 @@ function GameInsurance({ game }: { game: Game }) {
             stakes={{ smallBlindChips: game.smallBlindChips }}
             onChange={setChoice}
             settleTyping
+            locked={underWay}
           />
         )}
-
         {insurance && editable && hands && (
           <InsuranceCalculator
             mode={mode}
             rule={rule ?? insurance}
             seats={seats}
-            saving={buyInsurance.isPending}
-            recorder={{
-              onBuy: handleBuy,
-              onRevise: handleRevise,
-              boughtIds: new Set(records.map(({ purchase }) => purchase.id)),
-              onSettle: (purchaseId, hit) => {
-                const record = records.find(({ purchase }) => purchase.id === purchaseId);
-                if (record?.status === "pending") handleSettle(record, hit);
-              },
-            }}
+            onHandUnderWay={setUnderWay}
             handStore={{
               save: saveHand.mutate,
-              enterStack: (playerId, chips) => enterStack.mutate({ playerId, chips }),
-              discard: discardHand.mutate,
-              finish: async (hand) => {
+              discard: (handId: string) => discardHand.mutate({ handId, handChips }),
+              finish: async (hand, choices) => {
                 if (handChips === undefined) return;
-                await finishHand.mutateAsync({ hand, handChips });
+                await finishHand.mutateAsync({ hand, handChips, ...choices });
                 navigate({ to: "/games/$gameId", params: { gameId } });
               },
             }}
             seat={
-              handChips === undefined ? undefined : { stackChips: seat?.stackChips ?? 0, handChips }
+              handChips === undefined
+                ? undefined
+                : {
+                    // With chips it cashed out, which come back to it as the hand is written
+                    stackChips:
+                      (seat?.stackChips ?? 0) +
+                      (latestCashOut(events, INSURANCE_PLAYER_ID)?.chips ?? 0),
+                    boughtChips: seat?.boughtChips ?? 0,
+                    handChips,
+                  }
             }
             openHand={openHand}
             createHand={() => newInsuranceHand(gameId)}

@@ -44,6 +44,7 @@ import { LedgerPlayers } from "@/components/game/LedgerPlayers";
 import { useLiveCharges } from "@/components/game/liveCharges";
 import { RakeDialog } from "@/components/game/RakeDialog";
 import { SettleDialog } from "@/components/game/SettleDialog";
+import { Modal } from "@/components/insurance/Modal";
 import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import { useInsuranceHands } from "@/data/insurance";
@@ -104,7 +105,7 @@ const HANDS_TITLE = { join: "Buy-in", edit: t.gamePages.ledger.adjustBuyIns } as
 function GameLedger({ game }: { game: Game }) {
   const { id: gameId, currency, chipRatio, handChips, status } = game;
   const { data: events = [] } = useLedger(gameId);
-  const { data: hands = [] } = useInsuranceHands(gameId);
+  const { data: hands } = useInsuranceHands(gameId);
   const { data: players = [] } = usePlayers();
   const appendEvent = useAppendEvent(gameId);
   const adjustHands = useAdjustHands(gameId);
@@ -114,6 +115,7 @@ function GameLedger({ game }: { game: Game }) {
   const saveGame = useSaveGame();
   const navigate = Route.useNavigate();
   const [settling, setSettling] = useState(false);
+  const [handBlocks, setHandBlocks] = useState(false);
   const [pending, setPending] = useState<PendingEntry>();
   const [raking, setRaking] = useState(false);
   // Off to begin with: folded cards already show what each player owes, behind 含费
@@ -256,12 +258,16 @@ function GameLedger({ game }: { game: Game }) {
 
   /** The insurance seat cannot leave by hand, so it always goes with the last players. */
   const anyoneSeated = seatedCount > 0 || seat?.seated === true;
-  const pendingInsurance =
-    insuranceRecords(events).filter((r) => r.status === "pending").length +
-    hands.filter((hand) => hand.status === "open").length;
+  const pendingInsurance = insuranceRecords(events).filter((r) => r.status === "pending").length;
+  // Its result is not in the ledger yet, and could not be written once everyone has left
+  const handOpen = hands?.some((hand) => hand.status === "open");
 
   function handleSettle() {
-    if (seatedCount === 0 && balanceChips === 0 && pendingInsurance === 0) {
+    // Not before the hands are read: one of them may be open
+    if (hands === undefined) return;
+    if (handOpen) {
+      setHandBlocks(true);
+    } else if (seatedCount === 0 && balanceChips === 0 && pendingInsurance === 0) {
       confirmSettle(undefined);
     } else {
       setSettling(true);
@@ -384,6 +390,33 @@ function GameLedger({ game }: { game: Game }) {
         )}
 
       {events.length > 0 && <LedgerLog events={events} nameOf={nameOf} />}
+
+      {handBlocks && (
+        <Modal
+          title={t.gamePages.ledger.anInsuranceHandIsUnfinished}
+          onClose={() => setHandBlocks(false)}
+        >
+          <p role="alert" className="text-sm text-muted">
+            {t.gamePages.ledger.finishOrDropItBeforeSettling}
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setHandBlocks(false)}
+              className="min-h-11 rounded-xl border border-line font-medium"
+            >
+              {t.common.close}
+            </button>
+            <Link
+              to="/games/$gameId/insurance"
+              params={{ gameId }}
+              className="flex min-h-11 items-center justify-center rounded-xl bg-accent font-semibold text-accent-text"
+            >
+              {t.gamePages.ledger.goToInsurance}
+            </Link>
+          </div>
+        </Modal>
+      )}
 
       {settling && (
         <SettleDialog

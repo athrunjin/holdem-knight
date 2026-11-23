@@ -385,21 +385,28 @@ describe("localWageWindows", () => {
     expect(timeWindows(nightRate, 20 * HOUR)).toEqual([["time-1", 22, 30]]);
   });
 
-  it("counts a segment with no end as begun for 12 hours", () => {
-    expect(timeWindows(fromMidnight, 25 * HOUR)).toEqual([["time-1", 24, Infinity]]);
-    expect(timeWindows(fromMidnight, 36 * HOUR)).toEqual([["time-1", 24, Infinity]]);
-    expect(timeWindows(fromMidnight, 36 * HOUR + 1)).toEqual([["time-1", 48, Infinity]]);
+  it("begins a segment with no end only when the game first crosses its hour", () => {
+    // Started the evening before: it rises at midnight
     expect(timeWindows(fromMidnight, 20 * HOUR)).toEqual([["time-1", 24, Infinity]]);
+    // Started on the hour itself
+    expect(timeWindows(fromMidnight, 24 * HOUR)).toEqual([["time-1", 24, Infinity]]);
+    // Started an hour, or a morning, after midnight: not until the next one
+    expect(timeWindows(fromMidnight, 25 * HOUR)).toEqual([["time-1", 48, Infinity]]);
+    expect(timeWindows(fromMidnight, 34 * HOUR)).toEqual([["time-1", 48, Infinity]]);
   });
 
-  it("begins in a later segment of a chain", () => {
+  it("begins inside a chain's segment with an end, and not in its last with none", () => {
     const chain = [
       { fromHour: 22, toHour: 2, hourly: cents(4000) },
       { fromHour: 2, hourly: cents(5000) },
     ];
-    expect(timeWindows(chain, 27 * HOUR)).toEqual([
+    expect(timeWindows(chain, 25 * HOUR)).toEqual([
       ["time-1", 22, 26],
       ["time-2", 26, Infinity],
+    ]);
+    expect(timeWindows(chain, 27 * HOUR)).toEqual([
+      ["time-1", 46, 50],
+      ["time-2", 50, Infinity],
     ]);
   });
 

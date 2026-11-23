@@ -16,6 +16,7 @@ import {
   handPotEntries,
   handResult,
   handStandings,
+  handUnderWay,
   offersDecided,
   type PlayerHandResult,
   playerHandResults,
@@ -23,7 +24,11 @@ import {
   premiumBuyIns,
   reviseOffer,
   stakeOf,
+  streetEntered,
+  streetInsurance,
+  streetLeaders,
   undoDeal,
+  withEnteredBoard,
 } from "./session";
 
 const c = (text: string): Card => {
@@ -440,10 +445,12 @@ describe("dealCard", () => {
     expect(dealCard(bought(start), c("4h")).purchases[0]?.hit).toBe(false);
   });
 
-  it("skips settling a turn with nothing sold, but always stops at the river", () => {
+  it("skips settling a turn with nothing sold, and ends the hand at the river", () => {
     const flop = hand({ board: hand().board.slice(0, 3) });
     expect(dealCard(flop, c("4h")).step).toBe("buy");
-    expect(dealCard(hand(), c("4h")).step).toBe("settle");
+    expect(dealCard(bought(flop), c("4h")).step).toBe("settle");
+    expect(dealCard(hand(), c("4h")).step).toBe("summary");
+    expect(dealCard(bought(hand()), c("4h")).step).toBe("summary");
   });
 
   it("takes a wrong card back and leaves earlier results alone", () => {
@@ -493,6 +500,49 @@ describe("playerHandResults", () => {
     expect(k).toMatchObject({ potChips: 2000, stackChips: 2000 });
   });
 
+  it("splits a player's insurance by street, and the seat's is everyone's together", () => {
+    const flop = hand({ board: river.slice(0, 3), step: "buy" });
+    const purchased = bought(flop);
+    const premium = purchased.purchases[0]?.premiumChips ?? 0;
+    const dealt = dealCard(dealCard(purchased, c("3c")), c("Kh"));
+    expect(streetInsurance(dealt, "turn", "a")).toMatchObject({ chips: -premium, hit: false });
+    expect(streetInsurance(dealt, "turn")).toEqual({
+      chips: -premium,
+      hit: false,
+      paidPlayerIds: [],
+    });
+    expect(streetLeaders(dealt, "turn")).toEqual(["a"]);
+    expect(streetLeaders(dealt, "river")).toEqual(["a"]);
+    expect(streetLeaders(flop, "river")).toEqual([]);
+    expect(streetInsurance(dealt, "river", "a")).toBeUndefined();
+    expect(streetInsurance(dealt, "turn", "k")).toBeUndefined();
+    const paid = { ...dealt, purchases: dealt.purchases.map((p) => ({ ...p, hit: true })) };
+    const payout = purchased.purchases[0]?.payoutChips ?? 0;
+    expect(streetInsurance(paid, "turn", "a")).toEqual({
+      chips: payout - premium,
+      hit: true,
+      paidPlayerIds: ["a"],
+    });
+  });
+
+  it("counts a hand as under way from the first cover taken or turned down", () => {
+    const flop = hand({ board: river.slice(0, 3), step: "buy" });
+    expect(handUnderWay(flop)).toBe(false);
+    // A turn entered with the board never had insurance; one dealt after a decision did
+    const withTurn = { ...flop, board: [...flop.board, c("3c")] };
+    expect(withEnteredBoard(withTurn)).not.toHaveProperty("enteredBoardCards");
+    const begun = withEnteredBoard({ ...withTurn, declined: ["river-0-a"] });
+    expect(begun.enteredBoardCards).toBe(4);
+    expect(streetEntered(begun, "turn")).toBe(true);
+    expect(streetEntered(begun, "river")).toBe(false);
+    expect(withEnteredBoard(dealCard(begun, c("4h"))).enteredBoardCards).toBe(4);
+    expect(withEnteredBoard({ ...begun, declined: [] })).not.toHaveProperty("enteredBoardCards");
+    expect(streetEntered(withEnteredBoard(bought(flop)), "turn")).toBe(false);
+    expect(handUnderWay(bought(flop))).toBe(true);
+    expect(handUnderWay({ ...flop, declined: ["x"] })).toBe(true);
+    expect(handUnderWay({ ...flop, step: "summary" })).toBe(true);
+  });
+
   it("notes a premium larger than the pot the player won", () => {
     const flop = hand({ board: river.slice(0, 3), step: "buy" });
     const purchased = bought(flop);
@@ -509,6 +559,55 @@ describe("playerHandResults", () => {
     const pools = [1];
     const results = playerHandResults(hand({ players, pools, board: river }));
     expect(results.map((r) => r.potChips)).toEqual([101, 100]);
+  });
+
+  it("says what came from each pot, leaving out chips nobody called", () => {
+    const players = [aces, { ...kings, chips: 300 }, player("q", 600, ["Qs", "Qd"])];
+    const [a, k, q] = playerHandResults(hand({ players, board: river }));
+    // 300 each in the main pot, 300 more from two in the side pot, and 400 back to the aces
+    expect(a).toMatchObject({ potShares: [900, 600], refundChips: 400 });
+    // The kings have nothing in the side pot
+    expect(k?.potShares).toEqual([0, null]);
+    expect(q?.potShares).toEqual([0, 0]);
+  });
+
+  it("pays a hand worked from outs to whoever it names, and nobody before the river", () => {
+    const players = [player("a", 1000, []), player("k", 600, [])];
+    const purchases = [
+      {
+        id: "p",
+        offerKey: "quick",
+        playerId: "a",
+        street: "turn" as const,
+        outs: [],
+        outsCount: 4,
+        oddsHundredths: 1000,
+        premiumChips: 100,
+        payoutChips: 1000,
+        hit: false,
+      },
+    ];
+    const open = hand({
+      players,
+      pools: [300],
+      board: [],
+      purchases,
+      quick: { leaders: { turn: "a" } },
+    });
+    expect(streetEntered(open, "turn")).toBe(false);
+    expect(streetEntered(open, "river")).toBe(true);
+    expect(streetLeaders(open, "turn")).toEqual(["a"]);
+    expect(playerHandResults(open)).toMatchObject([
+      { playerId: "a", insuranceChips: -100, netChips: -100, stackChips: null, potShares: [] },
+      { playerId: "k", insuranceChips: 0, stackChips: null, shortChips: 0 },
+    ]);
+    const quick = { leaders: { turn: "a", river: "a" }, winnerIds: ["k"] };
+    const [a, k] = playerHandResults({ ...open, quick });
+    // 600 each and the dead 300 to the kings; the aces keep the 400 nobody called
+    expect(a).toMatchObject({ potShares: [0], refundChips: 400, stackChips: 300, netChips: -700 });
+    expect(k).toMatchObject({ potShares: [1500], stackChips: 1500, netChips: 900 });
+    const split = playerHandResults({ ...open, quick: { ...quick, winnerIds: ["a", "k"] } });
+    expect(split.map((r) => r.potShares)).toEqual([[750], [750]]);
   });
 
   it("shares out every chip in the pots", () => {

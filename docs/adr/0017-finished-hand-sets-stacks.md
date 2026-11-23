@@ -1,6 +1,6 @@
 # 0017. A finished hand sets the stacks it knows
 
-- Status: Superseded in part by [0018](0018-short-premium-buy-in.md)
+- Status: Superseded in part by [0018](0018-short-premium-buy-in.md), and by [0048](0048-undoing-an-insurance-hand-keeps-later-stacks.md) on what undoing a hand restores
 - Date: 2026-11-05
 
 ## Context

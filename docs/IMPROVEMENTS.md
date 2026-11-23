@@ -1609,6 +1609,46 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. `updateGameSettings` in `core` keeps the blinds, and keeps insurance and rake on where they have been used, whatever the form sends.
 - Tracking: PR #101
 
+### #I-084 Insurance and the ledger kept in step when a hand is undone
+
+- Type: bug
+- Date: found, decided and completed 2026-11-23
+- Source: the organizer: the tie between insurance and the game was still flawed, the chips going back the other way above all
+- Problem: a finished hand sets stacks outright, an undo took back what each event had changed at the time, and a stack stops at 0. So a hand undone after more play scrambled stacks typed since; one undone after a settle attempt lost the seat's change; an undo tried again after a failed save reversed the hand twice; a hand finished after a settle attempt recorded the premium but not the pot; adjusting Buy-ins could take back the hand bought for a premium; and insurance could be turned off with a hand open, which could then be neither finished nor dropped. Most of these left the table balance at 0.
+- Proposal: undoing a hand takes back its insurance and the hands bought for a premium, and restores a stack only while nothing has changed it since; what is already reversed is skipped; the seat comes back first; a hand bought for a premium goes only with its hand; settlement cannot start, and insurance cannot be turned off, while a hand is open.
+- Decision: do, as [ADR 0048](adr/0048-undoing-an-insurance-hand-keeps-later-stacks.md). The rules are in `core` with unit tests and a property test. Checked in the browser preview: the block on settling and the locked switch. The undo itself was checked by tests, not through the page.
+- Tracking: PR #102
+
+### #I-085 A wage rate from an hour on applies once the game crosses that hour
+
+- Type: bug
+- Date: found, decided and completed 2026-11-23
+- Source: the organizer, trying a game with 25 an hour and 30 from midnight: it charged 30 from the start
+- Problem: a time segment with no end counted as begun for 12 hours after its hour, so a rate "from midnight" applied to a game started the next morning.
+- Proposal: a segment with no end is never begun already. It applies from the first time the game crosses its hour. A segment with an end still applies to a game started inside its hours.
+- Decision: do, in `localWageWindows`; ADR 0027 and the setup's info text say so. A game started shortly after the hour, at 0:30 with a rate from midnight, is now charged the base rate until the next midnight; a segment with an end, 0:00 to 6:00, is the way to charge such a game the night rate.
+- Tracking: PR #102
+
+### #I-086 The hand summary as one table, with a choice to update chips
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-23
+- Source: the organizer, on the last step of 选牌计算
+- Problem: the summary was a card for each player and one for the insurance, with the board unmarked, nothing saying which street an insurance was bought on, and no way to record the insurance without the hand's chips replacing those in the game.
+- Proposal: the title in the middle between fading lines, as the page's other sections have it. The board framed by street as it is while the hand is entered: 翻牌, 转牌, 河牌. One table: a row for each player and one for the insurance; the pot, each street's insurance with 命中 or 未中 under it, and the total. Uncalled bets are not listed. Under each player's results, the chips they end with as 总码量 and, in a game, a tick box 同步到对局, on to begin with: off, that player's chips stay as they are and only the insurance is recorded. Under the insurance's, its Buy-ins after the hand with − and + to add to them, and its chips after the hand, which a tap selects to type over. Chips a player or the insurance has to buy are said under their row. From the first cover taken or turned down until the hand is finished or dropped, the insurance settings cannot be changed, on the insurance page, the tool and the game's settings; nothing says so, they only stop answering.
+- Decision: do. `streetInsurance` and `handUnderWay` are in `core`. A player not synced is never found short of a premium, as that is worked out against the chips the hand leaves. The insurance's Buy-ins cannot go under what it needs to pay the hand. Chips typed for it are written as its stack with the hand, and go back with it.
+- Tracking: PR #102
+
+### #I-087 Outs数速算 runs as a hand, and ends on the same summary
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-23
+- Source: the organizer, after the summary of 选牌计算 was settled
+- Problem: Outs数速算 wrote a cover to the ledger the moment it was bought and its result the moment it was recorded, one cover at a time, with no summary, no pot and no choice of what reaches the game. Chips typed for a player in either way of working went to the game at once, whatever the summary's 同步到对局 said afterwards.
+- Proposal: it runs as a hand does. Covers are taken or turned down, then the street's card is recorded as having come or not. After the turn the river follows by itself, with the pot fixed and whoever the turn left ahead; the organizer enters its outs, or ends there with 不记录河牌，直接结束. The hand ends on the summary of #I-086, where the river says who took the pot: whoever was behind if their card came, both on a tie, the leader otherwise. Without the river nobody is known to have won, so the summary has the insurance only and no player's chips are sent. Nothing is written before the summary is confirmed.
+- Decision: do. A hand worked from outs is an `InsuranceHand` with `quick`: who was ahead before each street, and who won. `playerHandResults`, `streetLeaders` and `streetEntered` read it in place of cards. Removed: the ledger writes on buying and on recording, the pen on a quick cover that only said it was being built, and chips going to the game as they are typed, in both ways of working. Records made the old way still show, and can still be settled and undone.
+- Tracking: PR #102
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
