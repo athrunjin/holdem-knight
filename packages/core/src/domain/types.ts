@@ -174,8 +174,10 @@ export interface InsuranceHandPurchase {
   readonly offerKey: string;
   readonly playerId: string;
   readonly street: "turn" | "river";
-  /** The cards sold, which decide the result. */
+  /** The cards sold, which decide the result. Empty where the hand is worked from counts of outs. */
   readonly outs: readonly number[];
+  /** How many cards were sold, where which ones they are is not known. */
+  readonly outsCount?: number;
   /** The cards sold split the pot. Missing for cards that take it from the buyer. */
   readonly tie?: boolean;
   readonly oddsHundredths: number;
@@ -183,6 +185,16 @@ export interface InsuranceHandPurchase {
   readonly payoutChips: number;
   /** Set once the card is dealt. */
   readonly hit?: boolean;
+}
+
+/**
+ * What a hand worked from counts of outs knows in place of cards: who was ahead before each
+ * street's card, for the streets it was worked on, and who took the pots once the river came.
+ * Without the river, nobody is known to have won.
+ */
+export interface QuickHand {
+  readonly leaders: { readonly turn?: string; readonly river?: string };
+  readonly winnerIds?: readonly string[];
 }
 
 export type InsuranceHandStep = "players" | "start" | "buy" | "deal" | "settle" | "summary";
@@ -205,6 +217,8 @@ export interface InsuranceHand {
    * them was entered with the board, and never had insurance.
    */
   readonly enteredBoardCards?: number;
+  /** Set for a hand worked from counts of outs, which has no cards and no board. */
+  readonly quick?: QuickHand;
   readonly purchases: readonly InsuranceHandPurchase[];
   /** Offers the organizer turned down. */
   readonly declined: readonly string[];

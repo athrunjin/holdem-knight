@@ -209,7 +209,7 @@ export const insurance: Messages["insurance"] = {
     buy: "Buy",
   },
   outsQuickCalc: {
-    beingBuilt: "Being built",
+    endWithoutTheRiver: "End without the river",
     oneLess: (a) => `One less ${a}`,
     cardsUnit: "",
     oneMore: (a) => `One more ${a}`,

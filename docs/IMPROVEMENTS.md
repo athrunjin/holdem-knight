@@ -1639,6 +1639,16 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. `streetInsurance` and `handUnderWay` are in `core`. A player not synced is never found short of a premium, as that is worked out against the chips the hand leaves. The insurance's Buy-ins cannot go under what it needs to pay the hand. Chips typed for it are written as its stack with the hand, and go back with it.
 - Tracking: PR #102
 
+### #I-087 Outs数速算 runs as a hand, and ends on the same summary
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-23
+- Source: the organizer, after the summary of 选牌计算 was settled
+- Problem: Outs数速算 wrote a cover to the ledger the moment it was bought and its result the moment it was recorded, one cover at a time, with no summary, no pot and no choice of what reaches the game. Chips typed for a player in either way of working went to the game at once, whatever the summary's 同步到对局 said afterwards.
+- Proposal: it runs as a hand does. Covers are taken or turned down, then the street's card is recorded as having come or not. After the turn the river follows by itself, with the pot fixed and whoever the turn left ahead; the organizer enters its outs, or ends there with 不记录河牌，直接结束. The hand ends on the summary of #I-086, where the river says who took the pot: whoever was behind if their card came, both on a tie, the leader otherwise. Without the river nobody is known to have won, so the summary has the insurance only and no player's chips are sent. Nothing is written before the summary is confirmed.
+- Decision: do. A hand worked from outs is an `InsuranceHand` with `quick`: who was ahead before each street, and who won. `playerHandResults`, `streetLeaders` and `streetEntered` read it in place of cards. Removed: the ledger writes on buying and on recording, the pen on a quick cover that only said it was being built, and chips going to the game as they are typed, in both ways of working. Records made the old way still show, and can still be settled and undone.
+- Tracking: PR #102
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

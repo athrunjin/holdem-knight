@@ -393,19 +393,27 @@ export function withEnteredBoard(hand: InsuranceHand): InsuranceHand {
     : hand;
 }
 
-/** Whether a street's card was entered with the board, before any insurance could be sold on it. */
+/**
+ * Whether a street never had insurance to decide on: its card was entered with the board, or in a
+ * hand worked from outs the street was not worked on at all.
+ */
 export function streetEntered(
-  hand: Pick<InsuranceHand, "enteredBoardCards">,
+  hand: Pick<InsuranceHand, "enteredBoardCards" | "quick">,
   street: InsuranceHandPurchase["street"],
 ): boolean {
+  if (hand.quick) return hand.quick.leaders[street] === undefined;
   return (hand.enteredBoardCards ?? 0) > CARDS_BEFORE[street];
 }
 
 /** Who was ahead in any pot before a street's card, and so could insure it. */
 export function streetLeaders(
-  hand: Pick<InsuranceHand, "players" | "pools" | "board">,
+  hand: Pick<InsuranceHand, "players" | "pools" | "board" | "quick">,
   street: InsuranceHandPurchase["street"],
 ): string[] {
+  if (hand.quick) {
+    const leader = hand.quick.leaders[street];
+    return leader === undefined ? [] : [leader];
+  }
   const board = hand.board.slice(0, CARDS_BEFORE[street]);
   if (board.length < CARDS_BEFORE[street]) return [];
   const pots = handPots({ ...hand, board });
@@ -445,7 +453,10 @@ export interface PlayerHandResult {
   readonly insuranceChips: number;
   /** The hand and the insurance together. */
   readonly netChips: number;
-  /** Chips left after the hand. A cover player has more behind, so theirs is unknown. */
+  /**
+   * Chips left after the hand. Unknown for a cover player, who has more behind, and for everyone
+   * in a hand worked from outs that ended before the river, where nobody is known to have won.
+   */
   readonly stackChips: number | null;
   /** Premium the player's winnings could not pay. */
   readonly shortChips: number;
@@ -455,8 +466,28 @@ export interface PlayerHandResult {
  * How the finished board pays each player. Everyone but the cover is all-in, so what they end with
  * is all they have. An odd chip goes to the first winner entered, as seats are not recorded.
  * A cover is assumed to have enough behind for their premiums, so they are never short.
+ *
+ * A hand worked from outs has no cards: its pots go to whoever it names as having won, and while
+ * it names nobody, each player has only what their insurance came to.
  */
 export function playerHandResults(hand: InsuranceHand): PlayerHandResult[] {
+  const quickWinners = hand.quick?.winnerIds;
+  if (hand.quick && !quickWinners) {
+    return hand.players.map(({ playerId, cover }) => {
+      const insuranceChips = insuranceOf(hand, playerId);
+      return {
+        playerId,
+        cover,
+        potChips: 0,
+        potShares: [],
+        refundChips: 0,
+        insuranceChips,
+        netChips: insuranceChips,
+        stackChips: null,
+        shortChips: 0,
+      };
+    });
+  }
   const cardsOf = new Map(hand.players.map((p) => [p.playerId, p.cards]));
   const won = new Map<string, number>();
   const refunds = new Map<string, number>();
@@ -471,8 +502,10 @@ export function playerHandResults(hand: InsuranceHand): PlayerHandResult[] {
       add(refunds, only, pot.amountChips);
       continue;
     }
-    const winners = winnersOf(pot.playerIds, cardsOf, hand.board);
-    const share = Math.floor(pot.amountChips / winners.length);
+    const winners = quickWinners
+      ? quickWinners.filter((id) => pot.playerIds.includes(id))
+      : winnersOf(pot.playerIds, cardsOf, hand.board);
+    const share = Math.floor(pot.amountChips / Math.max(1, winners.length));
     const odd = pot.amountChips - share * winners.length;
     const inPot = new Map<string, number>();
     shares.push({ playerIds: pot.playerIds, won: inPot });
@@ -484,9 +517,7 @@ export function playerHandResults(hand: InsuranceHand): PlayerHandResult[] {
 
   return hand.players.map((player) => {
     const { playerId, cover } = player;
-    const insuranceChips = hand.purchases
-      .filter((p) => p.playerId === playerId)
-      .reduce((total, p) => total + (p.hit ? p.payoutChips : 0) - p.premiumChips, 0);
+    const insuranceChips = insuranceOf(hand, playerId);
     const potChips = won.get(playerId) ?? 0;
     const refundChips = refunds.get(playerId) ?? 0;
     const left = potChips + refundChips + insuranceChips;
@@ -504,6 +535,13 @@ export function playerHandResults(hand: InsuranceHand): PlayerHandResult[] {
       shortChips: cover ? 0 : Math.max(0, -left),
     };
   });
+}
+
+/** Payouts less premiums for one player over the whole hand. */
+function insuranceOf(hand: Pick<InsuranceHand, "purchases">, playerId: string): number {
+  return hand.purchases
+    .filter((p) => p.playerId === playerId)
+    .reduce((total, p) => total + (p.hit ? p.payoutChips : 0) - p.premiumChips, 0);
 }
 
 export interface PremiumBuyIn {

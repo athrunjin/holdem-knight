@@ -17,8 +17,6 @@ export const gamePages: Messages["gamePages"] = {
   insurance: {
     thisChangeAppliesToThisGame:
       "This change applies to this game: insurance from now on follows the new settings. Continue?",
-    thisBetAlreadyHasAResult:
-      "This bet already has a result. Editing it undoes that result. Continue?",
     undoThisBetItsWinOr: "Undo this bet? Its win or loss is undone with it.",
     undoThisHandsInsuranceItsWin:
       "Undo this hand’s insurance? The hand’s result and its insurance are undone with it.",

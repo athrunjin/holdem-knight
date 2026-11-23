@@ -207,34 +207,6 @@ export function useSaveInsuranceHand(gameId: string) {
   });
 }
 
-interface EnteredStack {
-  readonly playerId: string;
-  readonly chips: number;
-}
-
-/**
- * An all-in player's chips are counted at the table, so they are the true stack and go straight to
- * the game. It stays if the hand is discarded or undone, like any typed stack.
- */
-export function useEnterStack(gameId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    scope: ledgerScope(gameId),
-    mutationFn: async ({ playerId, chips }: EnteredStack) => {
-      const events = await repository.ledger.listByGame(gameId);
-      const player = summarizeByPlayer(events).find((p) => p.playerId === playerId);
-      if (player?.stackChips === chips) return;
-      await repository.ledger.append({
-        ...newEventMeta(gameId, Date.now()),
-        type: "stack_set",
-        playerId,
-        chips,
-      });
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ledger", gameId] }),
-  });
-}
-
 /** The size of a hand in this game, for the whole hands the seat buys to give results back. */
 interface HandUndoInput {
   readonly handId: string;
@@ -400,7 +372,7 @@ export function useFinishInsuranceHand(gameId: string) {
               playerId,
               chips: purchase.premiumChips,
               payoutChips: purchase.payoutChips,
-              outs: purchase.outs.length,
+              outs: purchase.outsCount ?? purchase.outs.length,
               ...(purchase.tie && { tie: true }),
               oddsHundredths,
               street,
@@ -455,24 +427,6 @@ export type InsurancePurchase = Pick<
   InsuranceBuyEvent,
   "playerId" | "chips" | "payoutChips" | "outs" | "tie" | "oddsHundredths" | "street"
 >;
-
-export function useBuyInsurance(gameId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    scope: ledgerScope(gameId),
-    mutationFn: async (purchase: InsurancePurchase) => {
-      const events = await repository.ledger.listByGame(gameId);
-      const occurredAt = Date.now();
-      const meta = newEventMeta(gameId, occurredAt);
-      await repository.ledger.appendAll([
-        ...reseat(gameId, events, occurredAt),
-        { ...meta, type: "insurance_buy", ...purchase },
-      ]);
-      return meta.id;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ledger", gameId] }),
-  });
-}
 
 interface SettleInput {
   readonly record: InsuranceRecord;

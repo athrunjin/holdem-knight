@@ -1,6 +1,8 @@
 import {
   handPotEntries,
+  type InsuranceHand,
   type InsuranceHandPlayer,
+  type InsuranceHandPurchase,
   type InsuranceRule,
   type InsuranceStreet,
   type OfferKind,
@@ -12,7 +14,7 @@ import {
   unseenCards,
 } from "@holdem-knight/core";
 import { ArrowUpDown, Minus, Plus } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { selectOnFocus } from "@/lib/number-input";
@@ -26,8 +28,10 @@ import {
   SectionReset,
   SectionTitle,
 } from "./HandSections";
+import { HandSummary } from "./HandSummary";
 import type { InsuranceSeat } from "./InsuranceCalculator";
-import type { Decisions } from "./LeaderQuote";
+import type { HandFinish, HandStore, SeatChips } from "./InsuranceHandFlow";
+import type { BoughtInsurance, Decisions } from "./LeaderQuote";
 import { Modal } from "./Modal";
 import { PotCover, type PotCoverOffer } from "./PotInsurance";
 import type { PotShare } from "./PotShares";
@@ -38,22 +42,39 @@ interface OutsQuickCalcProps {
   rule: InsuranceRule;
   /** Everyone at the table, in its order. The first two start the pot. */
   seats: readonly InsuranceSeat[];
-  /**
-   * A player's counted chips, which update the table at once. Missing for the standalone
-   * calculator, which has no table.
-   */
-  onStack: ((playerId: string, chips: number) => void) | undefined;
-  saving: boolean | undefined;
-  decisions: Decisions | undefined;
+  /** Writes the finished hand to the game. Missing for the standalone calculator. */
+  store: HandStore | undefined;
+  /** The insurance seat now, for the summary to show where it ends up. */
+  seat: SeatChips | undefined;
+  /** A blank hand, for what is worked out here to be kept as. */
+  createHand: () => InsuranceHand;
+  /** Told whether insurance is being worked out, while the settings must stay put. */
+  onUnderWay?: ((underWay: boolean) => void) | undefined;
+}
+
+/** What was decided on a street and how the pot stood, to go back to if its result is taken back. */
+interface StreetState {
+  readonly leader: Side;
+  readonly outs: readonly [OutsEntry | undefined, OutsEntry | undefined];
+  readonly bought: ReadonlyMap<string, BoughtInsurance>;
+  readonly declined: readonly string[];
+}
+
+/** A street whose card has come: who was ahead and behind, which cards came, and what was sold. */
+interface StreetDone {
+  readonly street: InsuranceStreet;
+  readonly leaderId: string;
+  readonly trailerId: string;
+  /** The kind of card that came, or undefined when the leader stayed ahead */
+  readonly hit: OfferKind | undefined;
+  readonly purchases: readonly InsuranceHandPurchase[];
+  readonly before: StreetState;
 }
 
 const STREETS: readonly { readonly id: InsuranceStreet; readonly label: string }[] = [
   { id: "turn", label: t.common.turn },
   { id: "river", label: t.common.river },
 ];
-
-/** The pen is there as in the other way of working, but what it opens is still to come. */
-const comingSoon = () => window.alert(t.insurance.outsQuickCalc.beingBuilt);
 
 const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
 
@@ -218,11 +239,25 @@ function OutsDialog({
 }
 
 /**
- * A quick price from two players' chips and the trailing player's outs, without picking cards. The
+ * A hand worked from two players' chips and the trailing player's outs, without picking cards. The
  * page is laid out as it is for a hand worked out from the cards: the pot, the players and the
  * insurance under them, which shows as soon as there is enough to price it.
+ *
+ * It runs as that hand does. Covers are taken or turned down, then the street's card is recorded
+ * as having come or not. After the turn the river follows by itself, with the pot as it was and
+ * whoever is ahead now; the organizer enters its outs, or ends the hand there without the river.
+ * Either way the hand ends on its summary, and nothing reaches the game before that is confirmed.
  */
-export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQuickCalcProps) {
+export function OutsQuickCalc({
+  rule,
+  seats,
+  store,
+  seat,
+  createHand,
+  onUnderWay,
+}: OutsQuickCalcProps) {
+  // What the hand is kept as: its identity, with everything else worked out below
+  const [base, setBase] = useState(createHand);
   const [street, setStreet] = useState<InsuranceStreet>("turn");
   // Nothing is kept until the organizer changes something, so a table that changes meanwhile
   // still shows as it is
@@ -235,6 +270,14 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
   ]);
   const [dead, setDead] = useState(PRESET_DEAD);
   const [editingOuts, setEditingOuts] = useState(false);
+  // What is decided on the street being worked on, by offer
+  const [bought, setBought] = useState<ReadonlyMap<string, BoughtInsurance>>(new Map());
+  const [declined, setDeclined] = useState<readonly string[]>([]);
+  // The streets whose card has come, in order
+  const [done, setDone] = useState<readonly StreetDone[]>([]);
+  // On the summary, with the hand over
+  const [ended, setEnded] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   // Asking whether the card came, once every offer is decided
   const [recording, setRecording] = useState(false);
   // Dead money's field, where a tap on dead money in the pot's legend lands
@@ -268,11 +311,25 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
     );
   }
 
-  /** Counted chips are the player's true stack, so they go to the table once typing is done. */
-  function commitChips(side: Side) {
-    const player = players[side];
-    if (player && !player.cover && player.chips > 0) onStack?.(player.playerId, player.chips);
-  }
+  const decisions: Decisions = {
+    get(key) {
+      const taken = bought.get(key);
+      if (!taken) return declined.includes(key) ? { kind: "declined" } : undefined;
+      const { premiumChips, payoutChips } = taken.option;
+      return { kind: "bought", purchaseId: key, premiumChips, payoutChips };
+    },
+    buy: (key, purchase) => setBought(new Map(bought).set(key, purchase)),
+    decline: (key) => setDeclined([...declined, key]),
+    revise(key) {
+      setBought(new Map([...bought].filter(([taken]) => taken !== key)));
+      setDeclined(declined.filter((turnedDown) => turnedDown !== key));
+    },
+  };
+
+  // Once a street's card has come, the pot it was played for stays as it is
+  const potFixed = done.length > 0;
+  const underWay = potFixed || bought.size > 0 || declined.length > 0;
+  useEffect(() => onUnderWay?.(underWay), [onUnderWay, underWay]);
 
   const staked = (player: InsuranceHandPlayer) => player.cover || player.chips > 0;
   const ready =
@@ -335,7 +392,6 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       input: { ...input, outs: entry.outs },
       playerId: leaderId,
       decisionKey: keyOf("overtake"),
-      onManage: comingSoon,
       name: t.common.outdraw,
       count: entry.outs,
       // Tie cards a rule does not sell are still named, so nobody takes them for outs
@@ -354,7 +410,6 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       },
       playerId: leaderId,
       decisionKey: keyOf("tie"),
-      onManage: comingSoon,
       name: t.common.tie,
       count: entry.ties,
     };
@@ -365,19 +420,130 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
     ready && leaderPlayer && trailerPlayer && trailerEntry
       ? quickOffers(leaderPlayer.playerId, trailerPlayer.playerId, trailerEntry)
       : [];
-  // Once a cover is bought, the pot it was priced on stays as it is
-  const locked = offers.some((o) => decisions?.get(o.decisionKey)?.kind === "bought");
-  // Every offer that can be sold is bought or turned down. Away from a game nothing is recorded.
+  // Once a cover is bought, what it was priced on stays as it is
+  const sold = offers.some((o) => bought.has(o.decisionKey));
+  // The pot itself: who is in it, their chips and the dead money
+  const locked = sold || potFixed;
+  // Every offer that can be sold is bought or turned down
   const decided = offers.every(
-    (o) => !decisions || decisions.get(o.decisionKey) !== undefined || !quoteInsurance(o.input).ok,
+    (o) => decisions.get(o.decisionKey) !== undefined || !quoteInsurance(o.input).ok,
   );
 
-  /** Whether the card came, for every offer: at most one kind of card can have. */
+  /**
+   * Whether the card came, for every cover on this street: at most one kind of card can have.
+   * After the turn the river follows, with whoever the turn left ahead; the river ends the hand.
+   */
   function record(hit: OfferKind | undefined) {
-    for (const offer of offers) decisions?.settle?.(offer.decisionKey, offer.kind === hit);
-    // The pot is played out, so the next one starts without outs
+    if (!leaderPlayer || !trailerPlayer) return;
+    const purchases = offers.flatMap((offer): InsuranceHandPurchase[] => {
+      const taken = bought.get(offer.decisionKey);
+      if (!taken) return [];
+      return [
+        {
+          id: crypto.randomUUID(),
+          offerKey: offer.decisionKey,
+          playerId: taken.playerId,
+          street,
+          outs: [],
+          outsCount: taken.outs,
+          ...(taken.tie && { tie: true }),
+          oddsHundredths: taken.oddsHundredths,
+          premiumChips: taken.option.premiumChips,
+          payoutChips: taken.option.payoutChips,
+          hit: offer.kind === hit,
+        },
+      ];
+    });
+    setDone([
+      ...done,
+      {
+        street,
+        leaderId: leaderPlayer.playerId,
+        trailerId: trailerPlayer.playerId,
+        hit,
+        purchases,
+        before: { leader, outs, bought, declined },
+      },
+    ]);
+    setBought(new Map());
+    setDeclined([]);
     setOuts([undefined, undefined]);
     setRecording(false);
+    if (street === "river") return setEnded(true);
+    setStreet("river");
+    if (hit === "overtake") setLeader(trailer);
+  }
+
+  /** Back from the summary to the river: as it stood before its card, or still to be entered. */
+  function reopen() {
+    setEnded(false);
+    const last = done.at(-1);
+    if (last?.street !== "river") return;
+    setDone(done.slice(0, -1));
+    setLeader(last.before.leader);
+    setOuts(last.before.outs);
+    setBought(last.before.bought);
+    setDeclined(last.before.declined);
+  }
+
+  function reset() {
+    setBase(createHand());
+    setStreet("turn");
+    setEdited(undefined);
+    setLeader(0);
+    setOuts([undefined, undefined]);
+    setDead(PRESET_DEAD);
+    setBought(new Map());
+    setDeclined([]);
+    setDone([]);
+    setEnded(false);
+  }
+
+  const river = done.find((street) => street.street === "river");
+  // The river says who took the pot: whoever was behind if their card came, both on a tie
+  const winnerIds =
+    river &&
+    (river.hit === "overtake"
+      ? [river.trailerId]
+      : river.hit === "tie"
+        ? [river.leaderId, river.trailerId]
+        : [river.leaderId]);
+  const hand: InsuranceHand = {
+    ...base,
+    step: "summary",
+    players,
+    pools: dead.pools,
+    purchases: done.flatMap((street) => street.purchases),
+    quick: {
+      leaders: Object.fromEntries(done.map((street) => [street.street, street.leaderId])),
+      ...(winnerIds && { winnerIds }),
+    },
+  };
+
+  async function finish(choices: HandFinish) {
+    if (!store) return reset();
+    setFinishing(true);
+    try {
+      await store.finish(hand, choices);
+      reset();
+    } finally {
+      setFinishing(false);
+    }
+  }
+
+  if (ended) {
+    return (
+      <HandSummary
+        hand={hand}
+        nameOf={nameOf}
+        seat={seat}
+        recording={store !== undefined}
+        seatedIds={seats.map(({ id }) => id)}
+        saving={finishing}
+        onBack={reopen}
+        onConfirm={finish}
+      />
+    );
   }
 
   // Who put what into the pot: the leader first, dead money last
@@ -433,12 +599,18 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
       <section aria-labelledby="quick-pot-title" className="mt-1">
         <SectionTitle id="quick-pot-title" title={t.insurance.outsQuickCalc.pot} />
         <div className="relative flex flex-wrap items-stretch justify-center gap-1.5">
-          {!locked && (
+          {!sold && (
             <SectionReset
               label={t.insurance.outsQuickCalc.clearThePot}
               onReset={() => {
-                setStreet("turn");
-                setDead(PRESET_DEAD);
+                // With a street already recorded, clearing gives up the hand
+                if (
+                  potFixed &&
+                  !window.confirm(t.insurance.insuranceHandFlow.dropThisHandsInsuranceWhatWas)
+                ) {
+                  return;
+                }
+                reset();
               }}
             />
           )}
@@ -513,11 +685,11 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
                           // At a table another player is another pot: their own chips, no cover and no
                           // outs. Away from one the name is only a label, and what was entered stays.
                           onSeat: (id) => {
-                            if (onStack) setSideOuts(side, undefined);
+                            if (store) setSideOuts(side, undefined);
                             setEdited(
                               withSide(side, {
                                 playerId: id,
-                                ...(onStack && {
+                                ...(store && {
                                   chips: seats.find((s) => s.id === id)?.chips ?? 0,
                                   cover: false,
                                 }),
@@ -525,7 +697,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
                             );
                           },
                           onChips: (chips) => setEdited(withSide(side, { chips })),
-                          onChipsDone: () => commitChips(side),
+                          onChipsDone: () => {},
                           onCover: (cover) => setCover(side, cover),
                           lead: {
                             kind: "reset",
@@ -549,7 +721,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
                     <button
                       type="button"
                       aria-label={t.insurance.outsQuickCalc.enterSOuts(name)}
-                      disabled={locked}
+                      disabled={sold}
                       onClick={() => setEditingOuts(true)}
                       className={cn(
                         "flex h-11 w-20 shrink-0 flex-col items-center justify-center rounded-lg border",
@@ -569,7 +741,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
             );
           })}
         </ul>
-        {players.length === MIN_PLAYERS && !locked && (
+        {players.length === MIN_PLAYERS && !sold && (
           <RoundAction
             label={t.insurance.outsQuickCalc.switchWhoIsAhead}
             onSelect={() => setLeader(trailer)}
@@ -588,7 +760,7 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
               parts={parts}
               potChips={totals.effectiveChips}
               offers={offers}
-              saving={saving}
+              saving={false}
               decisions={decisions}
             />
             <button
@@ -608,6 +780,16 @@ export function OutsQuickCalc({ rule, seats, onStack, saving, decisions }: OutsQ
                 )
               : t.insurance.outsQuickCalc.onlyOnePlayerCanCoverAnd}
           </p>
+        )}
+        {/* The river came up by itself after the turn, and need not be worked on */}
+        {potFixed && !sold && (
+          <button
+            type="button"
+            onClick={() => setEnded(true)}
+            className="mt-2 min-h-11 w-full rounded-xl border border-line text-sm font-medium"
+          >
+            {t.insurance.outsQuickCalc.endWithoutTheRiver}
+          </button>
         )}
       </section>
 

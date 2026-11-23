@@ -217,7 +217,7 @@ export const insurance = {
     buy: "购买",
   },
   outsQuickCalc: {
-    beingBuilt: "功能开发中",
+    endWithoutTheRiver: "不记录河牌，直接结束",
     oneLess: (a: string | number) => `${a}减一`,
     cardsUnit: "张",
     oneMore: (a: string | number) => `${a}加一`,

@@ -71,9 +71,12 @@ function HandRecord({
               : formatSignedChips(seatChips)}
           </span>
         </summary>
-        <p className="text-sm text-muted">
-          {t.insurance.insuranceRecords.board(hand.board.map(formatCardText).join(" "))}
-        </p>
+        {/* A hand worked from outs has no board */}
+        {hand.board.length > 0 && (
+          <p className="text-sm text-muted">
+            {t.insurance.insuranceRecords.board(hand.board.map(formatCardText).join(" "))}
+          </p>
+        )}
         <ul className="pb-2">
           {hand.purchases.map((purchase) => (
             <li key={purchase.id} className="mt-1 text-sm tabular-nums">
@@ -85,7 +88,7 @@ function HandRecord({
               </span>
               <span className="block text-muted">
                 {t.insurance.insuranceRecords.paysPremiumPayout(
-                  outsText(purchase.outs.length, purchase.tie),
+                  outsText(purchase.outsCount ?? purchase.outs.length, purchase.tie),
                   " ",
                   formatOdds(purchase.oddsHundredths),
                   chipText(purchase.premiumChips),

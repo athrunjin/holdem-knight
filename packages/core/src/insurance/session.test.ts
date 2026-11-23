@@ -571,6 +571,45 @@ describe("playerHandResults", () => {
     expect(q?.potShares).toEqual([0, 0]);
   });
 
+  it("pays a hand worked from outs to whoever it names, and nobody before the river", () => {
+    const players = [player("a", 1000, []), player("k", 600, [])];
+    const purchases = [
+      {
+        id: "p",
+        offerKey: "quick",
+        playerId: "a",
+        street: "turn" as const,
+        outs: [],
+        outsCount: 4,
+        oddsHundredths: 1000,
+        premiumChips: 100,
+        payoutChips: 1000,
+        hit: false,
+      },
+    ];
+    const open = hand({
+      players,
+      pools: [300],
+      board: [],
+      purchases,
+      quick: { leaders: { turn: "a" } },
+    });
+    expect(streetEntered(open, "turn")).toBe(false);
+    expect(streetEntered(open, "river")).toBe(true);
+    expect(streetLeaders(open, "turn")).toEqual(["a"]);
+    expect(playerHandResults(open)).toMatchObject([
+      { playerId: "a", insuranceChips: -100, netChips: -100, stackChips: null, potShares: [] },
+      { playerId: "k", insuranceChips: 0, stackChips: null, shortChips: 0 },
+    ]);
+    const quick = { leaders: { turn: "a", river: "a" }, winnerIds: ["k"] };
+    const [a, k] = playerHandResults({ ...open, quick });
+    // 600 each and the dead 300 to the kings; the aces keep the 400 nobody called
+    expect(a).toMatchObject({ potShares: [0], refundChips: 400, stackChips: 300, netChips: -700 });
+    expect(k).toMatchObject({ potShares: [1500], stackChips: 1500, netChips: 900 });
+    const split = playerHandResults({ ...open, quick: { ...quick, winnerIds: ["a", "k"] } });
+    expect(split.map((r) => r.potShares)).toEqual([[750], [750]]);
+  });
+
   it("shares out every chip in the pots", () => {
     const seat = fc.record({ chips: fc.integer({ min: 1, max: 5000 }), hit: fc.boolean() });
     fc.assert(

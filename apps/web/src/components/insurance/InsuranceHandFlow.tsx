@@ -50,8 +50,6 @@ import { type PotShare, PotShares } from "./PotShares";
 /** Keeps the hand. Missing for the standalone calculator, which records nothing. */
 export interface HandStore {
   save: (hand: InsuranceHand) => void;
-  /** A player's counted chips, which update the table at once. */
-  enterStack: (playerId: string, chips: number) => void;
   discard: (handId: string) => void;
   finish: (hand: InsuranceHand, choices: HandFinish) => Promise<void>;
 }
@@ -362,13 +360,12 @@ export function InsuranceHandFlow({
       );
   }
 
-  /** Counted chips are the player's true stack, so they go to the table once typing is done. */
-  function commitChips(playerId: string) {
-    const player = hand.players.find((p) => p.playerId === playerId);
+  /**
+   * Chips typed are what the player has in this hand. They reach the game only with the hand, on
+   * its summary, where each player's chips are sent or left as they are.
+   */
+  function commitChips() {
     store?.save(hand);
-    if (player && !player.cover && player.chips > 0) {
-      store?.enterStack(playerId, player.chips);
-    }
   }
 
   /** At most one player covers the others. The chips typed stay as they are under the cover. */
@@ -603,7 +600,7 @@ export function InsuranceHandFlow({
                                 ),
                               // Kept and sent to the table once the field is left, not on every digit
                               onChips: (chips) => setHand(withPlayer(playerId, { chips })),
-                              onChipsDone: () => commitChips(playerId),
+                              onChipsDone: commitChips,
                               onCover: (cover) => setCover(playerId, cover),
                               // The two a hand cannot do without are cleared; the rest go
                               lead:

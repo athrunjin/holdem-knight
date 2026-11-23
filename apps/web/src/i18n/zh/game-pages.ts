@@ -14,7 +14,6 @@ export const gamePages = {
   },
   insurance: {
     thisChangeAppliesToThisGame: "这个修改会应用到本局，之后的保险都按新设置计算。继续？",
-    thisBetAlreadyHasAResult: "这笔保险已开奖，修改会撤销它的结果。继续？",
     undoThisBetItsWinOr: "撤销这笔保险？它的盈亏也会一起撤销。",
     undoThisHandsInsuranceItsWin: "撤销这手保险？这手的输赢和保险盈亏会一起撤销。",
     undoThisHandKeepingStacks: (names: string) =>

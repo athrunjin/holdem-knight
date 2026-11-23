@@ -17,7 +17,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
-  type BoughtInsurance,
   InsuranceCalculator,
   type InsuranceMode,
 } from "@/components/insurance/InsuranceCalculator";
@@ -28,9 +27,7 @@ import { Page } from "@/components/Page";
 import { useGame, useSaveGame } from "@/data/games";
 import {
   newInsuranceHand,
-  useBuyInsurance,
   useDiscardInsuranceHand,
-  useEnterStack,
   useFinishInsuranceHand,
   useInsuranceHands,
   useInsuranceRules,
@@ -64,7 +61,6 @@ function GameInsurance({ game }: { game: Game }) {
   const { data: events = [] } = useLedger(gameId);
   const { data: players = [] } = usePlayers();
   const saveGame = useSaveGame();
-  const buyInsurance = useBuyInsurance(gameId);
   const settleInsurance = useSettleInsurance(gameId);
   const undoInsurance = useUndoInsurance(gameId);
 
@@ -123,42 +119,11 @@ function GameInsurance({ game }: { game: Game }) {
     .toReversed();
   const { data: hands } = useInsuranceHands(gameId);
   const saveHand = useSaveInsuranceHand(gameId);
-  const enterStack = useEnterStack(gameId);
   const discardHand = useDiscardInsuranceHand(gameId);
   const finishHand = useFinishInsuranceHand(gameId);
   const undoHand = useUndoInsuranceHand(gameId);
   const finished = hands?.filter((hand) => hand.status === "done") ?? [];
   const openHand = hands?.find((hand) => hand.status === "open");
-
-  async function handleBuy(bought: BoughtInsurance) {
-    const { playerId, option, oddsHundredths, outs, street } = bought;
-    try {
-      return await buyInsurance.mutateAsync({
-        playerId,
-        chips: option.premiumChips,
-        payoutChips: option.payoutChips,
-        outs,
-        ...(bought.tie && { tie: true }),
-        oddsHundredths,
-        street,
-      });
-    } catch {
-      return undefined; // The page shows the failure from the mutation
-    }
-  }
-
-  function handleRevise(purchaseId: string) {
-    const record = records.find(({ purchase }) => purchase.id === purchaseId);
-    if (!record) return true;
-    if (
-      record.status !== "pending" &&
-      !window.confirm(t.gamePages.insurance.thisBetAlreadyHasAResult)
-    ) {
-      return false;
-    }
-    undoInsurance.mutate({ record, handChips });
-    return true;
-  }
 
   function handleSettle(record: InsuranceRecord, hit: boolean) {
     if (handChips !== undefined) settleInsurance.mutate({ record, hit, handChips });
@@ -183,11 +148,9 @@ function GameInsurance({ game }: { game: Game }) {
 
   const failed =
     saveGame.isError ||
-    buyInsurance.isError ||
     settleInsurance.isError ||
     undoInsurance.isError ||
     saveHand.isError ||
-    enterStack.isError ||
     finishHand.isError ||
     undoHand.isError ||
     // Dropping a hand can write to the ledger too
@@ -239,19 +202,8 @@ function GameInsurance({ game }: { game: Game }) {
             rule={rule ?? insurance}
             seats={seats}
             onHandUnderWay={setUnderWay}
-            saving={buyInsurance.isPending}
-            recorder={{
-              onBuy: handleBuy,
-              onRevise: handleRevise,
-              boughtIds: new Set(records.map(({ purchase }) => purchase.id)),
-              onSettle: (purchaseId, hit) => {
-                const record = records.find(({ purchase }) => purchase.id === purchaseId);
-                if (record?.status === "pending") handleSettle(record, hit);
-              },
-            }}
             handStore={{
               save: saveHand.mutate,
-              enterStack: (playerId, chips) => enterStack.mutate({ playerId, chips }),
               discard: (handId: string) => discardHand.mutate({ handId, handChips }),
               finish: async (hand, choices) => {
                 if (handChips === undefined) return;

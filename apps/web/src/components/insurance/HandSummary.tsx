@@ -65,14 +65,14 @@ function streetLines(
   const { handSummary: text } = t.insurance;
   const word = (content: ReactNode) => <span className={cn(FIGURE, "text-muted")}>{content}</span>;
   const hitWord = (hit: boolean) => (
-    <span key="word" className={cn(FIGURE, hit ? "text-highlight" : "text-muted")}>
+    <span key={`${street}-word`} className={cn(FIGURE, hit ? "text-highlight" : "text-muted")}>
       {hit ? text.hit : text.missed}
     </span>
   );
   if (streetEntered(hand, street)) return [word("—"), null];
   const bought = streetInsurance(hand, street, playerId);
   if (playerId === undefined) {
-    return [<Figure key="figure" chips={bought ? -bought.chips : 0} />, null];
+    return [<Figure key={`${street}-figure`} chips={bought ? -bought.chips : 0} />, null];
   }
   if (!bought) {
     return [
@@ -80,7 +80,7 @@ function streetLines(
       null,
     ];
   }
-  return [<Figure key="figure" chips={bought.chips} />, hitWord(bought.hit)];
+  return [<Figure key={`${street}-figure`} chips={bought.chips} />, hitWord(bought.hit)];
 }
 
 /**
@@ -285,46 +285,52 @@ function PlayerRow({
         under={cards.map((card) => <SmallCard key={card} card={card} />)}
         totalChips={insuranceChips}
       />
-      <Divider />
-      {/* Every pot of the hand: what the player took from it, nothing in red where it was lost,
+      {/* A hand worked from outs that ended before the river has no winner, and so nothing
+          under its insurance */}
+      {(!hand.quick || hand.quick.winnerIds) && (
+        <>
+          <Divider />
+          {/* Every pot of the hand: what the player took from it, nothing in red where it was lost,
           and struck out where the player has no chips in it */}
-      {potShares.map((chips, index) => {
-        const label = index === 0 ? potColumns.mainPot : potColumns.sidePot(index);
-        return chips === null ? (
-          // biome-ignore lint/suspicious/noArrayIndexKey: the pots are in a fixed order
-          <ChipLine key={index} label={label} struck>
-            <span className="text-muted">{text.notIn}</span>
-          </ChipLine>
-        ) : (
-          // biome-ignore lint/suspicious/noArrayIndexKey: the pots are in a fixed order
-          <ChipLine key={index} mark={<WonMark won={chips > 0} />} label={label}>
-            <span className={chips > 0 ? "text-win" : "text-loss"}>
-              {chips > 0 ? `+${chipText(chips)}` : 0}
-            </span>
-          </ChipLine>
-        );
-      })}
-      {/* Chips that were never in the betting, where there are any */}
-      {!cover && refundChips > 0 && (
-        <ChipLine label={text.chipsBehind}>{chipText(refundChips)}</ChipLine>
-      )}
-      {/* The chips the player ends with, set a little apart, and before them whether they go
+          {potShares.map((chips, index) => {
+            const label = index === 0 ? potColumns.mainPot : potColumns.sidePot(index);
+            return chips === null ? (
+              // biome-ignore lint/suspicious/noArrayIndexKey: the pots are in a fixed order
+              <ChipLine key={index} label={label} struck>
+                <span className="text-muted">{text.notIn}</span>
+              </ChipLine>
+            ) : (
+              // biome-ignore lint/suspicious/noArrayIndexKey: the pots are in a fixed order
+              <ChipLine key={index} mark={<WonMark won={chips > 0} />} label={label}>
+                <span className={chips > 0 ? "text-win" : "text-loss"}>
+                  {chips > 0 ? `+${chipText(chips)}` : 0}
+                </span>
+              </ChipLine>
+            );
+          })}
+          {/* Chips that were never in the betting, where there are any */}
+          {!cover && refundChips > 0 && (
+            <ChipLine label={text.chipsBehind}>{chipText(refundChips)}</ChipLine>
+          )}
+          {/* The chips the player ends with, set a little apart, and before them whether they go
           to the game. A cover has more behind than the hand knows, so has what the hand won or
           lost them instead, and nothing to send */}
-      <div className="mt-1">
-        <SyncLine
-          sync={stackAfter === null ? undefined : sync}
-          label={stackAfter === null ? text.totalNet : text.totalChips}
-        >
-          {stackAfter === null ? (
-            <span className={cn(TOTAL, TONE_CLASS[netTone(netChips)])}>
-              {formatSignedChips(netChips)}
-            </span>
-          ) : (
-            <span className={TOTAL}>{chipText(stackAfter)}</span>
-          )}
-        </SyncLine>
-      </div>
+          <div className="mt-1">
+            <SyncLine
+              sync={stackAfter === null ? undefined : sync}
+              label={stackAfter === null ? text.totalNet : text.totalChips}
+            >
+              {stackAfter === null ? (
+                <span className={cn(TOTAL, TONE_CLASS[netTone(netChips)])}>
+                  {formatSignedChips(netChips)}
+                </span>
+              ) : (
+                <span className={TOTAL}>{chipText(stackAfter)}</span>
+              )}
+            </SyncLine>
+          </div>
+        </>
+      )}
       {buyIn && handChips !== undefined && (
         <BuyInNote>
           {text.needsABuyIn(buyIn.buyInChips / handChips, chipText(buyIn.buyInChips))}
@@ -498,15 +504,18 @@ export function HandSummary({
   return (
     <section aria-labelledby="hand-summary">
       <SectionTitle id="hand-summary" title={text.handSummary} />
-      <div className="flex justify-center gap-2">
-        <StreetCards
-          label={t.insurance.insuranceHandFlow.flop}
-          cards={board.slice(0, 3)}
-          count={3}
-        />
-        <StreetCards label={t.common.turn} cards={board.slice(3, 4)} count={1} />
-        <StreetCards label={t.common.river} cards={board.slice(4, 5)} count={1} />
-      </div>
+      {/* A hand worked from outs has no board to show */}
+      {!hand.quick && (
+        <div className="flex justify-center gap-2">
+          <StreetCards
+            label={t.insurance.insuranceHandFlow.flop}
+            cards={board.slice(0, 3)}
+            count={3}
+          />
+          <StreetCards label={t.common.turn} cards={board.slice(3, 4)} count={1} />
+          <StreetCards label={t.common.river} cards={board.slice(4, 5)} count={1} />
+        </div>
+      )}
 
       <div className="mt-3 rounded-xl border border-line bg-surface">
         <div className={cn(ROW, "px-3 py-2 text-right text-xs whitespace-nowrap text-muted")}>
