@@ -210,6 +210,9 @@ export const insurance: Messages["insurance"] = {
   },
   outsQuickCalc: {
     endWithoutTheRiver: "End without the river",
+    overtakePoolI: "Outdraw pot I",
+    overtakePoolIi: "Outdraw pot II",
+    addOvertakePoolIi: "Tap to add outdraw pot II, bought separately",
     oneLess: (a) => `One less ${a}`,
     cardsUnit: "",
     oneMore: (a) => `One more ${a}`,

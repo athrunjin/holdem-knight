@@ -77,9 +77,15 @@ const STREETS: readonly { readonly id: InsuranceStreet; readonly label: string }
 
 const percentText = (share: number) => `${(share * 100).toFixed(1)}%`;
 
-/** The trailing side's cards: those that win outright, and those that split the pot. */
+/**
+ * The trailing side's cards: those that win outright, and those that split the pot. Some of the
+ * cards that win outright can be sold apart, as a second cover priced on its own count.
+ */
 interface OutsEntry {
+  /** Every card that wins outright, those sold apart among them */
   readonly outs: number;
+  /** How many of them are sold as the second cover. Never all of them. */
+  readonly second: number;
   readonly ties: number;
 }
 
@@ -89,13 +95,19 @@ const soldText = ({ outs, ties }: OutsEntry, tiesSold: boolean) =>
 
 const cardCount = (value: string) => value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
 
+/** The two covers of one kind, as they are numbered for a hand worked from its cards. */
+const PART_TEXT = { 1: "I", 2: "II" } as const;
+
 /** Dead money as a pot starts with it, not yet set by the organizer. */
 const PRESET_DEAD = { pools: [PRESET_DEAD_CHIPS] as readonly number[], preset: true };
 
 const stepClass =
   "grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-surface text-highlight disabled:opacity-30";
 
-/** A card count typed in or nudged one at a time, between `min` and `max`. */
+/**
+ * A card count typed in or nudged one at a time, between `min` and `max`, on one line with its
+ * name before it.
+ */
 function CardStepper({
   id,
   label,
@@ -114,11 +126,11 @@ function CardStepper({
   const value = parseChips(text) ?? 0;
   const step = (by: number) => onChange(String(Math.min(max, Math.max(min, value + by))));
   return (
-    <div>
-      <label htmlFor={id} className="mb-1 block text-sm text-muted">
+    <div className="flex w-full items-center justify-between gap-2">
+      <label htmlFor={id} className="min-w-0 text-sm text-muted">
         {label}
       </label>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5">
         <button
           type="button"
           aria-label={t.insurance.outsQuickCalc.oneLess(label)}
@@ -128,7 +140,7 @@ function CardStepper({
         >
           <Minus className="size-5" aria-hidden />
         </button>
-        <div className="flex min-h-11 w-28 items-center gap-1 rounded-xl border border-line bg-surface px-3 focus-within:border-highlight">
+        <div className="flex min-h-11 w-20 items-center gap-1 rounded-xl border border-line bg-surface px-2 focus-within:border-highlight">
           <input
             id={id}
             type="text"
@@ -141,7 +153,7 @@ function CardStepper({
             onChange={(event) => onChange(cardCount(event.target.value))}
             className="min-w-0 flex-1 bg-transparent text-center text-lg font-semibold tabular-nums outline-none"
           />
-          <span className="text-muted">{t.insurance.outsQuickCalc.cardsUnit}</span>
+          <span className="text-sm text-muted">{t.insurance.outsQuickCalc.cardsUnit}</span>
         </div>
         <button
           type="button"
@@ -177,40 +189,65 @@ function OutsDialog({
   onConfirm: (entry: OutsEntry) => void;
   onCancel: () => void;
 }) {
-  const [text, setText] = useState(String(entry?.outs ?? 4));
+  const [text, setText] = useState(String(entry ? entry.outs - entry.second : 4));
+  // The second cover's cards, once it is asked for
+  const [secondText, setSecondText] = useState(
+    entry && entry.second > 0 ? String(entry.second) : undefined,
+  );
   const [tieText, setTieText] = useState(String(entry?.ties ?? 0));
-  const outs = parseChips(text) ?? 0;
+  const first = parseChips(text) ?? 0;
+  const second = secondText === undefined ? 0 : (parseChips(secondText) ?? 0);
   const ties = parseChips(tieText) ?? 0;
-  // Each kind of card is priced by its own count, so each has the odds table to itself. Tie cards
-  // that are not sold need no odds.
-  const outsMax = Math.min(unseen - ties, maxOuts);
-  const tiesMax = Math.min(unseen - outs, tiesSold ? maxOuts : unseen);
-  const valid = outs + ties >= 1 && outs <= outsMax && ties <= tiesMax;
+  // Each cover is priced by its own count, so each has the odds table to itself. Tie cards that
+  // are not sold need no odds.
+  const firstMax = Math.min(unseen - second - ties, maxOuts);
+  const secondMax = Math.min(unseen - first - ties, maxOuts);
+  const tiesMax = Math.min(unseen - first - second, tiesSold ? maxOuts : unseen);
+  const valid =
+    first + second + ties >= 1 && first <= firstMax && second <= secondMax && ties <= tiesMax;
+  const { outsQuickCalc: text2 } = t.insurance;
 
   return (
-    <Modal title={t.insurance.outsQuickCalc.sOuts(name)} onClose={onCancel}>
+    <Modal title={text2.sOuts(name)} onClose={onCancel}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          if (valid) onConfirm({ outs, ties });
+          if (!valid) return;
+          // Cards sold apart with none left beside them are simply the cards sold
+          onConfirm({ outs: first + second, second: first > 0 ? second : 0, ties });
         }}
-        className="flex flex-col items-center gap-3"
+        className="flex flex-col items-center gap-2"
       >
         <CardStepper
           id="quick-outs"
-          label={t.insurance.outsQuickCalc.outs}
+          label={secondText === undefined ? text2.outs : text2.overtakePoolI}
           text={text}
           min={0}
-          max={outsMax}
+          max={firstMax}
           onChange={setText}
         />
+        {secondText === undefined ? (
+          <button
+            type="button"
+            onClick={() => setSecondText("1")}
+            className="-my-1 min-h-11 w-full text-left text-sm text-muted"
+          >
+            {text2.addOvertakePoolIi}
+          </button>
+        ) : (
+          <CardStepper
+            id="quick-outs-2"
+            label={text2.overtakePoolIi}
+            text={secondText}
+            min={0}
+            max={secondMax}
+            onChange={setSecondText}
+          />
+        )}
+        <span aria-hidden className="h-px w-full bg-line" />
         <CardStepper
           id="quick-ties"
-          label={
-            tiesSold
-              ? t.insurance.outsQuickCalc.tieCards
-              : t.insurance.outsQuickCalc.tieCardsNotCountedAsOuts
-          }
+          label={tiesSold ? text2.tieCards : text2.tieCardsNotCountedAsOuts}
           text={tieText}
           min={0}
           max={tiesMax}
@@ -373,31 +410,42 @@ export function OutsQuickCalc({
       shareChips: totals.effectiveChips,
       stakeChips: leaderStake,
     };
-    const keyOf = (kind: OfferKind) =>
+    const keyOf = (kind: OfferKind, part?: 1 | 2) =>
       [
         "quick",
         kind,
+        part ?? 0,
         leaderId,
         trailerId,
         street,
         totals.effectiveChips,
         leaderStake,
         entry.outs,
+        entry.second,
         entry.ties,
         rule.tieOuts,
       ].join("|");
-    const overtake: PotCoverOffer = {
+    // The cards that overtake as one cover, or as two where some are sold apart, each priced on
+    // its own count and named as they are for a hand worked from its cards
+    const cover = (count: number, part?: 1 | 2): PotCoverOffer => ({
       kind: "overtake",
-      input: { ...input, outs: entry.outs },
+      ...(part !== undefined && { part }),
+      input: { ...input, outs: count },
       playerId: leaderId,
-      decisionKey: keyOf("overtake"),
-      name: t.common.outdraw,
-      count: entry.outs,
+      decisionKey: keyOf("overtake", part),
+      name: part === undefined ? t.common.outdraw : `${t.common.outdraw} ${PART_TEXT[part]}`,
+      count,
       // Tie cards a rule does not sell are still named, so nobody takes them for outs
       outsLines:
-        !tiesSold && entry.ties > 0 ? [t.insurance.outsQuickCalc.tieOnNotCounted(entry.ties)] : [],
-    };
-    if (!tiesSold || entry.ties === 0) return [overtake];
+        part !== 2 && !tiesSold && entry.ties > 0
+          ? [t.insurance.outsQuickCalc.tieOnNotCounted(entry.ties)]
+          : [],
+    });
+    const overtake =
+      entry.second > 0
+        ? [cover(entry.outs - entry.second, 1), cover(entry.second, 2)]
+        : [cover(entry.outs)];
+    if (!tiesSold || entry.ties === 0) return overtake;
     const tie: PotCoverOffer = {
       kind: "tie",
       // A tie leaves each of the two half the pot, so the other half is the most it can cost
@@ -412,7 +460,7 @@ export function OutsQuickCalc({
       name: t.common.tie,
       count: entry.ties,
     };
-    return entry.outs > 0 ? [overtake, tie] : [tie];
+    return entry.outs > 0 ? [...overtake, tie] : [tie];
   }
 
   const offers =
@@ -432,7 +480,8 @@ export function OutsQuickCalc({
    * Whether the card came, for every cover on this street: at most one kind of card can have.
    * After the turn the river follows, with whoever the turn left ahead; the river ends the hand.
    */
-  function record(hit: OfferKind | undefined) {
+  function record(came: PotCoverOffer | undefined) {
+    const hit = came?.kind;
     if (!leaderPlayer || !trailerPlayer) return;
     const purchases = offers.flatMap((offer): InsuranceHandPurchase[] => {
       const taken = bought.get(offer.decisionKey);
@@ -449,7 +498,7 @@ export function OutsQuickCalc({
           oddsHundredths: taken.oddsHundredths,
           premiumChips: taken.option.premiumChips,
           payoutChips: taken.option.payoutChips,
-          hit: offer.kind === hit,
+          hit: offer === came,
         },
       ];
     });
@@ -817,15 +866,15 @@ export function OutsQuickCalc({
         >
           <div className="flex flex-col gap-2">
             {/* With both kinds of card on sale, a hit says which kind came */}
-            {offers.map(({ kind, name }) => (
+            {offers.map((offer) => (
               <button
-                key={kind}
+                key={offer.decisionKey}
                 type="button"
-                onClick={() => record(kind)}
+                onClick={() => record(offer)}
                 className="min-h-12 rounded-xl bg-accent font-semibold text-accent-text"
               >
                 {offers.length > 1
-                  ? t.insurance.outsQuickCalc.hit(name)
+                  ? t.insurance.outsQuickCalc.hit(offer.name)
                   : t.insurance.outsQuickCalc.hit2}
               </button>
             ))}

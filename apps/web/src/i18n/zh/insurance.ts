@@ -218,6 +218,9 @@ export const insurance = {
   },
   outsQuickCalc: {
     endWithoutTheRiver: "不记录河牌，直接结束",
+    overtakePoolI: "反超池 I",
+    overtakePoolIi: "反超池 II",
+    addOvertakePoolIi: "点击新增反超池 II，分开购买",
     oneLess: (a: string | number) => `${a}减一`,
     cardsUnit: "张",
     oneMore: (a: string | number) => `${a}加一`,
