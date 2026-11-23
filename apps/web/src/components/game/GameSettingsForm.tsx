@@ -39,6 +39,7 @@ import { useConfigLibrary } from "@/data/config-library";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
+import { BLIND_PICKS, RATIO_PICKS } from "@/lib/game-picks";
 import {
   type ChargeChoice,
   DEFAULT_PRESET,
@@ -74,16 +75,7 @@ const CURRENCY_OPTIONS = CURRENCIES.map((currency) => ({
   name: POINTS_NAMES[currency],
 }));
 
-/** Common ratios, blinds and buy-ins, picked from the chevron at the end of their rows. */
-const RATIO_PICKS = [1, 5, 10, 20].map((chips) => ({ chips, label: `${chips}:1` }));
-const BLIND_PICKS = [
-  [1, 1],
-  [1, 2],
-  [5, 5],
-  [5, 10],
-  [10, 10],
-  [10, 20],
-].map(([small, big]) => ({ small, big, label: `${small}/${big}` }));
+/** Common buy-ins, picked like the ratios and blinds from the chevron at the end of their rows. */
 const BUY_IN_PICKS = [50, 100, 200].map((bigBlinds) => ({ bigBlinds, label: `${bigBlinds}BB` }));
 
 /**

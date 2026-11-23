@@ -115,7 +115,8 @@ export function recentMonths(today: string, count: number): string[] {
   return Array.from({ length: count }, (_, i) => shiftMonth(month, i - count + 1));
 }
 
-const within = ({ from, to }: Period, day: string) =>
+/** Whether a day is in a period. */
+export const inPeriod = ({ from, to }: Period, day: string) =>
   (from === undefined || day >= from) && (to === undefined || day <= to);
 
 export interface IncomeView {
@@ -155,7 +156,7 @@ export function incomeReport(
   period: Period,
 ): IncomeReport {
   const games = summaries
-    .filter((summary) => summary.currency === currency && within(period, summary.day))
+    .filter((summary) => summary.currency === currency && inPeriod(period, summary.day))
     .toSorted((a, b) => b.startedAt - a.startedAt)
     .map((summary) => ({
       summary,

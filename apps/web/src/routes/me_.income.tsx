@@ -10,6 +10,7 @@ import {
   type IncomeReport,
   incomeReport,
   incomeSeries,
+  inPeriod,
   monthOf,
   multiply,
   PERIOD_CHOICES,
@@ -21,10 +22,10 @@ import {
   trendPeriods,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, X } from "lucide-react";
-import { useState } from "react";
-import { CurrencyIcon } from "@/components/CurrencyIcon";
+import { ChevronRight } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { InfoButton } from "@/components/InfoButton";
+import { IncomeFilter } from "@/components/income/IncomeFilter";
 import { Arc } from "@/components/insurance/PotShares";
 import { Page } from "@/components/Page";
 import { TextMenu } from "@/components/TextMenu";
@@ -34,6 +35,7 @@ import { formatSeatTime } from "@/lib/charges";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { dayOf } from "@/lib/game-day";
+import { blindsKey, filterChoices, ratioKey } from "@/lib/income-filter";
 import { useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/me_/income")({
@@ -63,16 +65,49 @@ const ITEM_FILLS: Record<IncomeItem, { readonly dot: string; readonly stroke: st
 /** Insurance that lost over the games shown */
 const LOSS_FILL = { dot: "bg-loss", stroke: "stroke-loss" };
 
-/** Each currency is shown by its mark alone, and named after the animal for a reader. */
-const CURRENCY_NAMES: Record<Currency, string> = {
-  CNY: t.gamePages.list.panda,
-  AUD: t.gamePages.list.kangaroo,
-};
-
 /** The items counted, as this browser keeps them. Anything else kept gives way to all four. */
 function parseItems(stored: unknown): IncomeItem[] | undefined {
   if (!Array.isArray(stored)) return undefined;
   return INCOME_ITEMS.filter((item) => stored.includes(item));
+}
+
+/** What the page shows, as it was left: the period, and the games it is narrowed to. */
+interface View {
+  readonly period: PeriodChoice;
+  /** Missing for the currency of the newest game. */
+  readonly currency?: Currency | undefined;
+  /** A chip ratio or the blinds as `ratioKey` and `blindsKey` give them. Missing for any. */
+  readonly ratio?: string | undefined;
+  readonly blinds?: string | undefined;
+}
+
+const text = (value: unknown) => (typeof value === "string" ? value : undefined);
+
+function parseView(stored: unknown): View | undefined {
+  if (typeof stored !== "object" || stored === null) return undefined;
+  const { period, currency, ratio, blinds } = stored as Record<string, unknown>;
+  const kept = PERIOD_CHOICES.find((choice) => choice === period);
+  if (!kept) return undefined;
+  return {
+    period: kept,
+    currency: CURRENCIES.find((c) => c === currency),
+    ratio: text(ratio),
+    blinds: text(blinds),
+  };
+}
+
+/** How the bars were left: how they are cut, and the items they show. */
+interface BarsView {
+  readonly span: TrendSpan;
+  readonly items: readonly IncomeItem[];
+}
+
+function parseBars(stored: unknown): BarsView | undefined {
+  if (typeof stored !== "object" || stored === null) return undefined;
+  const { span, items } = stored as Record<string, unknown>;
+  const kept = TREND_SPANS.find((value) => value === span);
+  const shown = parseItems(items);
+  return kept && shown ? { span: kept, items: shown } : undefined;
 }
 
 const numbers = (text: string) => text.split("-").map(Number) as [number, number, number];
@@ -105,9 +140,10 @@ function IncomePage() {
         <Link
           to="/me"
           aria-label={t.me.income.back}
-          className="-mr-2 grid size-11 shrink-0 place-items-center text-highlight"
+          className="grid min-h-11 shrink-0 place-items-center"
         >
-          <X className="size-6" strokeWidth={1.75} aria-hidden />
+          {/* The emblem, as on the settlement page */}
+          <img src="/emblem-on-dark.svg" alt="" className="h-12 w-auto" />
         </Link>
       }
     >
@@ -136,7 +172,7 @@ function IncomePage() {
 
 function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   const today = dayOf(Date.now());
-  const [shown, setShown] = useState<PeriodChoice>("thisWeek");
+  const [view, setView] = useStoredState<View>("income.view", { period: "thisWeek" }, parseView);
   const [items, setItems] = useStoredState<readonly IncomeItem[]>(
     "income.items",
     INCOME_ITEMS,
@@ -147,11 +183,30 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   // The currencies there are games in, in the app's own order. The newest game's comes up first
   const currencies = CURRENCIES.filter((c) => summaries.some((s) => s.currency === c));
   const newest = summaries.reduce((a, b) => (b.startedAt > a.startedAt ? b : a));
-  const [picked, setPicked] = useState<Currency>();
-  const currency = picked && currencies.includes(picked) ? picked : newest.currency;
+  const currency =
+    view.currency && currencies.includes(view.currency) ? view.currency : newest.currency;
 
-  const view = { currency, items };
-  const report = incomeReport(summaries, view, periodOf(shown, today));
+  const period = view.period;
+  const days = periodOf(period, today);
+  // A ratio or blinds kept from before that the period's games do not offer counts as no choice
+  const offered = filterChoices(
+    summaries.filter((s) => inPeriod(days, s.day)),
+    currency,
+  );
+  const ratio = offered.ratios.find(({ value }) => value === view.ratio)?.value;
+  const blinds = offered.blinds.find(({ value }) => value === view.blinds)?.value;
+  const narrowed = summaries.filter(
+    (s) =>
+      s.currency === currency &&
+      (!ratio || ratioKey(s) === ratio) &&
+      (!blinds || blindsKey(s) === blinds),
+  );
+
+  const report = incomeReport(narrowed, { currency, items }, days);
+  const change = (next: Partial<View>) => {
+    setOnlyUnreceived(false);
+    setView({ ...view, currency, ...next });
+  };
 
   const money = (value: Cents) => formatGameMoney(value, currency);
   // This month and the last go by their names, the last with its year where that is another
@@ -167,39 +222,39 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
         : t.me.income.periods[choice];
   const listed = onlyUnreceived ? report.games.filter((game) => game.unreceived > 0) : report.games;
 
+  const header = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center text-sm">
+          <span className="shrink-0 text-muted">{t.me.income.due}</span>
+          <span className="mx-1.5 text-muted" aria-hidden>
+            ·
+          </span>
+          <TextMenu
+            label={t.me.income.period}
+            options={PERIOD_CHOICES.map((choice) => ({
+              value: choice,
+              label: periodName(choice),
+            }))}
+            value={period}
+            onChange={(choice) => change({ period: choice })}
+            className="font-medium"
+          />
+        </div>
+        <IncomeFilter
+          applied={{ currency, ratio, blinds }}
+          currencies={currencies}
+          games={summaries.filter((s) => inPeriod(days, s.day))}
+          onApply={change}
+        />
+      </div>
+    </>
+  );
+
   return (
     <div className="pb-8">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <TextMenu
-          label={t.me.income.period}
-          options={PERIOD_CHOICES.map((choice) => ({
-            value: choice,
-            label: periodName(choice),
-          }))}
-          value={shown}
-          onChange={(choice) => {
-            setOnlyUnreceived(false);
-            setShown(choice);
-          }}
-          className="text-lg font-semibold"
-        />
-        {currencies.length > 1 && (
-          <TextMenu
-            label={t.me.income.currency}
-            options={currencies.map((c) => ({
-              value: c,
-              name: CURRENCY_NAMES[c],
-              label: <CurrencyIcon currency={c} className="size-5" />,
-            }))}
-            value={currency}
-            onChange={setPicked}
-            align="right"
-            className="text-sm text-muted"
-          />
-        )}
-      </div>
-
       <Breakdown
+        header={header}
         report={report}
         items={items}
         money={money}
@@ -211,7 +266,7 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
         onlyUnreceived={onlyUnreceived}
         onToggleUnreceived={() => setOnlyUnreceived(!onlyUnreceived)}
       />
-      <Trend summaries={summaries} currency={currency} today={today} money={money} />
+      <Trend summaries={narrowed} currency={currency} today={today} money={money} />
 
       <section className="mt-5">
         <div className="flex min-h-11 items-center justify-between">
@@ -252,6 +307,7 @@ type Money = (value: Cents) => string;
  * out beside it, how much of it is still to come in, and the differences the organizer took on.
  */
 function Breakdown({
+  header,
   report,
   items,
   money,
@@ -259,6 +315,8 @@ function Breakdown({
   onlyUnreceived,
   onToggleUnreceived,
 }: {
+  /** The line over the total: what it is of, and the choices that make it */
+  header: ReactNode;
   report: IncomeReport;
   items: readonly IncomeItem[];
   money: Money;
@@ -270,11 +328,11 @@ function Breakdown({
   const share = total > 0 ? Math.min(100, Math.max(0, (received / total) * 100)) : 0;
 
   return (
-    <section className={cn(cardClass, "p-4")}>
-      <p className="text-sm text-muted">{t.me.income.due}</p>
+    <section className={cn(cardClass, "px-4 pt-1 pb-4")}>
+      {header}
       <p
         className={cn(
-          "mt-1 text-4xl font-semibold tracking-tight tabular-nums",
+          "text-4xl font-semibold tracking-tight tabular-nums",
           total < 0 && "text-loss",
         )}
       >
@@ -285,9 +343,10 @@ function Breakdown({
         <IncomeRing report={report} items={items} />
         <ul aria-label={t.me.income.items} className="flex min-w-0 flex-1 flex-col">
           {INCOME_ITEMS.map((item) => {
-            const on = items.includes(item);
             const amount = byItem[item];
             const count = gamesByItem[item];
+            // An item none of the games had is struck out by itself, whatever is ticked
+            const on = items.includes(item) && count > 0;
             const fill = amount < 0 ? LOSS_FILL : ITEM_FILLS[item];
             return (
               <li key={item}>
@@ -295,8 +354,9 @@ function Breakdown({
                   type="button"
                   aria-pressed={on}
                   aria-label={t.me.income.counted(ITEM_NAMES[item])}
+                  disabled={count === 0}
                   onClick={() => onToggle(item)}
-                  className="flex min-h-11 w-full items-start gap-1.5 rounded-lg px-1 py-1 text-left text-sm active:bg-line"
+                  className="flex min-h-11 w-full items-start gap-1.5 rounded-lg px-1 py-1 text-left text-sm enabled:active:bg-line"
                 >
                   {/* On the middle of the name's line. Hollow while the item is left out */}
                   <span
@@ -457,22 +517,26 @@ function Trend({
   today: string;
   money: Money;
 }) {
-  const [span, setSpan] = useState<TrendSpan>("weeks4");
-  const [shown, setShown] = useState<readonly IncomeItem[]>(INCOME_ITEMS);
-  const bars = incomeSeries(summaries, currency, trendPeriods(span, today)).map(
-    ({ period, byItem }) => {
-      const parts = INCOME_ITEMS.filter((item) => shown.includes(item)).map((item) => ({
-        item,
-        amount: byItem[item],
-      }));
-      return {
-        from: period.from ?? "",
-        up: parts.filter(({ amount }) => amount > 0),
-        down: parts.filter(({ amount }) => amount < 0),
-        total: cents(parts.reduce((all, { amount }) => all + amount, 0)),
-      };
-    },
+  const [{ span, items: shown }, setBars] = useStoredState<BarsView>(
+    "income.bars",
+    { span: "weeks4", items: INCOME_ITEMS },
+    parseBars,
   );
+  const series = incomeSeries(summaries, currency, trendPeriods(span, today));
+  // An item none of the bars has is struck out by itself
+  const there = (item: IncomeItem) => series.some(({ byItem }) => byItem[item] !== 0);
+  const bars = series.map(({ period, byItem }) => {
+    const parts = INCOME_ITEMS.filter((item) => shown.includes(item)).map((item) => ({
+      item,
+      amount: byItem[item],
+    }));
+    return {
+      from: period.from ?? "",
+      up: parts.filter(({ amount }) => amount > 0),
+      down: parts.filter(({ amount }) => amount < 0),
+      total: cents(parts.reduce((all, { amount }) => all + amount, 0)),
+    };
+  });
   const reach = (parts: readonly { readonly amount: number }[]) =>
     parts.reduce((all, { amount }) => all + Math.abs(amount), 0);
   const high = Math.max(1, ...bars.map(({ up }) => reach(up)));
@@ -499,26 +563,32 @@ function Trend({
           label={t.me.income.span}
           options={TREND_SPANS.map((value) => ({ value, label: t.me.income.spans[value] }))}
           value={span}
-          onChange={setSpan}
+          onChange={(value) => setBars({ span: value, items: shown })}
           align="right"
           className="text-sm"
         />
       </div>
       <div className="flex flex-wrap gap-x-1">
         {INCOME_ITEMS.map((item) => {
-          const on = shown.includes(item);
+          const absent = !there(item);
+          const on = shown.includes(item) && !absent;
           return (
             <button
               key={item}
               type="button"
               aria-pressed={on}
               aria-label={t.me.income.barShown(ITEM_NAMES[item])}
+              disabled={absent}
               onClick={() =>
-                setShown(INCOME_ITEMS.filter((i) => (i === item ? !on : shown.includes(i))))
+                setBars({
+                  span,
+                  items: INCOME_ITEMS.filter((i) => (i === item ? !on : shown.includes(i))),
+                })
               }
               className={cn(
                 "flex min-h-11 items-center gap-1.5 px-1.5 text-sm",
                 !on && "text-muted",
+                absent && "line-through",
               )}
             >
               <span
