@@ -360,7 +360,10 @@ export interface InsuranceUndo {
   readonly reversedEventIds: readonly string[];
   /** Bought by the seat in the same change, where it holds less than it has to give back. */
   readonly seatTopUpChips: number;
-  /** Stacks written again a moment later, so taking back a hand bought leaves them as they are. */
+  /**
+   * Stacks written a moment later: a player's, so taking back a hand bought leaves it as it is,
+   * and the seat's, where the hand set its chips outright and they go back to what they were.
+   */
   readonly keptStacks: readonly { readonly playerId: string; readonly chips: number }[];
   /** Players whose stack changed after the hand set it, and so is not restored. */
   readonly keptPlayerIds: readonly string[];
@@ -433,6 +436,9 @@ export function undoInsurance(
  *
  * A change made after the hand and taken back again is no change: a later hand undone first, or a
  * player who left and came back, leaves this hand's stacks to be restored.
+ *
+ * The seat's chips, where the hand set them outright, go back to what they were before it. Buy-ins
+ * the seat was given or gave back with the hand are a record of their own, and stay.
  */
 export function undoInsuranceHand(
   events: readonly LedgerEvent[],
@@ -474,14 +480,46 @@ export function undoInsuranceHand(
     const player = ledger.find((p) => p.playerId === e.playerId);
     return player?.seated ? [{ playerId: player.playerId, chips: player.stackChips }] : [];
   });
+  const seatChips = seatBeforeHand(events, handEvents, changedSince);
   return {
     reversedEventIds: [...seat.reversedEventIds, ...undone.map((e) => e.id)],
-    seatTopUpChips: seat.seatTopUpChips,
-    keptStacks,
+    // Chips written outright need no hands bought to reach them
+    seatTopUpChips: seatChips === undefined ? seat.seatTopUpChips : 0,
+    keptStacks:
+      seatChips === undefined
+        ? keptStacks
+        : [...keptStacks, { playerId: INSURANCE_PLAYER_ID, chips: seatChips }],
     keptPlayerIds: handEvents.flatMap((e) =>
       e.type === "stack_set" && changedSince.has(e.playerId) ? [e.playerId] : [],
     ),
   };
+}
+
+/** The seat's chips in these events, with those it cashed out, which come back as it sits again. */
+function seatChipsIn(events: readonly LedgerEvent[]): number {
+  const seat = summarizeByPlayer(events).find((p) => p.playerId === INSURANCE_PLAYER_ID);
+  return (seat?.stackChips ?? 0) + (latestCashOut(events, INSURANCE_PLAYER_ID)?.chips ?? 0);
+}
+
+/**
+ * What the seat goes back to where the hand set its chips itself: the organizer counted them, or
+ * changed its Buy-ins apart from them. Reversals cannot restore that, as the chips set took no
+ * account of what the hand or the Buy-ins moved, and a stack that stopped at 0 has lost the rest.
+ * So the seat is written back to what it had before the hand, moved by whatever later hands won
+ * or lost it. Undefined where the hand set no chips for the seat, or they were set again since.
+ */
+function seatBeforeHand(
+  events: readonly LedgerEvent[],
+  handEvents: readonly LedgerEvent[],
+  changedSince: ReadonlySet<string>,
+): number | undefined {
+  const set = handEvents.findLast(
+    (e): e is StackSetEvent => e.type === "stack_set" && e.playerId === INSURANCE_PLAYER_ID,
+  );
+  if (!set || changedSince.has(INSURANCE_PLAYER_ID)) return undefined;
+  // The seat's chips are set a moment after everything else of the hand is written
+  const before = seatChipsIn(events.filter((e) => e.occurredAt < set.occurredAt - 1));
+  return Math.max(0, seatChipsIn(events) - set.chips + before);
 }
 
 /** Chips to add so the insurance seat can pay `payoutChips`: enough whole hands to cover the shortfall. `stackChips` includes the premium. */

@@ -48,8 +48,6 @@ export const insurance = {
     syncThe: (a: string | number) => `同步${a}到对局`,
     syncToTheGame: "同步到对局",
     totalBuyIn: "总 Buy-in",
-    chips: "筹码",
-    insuranceChips: "保险筹码",
     previousStep: "返回上一步",
     confirmAndReturnToTheGame: "确认并返回牌局",
     recalculate: "重新计算",

@@ -756,6 +756,52 @@ describe("insurance", () => {
       expect(stacks(undone(played, undo))).toEqual({ insurance: 1000, a: 1000, b: 1000 });
     });
 
+    describe("with the seat's chips set by the hand", () => {
+      const seatStart = [chip("s0", "buy_in", seat, 3000), later(set("s1", seat, 100), 2)];
+      const players = [chip("a", "buy_in", "a", 1000), chip("b", "buy_in", "b", 1000)];
+      /** A cover of 50 that pays 1,000, with what the summary wrote for the seat around it. */
+      const paid = (extra: readonly LedgerEvent[], chips: number) => [
+        ...seatStart,
+        ...players,
+        ...extra.map((e) => later(e, 10)),
+        later({ ...buy("pa", "a", 50, 1000), handId: "h1" }, 10),
+        later({ ...settle("sa", "pa", "a", 1000), handId: "h1" }, 10),
+        later(set("hs", seat, chips, "h1"), 11),
+      ];
+      const seatAfterUndo = (events: readonly LedgerEvent[]) =>
+        stacks(undone(events, undoInsuranceHand(events, "h1", 1000))).insurance;
+
+      it("gives back what the seat had, though it stopped at 0 in between", () => {
+        // Too few Buy-ins to pay: 100 + 50 - 1,000 stops at 0, then the chips are set to 150
+        const short = paid([], 150);
+        expect(stacks(short).insurance).toBe(150);
+        expect(seatAfterUndo(short)).toBe(100);
+        expect(undoInsuranceHand(short, "h1", 1000).seatTopUpChips).toBe(0);
+      });
+
+      it("leaves Buy-ins put right with the hand as a record, and moves no chips by them", () => {
+        const more = paid([chip("x1", "rebuy", seat, 1000), chip("x2", "rebuy", seat, 1000)], 150);
+        expect(seatAfterUndo(more)).toBe(100);
+        const fewer = paid([reversal("x3", "s0"), chip("x4", "buy_in", seat, 2000)], 150);
+        expect(seatAfterUndo(fewer)).toBe(100);
+      });
+
+      it("keeps what later hands won or lost the seat", () => {
+        const later2 = [
+          ...paid([], 150),
+          later({ ...buy("pb", "b", 70, 500), handId: "h2" }, 20),
+          later({ ...settle("sb", "pb", "b", 0), handId: "h2" }, 20),
+        ];
+        expect(stacks(later2).insurance).toBe(220);
+        expect(seatAfterUndo(later2)).toBe(170);
+      });
+
+      it("leaves the seat's chips alone once they were counted again", () => {
+        const counted = [...paid([], 150), later(set("c", seat, 400), 30)];
+        expect(undoInsuranceHand(counted, "h1", 1000).keptStacks).toEqual([]);
+      });
+    });
+
     it("does nothing more when asked a second time", () => {
       const once = undone(played, undoInsuranceHand(played, "h1", 1000));
       expect(undoInsuranceHand(once, "h1", 1000).reversedEventIds).toEqual([]);

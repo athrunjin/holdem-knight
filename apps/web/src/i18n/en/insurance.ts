@@ -48,8 +48,6 @@ export const insurance: Messages["insurance"] = {
     syncThe: (a) => `Update the game’s ${a}`,
     syncToTheGame: "Update the game",
     totalBuyIn: "Buy-ins",
-    chips: "Chips",
-    insuranceChips: "Insurance chips",
     previousStep: "Previous step",
     confirmAndReturnToTheGame: "Confirm and return to the game",
     recalculate: "Recalculate",

@@ -72,8 +72,7 @@ function streetLines(
   if (streetEntered(hand, street)) return [word("—"), null];
   const bought = streetInsurance(hand, street, playerId);
   if (playerId === undefined) {
-    if (!bought) return [<Figure key="figure" chips={0} />, null];
-    return [<Figure key="figure" chips={-bought.chips} />, hitWord(bought.hit)];
+    return [<Figure key="figure" chips={bought ? -bought.chips : 0} />, null];
   }
   if (!bought) {
     return [
@@ -110,10 +109,15 @@ function RowTop({
       {turn?.[0]}
       {river?.[0]}
       <Figure chips={totalChips} strong />
-      <span className="flex min-h-6 gap-0.5 text-xs font-semibold tabular-nums">{under}</span>
-      {turn?.[1] ?? <span />}
-      {river?.[1] ?? <span />}
-      <span />
+      {/* The insurance has no cards and no words, and so no second line */}
+      {playerId !== undefined && (
+        <>
+          <span className="flex min-h-6 gap-0.5 text-xs font-semibold tabular-nums">{under}</span>
+          {turn?.[1] ?? <span />}
+          {river?.[1] ?? <span />}
+          <span />
+        </>
+      )}
     </div>
   );
 }
@@ -280,134 +284,69 @@ function PlayerRow({
   );
 }
 
-const stepClass =
-  "grid h-11 w-9 shrink-0 place-items-center text-lg font-semibold text-highlight disabled:text-muted disabled:opacity-40";
-
-/** A box before one of the insurance's figures: whether that figure goes to the game. */
-function SyncBox({
+/**
+ * One of the insurance's own figures after the hand, on a line as a player's chips are: a box for
+ * whether it goes to the game, its name, and the figure, which a tap selects whole to type over.
+ * Left out of the game, it can no longer be typed.
+ */
+function SeatLine({
   label,
-  on,
-  onChange,
+  value,
+  least,
+  sync,
+  onValue,
 }: {
   label: string;
-  on: boolean;
-  onChange: (on: boolean) => void;
-}) {
-  return (
-    <label className="grid h-11 w-6 shrink-0 place-items-center">
-      <input
-        type="checkbox"
-        aria-label={label}
-        checked={on}
-        onChange={(event) => onChange(event.target.checked)}
-        className="size-4 accent-[var(--accent)]"
-      />
-    </label>
-  );
-}
-
-/** One of the insurance's figures after the hand, and whether it goes to the game. */
-interface SeatSync {
-  readonly on: boolean;
-  readonly onChange: (on: boolean) => void;
-}
-
-/**
- * The insurance's own figures after the hand, each to be put right in place and neither moving the
- * other: its Buy-ins, a tap on − or + taking or adding one, and its chips, which a tap selects
- * whole to type over. Each has a box before it for whether it goes to the game; one left out
- * stays in the game as it was.
- */
-function SeatFigures({
-  hands,
-  canTakeOne,
-  chips,
-  syncHands,
-  syncChips,
-  onStep,
-  onChips,
-}: {
-  hands: number;
-  /** False at one Buy-in. */
-  canTakeOne: boolean;
-  chips: number;
-  syncHands: SeatSync;
-  syncChips: SeatSync;
-  onStep: (by: number) => void;
-  onChips: (chips: number) => void;
+  value: number;
+  /** The least that can be typed; anything under it is dropped. */
+  least: number;
+  sync: { readonly on: boolean; readonly onChange: (on: boolean) => void };
+  onValue: (value: number) => void;
 }) {
   // What is being typed, until the field is left
   const [typed, setTyped] = useState<string>();
   const { handSummary: text } = t.insurance;
-  const shown = typed ?? chipText(chips);
+  const shown = typed ?? chipText(value);
   return (
-    <div className="flex min-h-11 items-center justify-between gap-2 text-xs">
-      <span className="flex items-center text-muted">
-        <SyncBox
-          label={text.syncThe(text.totalBuyIn)}
-          on={syncHands.on}
-          onChange={syncHands.onChange}
+    <div className="flex min-h-11 items-center justify-end gap-3 text-sm whitespace-nowrap">
+      <label className="flex min-h-11 items-center gap-1.5">
+        <input
+          type="checkbox"
+          aria-label={text.syncThe(label)}
+          checked={sync.on}
+          onChange={(event) => sync.onChange(event.target.checked)}
+          className="size-4 shrink-0 accent-[var(--accent)]"
         />
-        <span
-          inert={!syncHands.on}
-          className={cn("flex items-center", !syncHands.on && "opacity-40")}
-        >
-          {text.totalBuyIn}
-          <button
-            type="button"
-            aria-label={t.game.handsStepper.oneBuyInLess}
-            disabled={!canTakeOne}
-            onClick={() => onStep(-1)}
-            className={cn(stepClass, "ml-1")}
-          >
-            −
-          </button>
-          <span className="min-w-5 text-center text-sm font-semibold text-text tabular-nums">
-            {hands}
-          </span>
-          <button
-            type="button"
-            aria-label={t.game.handsStepper.oneBuyInMore}
-            onClick={() => onStep(1)}
-            className={stepClass}
-          >
-            +
-          </button>
-        </span>
-      </span>
-      <span className="flex items-center text-muted">
-        <SyncBox
-          label={text.syncThe(text.insuranceChips)}
-          on={syncChips.on}
-          onChange={syncChips.onChange}
-        />
-        <label
-          inert={!syncChips.on}
-          className={cn("flex min-h-11 items-center gap-1", !syncChips.on && "opacity-40")}
-        >
-          {text.chips}
+        <span className={cn(!sync.on && "text-muted")}>{text.syncToTheGame}</span>
+      </label>
+      <label
+        inert={!sync.on}
+        className={cn("flex min-h-11 items-center gap-2", !sync.on && "opacity-40")}
+      >
+        <span className="text-muted">{label}</span>
+        <span className="flex items-center gap-1">
           <input
-            aria-label={text.insuranceChips}
+            aria-label={label}
             inputMode="numeric"
             value={shown}
             // As wide as what it holds, with nothing drawn around it
             style={{ width: `${Math.max(1, shown.length)}ch` }}
             onFocus={(event) => {
-              setTyped(String(chips));
+              setTyped(String(value));
               selectOnFocus(event.currentTarget);
             }}
             onChange={(event) => setTyped(numberTyped(event.target.value, true))}
             onBlur={() => {
               const next = typed === undefined ? null : parseChips(typed);
-              if (next !== null && next !== chips) onChips(next);
+              if (next !== null && next >= least && next !== value) onValue(next);
               setTyped(undefined);
             }}
             onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
-            className="h-9 min-w-0 bg-transparent text-right text-[0.8125rem] font-semibold text-text tabular-nums outline-none"
+            className="h-9 min-w-0 bg-transparent text-right text-base font-semibold tabular-nums outline-none"
           />
           <Pencil className="size-3 shrink-0 text-highlight" strokeWidth={1.75} aria-hidden />
-        </label>
-      </span>
+        </span>
+      </label>
     </div>
   );
 }
@@ -417,8 +356,8 @@ function SeatFigures({
  * board by street, as the page shows it while the hand is entered, then one table with a row for
  * each player and one for the insurance: each street's insurance, and a last column that adds the
  * insurance to what came from each pot. At its foot are the chips the player ends with, and in a
- * game a box for whether those go to the game. Under the insurance's figures are its Buy-ins and
- * chips after the hand, both to be put right in place. Chips that have to be bought are said under
+ * game a box for whether those go to the game. Under the insurance's figures are its chips and
+ * Buy-ins after the hand, each typed over in place and each sent to the game or not by itself. Chips that have to be bought are said under
  * their row.
  */
 export function HandSummary({
@@ -460,8 +399,16 @@ export function HandSummary({
   const [syncSeatBuyIns, setSyncSeatBuyIns] = useState(true);
   const [syncSeatChips, setSyncSeatChips] = useState(true);
   const seatExtraChips = seat ? extraHands * seat.handChips : 0;
-  const seatHands = seat ? (seat.boughtChips + needed) / seat.handChips + extraHands : 0;
-  const seatAfter = seatTyped ?? (seat ? seat.stackChips + seatChips + needed : 0);
+  // Left out of the game, the Buy-ins read as the game has them
+  const seatHands = !seat
+    ? 0
+    : syncSeatBuyIns
+      ? (seat.boughtChips + needed) / seat.handChips + extraHands
+      : seat.boughtChips / seat.handChips;
+  // Hands it needs to pay are chips only if they are bought: left out of the game, they are not
+  const seatAfter =
+    seatTyped ??
+    (seat ? Math.max(0, seat.stackChips + seatChips + (syncSeatBuyIns ? needed : 0)) : 0);
   const [confirming, setConfirming] = useState(false);
   const { handSummary: text } = t.insurance;
   const { board } = hand;
@@ -534,15 +481,23 @@ export function HandSummary({
               totalChips={seatChips}
             />
             {seat && (
-              <SeatFigures
-                hands={seatHands}
-                canTakeOne={seatHands > 1}
-                chips={seatAfter}
-                syncHands={{ on: syncSeatBuyIns, onChange: setSyncSeatBuyIns }}
-                syncChips={{ on: syncSeatChips, onChange: setSyncSeatChips }}
-                onStep={(by) => setExtraHands(extraHands + by)}
-                onChips={setSeatTyped}
-              />
+              <>
+                <Divider />
+                <SeatLine
+                  label={text.totalChips}
+                  value={seatAfter}
+                  least={0}
+                  sync={{ on: syncSeatChips, onChange: setSyncSeatChips }}
+                  onValue={setSeatTyped}
+                />
+                <SeatLine
+                  label={text.totalBuyIn}
+                  value={seatHands}
+                  least={1}
+                  sync={{ on: syncSeatBuyIns, onChange: setSyncSeatBuyIns }}
+                  onValue={(hands) => setExtraHands(extraHands + hands - seatHands)}
+                />
+              </>
             )}
           </li>
         </ul>

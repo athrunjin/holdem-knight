@@ -5,6 +5,7 @@ import {
   type InsuranceRecord,
   type InsuranceRuleForm,
   insuranceRecords,
+  latestCashOut,
   ORGANIZER_PLAYER_ID,
   parseInsuranceRule,
   ruleAtStakes,
@@ -262,7 +263,10 @@ function GameInsurance({ game }: { game: Game }) {
               handChips === undefined
                 ? undefined
                 : {
-                    stackChips: seat?.stackChips ?? 0,
+                    // With chips it cashed out, which come back to it as the hand is written
+                    stackChips:
+                      (seat?.stackChips ?? 0) +
+                      (latestCashOut(events, INSURANCE_PLAYER_ID)?.chips ?? 0),
                     boughtChips: seat?.boughtChips ?? 0,
                     handChips,
                   }

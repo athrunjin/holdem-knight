@@ -21,6 +21,7 @@ Under [ADR 0017](0017-finished-hand-sets-stacks.md) a finished hand sets each al
 - A change made after the hand and taken back again is no change: a later hand undone first, or a player who left and came back, leaves this hand's stacks to be restored.
 - Events already reversed are left alone, so an undo asked twice does nothing more.
 - A seat that has left after a settle attempt comes back in the same change, as it does when insurance is bought or settled. A seat holding less than the premiums it gives back buys whole hands first, as it does to pay a hit.
+- Where the hand set the seat's chips outright (the organizer counted them at the summary, or changed the seat's Buy-ins apart from its chips), the seat is written back to what it had before the hand, moved by whatever later hands won or lost it, unless its chips were set or bought again since. Reversals alone cannot restore it: the chips set took no account of what the hand moved, and a stack that stopped at 0 has lost the rest. Buy-ins the seat was given or gave back at the summary are a record of their own, and stay.
 - Dropping an open hand takes back anything it had already written.
 - `adjustHands` never takes back a hand bought for a premium. It goes only with its insurance hand.
 - Settlement cannot start while an insurance hand is open, and insurance cannot be turned off while one is: the hand's result is not in the ledger yet, and could not be written once everyone has left.
