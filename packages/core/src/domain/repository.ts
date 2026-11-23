@@ -6,6 +6,7 @@
  */
 import type {
   Game,
+  GameSummary,
   InsuranceHand,
   LedgerEvent,
   OrganizerId,
@@ -83,6 +84,18 @@ export interface LedgerRepository {
   appendAll(events: readonly LedgerEvent[]): Promise<void>;
 }
 
+/**
+ * The results of settled games, for reports. They are worked out from the games and their ledgers,
+ * so a backup leaves them out and they are made again where they are missing (ADR 0049).
+ */
+export interface GameSummaryRepository {
+  /** In no particular order. */
+  list(): Promise<GameSummary[]>;
+  /** Adds the summary, or replaces the one its game has. */
+  save(summary: GameSummary): Promise<void>;
+  remove(gameId: string): Promise<void>;
+}
+
 /** All of this organizer's data. */
 export interface BackupData {
   readonly games: readonly Game[];
@@ -137,5 +150,6 @@ export interface Repository {
   readonly gameConfigs: GameConfigRepository;
   readonly oddsTables: OddsTableRepository;
   readonly chargeRules: ChargeRuleRepository;
+  readonly gameSummaries: GameSummaryRepository;
   readonly backup: BackupRepository;
 }

@@ -354,6 +354,46 @@ export const recordSchemas = {
   chargeRules: chargeRuleSchema,
 };
 
+const summaryIncome = z.object({ rake: money, insurance: money, wage: money, tableFee: money });
+
+/**
+ * What a settled game's summary may hold in an account's storage. It is worked out from the game
+ * and its ledger, so it is no part of a backup (ADR 0049).
+ */
+export const gameSummarySchema = z.object({
+  ...owned,
+  basis: z.string(),
+  startedAt: timestamp,
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  settledAt: timestamp,
+  playedMs: z.number().int().nonnegative().optional(),
+  currency: gameFields.currency,
+  chipRatio: gameFields.chipRatio,
+  smallBlindChips: chips.positive(),
+  bigBlindChips: chips.positive(),
+  playerCount: z.number().int().nonnegative(),
+  income: summaryIncome,
+  insuranceOwnerId: id.optional(),
+  difference: money,
+  imbalanceHandling: gameFields.imbalanceHandling,
+  absorbed: money,
+  players: z.array(
+    z.object({
+      playerId: id,
+      boughtChips: chips,
+      cashedOutChips: chips,
+      chipNet: money,
+      share: money,
+      insurance: money,
+      wage: money,
+      tableFee: money,
+      total: money,
+    }),
+  ),
+  collectorId: id.optional(),
+  transfers: z.array(z.object({ from: id, to: id, amount: money, done: z.boolean() })),
+});
+
 const backupSchema = z.object({ games: z.array(gameSchema), ...collections });
 const legacyBackupSchema = z.object({ games: z.array(legacyGameSchema), ...collections });
 

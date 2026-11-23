@@ -8,6 +8,7 @@ import {
   cents,
   ForeignOrganizerError,
   type Game,
+  type GameSummary,
   type InsuranceHand,
   type LedgerEvent,
   type Player,
@@ -118,6 +119,37 @@ const gameConfig = (...of: Parameters<typeof named>): SavedGameConfig => ({
     chipRatio: { chips: 1, amount: cents(100) },
     buyInBigBlinds: 100,
   },
+});
+
+const summary = (gameId: string, organizerId: string, rake: number): GameSummary => ({
+  id: gameId,
+  organizerId,
+  basis: "[1,5,null,[]]",
+  startedAt: 1,
+  day: "2026-11-21",
+  settledAt: 5,
+  currency: "AUD",
+  chipRatio: { chips: 100, amount: cents(100) },
+  smallBlindChips: 100,
+  bigBlindChips: 200,
+  playerCount: 1,
+  income: { rake: cents(rake), insurance: cents(-300), wage: cents(0), tableFee: cents(0) },
+  difference: cents(0),
+  absorbed: cents(0),
+  players: [
+    {
+      playerId: "p1",
+      boughtChips: 1000,
+      cashedOutChips: 400,
+      chipNet: cents(-600),
+      share: cents(0),
+      insurance: cents(0),
+      wage: cents(0),
+      tableFee: cents(0),
+      total: cents(-600),
+    },
+  ],
+  transfers: [{ from: "p1", to: "organizer", amount: cents(600), done: false }],
 });
 
 const EMPTY: BackupData = {
@@ -274,12 +306,40 @@ export function describeRepository(name: string, open: () => Promise<Storage>) {
       ]);
     });
 
+    it("keeps one summary for a game, replaced on saving and deleted", async () => {
+      await repository.games.save(game("g1", me, 1));
+      await repository.games.save(game("g2", me, 2));
+      await repository.gameSummaries.save(summary("g1", me, 100));
+      await repository.gameSummaries.save(summary("g2", me, 200));
+      await repository.gameSummaries.save(summary("g1", me, 150));
+
+      const kept = await repository.gameSummaries.list();
+      expect(kept.toSorted((a, b) => a.id.localeCompare(b.id))).toEqual([
+        summary("g1", me, 150),
+        summary("g2", me, 200),
+      ]);
+      await repository.gameSummaries.remove("g1");
+      await repository.gameSummaries.remove("none");
+      expect((await repository.gameSummaries.list()).map(({ id }) => id)).toEqual(["g2"]);
+    });
+
+    it("keeps summaries out of a backup", async () => {
+      await repository.games.save(game("g1", me, 1));
+      await repository.gameSummaries.save(summary("g1", me, 100));
+
+      expect(await repository.backup.exportAll()).toEqual({ ...EMPTY, games: [game("g1", me, 1)] });
+    });
+
     it("hides other organizers' data from reads, and leaves it alone", async () => {
       await other.games.save(game("g", them, 1));
       await other.players.save(player("p", them, "Eve"));
       await other.ledger.append(buyIn("e", them, "g", 1));
       await other.oddsTables.save(oddsTable("t", them, "赔率", 1));
+      await other.gameSummaries.save(summary("g", them, 100));
 
+      expect(await repository.gameSummaries.list()).toEqual([]);
+      await repository.gameSummaries.remove("g");
+      expect(await other.gameSummaries.list()).toHaveLength(1);
       expect(await repository.games.list()).toEqual([]);
       expect(await repository.games.get("g")).toBeUndefined();
       expect(await repository.players.list()).toEqual([]);
@@ -304,6 +364,9 @@ export function describeRepository(name: string, open: () => Promise<Storage>) {
         ForeignOrganizerError,
       );
       await expect(repository.oddsTables.save(oddsTable("t", them, "赔率", 1))).rejects.toThrow(
+        ForeignOrganizerError,
+      );
+      await expect(repository.gameSummaries.save(summary("g", them, 100))).rejects.toThrow(
         ForeignOrganizerError,
       );
     });

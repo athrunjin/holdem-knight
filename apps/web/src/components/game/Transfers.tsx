@@ -16,6 +16,8 @@ interface TransfersProps {
   nameOf: (playerId: string) => string;
   /** While a save is under way. */
   disabled: boolean;
+  /** Opened from 收益, which the line at the foot then leads back to */
+  fromIncome?: boolean;
   /** While an image is being made. */
   sharing: boolean;
   /** Shares the image of one transfer's payer, or of the whole game when none is named. */
@@ -41,6 +43,7 @@ export function Transfers({
   collectorId,
   nameOf,
   disabled,
+  fromIncome = false,
   sharing,
   onShare,
   onChoosePlan,
@@ -143,8 +146,12 @@ export function Transfers({
           {transfers.length > 0 &&
             t.game.transfers.inAllReceived(transfers.length, made.length, transfers.length)}
         </p>
-        <Link to="/" className="flex min-h-11 shrink-0 items-center text-xs text-highlight">
-          {t.game.transfers.backToTheMainView}
+        {/* A game opened from 收益 leads back there */}
+        <Link
+          to={fromIncome ? "/me/income" : "/"}
+          className="flex min-h-11 shrink-0 items-center text-xs text-highlight"
+        >
+          {fromIncome ? t.game.transfers.backToIncome : t.game.transfers.backToTheMainView}
         </Link>
       </div>
 

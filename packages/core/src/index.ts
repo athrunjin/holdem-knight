@@ -15,4 +15,5 @@ export * from "./money";
 export * from "./player";
 export * from "./presets";
 export * from "./rake";
+export * from "./reports";
 export * from "./settlement";

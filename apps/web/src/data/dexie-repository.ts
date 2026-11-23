@@ -1,6 +1,7 @@
 import {
   ForeignOrganizerError,
   type Game,
+  type GameSummary,
   type InsuranceHand,
   type LedgerEvent,
   type LegacyGame,
@@ -25,6 +26,7 @@ export type GuestDatabase = Dexie & {
   gameConfigs: Table<SavedGameConfig, string>;
   oddsTables: Table<SavedOddsTable, string>;
   chargeRules: Table<SavedChargeRule, string>;
+  gameSummaries: Table<GameSummary, string>;
 };
 
 const STORES = {
@@ -55,13 +57,24 @@ export function createGuestDatabase(name = "holdem-guest"): GuestDatabase {
   db.version(5).stores({ ...STORES, insuranceRules, insuranceHands, gameConfigs });
   const oddsTables = "id, [organizerId+createdAt]";
   db.version(6).stores({ ...STORES, insuranceRules, insuranceHands, gameConfigs, oddsTables });
+  const chargeRules = "id, [organizerId+createdAt]";
   db.version(7).stores({
     ...STORES,
     insuranceRules,
     insuranceHands,
     gameConfigs,
     oddsTables,
-    chargeRules: "id, [organizerId+createdAt]",
+    chargeRules,
+  });
+  // The results of settled games, kept for reports (ADR 0049)
+  db.version(8).stores({
+    ...STORES,
+    insuranceRules,
+    insuranceHands,
+    gameConfigs,
+    oddsTables,
+    chargeRules,
+    gameSummaries: "id, organizerId",
   });
   return db;
 }
@@ -213,6 +226,17 @@ export function createDexieRepository(db: GuestDatabase, organizerId: OrganizerI
       remove: async (id) => {
         const rule = onlyOwned(await db.chargeRules.get(id));
         if (rule) await db.chargeRules.delete(id);
+      },
+    },
+    gameSummaries: {
+      list: () => db.gameSummaries.where("organizerId").equals(organizerId).toArray(),
+      save: async (summary) => {
+        assertOwned(summary);
+        await db.gameSummaries.put(summary);
+      },
+      remove: async (gameId) => {
+        const summary = onlyOwned(await db.gameSummaries.get(gameId));
+        if (summary) await db.gameSummaries.delete(gameId);
       },
     },
     backup: {

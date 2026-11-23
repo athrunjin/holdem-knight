@@ -105,6 +105,9 @@ export const repository: Repository = {
   get chargeRules() {
     return books.current().repository.chargeRules;
   },
+  get gameSummaries() {
+    return books.current().repository.gameSummaries;
+  },
   get backup() {
     return books.current().repository.backup;
   },
