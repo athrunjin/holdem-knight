@@ -83,6 +83,7 @@ function parseSettings(stored: unknown): ToolSettings | undefined {
 /** The calculator on its own: nothing here touches a game. */
 function InsuranceToolPage() {
   const [mode, setMode] = useState<InsuranceMode>("cards");
+  const [underWay, setUnderWay] = useState(false);
   const [settings, setSettings] = useStoredState(
     "insurance-tool.settings",
     DEFAULT_SETTINGS,
@@ -109,8 +110,12 @@ function InsuranceToolPage() {
         </Link>
       }
     >
-      <InsuranceSetup value={choice} stakes={undefined} onChange={setChoice} />
+      <InsuranceSetup value={choice} stakes={undefined} onChange={setChoice} locked={underWay} />
+      {underWay && (
+        <p className="text-xs text-muted">{t.insurance.insuranceHeader.lockedDuringAHand}</p>
+      )}
       <InsuranceCalculator
+        onHandUnderWay={setUnderWay}
         mode={mode}
         rule={parsed.ok ? parsed.rule : RULE_30}
         seats={SEATS}

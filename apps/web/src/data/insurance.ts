@@ -274,6 +274,11 @@ function belongsToHand(event: LedgerEvent, handId: string) {
 interface FinishInput {
   readonly hand: InsuranceHand;
   readonly handChips: number;
+  /**
+   * Whether the chips each player ends the hand with go to the game. Without it only the
+   * insurance is written, and the organizer counts the chips at the table.
+   */
+  readonly syncStacks: boolean;
 }
 
 /** The hand's money reaches the ledger in one write, and only here. */
@@ -281,14 +286,17 @@ export function useFinishInsuranceHand(gameId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     scope: ledgerScope(gameId),
-    mutationFn: async ({ hand, handChips }: FinishInput) => {
+    mutationFn: async ({ hand, handChips, syncStacks }: FinishInput) => {
       const events = await repository.ledger.listByGame(gameId);
       const written = events.some((e) => belongsToHand(e, hand.id));
       if (!written) {
         const ledger = summarizeByPlayer(events);
-        const results = playerHandResults(hand).filter(({ playerId }) =>
-          ledger.some((p) => p.playerId === playerId && p.seated),
-        );
+        // Not synced, no stack is set, and so no premium is found short against one
+        const results = syncStacks
+          ? playerHandResults(hand).filter(({ playerId }) =>
+              ledger.some((p) => p.playerId === playerId && p.seated),
+            )
+          : [];
         const buyIns = premiumBuyIns(results, handChips);
         const stackEvents = results.flatMap(({ playerId, stackChips }) => {
           const chips = buyIns.find((b) => b.playerId === playerId)?.stackChips ?? stackChips;

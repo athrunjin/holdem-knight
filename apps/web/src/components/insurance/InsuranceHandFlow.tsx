@@ -10,6 +10,7 @@ import {
   handPotEntries,
   handResult,
   handStandings,
+  handUnderWay,
   type InsuranceHand,
   type InsuranceHandPlayer,
   type InsuranceRule,
@@ -22,7 +23,7 @@ import {
   undoDeal,
 } from "@holdem-knight/core";
 import { Plus, RotateCcw } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@/i18n";
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
@@ -51,7 +52,8 @@ export interface HandStore {
   /** A player's counted chips, which update the table at once. */
   enterStack: (playerId: string, chips: number) => void;
   discard: (handId: string) => void;
-  finish: (hand: InsuranceHand) => Promise<void>;
+  /** `syncStacks` is whether the players' chips go to the game with the insurance. */
+  finish: (hand: InsuranceHand, syncStacks: boolean) => Promise<void>;
 }
 
 /** The insurance seat now, to show where it will end up. */
@@ -69,6 +71,8 @@ interface InsuranceHandFlowProps {
   createHand: () => InsuranceHand;
   store: HandStore | undefined;
   seat: SeatChips | undefined;
+  /** Told whether the hand's insurance is being worked out, while the settings must stay put. */
+  onUnderWay?: ((underWay: boolean) => void) | undefined;
 }
 
 const STREET_TEXT = { turn: t.common.turn, river: t.common.river } as const;
@@ -270,6 +274,7 @@ export function InsuranceHandFlow({
   createHand,
   store,
   seat,
+  onUnderWay,
 }: InsuranceHandFlowProps) {
   // A hand carried on from keeps its own dead money; a new one starts with the preset
   const [kept, setHand] = useState(() => open ?? withPresetPools(createHand()));
@@ -288,6 +293,8 @@ export function InsuranceHandFlow({
   const [notice, setNotice] = useState<string>();
 
   const hand = withFirstPlayers(kept, seats);
+  const underWay = handUnderWay(hand);
+  useEffect(() => onUnderWay?.(underWay), [onUnderWay, underWay]);
   const nameOf = (id: string) => seats.find((s) => s.id === id)?.name ?? t.common.unknownPlayer;
   const totals = potTotals(handPotEntries(hand));
   const street = nextStreet(hand.board);
@@ -351,11 +358,11 @@ export function InsuranceHandFlow({
     update({ ...hand, step: hand.board.length < 5 ? "buy" : "summary" });
   }
 
-  async function finish() {
+  async function finish(syncStacks: boolean) {
     if (store) {
       setFinishing(true);
       try {
-        await store.finish(hand);
+        await store.finish(hand, syncStacks);
         reset();
       } finally {
         setFinishing(false);

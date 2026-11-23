@@ -1,5 +1,6 @@
 import {
   type GameSettings,
+  handUnderWay,
   insuranceActive,
   rakeChips,
   toGameSettingsForm,
@@ -53,6 +54,7 @@ function GameSettingsPage() {
         lastInsurance={game.insurance}
         lastInsuranceLabel={t.gamePages.settings.thisGamesInsuranceSettings}
         insuranceLocked={insuranceUsed}
+        insuranceFrozen={hands.some((hand) => hand.status === "open" && handUnderWay(hand))}
         initialTableFee={game.tableFee}
         lastTableFee={game.tableFee}
         lastTableFeeLabel={t.gamePages.settings.thisGamesTimeChargeSettings}

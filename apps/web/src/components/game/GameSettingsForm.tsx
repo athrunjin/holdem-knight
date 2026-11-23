@@ -147,6 +147,8 @@ interface GameSettingsFormProps {
   lastInsuranceLabel?: string | undefined;
   /** Once insurance has been sold in this game, it cannot be turned off */
   insuranceLocked?: boolean;
+  /** While a hand's insurance is being worked out, its settings are shown and not to be changed */
+  insuranceFrozen?: boolean;
   /** This game's table fee. Missing means it is off. */
   initialTableFee?: TableFeeRule | undefined;
   /** Offered as "last time", like the insurance rule */
@@ -236,6 +238,7 @@ export function GameSettingsForm({
   lastInsurance,
   lastInsuranceLabel = t.game.gameSettingsForm.lastInsuranceSettings,
   insuranceLocked = false,
+  insuranceFrozen = false,
   initialTableFee,
   lastTableFee,
   lastTableFeeLabel = t.game.gameSettingsForm.lastTimeChargeSettings,
@@ -630,16 +633,24 @@ export function GameSettingsForm({
 
       <div className="flex flex-col gap-3">
         {showInsurance && (
-          <InsuranceSettings
-            value={insurance}
-            issues={ruleIssues}
-            lastRule={lastInsurance}
-            lastRuleLabel={lastInsuranceLabel}
-            lastSource={lastSources?.insurance}
-            locked={insuranceLocked}
-            stakes={{ smallBlindChips: smallBlind }}
-            onChange={setInsurance}
-          />
+          // A hand is priced by the settings it began with, so they wait for it to end
+          <div inert={insuranceFrozen} className={insuranceFrozen ? "opacity-50" : "contents"}>
+            <InsuranceSettings
+              value={insurance}
+              issues={ruleIssues}
+              lastRule={lastInsurance}
+              lastRuleLabel={lastInsuranceLabel}
+              lastSource={lastSources?.insurance}
+              locked={insuranceLocked}
+              stakes={{ smallBlindChips: smallBlind }}
+              onChange={setInsurance}
+            />
+          </div>
+        )}
+        {showInsurance && insuranceFrozen && (
+          <p className="-mt-1 text-sm text-muted">
+            {t.insurance.insuranceHeader.lockedDuringAHand}
+          </p>
         )}
         <WageSettings
           value={wage}

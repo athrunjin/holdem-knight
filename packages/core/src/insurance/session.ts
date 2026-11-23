@@ -353,6 +353,43 @@ export function handResult({ purchases }: Pick<InsuranceHand, "purchases">): Han
   return { premiumChips, payoutChips, seatChips: premiumChips - payoutChips };
 }
 
+/**
+ * Whether the hand's insurance is being worked out: a cover has been taken or turned down, or a
+ * card dealt for one. From then on the hand is priced by the settings it began with, so they stay
+ * as they are until it is finished or dropped.
+ */
+export function handUnderWay(hand: InsuranceHand): boolean {
+  return (
+    hand.purchases.length > 0 ||
+    hand.declined.length > 0 ||
+    hand.step === "deal" ||
+    hand.step === "settle" ||
+    hand.step === "summary"
+  );
+}
+
+/** What one street's insurance came to for a player: payouts less premiums, and whether any hit. */
+export interface StreetInsurance {
+  readonly chips: number;
+  readonly hit: boolean;
+}
+
+/** A player's insurance on one street, or nothing if they bought none there. */
+export function streetInsurance(
+  hand: InsuranceHand,
+  street: InsuranceHandPurchase["street"],
+  playerId?: string,
+): StreetInsurance | undefined {
+  const bought = hand.purchases.filter(
+    (p) => p.street === street && (playerId === undefined || p.playerId === playerId),
+  );
+  if (bought.length === 0) return undefined;
+  return {
+    chips: bought.reduce((total, p) => total + (p.hit ? p.payoutChips : 0) - p.premiumChips, 0),
+    hit: bought.some((p) => p.hit === true),
+  };
+}
+
 export interface PlayerHandResult {
   readonly playerId: string;
   readonly cover: boolean;

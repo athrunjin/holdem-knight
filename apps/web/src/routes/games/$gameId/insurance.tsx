@@ -70,6 +70,8 @@ function GameInsurance({ game }: { game: Game }) {
   const navigate = Route.useNavigate();
   const editable = status !== "settled";
   const [mode, setMode] = useState<InsuranceMode>("cards");
+  // A hand's insurance being worked out, while the settings above it must stay put
+  const [underWay, setUnderWay] = useState(false);
   const { data: savedRules = [] } = useInsuranceRules();
   // The settings as changed on this page, shown at once while the game is being saved
   const [edited, setEdited] = useState<Pick<InsuranceChoice, "source" | "form">>();
@@ -227,7 +229,11 @@ function GameInsurance({ game }: { game: Game }) {
             stakes={{ smallBlindChips: game.smallBlindChips }}
             onChange={setChoice}
             settleTyping
+            locked={underWay}
           />
+        )}
+        {underWay && (
+          <p className="text-xs text-muted">{t.insurance.insuranceHeader.lockedDuringAHand}</p>
         )}
 
         {insurance && editable && hands && (
@@ -235,6 +241,7 @@ function GameInsurance({ game }: { game: Game }) {
             mode={mode}
             rule={rule ?? insurance}
             seats={seats}
+            onHandUnderWay={setUnderWay}
             saving={buyInsurance.isPending}
             recorder={{
               onBuy: handleBuy,
@@ -249,9 +256,9 @@ function GameInsurance({ game }: { game: Game }) {
               save: saveHand.mutate,
               enterStack: (playerId, chips) => enterStack.mutate({ playerId, chips }),
               discard: (handId: string) => discardHand.mutate({ handId, handChips }),
-              finish: async (hand) => {
+              finish: async (hand, syncStacks) => {
                 if (handChips === undefined) return;
-                await finishHand.mutateAsync({ hand, handChips });
+                await finishHand.mutateAsync({ hand, handChips, syncStacks });
                 navigate({ to: "/games/$gameId", params: { gameId } });
               },
             }}

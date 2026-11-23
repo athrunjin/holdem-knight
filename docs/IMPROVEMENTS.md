@@ -1619,6 +1619,26 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do, as [ADR 0048](adr/0048-undoing-an-insurance-hand-keeps-later-stacks.md). The rules are in `core` with unit tests and a property test. Checked in the browser preview: the block on settling and the locked switch. The undo itself was checked by tests, not through the page.
 - Tracking: PR #102
 
+### #I-085 A wage rate from an hour on applies once the game crosses that hour
+
+- Type: bug
+- Date: found, decided and completed 2026-11-23
+- Source: the organizer, trying a game with 25 an hour and 30 from midnight: it charged 30 from the start
+- Problem: a time segment with no end counted as begun for 12 hours after its hour, so a rate "from midnight" applied to a game started the next morning.
+- Proposal: a segment with no end is never begun already. It applies from the first time the game crosses its hour. A segment with an end still applies to a game started inside its hours.
+- Decision: do, in `localWageWindows`; ADR 0027 and the setup's info text say so. A game started shortly after the hour, at 0:30 with a rate from midnight, is now charged the base rate until the next midnight; a segment with an end, 0:00 to 6:00, is the way to charge such a game the night rate.
+- Tracking: PR #102
+
+### #I-086 The hand summary as one table, with a choice to update chips
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-23
+- Source: the organizer, on the last step of 选牌计算
+- Problem: the summary was a card for each player and one for the insurance, with the board unmarked, nothing saying which street an insurance was bought on, and no way to record the insurance without the hand's chips replacing those in the game.
+- Proposal: the title in the middle between fading lines, as the page's other sections have it. The board in one line with 翻牌, 转牌 and 河牌 named over their cards. One table: a row for each player and one for the insurance; the pot, each street's insurance with 命中 or 未中 under it, and the total with the chips left under it. Uncalled bets are not listed. Chips a player or the insurance has to buy are said under their row. In a game, a tick box 同步筹码到牌局, on to begin with: off, only the insurance is recorded and the players' chips stay. From the first cover taken or turned down until the hand is finished or dropped, the insurance settings cannot be changed, on the insurance page, the tool and the game's settings.
+- Decision: do. `streetInsurance` and `handUnderWay` are in `core`. With the box off no premium is found short, as that is worked out against the chips the hand leaves.
+- Tracking: PR #102
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

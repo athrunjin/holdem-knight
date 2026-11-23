@@ -41,6 +41,8 @@ interface InsuranceCalculatorProps {
   /** The hand in progress, to carry on from. */
   openHand?: InsuranceHand | undefined;
   createHand: () => InsuranceHand;
+  /** Told whether a hand's insurance is being worked out, while the settings must stay put. */
+  onHandUnderWay?: ((underWay: boolean) => void) | undefined;
 }
 
 function useDecisions(recorder: InsuranceRecorder | undefined): Decisions | undefined {
@@ -95,6 +97,7 @@ export function InsuranceCalculator({
   seats,
   saving,
   mode,
+  onHandUnderWay,
 }: InsuranceCalculatorProps) {
   const decisions = useDecisions(recorder);
   return (
@@ -108,6 +111,7 @@ export function InsuranceCalculator({
           createHand={createHand}
           store={handStore}
           seat={seat}
+          onUnderWay={onHandUnderWay}
         />
       </div>
       {/* The quick price too, so its pot is still there after a look at the cards */}

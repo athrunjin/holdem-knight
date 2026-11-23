@@ -16,6 +16,7 @@ import {
   handPotEntries,
   handResult,
   handStandings,
+  handUnderWay,
   offersDecided,
   type PlayerHandResult,
   playerHandResults,
@@ -23,6 +24,7 @@ import {
   premiumBuyIns,
   reviseOffer,
   stakeOf,
+  streetInsurance,
   undoDeal,
 } from "./session";
 
@@ -491,6 +493,28 @@ describe("playerHandResults", () => {
     expect(a).toMatchObject({ potChips: 0, insuranceChips: -premium, stackChips: 0 });
     expect(a?.shortChips).toBe(premium);
     expect(k).toMatchObject({ potChips: 2000, stackChips: 2000 });
+  });
+
+  it("splits a player's insurance by street, and the seat's is everyone's together", () => {
+    const flop = hand({ board: river.slice(0, 3), step: "buy" });
+    const purchased = bought(flop);
+    const premium = purchased.purchases[0]?.premiumChips ?? 0;
+    const dealt = dealCard(dealCard(purchased, c("3c")), c("Kh"));
+    expect(streetInsurance(dealt, "turn", "a")).toEqual({ chips: -premium, hit: false });
+    expect(streetInsurance(dealt, "turn")).toEqual({ chips: -premium, hit: false });
+    expect(streetInsurance(dealt, "river", "a")).toBeUndefined();
+    expect(streetInsurance(dealt, "turn", "k")).toBeUndefined();
+    const paid = { ...dealt, purchases: dealt.purchases.map((p) => ({ ...p, hit: true })) };
+    const payout = purchased.purchases[0]?.payoutChips ?? 0;
+    expect(streetInsurance(paid, "turn", "a")).toEqual({ chips: payout - premium, hit: true });
+  });
+
+  it("counts a hand as under way from the first cover taken or turned down", () => {
+    const flop = hand({ board: river.slice(0, 3), step: "buy" });
+    expect(handUnderWay(flop)).toBe(false);
+    expect(handUnderWay(bought(flop))).toBe(true);
+    expect(handUnderWay({ ...flop, declined: ["x"] })).toBe(true);
+    expect(handUnderWay({ ...flop, step: "summary" })).toBe(true);
   });
 
   it("notes a premium larger than the pot the player won", () => {
