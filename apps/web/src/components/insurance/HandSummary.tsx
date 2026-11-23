@@ -193,6 +193,69 @@ function ChipLine({
   );
 }
 
+/** Whether a figure goes to the game, and how that is changed. */
+interface SyncChoice {
+  readonly on: boolean;
+  readonly onChange: (on: boolean) => void;
+}
+
+/** The figure a row comes to, a size up from the words before it. */
+const TOTAL = "text-base leading-6 font-semibold tabular-nums";
+
+/**
+ * The line a row ends on, the same for a player and for the insurance: a box for whether the
+ * figure goes to the game, the figure's name, and the figure, all standing on one line of text
+ * at the right. Without `sync` there is nothing to send, and no box.
+ */
+function SyncLine({
+  sync,
+  syncLabel,
+  label,
+  columns = false,
+  children,
+}: {
+  sync: SyncChoice | undefined;
+  /** What the box says to a screen reader, where the words beside it are not enough */
+  syncLabel?: string;
+  label: string;
+  /** For lines one under another: the name and the figure each in a column of a set width */
+  columns?: boolean;
+  children: ReactNode;
+}) {
+  const { handSummary: text } = t.insurance;
+  return (
+    <div className="flex min-h-11 items-baseline justify-end gap-3 text-sm leading-6 whitespace-nowrap">
+      {sync && (
+        // Tall enough to tap, with its words on the line the figure stands on
+        <label className="flex items-baseline gap-1.5 py-2.5">
+          <input
+            type="checkbox"
+            aria-label={syncLabel}
+            checked={sync.on}
+            onChange={(event) => sync.onChange(event.target.checked)}
+            className="size-4 shrink-0 translate-y-[3px] accent-[var(--accent)]"
+          />
+          <span className={cn(!sync.on && "text-muted")}>{text.syncToTheGame}</span>
+        </label>
+      )}
+      <span
+        className={cn(
+          "py-2.5 text-muted",
+          columns && "w-[4.25rem] text-right",
+          sync && !sync.on && "opacity-40",
+        )}
+      >
+        {label}
+      </span>
+      {columns ? (
+        <span className="flex w-[5.5rem] items-baseline justify-end">{children}</span>
+      ) : (
+        children
+      )}
+    </div>
+  );
+}
+
 function PlayerRow({
   hand,
   result,
@@ -207,7 +270,7 @@ function PlayerRow({
   buyIn: PremiumBuyIn | undefined;
   handChips: number | undefined;
   /** Whether these chips go to the game, and how that is changed. Missing where they cannot. */
-  sync: { readonly on: boolean; readonly onChange: (on: boolean) => void } | undefined;
+  sync: SyncChoice | undefined;
 }) {
   const { playerId, cover, insuranceChips, netChips, potShares, refundChips, stackChips } = result;
   const cards = hand.players.find((p) => p.playerId === playerId)?.cards ?? [];
@@ -248,32 +311,19 @@ function PlayerRow({
       {/* The chips the player ends with, set a little apart, and before them whether they go
           to the game. A cover has more behind than the hand knows, so has what the hand won or
           lost them instead, and nothing to send */}
-      <div className="mt-1 flex min-h-11 items-center justify-end gap-3 text-sm whitespace-nowrap">
-        {sync && stackAfter !== null && (
-          <label className="flex min-h-11 items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={sync.on}
-              onChange={(event) => sync.onChange(event.target.checked)}
-              className="size-4 shrink-0 accent-[var(--accent)]"
-            />
-            <span className={cn(!sync.on && "text-muted")}>{text.syncToTheGame}</span>
-          </label>
-        )}
-        <span className="flex items-baseline gap-2">
-          <span className="text-muted">
-            {stackAfter === null ? text.totalNet : text.totalChips}
-          </span>
+      <div className="mt-1">
+        <SyncLine
+          sync={stackAfter === null ? undefined : sync}
+          label={stackAfter === null ? text.totalNet : text.totalChips}
+        >
           {stackAfter === null ? (
-            <span
-              className={cn("text-base font-semibold tabular-nums", TONE_CLASS[netTone(netChips)])}
-            >
+            <span className={cn(TOTAL, TONE_CLASS[netTone(netChips)])}>
               {formatSignedChips(netChips)}
             </span>
           ) : (
-            <span className="text-base font-semibold tabular-nums">{chipText(stackAfter)}</span>
+            <span className={TOTAL}>{chipText(stackAfter)}</span>
           )}
-        </span>
+        </SyncLine>
       </div>
       {buyIn && handChips !== undefined && (
         <BuyInNote>
@@ -284,70 +334,90 @@ function PlayerRow({
   );
 }
 
+const STEP =
+  "inline-grid h-11 w-8 shrink-0 place-items-center text-lg leading-none font-semibold text-highlight disabled:text-muted disabled:opacity-40";
+
 /**
- * One of the insurance's own figures after the hand, on a line as a player's chips are: a box for
- * whether it goes to the game, its name, and the figure, which a tap selects whole to type over.
- * Left out of the game, it can no longer be typed.
+ * One of the insurance's own figures after the hand, on a line as a player's chips are, with the
+ * figure a tap selects whole to type over. Its chips have a small pencil after them; its Buy-ins
+ * have − and + at either side instead, each taking or adding one. Left out of the game, the
+ * figure can no longer be changed.
  */
 function SeatLine({
   label,
   value,
   least,
+  steps = false,
   sync,
   onValue,
 }: {
   label: string;
   value: number;
-  /** The least that can be typed; anything under it is dropped. */
+  /** The least the figure can be; anything typed under it is dropped. */
   least: number;
-  sync: { readonly on: boolean; readonly onChange: (on: boolean) => void };
+  /** With − and + around the figure, in place of the pencil */
+  steps?: boolean;
+  sync: SyncChoice;
   onValue: (value: number) => void;
 }) {
   // What is being typed, until the field is left
   const [typed, setTyped] = useState<string>();
-  const { handSummary: text } = t.insurance;
   const shown = typed ?? chipText(value);
   return (
-    <div className="flex min-h-11 items-center justify-end gap-3 text-sm whitespace-nowrap">
-      <label className="flex min-h-11 items-center gap-1.5">
+    <SyncLine sync={sync} syncLabel={t.insurance.handSummary.syncThe(label)} label={label} columns>
+      <span inert={!sync.on} className={cn("flex items-baseline", !sync.on && "opacity-40")}>
+        {steps && (
+          <button
+            type="button"
+            aria-label={t.game.handsStepper.oneBuyInLess}
+            disabled={value <= least}
+            onClick={() => onValue(value - 1)}
+            className={STEP}
+          >
+            −
+          </button>
+        )}
         <input
-          type="checkbox"
-          aria-label={text.syncThe(label)}
-          checked={sync.on}
-          onChange={(event) => sync.onChange(event.target.checked)}
-          className="size-4 shrink-0 accent-[var(--accent)]"
+          aria-label={label}
+          inputMode="numeric"
+          value={shown}
+          // As wide as what it holds, with nothing drawn around it
+          style={{ width: `${Math.max(1, shown.length)}ch` }}
+          onFocus={(event) => {
+            setTyped(String(value));
+            selectOnFocus(event.currentTarget);
+          }}
+          onChange={(event) => setTyped(numberTyped(event.target.value, true))}
+          onBlur={() => {
+            const next = typed === undefined ? null : parseChips(typed);
+            if (next !== null && next >= least && next !== value) onValue(next);
+            setTyped(undefined);
+          }}
+          onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+          className={cn(
+            TOTAL,
+            "min-w-0 bg-transparent outline-none",
+            steps ? "text-center" : "text-right",
+          )}
         />
-        <span className={cn(!sync.on && "text-muted")}>{text.syncToTheGame}</span>
-      </label>
-      <label
-        inert={!sync.on}
-        className={cn("flex min-h-11 items-center gap-2", !sync.on && "opacity-40")}
-      >
-        <span className="text-muted">{label}</span>
-        <span className="flex items-center gap-1">
-          <input
-            aria-label={label}
-            inputMode="numeric"
-            value={shown}
-            // As wide as what it holds, with nothing drawn around it
-            style={{ width: `${Math.max(1, shown.length)}ch` }}
-            onFocus={(event) => {
-              setTyped(String(value));
-              selectOnFocus(event.currentTarget);
-            }}
-            onChange={(event) => setTyped(numberTyped(event.target.value, true))}
-            onBlur={() => {
-              const next = typed === undefined ? null : parseChips(typed);
-              if (next !== null && next >= least && next !== value) onValue(next);
-              setTyped(undefined);
-            }}
-            onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
-            className="h-9 min-w-0 bg-transparent text-right text-base font-semibold tabular-nums outline-none"
+        {steps ? (
+          <button
+            type="button"
+            aria-label={t.game.handsStepper.oneBuyInMore}
+            onClick={() => onValue(value + 1)}
+            className={cn(STEP, "-mr-2")}
+          >
+            +
+          </button>
+        ) : (
+          <Pencil
+            className="ml-1 size-3 shrink-0 self-center text-highlight"
+            strokeWidth={1.75}
+            aria-hidden
           />
-          <Pencil className="size-3 shrink-0 text-highlight" strokeWidth={1.75} aria-hidden />
-        </span>
-      </label>
-    </div>
+        )}
+      </span>
+    </SyncLine>
   );
 }
 
@@ -494,6 +564,7 @@ export function HandSummary({
                   label={text.totalBuyIn}
                   value={seatHands}
                   least={1}
+                  steps
                   sync={{ on: syncSeatBuyIns, onChange: setSyncSeatBuyIns }}
                   onValue={(hands) => setExtraHands(extraHands + hands - seatHands)}
                 />
