@@ -11,7 +11,7 @@ import {
   streetInsurance,
   streetLeaders,
 } from "@holdem-knight/core";
-import { Check, Pencil, X } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { t } from "@/i18n";
 import { formatSignedChips } from "@/lib/chips";
@@ -158,19 +158,16 @@ function SmallCard({ card }: { card: number }) {
   );
 }
 
-const MARK = "grid size-5 shrink-0 place-items-center rounded-full";
+const MARK =
+  "grid size-4 shrink-0 place-items-center rounded-[5px] text-[0.625rem] leading-none font-bold";
 
-/** Whether a pot was won, as a small round mark before its name. */
+/** Whether a pot was won, as a small filled square with a letter before its name. */
 function WonMark({ won }: { won: boolean }) {
   const { handSummary: text } = t.insurance;
   return (
-    <span className={cn(MARK, won ? "bg-win/15 text-win" : "bg-loss/15 text-loss")}>
+    <span className={cn(MARK, "text-bg", won ? "bg-win" : "bg-loss")}>
       <span className="sr-only">{won ? text.won : text.lost}</span>
-      {won ? (
-        <Check className="size-3.5" strokeWidth={2.5} aria-hidden />
-      ) : (
-        <X className="size-3.5" strokeWidth={2.5} aria-hidden />
-      )}
+      <span aria-hidden>{won ? "W" : "L"}</span>
     </span>
   );
 }
@@ -192,9 +189,9 @@ function ChipLine({
   children: ReactNode;
 }) {
   return (
-    <div className={cn(ROW, "min-h-7 items-center text-[0.8125rem]")}>
+    <div className={cn(ROW, "min-h-[1.375rem] items-center text-[0.8125rem]")}>
       <span className="col-span-2 flex items-center gap-1.5">
-        {mark ?? <span className="size-5 shrink-0" />}
+        {mark ?? <span className="size-4 shrink-0" />}
         <span className={cn(struck ? "text-muted line-through" : "text-text")}>{label}</span>
       </span>
       <span className="col-span-2 text-right font-medium whitespace-nowrap tabular-nums">
@@ -257,9 +254,7 @@ function PlayerRow({
       {/* Chips that were never in the betting. A cover has more behind than the hand knows */}
       <ChipLine
         mark={
-          cover ? (
-            <span className={cn(MARK, "bg-win text-xs font-bold text-bg")}>C</span>
-          ) : undefined
+          cover ? <span className={cn(MARK, "rounded-full bg-win text-bg")}>C</span> : undefined
         }
         label={text.chipsBehind}
       >
@@ -269,29 +264,26 @@ function PlayerRow({
           <span className={cn(refundChips === 0 && "text-muted")}>{chipText(refundChips)}</span>
         )}
       </ChipLine>
-      {/* The chips the player ends with, and whether they go to the game */}
-      <div className={cn(ROW, "min-h-11 items-center text-[0.8125rem]")}>
-        <span className="col-span-2 flex items-center">
-          {sync && stackAfter !== null && (
-            <label className="flex min-h-11 items-center gap-1.5">
-              <span className="grid size-5 shrink-0 place-items-center">
-                <input
-                  type="checkbox"
-                  checked={sync.on}
-                  onChange={(event) => sync.onChange(event.target.checked)}
-                  className="size-4 accent-[var(--accent)]"
-                />
-              </span>
-              <span className={cn(!sync.on && "text-muted")}>{text.syncToTheGame}</span>
-            </label>
-          )}
-        </span>
-        <span className="col-span-2 flex items-baseline justify-end gap-2 whitespace-nowrap">
+      {/* The chips the player ends with, set a little apart, and before them whether they go
+          to the game */}
+      <div className="mt-1 flex min-h-11 items-center justify-end gap-3 text-sm whitespace-nowrap">
+        {sync && stackAfter !== null && (
+          <label className="flex min-h-11 items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={sync.on}
+              onChange={(event) => sync.onChange(event.target.checked)}
+              className="size-4 shrink-0 accent-[var(--accent)]"
+            />
+            <span className={cn(!sync.on && "text-muted")}>{text.syncToTheGame}</span>
+          </label>
+        )}
+        <span className="flex items-baseline gap-2">
           <span className="text-muted">{text.totalChips}</span>
           {stackAfter === null ? (
             notApplicable
           ) : (
-            <span className="font-semibold tabular-nums">{chipText(stackAfter)}</span>
+            <span className="text-base font-semibold tabular-nums">{chipText(stackAfter)}</span>
           )}
         </span>
       </div>
@@ -505,9 +497,6 @@ export function HandSummary({
                 onStep={(by) => setExtraHands(extraHands + by)}
                 onChips={setSeatTyped}
               />
-            )}
-            {needed > 0 && seat && (
-              <BuyInNote>{text.seatBuysIn(needed / seat.handChips, chipText(needed))}</BuyInNote>
             )}
           </li>
         </ul>

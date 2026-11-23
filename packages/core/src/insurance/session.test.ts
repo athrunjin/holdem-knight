@@ -445,10 +445,12 @@ describe("dealCard", () => {
     expect(dealCard(bought(start), c("4h")).purchases[0]?.hit).toBe(false);
   });
 
-  it("skips settling a turn with nothing sold, but always stops at the river", () => {
+  it("skips settling a turn with nothing sold, and ends the hand at the river", () => {
     const flop = hand({ board: hand().board.slice(0, 3) });
     expect(dealCard(flop, c("4h")).step).toBe("buy");
-    expect(dealCard(hand(), c("4h")).step).toBe("settle");
+    expect(dealCard(bought(flop), c("4h")).step).toBe("settle");
+    expect(dealCard(hand(), c("4h")).step).toBe("summary");
+    expect(dealCard(bought(hand()), c("4h")).step).toBe("summary");
   });
 
   it("takes a wrong card back and leaves earlier results alone", () => {

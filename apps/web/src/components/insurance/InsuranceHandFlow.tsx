@@ -728,7 +728,8 @@ export function InsuranceHandFlow({
           recording={store !== undefined}
           seatedIds={seats.map(({ id }) => id)}
           saving={finishing}
-          onBack={() => update({ ...hand, step: "settle" })}
+          // Straight back to the river, to be picked again
+          onBack={() => update(undoDeal(hand))}
           onConfirm={finish}
         />
       )}

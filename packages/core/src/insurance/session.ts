@@ -316,8 +316,8 @@ export function reviseOffer(hand: InsuranceHand, key: string): InsuranceHand {
 }
 
 /**
- * Deals the next card and works out what was sold on it. A street with nothing sold has nothing to
- * settle, except the river, where the organizer always closes the hand.
+ * Deals the next card and works out what was sold on it. A turn with something sold is settled
+ * before the river is priced; the river ends the hand, whose summary says what its covers came to.
  */
 export function dealCard(hand: InsuranceHand, card: Card): InsuranceHand {
   const street = nextStreet(hand.board);
@@ -325,7 +325,8 @@ export function dealCard(hand: InsuranceHand, card: Card): InsuranceHand {
     purchase.street === street ? { ...purchase, hit: purchase.outs.includes(card) } : purchase,
   );
   const board = [...hand.board, card];
-  const settle = street === "river" || purchases.some((p) => p.street === street);
+  if (street === "river") return { ...hand, board, purchases, step: "summary" };
+  const settle = purchases.some((p) => p.street === street);
   return { ...hand, board, purchases, step: settle ? "settle" : "buy" };
 }
 

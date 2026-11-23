@@ -45,7 +45,6 @@ export const insurance: Messages["insurance"] = {
     hit: "Hit",
     missed: "Missed",
     needsABuyIn: (a, b) => `Short for the premium: buys ${a} (${b})`,
-    seatBuysIn: (a, b) => `Insurance is short to pay: buys ${a} (${b})`,
     totalChips: "Chips",
     syncToTheGame: "Update the game",
     totalBuyIn: "Buy-ins",

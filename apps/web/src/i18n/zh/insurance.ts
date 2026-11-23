@@ -45,8 +45,6 @@ export const insurance = {
     hit: "命中",
     missed: "未中",
     needsABuyIn: (a: string | number, b: string | number) => `保费不够，需 Buy-in ${a} 手（${b}）`,
-    seatBuysIn: (a: string | number, b: string | number) =>
-      `保险筹码不够赔付，自动 Buy-in ${a} 手（${b}）`,
     totalChips: "总码量",
     syncToTheGame: "同步到对局",
     totalBuyIn: "总 Buy-in",
