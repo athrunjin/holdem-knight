@@ -190,13 +190,11 @@ function OutsDialog({
   onCancel: () => void;
 }) {
   const [text, setText] = useState(String(entry ? entry.outs - entry.second : 4));
-  // The second cover's cards, once it is asked for
-  const [secondText, setSecondText] = useState(
-    entry && entry.second > 0 ? String(entry.second) : undefined,
-  );
+  // The second cover's cards: none unless some are to be sold apart
+  const [secondText, setSecondText] = useState(String(entry?.second ?? 0));
   const [tieText, setTieText] = useState(String(entry?.ties ?? 0));
   const first = parseChips(text) ?? 0;
-  const second = secondText === undefined ? 0 : (parseChips(secondText) ?? 0);
+  const second = parseChips(secondText) ?? 0;
   const ties = parseChips(tieText) ?? 0;
   // Each cover is priced by its own count, so each has the odds table to itself. Tie cards that
   // are not sold need no odds.
@@ -220,30 +218,20 @@ function OutsDialog({
       >
         <CardStepper
           id="quick-outs"
-          label={secondText === undefined ? text2.outs : text2.overtakePoolI}
+          label={text2.overtakePoolI}
           text={text}
           min={0}
           max={firstMax}
           onChange={setText}
         />
-        {secondText === undefined ? (
-          <button
-            type="button"
-            onClick={() => setSecondText("1")}
-            className="-my-1 min-h-11 w-full text-left text-sm text-muted"
-          >
-            {text2.addOvertakePoolIi}
-          </button>
-        ) : (
-          <CardStepper
-            id="quick-outs-2"
-            label={text2.overtakePoolIi}
-            text={secondText}
-            min={0}
-            max={secondMax}
-            onChange={setSecondText}
-          />
-        )}
+        <CardStepper
+          id="quick-outs-2"
+          label={text2.overtakePoolIi}
+          text={secondText}
+          min={0}
+          max={secondMax}
+          onChange={setSecondText}
+        />
         <span aria-hidden className="h-px w-full bg-line" />
         <CardStepper
           id="quick-ties"
@@ -713,7 +701,7 @@ export function OutsQuickCalc({
             {t.insurance.outsQuickCalc.insuranceNeedsAtLeastTwoPlayers}
           </p>
         )}
-        <ul className="relative flex flex-col gap-2">
+        <ul className="relative flex flex-col gap-3">
           {players.map((player, index) => {
             const side = index as Side;
             const name = nameOf(player.playerId);

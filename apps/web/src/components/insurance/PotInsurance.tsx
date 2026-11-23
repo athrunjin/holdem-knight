@@ -524,7 +524,7 @@ function Block({ label, parts, potChips, offers, saving, decisions }: PotCoverPr
           // With two kinds of card on sale, the ring says which one its cover is for
           kindText:
             offers.length > 1
-              ? `${KIND_TEXT[active.offer.kind]}${active.offer.part ? PART_TEXT[active.offer.part] : ""}`
+              ? `${KIND_TEXT[active.offer.kind]}${active.offer.part ? ` ${PART_TEXT[active.offer.part]}` : ""}`
               : "",
         }
       : undefined;
@@ -569,8 +569,13 @@ function Block({ label, parts, potChips, offers, saving, decisions }: PotCoverPr
             >
               {ring && cover && (
                 <>
-                  <span className="text-[11px] leading-none whitespace-nowrap text-muted">
-                    {ring.kindText}
+                  {/* The kind of card on a line of its own, as the two together run past the ring */}
+                  {ring.kindText && (
+                    <span className="text-[11px] leading-tight whitespace-nowrap text-muted">
+                      {ring.kindText}
+                    </span>
+                  )}
+                  <span className="text-[11px] leading-tight whitespace-nowrap text-muted">
                     {ring.chosenLabel}
                   </span>
                   <span className="text-[15px] leading-tight font-semibold tabular-nums">
