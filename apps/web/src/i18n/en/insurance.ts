@@ -31,7 +31,10 @@ export const insurance: Messages["insurance"] = {
   },
   handSummary: {
     handSummary: "Hand summary",
-    pot: "Pot",
+    turnInsurance: "Turn ins.",
+    riverInsurance: "River ins.",
+    returned: "Returned",
+    paidTo: (a) => `Paid ${a}`,
     total: "Total",
     hit: "Hit",
     missed: "Missed",

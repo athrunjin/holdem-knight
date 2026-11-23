@@ -1,4 +1,5 @@
 import {
+  adjustHands,
   blankInsuranceHand,
   type Game,
   handResult,
@@ -279,7 +280,7 @@ interface FinishInput {
    * written, and the organizer counts their chips at the table.
    */
   readonly syncPlayerIds: readonly string[];
-  /** Chips the seat buys beyond what it must to pay. */
+  /** Chips the seat buys beyond what it must to pay, or below 0 the Buy-ins it gives back. */
   readonly seatExtraChips: number;
   /** The seat's chips as counted, where they differ from what the hand works out. */
   readonly seatStackChips?: number;
@@ -317,20 +318,36 @@ export function useFinishInsuranceHand(gameId: string) {
         const stack = (seat?.stackChips ?? 0) + (cashOut?.chips ?? 0);
         const { premiumChips, payoutChips } = handResult(hand);
         const topUp = insuranceTopUp(stack + premiumChips, payoutChips, handChips) + seatExtraChips;
-        const seatAfter = stack + premiumChips - payoutChips + topUp;
         const occurredAt = Date.now();
         const handId = hand.id;
+        // Buy-ins given back are taken from the seat's own, latest first, as on the game's page
+        const given =
+          topUp < 0
+            ? adjustHands(events, INSURANCE_PLAYER_ID, handChips, { by: topUp / handChips })
+            : undefined;
+        const givenChips = given
+          ? given.reversedEventIds.reduce(
+              (total, id) => total + (chipsOf(events.find((e) => e.id === id)) ?? 0),
+              0,
+            ) - (given.buy?.chips ?? 0)
+          : 0;
+        const seatBuy = given
+          ? given.buy
+          : topUp > 0
+            ? { type: "rebuy" as const, chips: topUp }
+            : undefined;
+        const seatAfter = stack + premiumChips - payoutChips + (given ? -givenChips : topUp);
         await repository.ledger.appendAll([
           ...reseat(gameId, events, occurredAt),
-          ...(topUp > 0
-            ? [
-                {
-                  ...newEventMeta(gameId, occurredAt),
-                  type: "rebuy" as const,
-                  playerId: INSURANCE_PLAYER_ID,
-                  chips: topUp,
-                },
-              ]
+          ...(given?.reversedEventIds ?? []).map(
+            (reversedEventId): LedgerEvent => ({
+              ...newEventMeta(gameId, occurredAt),
+              type: "reversal",
+              reversedEventId,
+            }),
+          ),
+          ...(seatBuy
+            ? [{ ...newEventMeta(gameId, occurredAt), ...seatBuy, playerId: INSURANCE_PLAYER_ID }]
             : []),
           ...buyIns.map(
             ({ playerId, buyInChips }): LedgerEvent => ({
@@ -351,14 +368,15 @@ export function useFinishInsuranceHand(gameId: string) {
             }),
           ),
           // The seat's chips as the organizer counted them, over what the hand works out
-          ...(seatStackChips !== undefined && seatStackChips !== seatAfter
+          ...(given || (seatStackChips !== undefined && seatStackChips !== seatAfter)
             ? [
                 {
                   ...newEventMeta(gameId, occurredAt + 1),
                   type: "stack_set" as const,
                   handId,
                   playerId: INSURANCE_PLAYER_ID,
-                  chips: seatStackChips,
+                  // Never below nothing, should fewer Buy-ins be left than were asked back
+                  chips: seatStackChips ?? Math.max(0, seatAfter),
                 },
               ]
             : []),
@@ -502,4 +520,9 @@ export function useUndoInsurance(gameId: string) {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ledger", gameId] }),
   });
+}
+
+/** The chips of a buy, for an event that is one. */
+function chipsOf(event: LedgerEvent | undefined): number | undefined {
+  return event && (event.type === "buy_in" || event.type === "rebuy") ? event.chips : undefined;
 }

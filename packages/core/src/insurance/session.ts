@@ -372,6 +372,22 @@ export function handUnderWay(hand: InsuranceHand): boolean {
 export interface StreetInsurance {
   readonly chips: number;
   readonly hit: boolean;
+  /** Whoever a cover paid, each once, in the order the covers were bought. */
+  readonly paidPlayerIds: readonly string[];
+}
+
+/**
+ * Whether a street had insurance to decide on: a cover was taken or turned down there. A street
+ * whose card was on the board when the hand was entered has neither, like one nobody could insure.
+ */
+export function streetOffered(
+  hand: Pick<InsuranceHand, "purchases" | "declined">,
+  street: InsuranceHandPurchase["street"],
+): boolean {
+  return (
+    hand.purchases.some((p) => p.street === street) ||
+    hand.declined.some((key) => key.startsWith(`${street}-`))
+  );
 }
 
 /** A player's insurance on one street, or nothing if they bought none there. */
@@ -387,6 +403,7 @@ export function streetInsurance(
   return {
     chips: bought.reduce((total, p) => total + (p.hit ? p.payoutChips : 0) - p.premiumChips, 0),
     hit: bought.some((p) => p.hit === true),
+    paidPlayerIds: [...new Set(bought.filter((p) => p.hit === true).map((p) => p.playerId))],
   };
 }
 
@@ -395,6 +412,8 @@ export interface PlayerHandResult {
   readonly cover: boolean;
   /** Won from the pots, dead money included. */
   readonly potChips: number;
+  /** The same by pot, for every pot more than one player is in, main pot first. */
+  readonly potShares: readonly number[];
   /** Excess nobody called, which came straight back. */
   readonly refundChips: number;
   /** Payouts less premiums. */
@@ -416,6 +435,8 @@ export function playerHandResults(hand: InsuranceHand): PlayerHandResult[] {
   const cardsOf = new Map(hand.players.map((p) => [p.playerId, p.cards]));
   const won = new Map<string, number>();
   const refunds = new Map<string, number>();
+  // One map for each pot more than one player is in
+  const shares: Map<string, number>[] = [];
   const add = (totals: Map<string, number>, id: string, chips: number) =>
     totals.set(id, (totals.get(id) ?? 0) + chips);
 
@@ -428,8 +449,11 @@ export function playerHandResults(hand: InsuranceHand): PlayerHandResult[] {
     const winners = winnersOf(pot.playerIds, cardsOf, hand.board);
     const share = Math.floor(pot.amountChips / winners.length);
     const odd = pot.amountChips - share * winners.length;
+    const inPot = new Map<string, number>();
+    shares.push(inPot);
     winners.forEach((id, i) => {
       add(won, id, share + (i < odd ? 1 : 0));
+      add(inPot, id, share + (i < odd ? 1 : 0));
     });
   }
 
@@ -445,6 +469,7 @@ export function playerHandResults(hand: InsuranceHand): PlayerHandResult[] {
       playerId,
       cover,
       potChips,
+      potShares: shares.map((inPot) => inPot.get(playerId) ?? 0),
       refundChips,
       insuranceChips,
       netChips: left - stakeOf(player, hand.players),

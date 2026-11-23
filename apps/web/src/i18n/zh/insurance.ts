@@ -31,7 +31,10 @@ export const insurance = {
   },
   handSummary: {
     handSummary: "本手总结",
-    pot: "底池",
+    turnInsurance: "转牌保险",
+    riverInsurance: "河牌保险",
+    returned: "退回",
+    paidTo: (a: string | number) => `赔付 ${a}`,
     total: "合计",
     hit: "命中",
     missed: "未中",
