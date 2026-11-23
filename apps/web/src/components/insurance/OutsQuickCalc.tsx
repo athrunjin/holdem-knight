@@ -24,7 +24,6 @@ import {
   MIN_PLAYERS,
   nextPlayers,
   PRESET_DEAD_CHIPS,
-  RoundAction,
   SectionReset,
   SectionTitle,
 } from "./HandSections";
@@ -665,7 +664,7 @@ export function OutsQuickCalc({
             {t.insurance.outsQuickCalc.insuranceNeedsAtLeastTwoPlayers}
           </p>
         )}
-        <ul className="flex flex-col gap-2">
+        <ul className="relative flex flex-col gap-2">
           {players.map((player, index) => {
             const side = index as Side;
             const name = nameOf(player.playerId);
@@ -681,10 +680,20 @@ export function OutsQuickCalc({
                       ? undefined
                       : {
                           seats,
-                          takenIds: players.filter((p) => p !== player).map((p) => p.playerId),
+                          // At a table the other player of the pot can be picked too, which
+                          // has the two change places
+                          takenIds: store
+                            ? []
+                            : players.filter((p) => p !== player).map((p) => p.playerId),
                           // At a table another player is another pot: their own chips, no cover and no
                           // outs. Away from one the name is only a label, and what was entered stays.
                           onSeat: (id) => {
+                            if (store && players.some((p) => p.playerId === id)) {
+                              // Each takes the other's place, with their chips and their outs
+                              setEdited(players.toReversed());
+                              setOuts([outs[1], outs[0]]);
+                              return;
+                            }
                             if (store) setSideOuts(side, undefined);
                             setEdited(
                               withSide(side, {
@@ -740,15 +749,23 @@ export function OutsQuickCalc({
               </li>
             );
           })}
+          {/* Where the two rows meet, under one's place in the lead and over the other's outs:
+              a tap has them change who is ahead */}
+          {players.length === MIN_PLAYERS && !sold && (
+            <li className="absolute top-1/2 right-[calc(1.625rem+1px)] z-10 -translate-y-1/2">
+              <button
+                type="button"
+                aria-label={t.insurance.outsQuickCalc.switchWhoIsAhead}
+                onClick={() => setLeader(trailer)}
+                className="grid size-11 place-items-center text-highlight"
+              >
+                <span className="grid size-6 place-items-center rounded-full border border-line bg-bg">
+                  <ArrowUpDown className="size-3.5" aria-hidden />
+                </span>
+              </button>
+            </li>
+          )}
         </ul>
-        {players.length === MIN_PLAYERS && !sold && (
-          <RoundAction
-            label={t.insurance.outsQuickCalc.switchWhoIsAhead}
-            onSelect={() => setLeader(trailer)}
-          >
-            <ArrowUpDown className="size-4" aria-hidden />
-          </RoundAction>
-        )}
       </section>
 
       <section aria-labelledby="quick-insurance-title" className="mt-3">
