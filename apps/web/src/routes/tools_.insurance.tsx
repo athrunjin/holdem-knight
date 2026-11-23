@@ -111,9 +111,6 @@ function InsuranceToolPage() {
       }
     >
       <InsuranceSetup value={choice} stakes={undefined} onChange={setChoice} locked={underWay} />
-      {underWay && (
-        <p className="text-xs text-muted">{t.insurance.insuranceHeader.lockedDuringAHand}</p>
-      )}
       <InsuranceCalculator
         onHandUnderWay={setUnderWay}
         mode={mode}

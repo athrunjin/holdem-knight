@@ -647,11 +647,6 @@ export function GameSettingsForm({
             />
           </div>
         )}
-        {showInsurance && insuranceFrozen && (
-          <p className="-mt-1 text-sm text-muted">
-            {t.insurance.insuranceHeader.lockedDuringAHand}
-          </p>
-        )}
         <WageSettings
           value={wage}
           issues={wageIssues}

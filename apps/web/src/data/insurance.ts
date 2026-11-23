@@ -275,10 +275,14 @@ interface FinishInput {
   readonly hand: InsuranceHand;
   readonly handChips: number;
   /**
-   * Whether the chips each player ends the hand with go to the game. Without it only the
-   * insurance is written, and the organizer counts the chips at the table.
+   * The players whose chips after the hand go to the game. For the others only the insurance is
+   * written, and the organizer counts their chips at the table.
    */
-  readonly syncStacks: boolean;
+  readonly syncPlayerIds: readonly string[];
+  /** Chips the seat buys beyond what it must to pay. */
+  readonly seatExtraChips: number;
+  /** The seat's chips as counted, where they differ from what the hand works out. */
+  readonly seatStackChips?: number;
 }
 
 /** The hand's money reaches the ledger in one write, and only here. */
@@ -286,17 +290,23 @@ export function useFinishInsuranceHand(gameId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     scope: ledgerScope(gameId),
-    mutationFn: async ({ hand, handChips, syncStacks }: FinishInput) => {
+    mutationFn: async ({
+      hand,
+      handChips,
+      syncPlayerIds,
+      seatExtraChips,
+      seatStackChips,
+    }: FinishInput) => {
       const events = await repository.ledger.listByGame(gameId);
       const written = events.some((e) => belongsToHand(e, hand.id));
       if (!written) {
         const ledger = summarizeByPlayer(events);
-        // Not synced, no stack is set, and so no premium is found short against one
-        const results = syncStacks
-          ? playerHandResults(hand).filter(({ playerId }) =>
-              ledger.some((p) => p.playerId === playerId && p.seated),
-            )
-          : [];
+        // A player not synced has no stack set, and so no premium found short against one
+        const results = playerHandResults(hand).filter(
+          ({ playerId }) =>
+            syncPlayerIds.includes(playerId) &&
+            ledger.some((p) => p.playerId === playerId && p.seated),
+        );
         const buyIns = premiumBuyIns(results, handChips);
         const stackEvents = results.flatMap(({ playerId, stackChips }) => {
           const chips = buyIns.find((b) => b.playerId === playerId)?.stackChips ?? stackChips;
@@ -306,7 +316,8 @@ export function useFinishInsuranceHand(gameId: string) {
         const cashOut = latestCashOut(events, INSURANCE_PLAYER_ID);
         const stack = (seat?.stackChips ?? 0) + (cashOut?.chips ?? 0);
         const { premiumChips, payoutChips } = handResult(hand);
-        const topUp = insuranceTopUp(stack + premiumChips, payoutChips, handChips);
+        const topUp = insuranceTopUp(stack + premiumChips, payoutChips, handChips) + seatExtraChips;
+        const seatAfter = stack + premiumChips - payoutChips + topUp;
         const occurredAt = Date.now();
         const handId = hand.id;
         await repository.ledger.appendAll([
@@ -339,6 +350,18 @@ export function useFinishInsuranceHand(gameId: string) {
               ...stack,
             }),
           ),
+          // The seat's chips as the organizer counted them, over what the hand works out
+          ...(seatStackChips !== undefined && seatStackChips !== seatAfter
+            ? [
+                {
+                  ...newEventMeta(gameId, occurredAt + 1),
+                  type: "stack_set" as const,
+                  handId,
+                  playerId: INSURANCE_PLAYER_ID,
+                  chips: seatStackChips,
+                },
+              ]
+            : []),
           ...hand.purchases.flatMap((purchase): LedgerEvent[] => {
             const { playerId, street, oddsHundredths } = purchase;
             const bought = {

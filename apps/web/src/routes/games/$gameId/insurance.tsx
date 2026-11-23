@@ -232,10 +232,6 @@ function GameInsurance({ game }: { game: Game }) {
             locked={underWay}
           />
         )}
-        {underWay && (
-          <p className="text-xs text-muted">{t.insurance.insuranceHeader.lockedDuringAHand}</p>
-        )}
-
         {insurance && editable && hands && (
           <InsuranceCalculator
             mode={mode}
@@ -256,14 +252,20 @@ function GameInsurance({ game }: { game: Game }) {
               save: saveHand.mutate,
               enterStack: (playerId, chips) => enterStack.mutate({ playerId, chips }),
               discard: (handId: string) => discardHand.mutate({ handId, handChips }),
-              finish: async (hand, syncStacks) => {
+              finish: async (hand, choices) => {
                 if (handChips === undefined) return;
-                await finishHand.mutateAsync({ hand, handChips, syncStacks });
+                await finishHand.mutateAsync({ hand, handChips, ...choices });
                 navigate({ to: "/games/$gameId", params: { gameId } });
               },
             }}
             seat={
-              handChips === undefined ? undefined : { stackChips: seat?.stackChips ?? 0, handChips }
+              handChips === undefined
+                ? undefined
+                : {
+                    stackChips: seat?.stackChips ?? 0,
+                    boughtChips: seat?.boughtChips ?? 0,
+                    handChips,
+                  }
             }
             openHand={openHand}
             createHand={() => newInsuranceHand(gameId)}

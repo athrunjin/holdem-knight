@@ -1,10 +1,11 @@
-import type { InsuranceHandPlayer } from "@holdem-knight/core";
+import type { Card, InsuranceHandPlayer } from "@holdem-knight/core";
 import { RotateCcw } from "lucide-react";
 import { type ReactNode, type Ref, useId, useRef, useState } from "react";
 import { ChipStack } from "@/components/ChipStack";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { selectOnFocus } from "@/lib/number-input";
+import { BOARD_PLACES, CardFace } from "./CardFace";
 import type { InsuranceSeat } from "./InsuranceCalculator";
 
 /**
@@ -204,5 +205,58 @@ export function DeadMoney({
         )}
       />
     </label>
+  );
+}
+
+/**
+ * One street's cards in a frame, named underneath. A street that must be entered is framed solid;
+ * one that may be left out is dashed until it has its card.
+ */
+export function StreetCards({
+  label,
+  cards,
+  count,
+  optional = false,
+  disabled = false,
+  onPick,
+}: {
+  label: string;
+  cards: readonly Card[];
+  count: number;
+  optional?: boolean;
+  disabled?: boolean;
+  /** Missing once the board can no longer change. */
+  onPick?: (() => void) | undefined;
+}) {
+  const empty = cards.length === 0;
+  const frame = cn(
+    "flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 px-2 pt-2 pb-1",
+    empty && optional ? "border-dashed border-line" : "border-line bg-surface",
+  );
+  const content = (
+    <>
+      <span className="flex gap-1">
+        {BOARD_PLACES.slice(0, count).map((place) => (
+          <CardFace key={place} card={cards[place] ?? null} solid={!optional} />
+        ))}
+      </span>
+      <span className="text-xs whitespace-nowrap text-muted">{label}</span>
+    </>
+  );
+  if (!onPick) return <div className={frame}>{content}</div>;
+  return (
+    <button
+      type="button"
+      aria-label={
+        empty
+          ? t.insurance.insuranceHandFlow.select(label)
+          : t.insurance.insuranceHandFlow.edit(label)
+      }
+      disabled={disabled}
+      onClick={onPick}
+      className={cn(frame, "disabled:opacity-40")}
+    >
+      {content}
+    </button>
   );
 }
