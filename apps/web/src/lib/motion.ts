@@ -4,19 +4,34 @@ const still = () =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
- * True under a page that is being come back to: what it shows first is there at once, as it was
- * left, and only what changes after that moves.
+ * True while a page that is being come back to arrives (`useQuietArrival`): what it shows first is
+ * there at once, as it was left, and what shows after that moves.
  */
 export const QuietMotion = createContext(false);
 
 /**
- * Whether what shows under a key plays in. Not for the key a page come back to opens with, and
- * not with motion turned down on the device.
+ * Whether a page come back to is still arriving: true for its first paint and no longer. What is
+ * on the page by then is there at once, as it was left; whatever shows after that, such as for
+ * another period, plays in as usual.
+ */
+export function useQuietArrival(returning: boolean): boolean {
+  const [quiet, setQuiet] = useState(returning);
+  useEffect(() => {
+    if (quiet) setQuiet(false);
+  }, [quiet]);
+  return quiet;
+}
+
+/**
+ * Whether what shows under a key plays in. It is settled when the key is first seen, and holds
+ * for as long as the key does: not while a page come back to is arriving, and not with motion
+ * turned down on the device.
  */
 export function usePlaysIn(key: string): boolean {
   const quiet = useContext(QuietMotion);
-  const first = useRef(key);
-  return !(still() || (quiet && first.current === key));
+  const settled = useRef<{ key: string; plays: boolean }>(undefined);
+  if (settled.current?.key !== key) settled.current = { key, plays: !(still() || quiet) };
+  return settled.current.plays;
 }
 
 interface CountUp {

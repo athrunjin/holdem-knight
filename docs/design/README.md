@@ -124,7 +124,8 @@ Motion shows where something came from and that a figure changed. It never delay
 - **Content follows the container.** Lines inside a panel show once it has grown.
 - **Things arriving in a list** come a short way into place out of nothing, one after another. Nothing flies across the screen.
 - **Layout moves with its content.** When an item is ticked on or off, its part grows or shrinks and what stands on it moves with it; nothing jumps.
-- **Once per arrival.** A page plays in when it is opened or its period or filter changes. Coming back to it from a game, it is as it was left, at the place it was left, with nothing playing again.
+- **Once per arrival.** A page plays in when it is opened, and a card plays in again, all of it, when its period, days or filter change: what was already there does not stay put while the rest moves. Coming back to the page from a game, it is as it was left, at the place it was left, with nothing playing again; what changes after that plays as usual.
+- **A line added to a chart is drawn in, and drawn back out when it is taken off.** The chart keeps room for it either way, so nothing else moves.
 - **Reduced motion.** With motion turned down on the device, everything is in its final state at once.
 - Use `useCountUp`, `useEntered` and `usePlaysIn` from `lib/motion.ts` and the `animate-*` tokens in the stylesheet. A new keyframe is added to the stylesheet with a line saying what it is for. No animation library.
 

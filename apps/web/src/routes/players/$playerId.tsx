@@ -37,7 +37,7 @@ import { dayOf } from "@/lib/game-day";
 import { DEFAULT_HISTORY_STATE } from "@/lib/game-history";
 import { blindsKey, filterChoices, ratioKey } from "@/lib/income-filter";
 import { useListReturn } from "@/lib/list-return";
-import { QuietMotion, useCountUp, useEntered, usePlaysIn } from "@/lib/motion";
+import { QuietMotion, useCountUp, useEntered, usePlaysIn, useQuietArrival } from "@/lib/motion";
 import { periodName } from "@/lib/period-names";
 import { useStoredState } from "@/lib/stored-state";
 
@@ -167,6 +167,7 @@ function History({
   const today = dayOf(Date.now());
   // Come back to from a game, the page is where it was left and nothing plays in again
   const returning = useListReturn(`/players/${player.id}`);
+  const quiet = useQuietArrival(returning);
   const [view, setView] = useStoredState<View>("player.view.3", { period: "last10" }, parseView);
 
   // The currencies the player has games in, in the app's own order. Panda points come up first
@@ -200,8 +201,6 @@ function History({
   const report = isLast(period)
     ? playerReport(narrowed.slice(0, LASTS[period]), player.id, currency)
     : reportIn(period);
-  // Every game under the filter, for the curve, which has its own range
-  const all = playerReport(narrowed, player.id, currency).games;
   const payments = playerPayments(summaries, player.id, currency);
   const money: Money = (value, signed = false) =>
     formatGameMoney(value, currency, signed ? "exceptZero" : "auto");
@@ -209,7 +208,7 @@ function History({
   const change = (next: Partial<View>) => setView({ ...view, currency, ...next });
 
   return (
-    <QuietMotion value={returning}>
+    <QuietMotion value={quiet}>
       <div className="pb-8">
         <section className={cn(cardClass, "px-4 pt-1 pb-3")}>
           <div className="flex items-center justify-between gap-2">
@@ -251,14 +250,9 @@ function History({
           <Result report={report} money={money} playKey={playKey} />
         </section>
 
-        {all.length > 0 && (
-          <ResultCurve
-            // Another player, or other games under the filter, starts over from the whole run
-            key={[player.id, currency, ratio, blinds].join()}
-            games={all}
-            today={today}
-            money={money}
-          />
+        {played.length > 0 && (
+          // Narrowed by itself, apart from the card over it
+          <ResultCurve key={player.id} playerId={player.id} summaries={played} today={today} />
         )}
 
         <Payments
@@ -336,7 +330,8 @@ function Result({
           </>
         )}
       </p>
-      {games.length > 0 && <Bars games={games} money={money} playKey={playKey} />}
+      {/* Made again for other games, so every bar grows from the line each time */}
+      {games.length > 0 && <Bars key={playKey} games={games} money={money} playKey={playKey} />}
       {games.length > BARS && (
         <p className="text-right text-[11px] text-muted">{t.players.playerPage.barsShow(BARS)}</p>
       )}

@@ -1,11 +1,22 @@
-import { type Cents, cents, type PlayerGame, playerCurve } from "@holdem-knight/core";
-import { ChevronDown } from "lucide-react";
+import {
+  type Cents,
+  CURRENCIES,
+  type Currency,
+  cents,
+  type GameSummary,
+  playerCurve,
+  playerReport,
+} from "@holdem-knight/core";
+import { Check, ChevronDown } from "lucide-react";
 import { useId, useState } from "react";
+import { IncomeFilter } from "@/components/income/IncomeFilter";
 import { Modal } from "@/components/insurance/Modal";
-import { MiniSwitch } from "@/components/MiniSwitch";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { useEntered } from "@/lib/motion";
+import { formatGameMoney } from "@/lib/currency";
+import { blindsKey, filterChoices, ratioKey } from "@/lib/income-filter";
+import { useCountUp, useEntered } from "@/lib/motion";
+import { useStoredState } from "@/lib/stored-state";
 
 type Money = (value: Cents, signed?: boolean) => string;
 
@@ -79,31 +90,82 @@ function smoothPath(points: readonly (readonly [number, number])[]): string {
 }
 
 /**
+ * The days and the tick each player's curve was left with, kept while the app is open so the page
+ * is as it was left when it is come back to from a game.
+ */
+const left = new Map<
+  string,
+  { from: string | undefined; to: string | undefined; withCharges: boolean }
+>();
+
+/** How the curve was left: the games it is narrowed to. The same for every player. */
+interface CurveView {
+  /** Missing for panda points, or the currency the player last played in */
+  readonly currency?: Currency | undefined;
+  readonly ratio?: string | undefined;
+  readonly blinds?: string | undefined;
+}
+
+const text = (value: unknown) => (typeof value === "string" ? value : undefined);
+
+function parseCurveView(stored: unknown): CurveView | undefined {
+  if (typeof stored !== "object" || stored === null) return undefined;
+  const { currency, ratio, blinds } = stored as Record<string, unknown>;
+  return {
+    currency: CURRENCIES.find((c) => c === currency),
+    ratio: text(ratio),
+    blinds: text(blinds),
+  };
+}
+
+/**
  * The player's running result, game by game, from one day to another: from their first game to
- * now until other days are picked. Over it what the stretch came to and the charges paid in it;
- * the axes are marked with a few amounts and days, and the line ends in a dot at where the player
- * stands. The switch adds a second line, with the charges taken off.
+ * now until other days are picked after the title. It is narrowed by currency, ratio and blinds
+ * by itself, apart from the card over it. Over the curve what the stretch came to, and what it
+ * came to after the charges paid in it, whose tick draws that as a second line. The axes are
+ * marked with a few amounts and days, and the line ends in a dot at where the player stands. The
+ * curve is drawn again from the left whenever its days or its games change.
  */
 export function ResultCurve({
-  games,
+  playerId,
+  summaries,
   today,
-  money,
 }: {
-  /** Every game the curve can cover */
-  games: readonly PlayerGame[];
+  playerId: string;
+  /** Every settled game the player was in */
+  summaries: readonly GameSummary[];
   today: string;
-  money: Money;
 }) {
-  const points = playerCurve(games);
-  const earliest = points[0]?.summary.day ?? today;
+  const [view, setView] = useStoredState<CurveView>("player.curve", {}, parseCurveView);
   // A day picked, or missing for the first game and for now
-  const [from, setFrom] = useState<string>();
-  const [to, setTo] = useState<string>();
+  const [from, setFrom] = useState(() => left.get(playerId)?.from);
+  const [to, setTo] = useState(() => left.get(playerId)?.to);
   const [picking, setPicking] = useState<"from" | "to">();
-  const [withCharges, setWithCharges] = useState(false);
-  const drawn = useEntered("curve");
+  const [withCharges, setWithCharges] = useState(() => left.get(playerId)?.withCharges ?? false);
+  left.set(playerId, { from, to, withCharges });
   const fill = useId();
 
+  // The currencies the player has games in, in the app's own order. Panda points come up first
+  const currencies = CURRENCIES.filter((c) => summaries.some((s) => s.currency === c));
+  const currency =
+    view.currency && currencies.includes(view.currency)
+      ? view.currency
+      : (currencies.find((c) => c === "CNY") ?? currencies[0] ?? "CNY");
+  // A ratio or blinds kept from before that the player's games do not have counts as no choice
+  const offered = filterChoices(summaries, currency);
+  const ratio = offered.ratios.find(({ value }) => value === view.ratio)?.value;
+  const blinds = offered.blinds.find(({ value }) => value === view.blinds)?.value;
+  const narrowed = summaries.filter(
+    (s) =>
+      s.currency === currency &&
+      (!ratio || ratioKey(s) === ratio) &&
+      (!blinds || blindsKey(s) === blinds),
+  );
+  const money: Money = (value, signed = false) =>
+    formatGameMoney(value, currency, signed ? "exceptZero" : "auto");
+
+  const points = playerCurve(playerReport(narrowed, playerId, currency).games);
+  const earliest = points[0]?.summary.day ?? today;
   const start = points.findIndex(({ summary }) => summary.day >= (from ?? earliest));
   const shown =
     start < 0 ? [] : points.slice(start).filter(({ summary }) => summary.day <= (to ?? today));
@@ -114,10 +176,15 @@ export function ResultCurve({
   const afters = [0, ...shown.map((point) => point.afterCharges - (before?.afterCharges ?? 0))];
   const result = cents(totals.at(-1) ?? 0);
   const after = cents(afters.at(-1) ?? 0);
-  const wage = cents((end?.wage ?? 0) - (before?.wage ?? 0));
-  const tableFee = cents((end?.tableFee ?? 0) - (before?.tableFee ?? 0));
 
-  const values = withCharges ? [...totals, ...afters] : totals;
+  // Drawn afresh for other days or other games, and the figures run to their new values
+  const drawKey = [from, to, currency, ratio, blinds].join();
+  const drawn = useEntered(drawKey);
+  const resultShown = cents(Math.round(useCountUp(result, { duration: 700 })));
+  const afterShown = cents(Math.round(useCountUp(after, { duration: 700 })));
+
+  // Both lines have their room whether the second shows or not, so ticking it moves nothing
+  const values = [...totals, ...afters];
   const ticks = axisTicks(Math.min(0, ...values), Math.max(0, ...values));
   const [low, high] = [ticks[0] ?? 0, ticks.at(-1) ?? 1];
   // In a box 100 wide and 100 tall, which the chart stretches to its own shape
@@ -127,29 +194,33 @@ export function ResultCurve({
     smoothPath(series.map((value, i) => [x(i), y(value)] as const));
   const tone = toneOf(result) || "text-muted";
   const middle = shown[Math.floor((shown.length - 1) / 2)];
+  const revealClass =
+    "transition-[clip-path] ease-out motion-reduce:transition-none [clip-path:inset(-1rem_100%_-1rem_0)]";
+  const revealed = "[clip-path:inset(-1rem_-1rem_-1rem_0)]";
 
   return (
     <section className="mt-3 rounded-2xl border border-line bg-surface px-4 pt-1 pb-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm text-muted">{t.players.playerPage.curve}</h2>
-        <MiniSwitch
-          label={t.players.playerPage.withCharges}
-          checked={withCharges}
-          onChange={setWithCharges}
-          className="text-sm"
+      <div className="flex items-center justify-between gap-2">
+        {/* The title, then from which day to which: a tap on either opens the days to pick from */}
+        <div className="flex min-w-0 items-center text-sm">
+          <h2 className="shrink-0 text-muted">{t.players.playerPage.curve}</h2>
+          <span className="mx-1.5 text-muted" aria-hidden>
+            ·
+          </span>
+          <DayButton label={t.players.playerPage.rangeStart} onClick={() => setPicking("from")}>
+            {dayName(from ?? earliest)}
+          </DayButton>
+          <span className="mx-1.5 text-muted">{t.players.playerPage.to}</span>
+          <DayButton label={t.players.playerPage.rangeEnd} onClick={() => setPicking("to")}>
+            {to ? dayName(to) : t.players.playerPage.now}
+          </DayButton>
+        </div>
+        <IncomeFilter
+          applied={{ currency, ratio, blinds }}
+          currencies={currencies.length > 0 ? currencies : [currency]}
+          games={summaries}
+          onApply={(filter) => setView(filter)}
         />
-      </div>
-
-      {/* From which day to which: a tap on either opens the days to pick from */}
-      <div className="-mt-1 flex items-center gap-2 text-sm">
-        <span className="text-muted">{t.players.playerPage.from}</span>
-        <DayButton label={t.players.playerPage.rangeStart} onClick={() => setPicking("from")}>
-          {dayName(from ?? earliest)}
-        </DayButton>
-        <span className="text-muted">{t.players.playerPage.to}</span>
-        <DayButton label={t.players.playerPage.rangeEnd} onClick={() => setPicking("to")}>
-          {to ? dayName(to) : t.players.playerPage.now}
-        </DayButton>
       </div>
 
       <div className="flex items-end justify-between gap-3">
@@ -157,29 +228,34 @@ export function ResultCurve({
           <span
             className={cn("text-2xl font-semibold tracking-tight tabular-nums", toneOf(result))}
           >
-            {money(result, true)}
+            {money(
+              resultShown === result ? result : cents(Math.round(resultShown / 100) * 100),
+              true,
+            )}
           </span>
           <span className="text-xs text-muted">{t.players.playerPage.games(shown.length)}</span>
         </p>
-        <p className="flex flex-col items-end text-xs leading-tight tabular-nums">
-          {withCharges && (
-            <span className="text-highlight">
-              {t.players.playerPage.afterCharges} {money(after, true)}
-            </span>
-          )}
-          {wage > 0 && (
-            <span>
-              <span className="mr-1 font-medium text-win">{t.common.dealerWage}</span>
-              {money(wage)}
-            </span>
-          )}
-          {tableFee > 0 && (
-            <span>
-              <span className="mr-1 font-medium text-win">{t.common.timeCharge}</span>
-              {money(tableFee)}
-            </span>
-          )}
-        </p>
+        {/* Always there. Its tick draws it as a second line */}
+        <button
+          type="button"
+          aria-pressed={withCharges}
+          aria-label={t.players.playerPage.showAfterCharges}
+          onClick={() => setWithCharges(!withCharges)}
+          className="flex min-h-11 shrink-0 items-center gap-2 text-sm"
+        >
+          <span className="text-xs text-muted">{t.players.playerPage.afterCharges}</span>
+          <span className="text-highlight tabular-nums">
+            {money(afterShown === after ? after : cents(Math.round(afterShown / 100) * 100), true)}
+          </span>
+          <span
+            className={cn(
+              "grid size-5 place-items-center rounded-md border transition-colors",
+              withCharges ? "border-highlight bg-highlight text-accent-text" : "border-muted",
+            )}
+          >
+            {withCharges && <Check className="size-3.5" strokeWidth={3} aria-hidden />}
+          </span>
+        </button>
       </div>
 
       {shown.length === 0 ? (
@@ -187,7 +263,7 @@ export function ResultCurve({
           {t.players.playerPage.noGames}
         </p>
       ) : (
-        <div className="mt-2 grid grid-cols-[3rem_1fr] grid-rows-[8rem_1.25rem] gap-x-1.5">
+        <div className="grid grid-cols-[3rem_1fr] grid-rows-[8rem_1.25rem] gap-x-1.5">
           {/* A few round amounts up the side */}
           <div className="relative text-[11px] text-muted tabular-nums" aria-hidden>
             {ticks.map((tick) => (
@@ -201,14 +277,31 @@ export function ResultCurve({
             ))}
           </div>
           <div className="relative">
-            {/* Drawn from the left as the page arrives */}
+            <svg
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              className="absolute inset-0 size-full overflow-visible"
+              aria-hidden
+            >
+              {ticks.map((tick) => (
+                <line
+                  key={tick}
+                  x1="0"
+                  x2="100"
+                  y1={y(tick)}
+                  y2={y(tick)}
+                  vectorEffect="non-scaling-stroke"
+                  strokeWidth="1"
+                  // The line of nothing won or lost stands out from the rest
+                  className={tick === 0 ? "stroke-muted/70" : "stroke-line"}
+                  strokeDasharray={tick === 0 ? undefined : "2 4"}
+                />
+              ))}
+            </svg>
+            {/* Made again for other days or games, so it is drawn from the left each time */}
             <div
-              className={cn(
-                "size-full transition-[clip-path] duration-1000 ease-out motion-reduce:transition-none",
-                drawn
-                  ? "[clip-path:inset(-1rem_-1rem_-1rem_0)]"
-                  : "[clip-path:inset(-1rem_100%_-1rem_0)]",
-              )}
+              key={drawKey}
+              className={cn("absolute inset-0 duration-1000", revealClass, drawn && revealed)}
             >
               <svg
                 viewBox="0 0 100 100"
@@ -223,33 +316,8 @@ export function ResultCurve({
                     <stop offset="1" stopColor="currentColor" stopOpacity="0" />
                   </linearGradient>
                 </defs>
-                {ticks.map((tick) => (
-                  <line
-                    key={tick}
-                    x1="0"
-                    x2="100"
-                    y1={y(tick)}
-                    y2={y(tick)}
-                    vectorEffect="non-scaling-stroke"
-                    strokeWidth="1"
-                    // The line of nothing won or lost stands out from the rest
-                    className={tick === 0 ? "stroke-muted/70" : "stroke-line"}
-                    strokeDasharray={tick === 0 ? undefined : "2 4"}
-                  />
-                ))}
                 {/* Shaded between the line and nothing won or lost */}
                 <path d={`${line(totals)} L100 ${y(0)} L0 ${y(0)} Z`} fill={`url(#${fill})`} />
-                {withCharges && (
-                  <path
-                    d={line(afters)}
-                    fill="none"
-                    vectorEffect="non-scaling-stroke"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 3"
-                    strokeLinecap="round"
-                    className="stroke-highlight"
-                  />
-                )}
                 <path
                   d={line(totals)}
                   fill="none"
@@ -267,6 +335,37 @@ export function ResultCurve({
                 )}
                 style={{ top: `${y(result)}%` }}
                 aria-hidden
+              />
+            </div>
+            {/* The line after charges is drawn in from the left when ticked, and back out again */}
+            <div
+              key={`${drawKey}charges`}
+              className={cn(
+                "absolute inset-0 duration-700",
+                revealClass,
+                withCharges && drawn && revealed,
+              )}
+              aria-hidden
+            >
+              <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                className="size-full overflow-visible"
+                aria-hidden
+              >
+                <path
+                  d={line(afters)}
+                  fill="none"
+                  vectorEffect="non-scaling-stroke"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 3"
+                  strokeLinecap="round"
+                  className="stroke-highlight"
+                />
+              </svg>
+              <span
+                className="absolute right-0 size-2 translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface bg-highlight"
+                style={{ top: `${y(after)}%` }}
               />
             </div>
           </div>

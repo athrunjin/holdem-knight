@@ -36,7 +36,7 @@ import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { dayOf } from "@/lib/game-day";
 import { useListReturn } from "@/lib/list-return";
-import { QuietMotion, useCountUp } from "@/lib/motion";
+import { QuietMotion, useCountUp, useQuietArrival } from "@/lib/motion";
 import { periodName } from "@/lib/period-names";
 import { gameNameOf } from "@/lib/player-name";
 import { useStoredState } from "@/lib/stored-state";
@@ -132,6 +132,7 @@ function Transfers({
   const today = dayOf(Date.now());
   // Come back to from a game, the page is where it was left and nothing plays in again
   const returning = useListReturn("/me/transfers");
+  const quiet = useQuietArrival(returning);
   const [view, setView] = useStoredState<View>(
     "transfers.view",
     { done: false, period: "thisMonth" },
@@ -180,7 +181,7 @@ function Transfers({
     ));
 
   return (
-    <QuietMotion value={returning}>
+    <QuietMotion value={quiet}>
       <div className="pb-8">
         <section className={cn(cardClass, "px-4 pt-1 pb-3")}>
           <div className="flex items-center justify-between gap-2">
