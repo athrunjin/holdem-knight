@@ -31,7 +31,7 @@ export interface HistoryView {
 }
 
 export const DEFAULT_HISTORY_VIEW: HistoryView = {
-  period: "all",
+  period: "thisMonth",
   currency: "all",
   onlyUnsettled: false,
   options: GAME_OPTIONS,
@@ -84,17 +84,12 @@ export function parseHistoryState(stored: unknown): HistoryState | undefined {
   };
 }
 
-/** Whether the view leaves out any game: anything but the order it lists them in. */
-export function isFiltered({
-  period,
-  currency,
-  ratio,
-  blinds,
-  onlyUnsettled,
-  options,
-}: HistoryView) {
+/**
+ * Whether the filters leave out any game. The period is no filter: it is chosen in the heading,
+ * where it shows.
+ */
+export function isFiltered({ currency, ratio, blinds, onlyUnsettled, options }: HistoryView) {
   return (
-    period !== "all" ||
     currency !== "all" ||
     ratio !== undefined ||
     blinds !== undefined ||
@@ -108,13 +103,20 @@ export function hasOption(game: Game, option: GameOption) {
 }
 
 /**
- * Whether a settled game still has transfers to be made. Its summary says so from the transfers
- * themselves, each with its tick. Until that is read, the game's own saved mark stands in, which a
+ * Whether a settled game still has transfers to be made, bad debts aside. Its summary says so from
+ * the transfers themselves, each with its tick. Until that is read, the game's own saved mark stands in, which a
  * game brought in from elsewhere may lack.
  */
 export function owesTransfers(game: Game, summary: GameSummary | undefined): boolean {
   if (game.status !== "settled") return false;
-  return summary ? summary.transfers.some(({ done }) => !done) : gameStage(game) === "pending";
+  return summary
+    ? summary.transfers.some(({ done, bad }) => !done && !bad)
+    : gameStage(game) === "pending";
+}
+
+/** Whether a settled game has a transfer set down as a bad debt. */
+export function hasBadDebt(summary: GameSummary | undefined): boolean {
+  return summary?.transfers.some(({ done, bad }) => !done && bad) ?? false;
 }
 
 const settledIn = (games: readonly Game[], view: HistoryView, today: string) => {

@@ -1659,6 +1659,26 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do, as [ADR 0049](adr/0049-settled-games-keep-a-summary.md). Income is counted as due at settlement, from settled games only; insurance only where its result is the organizer's; the organizer's own play is not income; a game belongs to the day it started. Income not received is what is owed to the organizer in transfers not marked, up to the game's income, since no transfer is the income itself. A custom range of days, a page of transfers across games and a player's history are left for later steps.
 - Tracking: no issue yet
 
+### #I-089 转账 on 我的: what is still to come in and to go out, by person
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-24
+- Source: the organizer, as the second of the host's pages
+- Problem: what is still owed after a game could only be read one settlement page at a time, or as one figure on 收益. Nothing said who owes how much over several games, or since when.
+- Proposal: a page 转账, reached from a line on 我的 that shows what is still to come in. The transfers still to make, or the ones made within a period, each with the number of transfers behind it; a currency where games are in more than one. What is to come in as the page's figure, with what is to go out under it. Then each person: how many games, since which day, in red past 7 days, and the balance between them and the organizer. Someone with one transfer has its tick on their row; with more, a tap unfolds the transfers, each with its game's day and blinds, which lead to the settlement page and back, and its tick. A tick saves nothing by itself: a button comes out under the ticked lines, and once it is tapped they leave the list and are saved. Transfers the organizer is no part of are listed apart, folded, in neither total.
+- Decision: do. A person's balance is shown net, and the ticks stay one to a transfer: nothing is set off against anything by itself. A tick now keeps when it was made (`doneAt` on a game's marked transfers and in its summary), for what the page says of a transfer made and for a player's history later; ticks from before have no time. Part payments and reminders are left out.
+- Tracking: no issue yet
+
+### #I-090 Bad debts: transfers that will not come in for now
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-24
+- Source: the organizer, on the preview of #I-089
+- Problem: a transfer nobody expects any time soon stayed among the ones to come in for good, in the amount due and on its game as 未结清, with no way to set it aside short of ticking it as made.
+- Proposal: on 转账 the buttons that come out under ticked lines are two. At the right, in green, 确认完成. At the left, in red, 记为坏账, there only while every ticked line is owed to the organizer: a payment of the organizer's own is never one, nor a transfer between players. Bad debts leave the amount due and are kept folded at the foot of the page, by person, with the day they were set down; from there one is confirmed as made after all, or put back among the ones to come in. A game's row has 坏账 in red in its corner, after 未结清 where it has both and alone in its place otherwise. On 收益 bad debts are the red end of the bar, with a line under what is still out, and are in neither what is in nor what is still out. On the settlement page the transfer is tagged, and a tick there takes the tag off. Each line of 转账 has an icon after its blinds that leads to the settlement page, opened at its transfers; nothing else on the line leads anywhere.
+- Decision: do. A bad debt is kept on the game beside its ticks (`badTransfers`, with the time), and in its summary. It is no income lost for good: nothing is written off, the total due stays, and it comes back by one tap. A game with only bad debts left is not unsettled, so 未结清 on the games page does not list it. Opening a game's results again clears its bad debts with its ticks, since the transfers follow the results. A bad debt is set down on 转账 and nowhere else, so the games page has no filter for it. It is the last state a transfer can have: writing one off for good is not planned. Left for later: a player's bad debts on their own page.
+- Tracking: no issue yet
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

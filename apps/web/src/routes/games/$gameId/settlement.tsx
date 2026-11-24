@@ -61,8 +61,8 @@ import { netTone } from "@/lib/tone";
 export const Route = createFileRoute("/games/$gameId/settlement")({
   component: SettlementPage,
   // Opened from 收益, the page leads back there instead of to the table
-  validateSearch: (search: Record<string, unknown>): { from?: "income" } =>
-    search.from === "income" ? { from: "income" } : {},
+  validateSearch: (search: Record<string, unknown>): { from?: "income" | "transfers" } =>
+    search.from === "income" || search.from === "transfers" ? { from: search.from } : {},
 });
 
 /**
@@ -239,7 +239,17 @@ function SettlementResult({
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
   // A game with insurance or charges opens on its transfers, which then go through the organizer
-  const [transfersOpen, setTransfersOpen] = useState(() => hasGameRules(game));
+  const { from } = Route.useSearch();
+  // A game with insurance or charges opens on its transfers, and so does one opened from 转账
+  const [transfersOpen, setTransfersOpen] = useState(
+    () => from === "transfers" || hasGameRules(game),
+  );
+  // Reached from 转账, the page starts at its foot, where the transfers are
+  useEffect(() => {
+    if (from !== "transfers") return;
+    const frame = requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+    return () => cancelAnimationFrame(frame);
+  }, [from]);
   const [revising, setRevising] = useState(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const manageRef = useRef<HTMLButtonElement>(null);
@@ -597,8 +607,6 @@ function SettlementResult({
     else revise();
   }
 
-  const { from } = Route.useSearch();
-
   function handleConfirm() {
     onNudge(undefined);
     saveGame.mutate(filed(settleGame(game, Date.now())));
@@ -697,7 +705,7 @@ function SettlementResult({
             collectorId={collectorId}
             nameOf={nameOf}
             disabled={saveGame.isPending}
-            fromIncome={from === "income"}
+            backTo={from}
             sharing={sharing}
             // A transfer's image is the player's own result, to send to them: the payer's, or
             // the receiver's where the organizer is the one who pays
@@ -705,7 +713,9 @@ function SettlementResult({
               handleShare(transfer?.from === ORGANIZER_COLLECTOR ? transfer.to : transfer?.from)
             }
             onChoosePlan={(next) => saveGame.mutate(filed(chooseCollector(game, next)))}
-            onMark={(marked, done) => saveGame.mutate(filed(markTransfers(game, marked, done)))}
+            onMark={(marked, done) =>
+              saveGame.mutate(filed(markTransfers(game, marked, done, Date.now())))
+            }
             onUnsettled={() => point("confirm")}
           />
         )}

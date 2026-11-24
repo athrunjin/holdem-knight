@@ -9,10 +9,13 @@ import { cents, sum } from "../money";
 import {
   attributeInsurance,
   attributeRake,
+  badDebtAt,
   chipDifference,
   collectorTransfers,
+  isBadDebt,
   isTransferDone,
   isValidCollector,
+  markBadDebts,
   markTransfers,
   netCents,
   ORGANIZER_COLLECTOR,
@@ -20,6 +23,7 @@ import {
   settlementOutcome,
   settleTransfers,
   transferCollector,
+  transferDoneAt,
 } from "./settlement";
 
 const ledger = (playerId: string, boughtChips: number, cashedOutChips: number): PlayerLedger => ({
@@ -223,6 +227,34 @@ describe("markTransfers", () => {
     const marked = markTransfers(markTransfers(game, [first], true), [first, second], true);
     expect(marked.doneTransfers).toEqual([first, second]);
     expect(markTransfers(marked, [first, second], false)).toEqual(game);
+  });
+
+  it("keeps when each was marked, and the first time for one marked again", () => {
+    const marked = markTransfers(markTransfers(game, [first], true, 10), [first, second], true, 20);
+    expect(transferDoneAt(marked, first)).toBe(10);
+    expect(transferDoneAt(marked, second)).toBe(20);
+    expect(transferDoneAt(game, first)).toBeUndefined();
+    // A mark with no time stays one
+    expect(transferDoneAt(markTransfers(game, [first], true), first)).toBeUndefined();
+  });
+
+  it("sets down what is owed to the organizer as a bad debt, and nothing else", () => {
+    const owed = { from: "a", to: ORGANIZER_COLLECTOR, amount: cents(100) };
+    const paid = { from: ORGANIZER_COLLECTOR, to: "b", amount: cents(50) };
+    const bad = markBadDebts(game, [owed, paid, first], true, 30);
+    expect(isBadDebt(bad, owed)).toBe(true);
+    expect(badDebtAt(bad, owed)).toBe(30);
+    expect(isBadDebt(bad, paid)).toBe(false);
+    expect(isBadDebt(bad, first)).toBe(false);
+    expect(markBadDebts(bad, [owed], false)).toEqual(game);
+  });
+
+  it("takes a bad debt off once it is made after all, and sets down none that is made", () => {
+    const owed = { from: "a", to: ORGANIZER_COLLECTOR, amount: cents(100) };
+    const made = markTransfers(markBadDebts(game, [owed], true, 30), [owed], true, 40);
+    expect(isBadDebt(made, owed)).toBe(false);
+    expect(made.badTransfers).toBeUndefined();
+    expect(isBadDebt(markBadDebts(made, [owed], true, 50), owed)).toBe(false);
   });
 
   it("does not carry a mark to the same people for another amount", () => {

@@ -1,4 +1,4 @@
-import { INCOME_ITEMS, incomeReport, periodOf } from "@holdem-knight/core";
+import { INCOME_ITEMS, incomeReport, periodOf, transferReport } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { AccountCard } from "@/components/account/AccountCard";
@@ -94,6 +94,38 @@ function LanguageRow() {
  * The way in to what the games brought in, with this month's total in the currency of the newest
  * game. The books it reads are the ones in use, a guest's as much as an account's.
  */
+/** Leads to the transfers across games, with what is still to come in, in the newest game's currency. */
+function TransfersRow() {
+  const { data: summaries = [] } = useGameSummaries();
+  const newest = summaries.reduce<(typeof summaries)[number] | undefined>(
+    (a, b) => (a && a.startedAt >= b.startedAt ? a : b),
+    undefined,
+  );
+  const open = newest && transferReport(summaries, { currency: newest.currency, state: "open" });
+
+  return (
+    <Link
+      to="/me/transfers"
+      className={`${cardClass} mt-2 flex min-h-11 items-center justify-between gap-3 py-3`}
+    >
+      <span className="shrink-0 font-medium">{t.me.transfers.title}</span>
+      <span className="flex min-w-0 items-center gap-2 text-sm text-muted">
+        {open && newest && (
+          <>
+            <span className="shrink-0">{t.me.transfers.toCome}</span>
+            <span
+              className={`truncate tabular-nums ${open.toOrganizer > 0 ? "text-highlight" : "text-text"}`}
+            >
+              {formatGameMoney(open.toOrganizer, newest.currency)}
+            </span>
+          </>
+        )}
+        <ChevronRight className="size-4 shrink-0" aria-hidden />
+      </span>
+    </Link>
+  );
+}
+
 function IncomeRow() {
   const { data: summaries = [] } = useGameSummaries();
   const newest = summaries.reduce<(typeof summaries)[number] | undefined>(
@@ -142,6 +174,7 @@ function MePage() {
       {/* While the kept session is being read, the card's place stays empty for a moment */}
       {session.status === "loading" && <section className={`${cardClass} min-h-40`} />}
       <IncomeRow />
+      <TransfersRow />
       <LanguageRow />
       <BackupSection account={session.status === "signed-in"} />
       <p className="mt-6 text-center text-xs text-muted">{t.me.version(__APP_VERSION__)}</p>

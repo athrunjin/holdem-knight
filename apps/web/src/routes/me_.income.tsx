@@ -165,7 +165,7 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   const today = dayOf(Date.now());
   // Come back to from a game, the page is where it was left and nothing plays in again
   const returning = useListReturn("/me/income");
-  const [view, setView] = useStoredState<View>("income.view", { period: "thisWeek" }, parseView);
+  const [view, setView] = useStoredState<View>("income.view.2", { period: "thisMonth" }, parseView);
   const [items, setItems] = useStoredState<readonly IncomeItem[]>(
     "income.items",
     INCOME_ITEMS,
@@ -173,11 +173,16 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   );
   const { data: games } = useGames();
 
-  // The currencies there are games in, in the app's own order. The newest game's comes up first
+  // The currencies there are games in, in the app's own order. Panda points come up first, and
+  // the newest game's currency where there are none
   const currencies = CURRENCIES.filter((c) => summaries.some((s) => s.currency === c));
   const newest = summaries.reduce((a, b) => (b.startedAt > a.startedAt ? b : a));
   const currency =
-    view.currency && currencies.includes(view.currency) ? view.currency : newest.currency;
+    view.currency && currencies.includes(view.currency)
+      ? view.currency
+      : currencies.includes("CNY")
+        ? "CNY"
+        : newest.currency;
 
   const period = view.period;
   const days = periodOf(period, today);
@@ -306,9 +311,20 @@ function Breakdown({
   money: Money;
   onToggle: (item: IncomeItem) => void;
 }) {
-  const { total, received, unreceived, unreceivedGames, byItem, gamesByItem, absorbed } = report;
+  const {
+    total,
+    received,
+    unreceived,
+    unreceivedGames,
+    badDebt,
+    badDebtGames,
+    byItem,
+    gamesByItem,
+    absorbed,
+  } = report;
   const share = total > 0 ? Math.min(100, Math.max(0, (received / total) * 100)) : 0;
-  const allIn = total > 0 && unreceived === 0;
+  const allIn = total > 0 && unreceived === 0 && badDebt === 0;
+  const badShare = total > 0 ? Math.min(100 - share, Math.max(0, (badDebt / total) * 100)) : 0;
 
   // All of it plays in together and is there in about a second and a quarter: the total counts
   // up while the ring turns in, the items come down beside it and the bar runs out with what is
@@ -319,6 +335,9 @@ function Breakdown({
   const play = { duration: PLAY_MS, resetKey: playKey };
   const totalShown = useCountUp(total, play);
   const shareShown = useCountUp(share, play);
+  // How far the bar has run, from 0 to 100, for what runs in with it
+  const barRun = useCountUp(100, play);
+  const badDebtShown = useCountUp(badDebt, play);
   const receivedShown = useCountUp(received, play);
   const unreceivedShown = useCountUp(unreceived, play);
   const unreceivedGamesShown = Math.round(useCountUp(unreceivedGames, play));
@@ -395,8 +414,15 @@ function Breakdown({
       </div>
 
       {/* How much of the total is in. An empty bar where nothing is due */}
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--line)]" aria-hidden>
+      <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-[var(--line)]" aria-hidden>
         <div className="h-full rounded-full bg-accent" style={{ width: `${shareShown}%` }} />
+        {/* Bad debts stand at the far end, in red: what will not come in for now */}
+        {badDebt > 0 && (
+          <div
+            className="absolute inset-y-0 right-0 rounded-full bg-loss"
+            style={{ width: `${(badShare * barRun) / 100}%` }}
+          />
+        )}
       </div>
       {allIn ? (
         // Nothing still out: one line, which turns green with a tick once the bar has run
@@ -434,6 +460,14 @@ function Breakdown({
             )}
           </p>
         </div>
+      )}
+      {/* Under what is still out: what is set down as not coming in for now */}
+      {badDebt > 0 && (
+        <p className="-mt-2 flex min-h-9 items-center justify-end gap-2 text-sm whitespace-nowrap">
+          <span className="text-muted">{t.common.badDebt}</span>
+          <span className="text-loss tabular-nums">{figure(badDebtShown, badDebt)}</span>
+          <span className="text-muted">· {t.me.income.badDebtGames(badDebtGames)}</span>
+        </p>
       )}
 
       {/* Only where there was a difference, opening from its rule once the rest is in */}
@@ -556,8 +590,8 @@ function Trend({
   money: Money;
 }) {
   const [{ span, items: shown }, setBars] = useStoredState<BarsView>(
-    "income.bars",
-    { span: "weeks4", items: INCOME_ITEMS },
+    "income.bars.2",
+    { span: "months4", items: INCOME_ITEMS },
     parseBars,
   );
   const series = incomeSeries(summaries, currency, trendPeriods(span, today));
@@ -675,7 +709,8 @@ function BarItem({
       disabled={absent}
       onClick={onToggle}
       className={cn(
-        "flex min-h-11 flex-col items-start justify-center px-1.5 text-sm",
+        // The figure ends where the name does, and may run back under the dot
+        "flex min-h-11 flex-col items-end justify-center px-1.5 text-sm",
         !lit && "text-muted",
       )}
     >
@@ -691,7 +726,7 @@ function BarItem({
       </span>
       <span
         className={cn(
-          "pl-4 text-[11px] leading-tight tabular-nums",
+          "text-[11px] leading-tight tabular-nums",
           lit && total < 0 ? "text-loss" : "text-muted",
         )}
       >
