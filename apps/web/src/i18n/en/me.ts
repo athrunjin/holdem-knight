@@ -89,7 +89,6 @@ export const me: Messages["me"] = {
     absorbed: "Difference covered",
     kept: "Difference kept",
     absorbedNote: "not part of the four above",
-    trend: "By item",
     span: "Period",
     spans: { weeks4: "Past 4 weeks", months4: "Last 4 months" },
     barShown: (name) => `Show ${name}`,

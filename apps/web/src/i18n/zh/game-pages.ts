@@ -66,6 +66,10 @@ export const gamePages = {
   list: {
     all: "全部",
     unsettled: "未结清",
+    asPlayer: "下场",
+    shared: "分摊",
+    showRevenue: "展开营收明细",
+    hideRevenue: "收起营收明细",
     settled: "已结清",
     pastWeek: "过去一周",
     pastMonth: "过去一个月",

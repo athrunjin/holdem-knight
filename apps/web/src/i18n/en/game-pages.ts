@@ -71,6 +71,10 @@ export const gamePages: Messages["gamePages"] = {
   list: {
     all: "All",
     unsettled: "Unsettled",
+    asPlayer: "As player",
+    shared: "Split",
+    showRevenue: "Show the revenue",
+    hideRevenue: "Hide the revenue",
     settled: "Settled",
     pastWeek: "Past week",
     pastMonth: "Past month",

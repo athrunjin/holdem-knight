@@ -83,7 +83,6 @@ export const me = {
     absorbed: "承担差额",
     kept: "收取差额",
     absorbedNote: "不计入四项收入",
-    trend: "各项收入",
     span: "时间",
     spans: { weeks4: "过去四周", months4: "近 4 个月" },
     barShown: (name: string) => `显示${name}`,

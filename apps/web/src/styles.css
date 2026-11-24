@@ -116,8 +116,9 @@
     }
   }
 
-  /* A line opening downward from the rule over it. It is clipped while it opens */
+  /* A line opening downward from what is over it, and closing back up. It is clipped meanwhile */
   --animate-unfold: unfold 0.35s ease-out both;
+  --animate-fold: unfold 0.25s ease-in both reverse;
 
   @keyframes unfold {
     from {

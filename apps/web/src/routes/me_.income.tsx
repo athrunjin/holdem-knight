@@ -64,6 +64,9 @@ const ITEM_FILLS: Record<IncomeItem, { readonly dot: string; readonly stroke: st
   rake: { dot: "bg-[#6aa9e9]", stroke: "stroke-[#6aa9e9]" },
 };
 /** Insurance that lost over the games shown */
+/** How long the total's card takes to play in, in milliseconds */
+const PLAY_MS = 1250;
+
 const LOSS_FILL = { dot: "bg-loss", stroke: "stroke-loss" };
 
 /** The items counted, as this browser keeps them. Anything else kept gives way to all four. */
@@ -308,19 +311,18 @@ function Breakdown({
   const share = total > 0 ? Math.min(100, Math.max(0, (received / total) * 100)) : 0;
   const allIn = total > 0 && unreceived === 0;
 
-  // The total counts up while the ring turns in and the items come down beside it. Then the bar
-  // runs out with what is in, then what is still out, and last the differences open under it
-  // Whole amounts on the way, and the cents only of the amount arrived at
+  // All of it plays in together and is there in about a second and a quarter: the total counts
+  // up while the ring turns in, the items come down beside it and the bar runs out with what is
+  // in and what is still out. The differences open under it as the rest arrives
   const figure = (value: number, end: Cents) =>
     money(value === end ? end : cents(Math.round(value / 100) * 100));
-  const totalShown = useCountUp(total, { duration: 800, resetKey: playKey });
-  const bar = { duration: 600, delay: 700, resetKey: playKey };
-  const shareShown = useCountUp(share, bar);
-  const receivedShown = useCountUp(received, bar);
-  const after = { duration: 500, delay: 1300, resetKey: playKey };
-  const unreceivedShown = useCountUp(unreceived, after);
-  const unreceivedGamesShown = Math.round(useCountUp(unreceivedGames, after));
-  const barDone = useCountUp(1, { duration: 1, delay: 1300, resetKey: playKey }) >= 1;
+  const play = { duration: PLAY_MS, resetKey: playKey };
+  const totalShown = useCountUp(total, play);
+  const shareShown = useCountUp(share, play);
+  const receivedShown = useCountUp(received, play);
+  const unreceivedShown = useCountUp(unreceived, play);
+  const unreceivedGamesShown = Math.round(useCountUp(unreceivedGames, play));
+  const barDone = useCountUp(1, { duration: 1, delay: PLAY_MS, resetKey: playKey }) >= 1;
 
   return (
     <section className={cn(cardClass, "px-4 pt-1 pb-3")}>
@@ -347,7 +349,7 @@ function Breakdown({
               <li
                 key={item + playKey}
                 className="animate-settle motion-reduce:animate-none"
-                style={{ animationDelay: `${100 + index * 130}ms` }}
+                style={{ animationDelay: `${150 + index * 200}ms` }}
               >
                 <button
                   type="button"
@@ -433,7 +435,7 @@ function Breakdown({
         <div
           key={playKey}
           className="-mb-3 animate-unfold overflow-hidden motion-reduce:animate-none"
-          style={{ animationDelay: "1800ms" }}
+          style={{ animationDelay: `${PLAY_MS - 250}ms` }}
         >
           <div className="flex min-h-11 items-center justify-between gap-3 border-t border-line text-sm">
             <p>
@@ -469,15 +471,20 @@ function IncomeRing({
   playKey: string;
 }) {
   // How far round the rings are drawn so far: they turn in from the top
-  const drawn = useCountUp(1, { duration: 800, resetKey: playKey });
-  const games = Math.round(useCountUp(report.games.length, { duration: 800, resetKey: playKey }));
+  const drawn = useCountUp(1, { duration: PLAY_MS, resetKey: playKey });
+  const games = Math.round(
+    useCountUp(report.games.length, { duration: PLAY_MS, resetKey: playKey }),
+  );
+  // Each item's arc runs to its length, so one ticked fills in and one unticked shrinks away
   const amount = (item: IncomeItem) => (items.includes(item) ? report.byItem[item] : 0);
-  const outer = (["wage", "tableFee", "rake"] as const).map((item) => ({
-    item,
-    amount: Math.max(0, amount(item)),
-  }));
+  const change = { duration: 500 };
+  const outer = [
+    { item: "wage" as const, amount: useCountUp(Math.max(0, amount("wage")), change) },
+    { item: "tableFee" as const, amount: useCountUp(Math.max(0, amount("tableFee")), change) },
+    { item: "rake" as const, amount: useCountUp(Math.max(0, amount("rake")), change) },
+  ];
   const taken = outer.reduce((all, part) => all + part.amount, 0);
-  const insurance = amount("insurance");
+  const insurance = useCountUp(amount("insurance"), change);
   const scale = Math.max(taken, Math.abs(insurance));
   const turn = (scale > 0 ? Math.abs(insurance) / scale : 0) * drawn;
   let start = 0;
@@ -577,51 +584,34 @@ function Trend({
 
   return (
     <section className={cn(cardClass, "mt-3 px-4 pt-2 pb-3")}>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm text-muted">{t.me.income.trend}</h2>
+      {/* The items, each over what it came to in these bars, then how the bars are cut */}
+      <div className="flex items-start justify-between gap-1">
+        <div className="-ml-1.5 flex min-w-0 flex-wrap">
+          {INCOME_ITEMS.map((item) => (
+            <BarItem
+              key={item}
+              item={item}
+              total={series.reduce((all, { byItem }) => all + byItem[item], 0)}
+              lit={on(item)}
+              absent={!there(item)}
+              playKey={playKey}
+              onToggle={() =>
+                setBars({
+                  span,
+                  items: INCOME_ITEMS.filter((i) => (i === item ? !on(i) : shown.includes(i))),
+                })
+              }
+            />
+          ))}
+        </div>
         <TextMenu
           label={t.me.income.span}
           options={TREND_SPANS.map((value) => ({ value, label: t.me.income.spans[value] }))}
           value={span}
           onChange={(value) => setBars({ span: value, items: shown })}
           align="right"
-          className="text-sm"
+          className="shrink-0 text-sm whitespace-nowrap"
         />
-      </div>
-      <div className="flex flex-wrap gap-x-1">
-        {INCOME_ITEMS.map((item) => {
-          const absent = !there(item);
-          const lit = on(item);
-          return (
-            <button
-              key={item}
-              type="button"
-              aria-pressed={lit}
-              aria-label={t.me.income.barShown(ITEM_NAMES[item])}
-              disabled={absent}
-              onClick={() =>
-                setBars({
-                  span,
-                  items: INCOME_ITEMS.filter((i) => (i === item ? !lit : shown.includes(i))),
-                })
-              }
-              className={cn(
-                "flex min-h-11 items-center gap-1.5 px-1.5 text-sm",
-                !lit && "text-muted",
-                absent && "line-through",
-              )}
-            >
-              <span
-                className={cn(
-                  "size-2.5 shrink-0 rounded-full",
-                  lit ? ITEM_FILLS[item].dot : "border border-muted",
-                )}
-                aria-hidden
-              />
-              {ITEM_NAMES[item]}
-            </button>
-          );
-        })}
       </div>
 
       <ul className="mt-1 grid grid-cols-4 gap-1">
@@ -641,6 +631,59 @@ function Trend({
         ))}
       </ul>
     </section>
+  );
+}
+
+/** An item of the bars: a tap shows or hides it, and under its name is what it came to. */
+function BarItem({
+  item,
+  total,
+  lit,
+  absent,
+  playKey,
+  onToggle,
+}: {
+  item: IncomeItem;
+  /** Over all the bars, whether it shows or not */
+  total: number;
+  lit: boolean;
+  /** None of the bars has it: struck out, and not for tapping */
+  absent: boolean;
+  playKey: string;
+  onToggle: () => void;
+}) {
+  const figure = Math.round(useCountUp(total, { duration: 500, resetKey: playKey }) / 100);
+  return (
+    <button
+      type="button"
+      aria-pressed={lit}
+      aria-label={t.me.income.barShown(ITEM_NAMES[item])}
+      disabled={absent}
+      onClick={onToggle}
+      className={cn(
+        "flex min-h-11 flex-col items-start justify-center px-1.5 text-sm",
+        !lit && "text-muted",
+      )}
+    >
+      <span className={cn("flex items-center gap-1.5", absent && "line-through")}>
+        <span
+          className={cn(
+            "size-2.5 shrink-0 rounded-full",
+            lit ? ITEM_FILLS[item].dot : "border border-muted",
+          )}
+          aria-hidden
+        />
+        {ITEM_NAMES[item]}
+      </span>
+      <span
+        className={cn(
+          "pl-4 text-[11px] leading-tight tabular-nums",
+          lit && total < 0 ? "text-loss" : "text-muted",
+        )}
+      >
+        {absent ? "—" : figure.toLocaleString("en-US")}
+      </span>
+    </button>
   );
 }
 
