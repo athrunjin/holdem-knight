@@ -1,7 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 const still = () =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * True under a page that is being come back to: what it shows first is there at once, as it was
+ * left, and only what changes after that moves.
+ */
+export const QuietMotion = createContext(false);
+
+/**
+ * Whether what shows under a key plays in. Not for the key a page come back to opens with, and
+ * not with motion turned down on the device.
+ */
+export function usePlaysIn(key: string): boolean {
+  const quiet = useContext(QuietMotion);
+  const first = useRef(key);
+  return !(still() || (quiet && first.current === key));
+}
 
 interface CountUp {
   /** How long the run to a new figure takes, in milliseconds */
@@ -21,11 +37,13 @@ export function useCountUp(
   target: number,
   { duration = 600, delay = 0, resetKey = "" }: CountUp = {},
 ): number {
-  const [shown, setShown] = useState({ key: resetKey, value: 0 });
-  const value = useRef(0);
+  // A page come back to opens on the figure itself
+  const quiet = useContext(QuietMotion);
+  const [shown, setShown] = useState({ key: resetKey, value: quiet ? target : 0 });
+  const value = useRef(quiet ? target : 0);
   // The key the figure last moved under. One it has not moved under yet starts from 0, also when
   // the effect is run again before its wait is over
-  const moved = useRef<string>(undefined);
+  const moved = useRef<string | undefined>(quiet ? resetKey : undefined);
 
   useEffect(() => {
     const fresh = moved.current !== resetKey;
@@ -60,7 +78,8 @@ export function useCountUp(
  * painted: what a transition from nothing needs to start from.
  */
 export function useEntered(key: string): boolean {
-  const [entered, setEntered] = useState<string>();
+  const quiet = useContext(QuietMotion);
+  const [entered, setEntered] = useState(quiet ? key : undefined);
   useEffect(() => {
     let second = 0;
     const first = requestAnimationFrame(() => {

@@ -34,7 +34,8 @@ import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { dayOf } from "@/lib/game-day";
 import { blindsKey, filterChoices, ratioKey } from "@/lib/income-filter";
-import { useCountUp, useEntered } from "@/lib/motion";
+import { useListReturn } from "@/lib/list-return";
+import { QuietMotion, useCountUp, useEntered, usePlaysIn } from "@/lib/motion";
 import { periodName } from "@/lib/period-names";
 import { useStoredState } from "@/lib/stored-state";
 
@@ -162,6 +163,8 @@ function IncomePage() {
 
 function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   const today = dayOf(Date.now());
+  // Come back to from a game, the page is where it was left and nothing plays in again
+  const returning = useListReturn("/me/income");
   const [view, setView] = useStoredState<View>("income.view", { period: "thisWeek" }, parseView);
   const [items, setItems] = useStoredState<readonly IncomeItem[]>(
     "income.items",
@@ -242,37 +245,41 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   );
 
   return (
-    <div className="pb-8">
-      <Breakdown
-        // What is shown comes in afresh for another period or other games, not for an item ticked
-        playKey={[period, currency, ratio, blinds].join()}
-        header={header}
-        report={report}
-        items={items}
-        money={money}
-        onToggle={(item) =>
-          setItems(
-            INCOME_ITEMS.filter((i) => (i === item ? !items.includes(i) : items.includes(i))),
-          )
-        }
-      />
-      <Trend summaries={narrowed} currency={currency} today={today} money={money} />
+    <QuietMotion value={returning}>
+      <div className="pb-8">
+        <Breakdown
+          // What is shown comes in afresh for another period or other games, not for an item ticked
+          playKey={[period, currency, ratio, blinds].join()}
+          header={header}
+          report={report}
+          items={items}
+          money={money}
+          onToggle={(item) =>
+            setItems(
+              INCOME_ITEMS.filter((i) => (i === item ? !items.includes(i) : items.includes(i))),
+            )
+          }
+        />
+        <Trend summaries={narrowed} currency={currency} today={today} money={money} />
 
-      {/* The games with income still to come in, as the games page lists them */}
-      {owing.length > 0 && (
-        <section className="mt-5">
-          <h2 className="flex min-h-11 items-center font-medium">
-            {t.me.income.unreceivedTitle}
-            <span className="ml-2 text-sm font-normal text-muted tabular-nums">{owing.length}</span>
-          </h2>
-          <ul className="flex flex-col gap-2">
-            {owing.map((game) => (
-              <GameListRow key={game.id} game={game} fromIncome />
-            ))}
-          </ul>
-        </section>
-      )}
-    </div>
+        {/* The games with income still to come in, as the games page lists them */}
+        {owing.length > 0 && (
+          <section className="mt-5">
+            <h2 className="flex min-h-11 items-center font-medium">
+              {t.me.income.unreceivedTitle}
+              <span className="ml-2 text-sm font-normal text-muted tabular-nums">
+                {owing.length}
+              </span>
+            </h2>
+            <ul className="flex flex-col gap-2">
+              {owing.map((game) => (
+                <GameListRow key={game.id} game={game} fromIncome />
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+    </QuietMotion>
   );
 }
 
@@ -308,6 +315,7 @@ function Breakdown({
   // in and what is still out. The differences open under it as the rest arrives
   const figure = (value: number, end: Cents) =>
     money(value === end ? end : cents(Math.round(value / 100) * 100));
+  const playsIn = usePlaysIn(playKey);
   const play = { duration: PLAY_MS, resetKey: playKey };
   const totalShown = useCountUp(total, play);
   const shareShown = useCountUp(share, play);
@@ -340,7 +348,7 @@ function Breakdown({
             return (
               <li
                 key={item + playKey}
-                className="animate-settle motion-reduce:animate-none"
+                className={cn(playsIn && "animate-settle")}
                 style={{ animationDelay: `${150 + index * 200}ms` }}
               >
                 <button
@@ -400,7 +408,13 @@ function Breakdown({
         >
           <span className={cn(!barDone && "text-muted")}>{t.me.income.receivedAll}</span>
           <span className="tabular-nums">{figure(receivedShown, received)}</span>
-          {barDone && <Check className="size-4 animate-appear" strokeWidth={2.5} aria-hidden />}
+          {barDone && (
+            <Check
+              className={cn("size-4", playsIn && "animate-appear")}
+              strokeWidth={2.5}
+              aria-hidden
+            />
+          )}
         </p>
       ) : (
         <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 text-sm">
@@ -426,7 +440,7 @@ function Breakdown({
       {absorbed !== 0 && (
         <div
           key={playKey}
-          className="-mb-3 animate-unfold overflow-hidden motion-reduce:animate-none"
+          className={cn("-mb-3 overflow-hidden", playsIn && "animate-unfold")}
           style={{ animationDelay: `${PLAY_MS - 250}ms` }}
         >
           <div className="flex min-h-11 items-center justify-between gap-3 border-t border-line text-sm">
@@ -463,6 +477,7 @@ function IncomeRing({
   playKey: string;
 }) {
   // How far round the rings are drawn so far: they turn in from the top
+  const playsIn = usePlaysIn(playKey);
   const drawn = useCountUp(1, { duration: PLAY_MS, resetKey: playKey });
   const games = Math.round(
     useCountUp(report.games.length, { duration: PLAY_MS, resetKey: playKey }),
@@ -488,7 +503,7 @@ function IncomeRing({
         role="img"
         aria-label={t.me.income.ring}
         key={playKey}
-        className="size-full -rotate-90 animate-appear motion-reduce:animate-none"
+        className={cn("size-full -rotate-90", playsIn && "animate-appear")}
       >
         <circle cx="50" cy="50" r="44" fill="none" strokeWidth="9" className="stroke-line" />
         <circle cx="50" cy="50" r="33" fill="none" strokeWidth="6" className="stroke-line/60" />

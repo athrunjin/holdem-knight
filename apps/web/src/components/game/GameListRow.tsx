@@ -1,11 +1,4 @@
-import {
-  type Cents,
-  cents,
-  type Game,
-  type GameSummary,
-  gameStage,
-  INCOME_ITEMS,
-} from "@holdem-knight/core";
+import { type Cents, cents, type Game, type GameSummary, INCOME_ITEMS } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
@@ -14,6 +7,8 @@ import { useGameSummaries } from "@/data/summaries";
 import { localeTag, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
+import { owesTransfers } from "@/lib/game-history";
+import { leaveList } from "@/lib/list-return";
 import { GameOptions, OPTION_MARKS } from "./GameOptions";
 
 /** The day a game started, as 26/7/21 */
@@ -69,10 +64,10 @@ function revenueOf(summary: GameSummary) {
  * its top left corner. Opened from the income page, its results lead back there.
  */
 export function GameListRow({ game, fromIncome = false }: { game: Game; fromIncome?: boolean }) {
-  const owed = gameStage(game) === "pending";
   const { data: summaries } = useGameSummaries();
   // Only a settled game has one
   const summary = summaries?.find(({ id }) => id === game.id);
+  const owed = owesTransfers(game, summary);
   const revenue = summary && revenueOf(summary);
   const [open, setOpen] = useState(false);
   // Still in the page while the parts close up
@@ -112,6 +107,8 @@ export function GameListRow({ game, fromIncome = false }: { game: Game; fromInco
           to={game.status === "open" ? "/games/$gameId" : "/games/$gameId/settlement"}
           params={{ gameId: game.id }}
           {...(fromIncome && { search: { from: "income" as const } })}
+          // The list is come back to where it was left
+          onClick={leaveList}
           // The whole frame opens the game, but for the button over it
           className="flex min-w-0 flex-wrap items-baseline gap-x-2 after:absolute after:inset-0 after:rounded-xl"
         >

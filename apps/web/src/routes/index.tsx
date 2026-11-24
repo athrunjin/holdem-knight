@@ -9,6 +9,7 @@ import { InDevelopment } from "@/components/InDevelopment";
 import { Page } from "@/components/Page";
 import { TextMenu } from "@/components/TextMenu";
 import { useGames } from "@/data/games";
+import { useGameSummaries } from "@/data/summaries";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { dayOf } from "@/lib/game-day";
@@ -21,6 +22,7 @@ import {
   isFiltered,
   parseHistoryState,
 } from "@/lib/game-history";
+import { useListReturn } from "@/lib/list-return";
 import { periodName } from "@/lib/period-names";
 import { parseBoolean, useStoredState } from "@/lib/stored-state";
 
@@ -237,6 +239,8 @@ function HistorySection({ games }: { games: readonly Game[] }) {
     parseHistoryState,
   );
   const { open, filtering, view } = state;
+  // Whether a game is settled up is read from its summary
+  const { data: summaries } = useGameSummaries();
   const setOpen = (next: boolean) => setState({ ...state, open: next });
   const change = (part: Partial<HistoryView>) => setState({ ...state, view: { ...view, ...part } });
 
@@ -254,14 +258,14 @@ function HistorySection({ games }: { games: readonly Game[] }) {
   }
 
   const today = dayOf(Date.now());
-  const shown = historyGames(games, view, today);
+  const shown = historyGames(games, view, today, summaries);
   // Each period is listed with the number of games it would show under the filters in force
   const periods = PERIOD_CHOICES.map((value) => ({
     value,
     label: `${periodName(value, today)} (${
       value === view.period
         ? shown.length
-        : historyGames(games, { ...view, period: value }, today).length
+        : historyGames(games, { ...view, period: value }, today, summaries).length
     })`,
   }));
   return (
@@ -354,6 +358,12 @@ function HistorySection({ games }: { games: readonly Game[] }) {
 function HostGames() {
   const { data: games, isPending } = useGames();
   if (isPending || !games) return null;
+  return <HostGameList games={games} />;
+}
+
+/** The games once they are read, so the page can go back to where it was left. */
+function HostGameList({ games }: { games: readonly Game[] }) {
+  useListReturn("/");
   const settled = games.filter((game) => game.status === "settled");
 
   return (

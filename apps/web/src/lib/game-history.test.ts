@@ -1,4 +1,10 @@
-import { cents, type Game, type InsuranceRule, type WageRule } from "@holdem-knight/core";
+import {
+  cents,
+  type Game,
+  type GameSummary,
+  type InsuranceRule,
+  type WageRule,
+} from "@holdem-knight/core";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_HISTORY_STATE,
@@ -62,6 +68,22 @@ describe("historyGames", () => {
   it("leaves out games still owed transfers when asked", () => {
     const view = { ...DEFAULT_HISTORY_VIEW, unsettled: false };
     expect(ids(historyGames(GAMES, view, TODAY))).toEqual(["complete-aud", "complete-cny"]);
+  });
+
+  it("goes by a game's summary where there is one, whatever the game's own mark says", () => {
+    const transfer = { from: "a", to: "b", amount: cents(100) };
+    const summaries = [
+      { id: "pending-cny", transfers: [{ ...transfer, done: true }] },
+      { id: "pending-aud", transfers: [] },
+      { id: "complete-cny", transfers: [{ ...transfer, done: false }] },
+    ] as unknown as GameSummary[];
+    const view = { ...DEFAULT_HISTORY_VIEW, unsettled: false };
+    // Every transfer made, none to make, and one still to make
+    expect(ids(historyGames(GAMES, view, TODAY, summaries))).toEqual([
+      "pending-cny",
+      "complete-aud",
+      "pending-aud",
+    ]);
   });
 
   it("filters by the days the income page cuts", () => {

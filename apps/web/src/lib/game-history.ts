@@ -2,6 +2,7 @@ import {
   CURRENCIES,
   type Currency,
   type Game,
+  type GameSummary,
   gameStage,
   inPeriod,
   PERIOD_CHOICES,
@@ -99,6 +100,16 @@ export function hasOption(game: Game, option: GameOption) {
   return game[option] !== undefined;
 }
 
+/**
+ * Whether a settled game still has transfers to be made. Its summary says so from the transfers
+ * themselves, each with its tick. Until that is read, the game's own saved mark stands in, which a
+ * game brought in from elsewhere may lack.
+ */
+export function owesTransfers(game: Game, summary: GameSummary | undefined): boolean {
+  if (game.status !== "settled") return false;
+  return summary ? summary.transfers.some(({ done }) => !done) : gameStage(game) === "pending";
+}
+
 const settledIn = (games: readonly Game[], view: HistoryView, today: string) => {
   const days = periodOf(view.period, today);
   return games.filter((game) => game.status === "settled" && inPeriod(days, gameDay(game)));
@@ -116,7 +127,13 @@ export function historyChoices(games: readonly Game[], view: HistoryView, today:
  * Settled games that match the view, ordered by when each started. A ratio or blinds the view's
  * period no longer offers counts as none chosen.
  */
-export function historyGames(games: readonly Game[], view: HistoryView, today: string): Game[] {
+export function historyGames(
+  games: readonly Game[],
+  view: HistoryView,
+  today: string,
+  summaries: readonly GameSummary[] = [],
+): Game[] {
+  const summaryOf = new Map(summaries.map((summary) => [summary.id, summary]));
   const inDays = settledIn(games, view, today);
   const offered = filterChoices(inDays, view.currency);
   const ratio = offered.ratios.find(({ value }) => value === view.ratio)?.value;
@@ -124,7 +141,7 @@ export function historyGames(games: readonly Game[], view: HistoryView, today: s
   return inDays
     .filter(
       (game) =>
-        (view.unsettled || gameStage(game) !== "pending") &&
+        (view.unsettled || !owesTransfers(game, summaryOf.get(game.id))) &&
         (view.currency === "all" || game.currency === view.currency) &&
         (!ratio || ratioKey(game) === ratio) &&
         (!blinds || blindsKey(game) === blinds) &&
