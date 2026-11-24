@@ -23,8 +23,8 @@ export interface HistoryView {
   /** A chip ratio and the blinds as `ratioKey` and `blindsKey` give them. Missing for any. */
   readonly ratio?: string | undefined;
   readonly blinds?: string | undefined;
-  /** Whether games still owed transfers are listed. Off leaves only the ones all settled up. */
-  readonly unsettled: boolean;
+  /** Lists only the games still owed transfers. Off lists them all. */
+  readonly onlyUnsettled: boolean;
   /** The options a listed game may have on. A game with one that is missing here is left out. */
   readonly options: readonly GameOption[];
   readonly newestFirst: boolean;
@@ -33,7 +33,7 @@ export interface HistoryView {
 export const DEFAULT_HISTORY_VIEW: HistoryView = {
   period: "all",
   currency: "all",
-  unsettled: true,
+  onlyUnsettled: false,
   options: GAME_OPTIONS,
   newestFirst: true,
 };
@@ -62,13 +62,13 @@ export function parseHistoryState(stored: unknown): HistoryState | undefined {
   const { open, filtering, view } = stored as Record<string, unknown>;
   if (typeof open !== "boolean" || typeof filtering !== "boolean") return undefined;
   if (typeof view !== "object" || view === null) return undefined;
-  const { period, currency, ratio, blinds, unsettled, options, newestFirst } = view as Record<
+  const { period, currency, ratio, blinds, onlyUnsettled, options, newestFirst } = view as Record<
     string,
     unknown
   >;
   if (!PERIODS.includes(period)) return undefined;
   if (!CURRENCY_CHOICES.includes(currency) || !Array.isArray(options)) return undefined;
-  if (typeof newestFirst !== "boolean" || typeof unsettled !== "boolean") return undefined;
+  if (typeof newestFirst !== "boolean" || typeof onlyUnsettled !== "boolean") return undefined;
   return {
     open,
     filtering,
@@ -77,7 +77,7 @@ export function parseHistoryState(stored: unknown): HistoryState | undefined {
       currency: currency as Currency | "all",
       ratio: text(ratio),
       blinds: text(blinds),
-      unsettled,
+      onlyUnsettled,
       options: GAME_OPTIONS.filter((option) => options.includes(option)),
       newestFirst,
     },
@@ -85,13 +85,20 @@ export function parseHistoryState(stored: unknown): HistoryState | undefined {
 }
 
 /** Whether the view leaves out any game: anything but the order it lists them in. */
-export function isFiltered({ period, currency, ratio, blinds, unsettled, options }: HistoryView) {
+export function isFiltered({
+  period,
+  currency,
+  ratio,
+  blinds,
+  onlyUnsettled,
+  options,
+}: HistoryView) {
   return (
     period !== "all" ||
     currency !== "all" ||
     ratio !== undefined ||
     blinds !== undefined ||
-    !unsettled ||
+    onlyUnsettled ||
     options.length < GAME_OPTIONS.length
   );
 }
@@ -141,7 +148,7 @@ export function historyGames(
   return inDays
     .filter(
       (game) =>
-        (view.unsettled || !owesTransfers(game, summaryOf.get(game.id))) &&
+        (!view.onlyUnsettled || owesTransfers(game, summaryOf.get(game.id))) &&
         (view.currency === "all" || game.currency === view.currency) &&
         (!ratio || ratioKey(game) === ratio) &&
         (!blinds || blindsKey(game) === blinds) &&

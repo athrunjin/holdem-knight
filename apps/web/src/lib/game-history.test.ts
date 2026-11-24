@@ -65,9 +65,13 @@ describe("historyGames", () => {
     ]);
   });
 
-  it("leaves out games still owed transfers when asked", () => {
-    const view = { ...DEFAULT_HISTORY_VIEW, unsettled: false };
-    expect(ids(historyGames(GAMES, view, TODAY))).toEqual(["complete-aud", "complete-cny"]);
+  it("lists only the games still owed transfers when asked, in the order chosen", () => {
+    const view = { ...DEFAULT_HISTORY_VIEW, onlyUnsettled: true };
+    expect(ids(historyGames(GAMES, view, TODAY))).toEqual(["pending-cny", "pending-aud"]);
+    expect(ids(historyGames(GAMES, { ...view, newestFirst: false }, TODAY))).toEqual([
+      "pending-aud",
+      "pending-cny",
+    ]);
   });
 
   it("goes by a game's summary where there is one, whatever the game's own mark says", () => {
@@ -77,13 +81,9 @@ describe("historyGames", () => {
       { id: "pending-aud", transfers: [] },
       { id: "complete-cny", transfers: [{ ...transfer, done: false }] },
     ] as unknown as GameSummary[];
-    const view = { ...DEFAULT_HISTORY_VIEW, unsettled: false };
-    // Every transfer made, none to make, and one still to make
-    expect(ids(historyGames(GAMES, view, TODAY, summaries))).toEqual([
-      "pending-cny",
-      "complete-aud",
-      "pending-aud",
-    ]);
+    const view = { ...DEFAULT_HISTORY_VIEW, onlyUnsettled: true };
+    // Every transfer made and none to make are settled up. One still to make is not
+    expect(ids(historyGames(GAMES, view, TODAY, summaries))).toEqual(["complete-cny"]);
   });
 
   it("filters by the days the income page cuts", () => {
@@ -124,7 +124,7 @@ describe("historyGames", () => {
     const view = { ...DEFAULT_HISTORY_VIEW, currency: "AUD" as const };
     expect(ids(historyGames(GAMES, view, TODAY))).toEqual(["complete-aud", "pending-aud"]);
     expect(
-      ids(historyGames(GAMES, { ...view, unsettled: false, period: "lastMonth" }, TODAY)),
+      ids(historyGames(GAMES, { ...view, onlyUnsettled: true, period: "thisWeek" }, TODAY)),
     ).toEqual([]);
   });
 
@@ -162,7 +162,7 @@ describe("isFiltered", () => {
   it("is on with a period, a currency or an option switched off", () => {
     expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, period: "thisWeek" })).toBe(true);
     expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, blinds: "1/2" })).toBe(true);
-    expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, unsettled: false })).toBe(true);
+    expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, onlyUnsettled: true })).toBe(true);
     expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, currency: "CNY" })).toBe(true);
     expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, options: ["insurance"] })).toBe(true);
   });
@@ -178,7 +178,7 @@ describe("parseHistoryState", () => {
         currency: "AUD",
         ratio: "5:100",
         blinds: "1/2",
-        unsettled: false,
+        onlyUnsettled: true,
         options: ["insurance", "rake"],
         newestFirst: false,
       },

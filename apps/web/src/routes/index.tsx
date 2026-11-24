@@ -123,7 +123,7 @@ const optionSwitch = "relative px-2 font-medium after:absolute after:-inset-y-3"
 /**
  * What narrows history: the currency, the chip ratio and the blinds as menus on one line, then the
  * options a listed game may have on, each in its own color until it is switched off, and last
- * whether games still owed transfers are listed.
+ * a switch that lists only the games still owed transfers.
  */
 function HistoryFilters({ view, choices, onChange }: HistoryFiltersProps) {
   const allOptions = view.options.length === GAME_OPTIONS.length;
@@ -206,18 +206,18 @@ function HistoryFilters({ view, choices, onChange }: HistoryFiltersProps) {
           All
         </button>
       </div>
-      {/* On from the start. Off leaves out the games still owed transfers */}
+      {/* Off from the start. On lists only the games still owed transfers, in the order chosen */}
       <button
         type="button"
-        aria-pressed={view.unsettled}
-        onClick={() => onChange({ unsettled: !view.unsettled })}
+        aria-pressed={view.onlyUnsettled}
+        onClick={() => onChange({ onlyUnsettled: !view.onlyUnsettled })}
         className={cn(
           "flex min-h-11 items-center gap-1 font-medium",
-          view.unsettled ? "text-highlight" : "text-muted line-through",
+          view.onlyUnsettled ? "text-highlight" : "text-muted",
         )}
       >
         {t.gamePages.list.unsettled}
-        {view.unsettled && <Check className="size-4" strokeWidth={2.5} aria-hidden />}
+        {view.onlyUnsettled && <Check className="size-4" strokeWidth={2.5} aria-hidden />}
       </button>
     </div>
   );
