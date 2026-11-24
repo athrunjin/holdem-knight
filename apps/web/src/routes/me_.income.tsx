@@ -3,7 +3,6 @@ import {
   CURRENCIES,
   type Currency,
   cents,
-  type GameIncome,
   type GameSummary,
   INCOME_ITEMS,
   type IncomeItem,
@@ -22,20 +21,22 @@ import {
   trendPeriods,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { Check } from "lucide-react";
+import type { ReactNode } from "react";
+import { GameListRow } from "@/components/game/GameListRow";
 import { InfoButton } from "@/components/InfoButton";
 import { IncomeFilter } from "@/components/income/IncomeFilter";
 import { Arc } from "@/components/insurance/PotShares";
 import { Page } from "@/components/Page";
 import { TextMenu } from "@/components/TextMenu";
+import { useGames } from "@/data/games";
 import { useGameSummaries } from "@/data/summaries";
 import { t } from "@/i18n";
-import { formatSeatTime } from "@/lib/charges";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { dayOf } from "@/lib/game-day";
 import { blindsKey, filterChoices, ratioKey } from "@/lib/income-filter";
+import { useCountUp, useEntered } from "@/lib/motion";
 import { useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/me_/income")({
@@ -117,14 +118,6 @@ function monthName(month: string) {
   return t.me.income.month(year, number);
 }
 
-/** A game's day, with its year only where that is not this one. */
-function dayName(day: string, today: string) {
-  const [year, month, date] = numbers(day);
-  return day.slice(0, 4) === today.slice(0, 4)
-    ? t.me.income.day(month, date)
-    : t.me.income.dayOfYear(year, month, date);
-}
-
 function IncomePage() {
   const { data: summaries, isError, refetch } = useGameSummaries();
 
@@ -178,7 +171,7 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
     INCOME_ITEMS,
     parseItems,
   );
-  const [onlyUnreceived, setOnlyUnreceived] = useState(false);
+  const { data: games } = useGames();
 
   // The currencies there are games in, in the app's own order. The newest game's comes up first
   const currencies = CURRENCIES.filter((c) => summaries.some((s) => s.currency === c));
@@ -204,7 +197,6 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
 
   const report = incomeReport(narrowed, { currency, items }, days);
   const change = (next: Partial<View>) => {
-    setOnlyUnreceived(false);
     setView({ ...view, currency, ...next });
   };
 
@@ -220,7 +212,10 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
           ? t.me.income.monthShort(numbers(lastMonth)[1])
           : monthName(lastMonth)
         : t.me.income.periods[choice];
-  const listed = onlyUnreceived ? report.games.filter((game) => game.unreceived > 0) : report.games;
+  // Newest first, as the report has them. One not read yet is left out until it is
+  const owing = report.games
+    .filter((game) => game.unreceived > 0)
+    .flatMap(({ summary }) => games?.find((game) => game.id === summary.id) ?? []);
 
   const header = (
     <>
@@ -254,6 +249,8 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   return (
     <div className="pb-8">
       <Breakdown
+        // What is shown comes in afresh for another period or other games, not for an item ticked
+        playKey={[period, currency, ratio, blinds].join()}
         header={header}
         report={report}
         items={items}
@@ -263,39 +260,23 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
             INCOME_ITEMS.filter((i) => (i === item ? !items.includes(i) : items.includes(i))),
           )
         }
-        onlyUnreceived={onlyUnreceived}
-        onToggleUnreceived={() => setOnlyUnreceived(!onlyUnreceived)}
       />
       <Trend summaries={narrowed} currency={currency} today={today} money={money} />
 
-      <section className="mt-5">
-        <div className="flex min-h-11 items-center justify-between">
-          <h2 className="font-medium">
-            {t.me.income.games}
-            <span className="ml-2 text-sm font-normal text-muted">
-              {onlyUnreceived ? t.me.income.unreceived : ""}
-            </span>
+      {/* The games with income still to come in, as the games page lists them */}
+      {owing.length > 0 && (
+        <section className="mt-5">
+          <h2 className="flex min-h-11 items-center font-medium">
+            {t.me.income.unreceivedTitle}
+            <span className="ml-2 text-sm font-normal text-muted tabular-nums">{owing.length}</span>
           </h2>
-          {(onlyUnreceived || report.unreceivedGames > 0) && (
-            <button
-              type="button"
-              onClick={() => setOnlyUnreceived(!onlyUnreceived)}
-              className="min-h-11 text-sm text-highlight"
-            >
-              {onlyUnreceived ? t.me.income.showAll : t.me.income.onlyUnreceived}
-            </button>
-          )}
-        </div>
-        {listed.length === 0 ? (
-          <p className="py-3 text-sm text-muted">{t.me.income.noGames}</p>
-        ) : (
-          <ul className={cn(cardClass, "divide-y divide-line")}>
-            {listed.map((game) => (
-              <GameRow key={game.summary.id} game={game} today={today} money={money} />
+          <ul className="flex flex-col gap-2">
+            {owing.map((game) => (
+              <GameListRow key={game.id} game={game} fromIncome />
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }
@@ -307,28 +288,42 @@ type Money = (value: Cents) => string;
  * out beside it, how much of it is still to come in, and the differences the organizer took on.
  */
 function Breakdown({
+  playKey,
   header,
   report,
   items,
   money,
   onToggle,
-  onlyUnreceived,
-  onToggleUnreceived,
 }: {
+  /** Whatever it changes with plays the card in again from nothing */
+  playKey: string;
   /** The line over the total: what it is of, and the choices that make it */
   header: ReactNode;
   report: IncomeReport;
   items: readonly IncomeItem[];
   money: Money;
   onToggle: (item: IncomeItem) => void;
-  onlyUnreceived: boolean;
-  onToggleUnreceived: () => void;
 }) {
   const { total, received, unreceived, unreceivedGames, byItem, gamesByItem, absorbed } = report;
   const share = total > 0 ? Math.min(100, Math.max(0, (received / total) * 100)) : 0;
+  const allIn = total > 0 && unreceived === 0;
+
+  // The total counts up while the ring turns in and the items come down beside it. Then the bar
+  // runs out with what is in, then what is still out, and last the differences open under it
+  // Whole amounts on the way, and the cents only of the amount arrived at
+  const figure = (value: number, end: Cents) =>
+    money(value === end ? end : cents(Math.round(value / 100) * 100));
+  const totalShown = useCountUp(total, { duration: 800, resetKey: playKey });
+  const bar = { duration: 600, delay: 700, resetKey: playKey };
+  const shareShown = useCountUp(share, bar);
+  const receivedShown = useCountUp(received, bar);
+  const after = { duration: 500, delay: 1300, resetKey: playKey };
+  const unreceivedShown = useCountUp(unreceived, after);
+  const unreceivedGamesShown = Math.round(useCountUp(unreceivedGames, after));
+  const barDone = useCountUp(1, { duration: 1, delay: 1300, resetKey: playKey }) >= 1;
 
   return (
-    <section className={cn(cardClass, "px-4 pt-1 pb-4")}>
+    <section className={cn(cardClass, "px-4 pt-1 pb-3")}>
       {header}
       <p
         className={cn(
@@ -336,20 +331,24 @@ function Breakdown({
           total < 0 && "text-loss",
         )}
       >
-        {money(total)}
+        {figure(totalShown, total)}
       </p>
 
       <div className="mt-3 flex items-center gap-2">
-        <IncomeRing report={report} items={items} />
+        <IncomeRing report={report} items={items} playKey={playKey} />
         <ul aria-label={t.me.income.items} className="flex min-w-0 flex-1 flex-col">
-          {INCOME_ITEMS.map((item) => {
+          {INCOME_ITEMS.map((item, index) => {
             const amount = byItem[item];
             const count = gamesByItem[item];
             // An item none of the games had is struck out by itself, whatever is ticked
             const on = items.includes(item) && count > 0;
             const fill = amount < 0 ? LOSS_FILL : ITEM_FILLS[item];
             return (
-              <li key={item}>
+              <li
+                key={item + playKey}
+                className="animate-settle motion-reduce:animate-none"
+                style={{ animationDelay: `${100 + index * 130}ms` }}
+              >
                 <button
                   type="button"
                   aria-pressed={on}
@@ -395,44 +394,58 @@ function Breakdown({
 
       {/* How much of the total is in. An empty bar where nothing is due */}
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--line)]" aria-hidden>
-        <div className="h-full rounded-full bg-accent" style={{ width: `${share}%` }} />
+        <div className="h-full rounded-full bg-accent" style={{ width: `${shareShown}%` }} />
       </div>
-      <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 text-sm">
-        <p className="flex min-h-11 items-center gap-2 whitespace-nowrap">
-          <span className="text-muted">{t.me.income.received}</span>
-          <span className="tabular-nums">{money(received)}</span>
-        </p>
-        <button
-          type="button"
-          disabled={unreceivedGames === 0}
-          aria-pressed={onlyUnreceived}
-          onClick={onToggleUnreceived}
-          className="flex min-h-11 items-center gap-2 whitespace-nowrap"
-        >
-          <span className="text-muted">{t.me.income.unreceived}</span>
-          <span className={cn("tabular-nums", unreceived > 0 && "text-highlight")}>
-            {money(unreceived)}
-          </span>
-          {unreceivedGames > 0 && (
-            <span className="text-muted">· {t.me.income.unreceivedGames(unreceivedGames)}</span>
-          )}
-        </button>
-      </div>
-
-      <div className="flex min-h-11 items-center justify-between gap-3 border-t border-line text-sm">
-        <p>
-          {absorbed > 0 ? t.me.income.kept : t.me.income.absorbed}
-          <span className="ml-2 text-xs text-muted">{t.me.income.absorbedNote}</span>
-        </p>
+      {allIn ? (
+        // Nothing still out: one line, which turns green with a tick once the bar has run
         <p
           className={cn(
-            "shrink-0 tabular-nums",
-            absorbed < 0 ? "text-loss" : absorbed > 0 ? "text-text" : "text-muted",
+            "mt-1 flex min-h-11 items-center gap-2 text-sm transition-colors duration-300",
+            barDone && "text-accent",
           )}
         >
-          {absorbed === 0 ? "—" : money(absorbed)}
+          <span className={cn(!barDone && "text-muted")}>{t.me.income.receivedAll}</span>
+          <span className="tabular-nums">{figure(receivedShown, received)}</span>
+          {barDone && <Check className="size-4 animate-appear" strokeWidth={2.5} aria-hidden />}
         </p>
-      </div>
+      ) : (
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 text-sm">
+          <p className="flex min-h-11 items-center gap-2 whitespace-nowrap">
+            <span className="text-muted">{t.me.income.received}</span>
+            <span className="tabular-nums">{figure(receivedShown, received)}</span>
+          </p>
+          <p className="flex min-h-11 items-center gap-2 whitespace-nowrap">
+            <span className="text-muted">{t.me.income.unreceived}</span>
+            <span className={cn("tabular-nums", unreceived > 0 && "text-highlight")}>
+              {figure(unreceivedShown, unreceived)}
+            </span>
+            {unreceivedGames > 0 && (
+              <span className="text-muted">
+                · {t.me.income.unreceivedGames(unreceivedGamesShown)}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
+      {/* Only where there was a difference, opening from its rule once the rest is in */}
+      {absorbed !== 0 && (
+        <div
+          key={playKey}
+          className="-mb-3 animate-unfold overflow-hidden motion-reduce:animate-none"
+          style={{ animationDelay: "1800ms" }}
+        >
+          <div className="flex min-h-11 items-center justify-between gap-3 border-t border-line text-sm">
+            <p>
+              {absorbed > 0 ? t.me.income.kept : t.me.income.absorbed}
+              <span className="ml-2 text-xs text-muted">{t.me.income.absorbedNote}</span>
+            </p>
+            <p className={cn("shrink-0 tabular-nums", absorbed < 0 && "text-loss")}>
+              {money(absorbed)}
+            </p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -446,7 +459,18 @@ function Breakdown({
  * the three together, or a full turn where it is more than they are. The games shown are counted
  * in the middle.
  */
-function IncomeRing({ report, items }: { report: IncomeReport; items: readonly IncomeItem[] }) {
+function IncomeRing({
+  report,
+  items,
+  playKey,
+}: {
+  report: IncomeReport;
+  items: readonly IncomeItem[];
+  playKey: string;
+}) {
+  // How far round the rings are drawn so far: they turn in from the top
+  const drawn = useCountUp(1, { duration: 800, resetKey: playKey });
+  const games = Math.round(useCountUp(report.games.length, { duration: 800, resetKey: playKey }));
   const amount = (item: IncomeItem) => (items.includes(item) ? report.byItem[item] : 0);
   const outer = (["wage", "tableFee", "rake"] as const).map((item) => ({
     item,
@@ -455,7 +479,7 @@ function IncomeRing({ report, items }: { report: IncomeReport; items: readonly I
   const taken = outer.reduce((all, part) => all + part.amount, 0);
   const insurance = amount("insurance");
   const scale = Math.max(taken, Math.abs(insurance));
-  const turn = scale > 0 ? Math.abs(insurance) / scale : 0;
+  const turn = (scale > 0 ? Math.abs(insurance) / scale : 0) * drawn;
   let start = 0;
 
   return (
@@ -464,14 +488,16 @@ function IncomeRing({ report, items }: { report: IncomeReport; items: readonly I
         viewBox="0 0 100 100"
         role="img"
         aria-label={t.me.income.ring}
-        className="size-full -rotate-90"
+        key={playKey}
+        className="size-full -rotate-90 animate-appear motion-reduce:animate-none"
       >
         <circle cx="50" cy="50" r="44" fill="none" strokeWidth="9" className="stroke-line" />
         <circle cx="50" cy="50" r="33" fill="none" strokeWidth="6" className="stroke-line/60" />
         {outer.map(({ item, amount }) => {
-          const length = scale > 0 ? amount / scale : 0;
+          const whole = scale > 0 ? amount / scale : 0;
           const from = start;
-          start += length;
+          start += whole;
+          const length = Math.min(whole, drawn - from);
           return (
             <Arc
               key={item}
@@ -492,9 +518,7 @@ function IncomeRing({ report, items }: { report: IncomeReport; items: readonly I
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl leading-none font-semibold tabular-nums">
-          {report.games.length}
-        </span>
+        <span className="text-2xl leading-none font-semibold tabular-nums">{games}</span>
         <span className="mt-1 text-xs text-muted">{t.me.income.gameCount}</span>
       </div>
     </div>
@@ -525,24 +549,20 @@ function Trend({
   const series = incomeSeries(summaries, currency, trendPeriods(span, today));
   // An item none of the bars has is struck out by itself
   const there = (item: IncomeItem) => series.some(({ byItem }) => byItem[item] !== 0);
-  const bars = series.map(({ period, byItem }) => {
-    const parts = INCOME_ITEMS.filter((item) => shown.includes(item)).map((item) => ({
-      item,
-      amount: byItem[item],
-    }));
-    return {
-      from: period.from ?? "",
-      up: parts.filter(({ amount }) => amount > 0),
-      down: parts.filter(({ amount }) => amount < 0),
-      total: cents(parts.reduce((all, { amount }) => all + amount, 0)),
-    };
-  });
-  const reach = (parts: readonly { readonly amount: number }[]) =>
-    parts.reduce((all, { amount }) => all + Math.abs(amount), 0);
-  const high = Math.max(1, ...bars.map(({ up }) => reach(up)));
-  const low = Math.max(0, ...bars.map(({ down }) => reach(down)));
+  const on = (item: IncomeItem) => shown.includes(item) && there(item);
+  const bars = series.map(({ period, byItem }) => ({
+    from: period.from ?? "",
+    parts: INCOME_ITEMS.map((item) => ({ item, amount: on(item) ? byItem[item] : 0 })),
+  }));
+  const reach = (parts: readonly { readonly amount: number }[], sign: 1 | -1) =>
+    parts.reduce((all, { amount }) => all + Math.max(0, amount * sign), 0);
+  const high = Math.max(1, ...bars.map(({ parts }) => reach(parts, 1)));
+  const low = Math.max(0, ...bars.map(({ parts }) => reach(parts, -1)));
   // The room under the line, as a part of the 6rem the bars have
   const under = (low / (high + low)) * 6;
+  // The bars come in together for another span or currency, and grow out from the line
+  const playKey = `${span}${currency}`;
+  const grown = useEntered(playKey);
 
   const nameOf = (from: string) => {
     const [year, month, date] = numbers(from);
@@ -571,30 +591,30 @@ function Trend({
       <div className="flex flex-wrap gap-x-1">
         {INCOME_ITEMS.map((item) => {
           const absent = !there(item);
-          const on = shown.includes(item) && !absent;
+          const lit = on(item);
           return (
             <button
               key={item}
               type="button"
-              aria-pressed={on}
+              aria-pressed={lit}
               aria-label={t.me.income.barShown(ITEM_NAMES[item])}
               disabled={absent}
               onClick={() =>
                 setBars({
                   span,
-                  items: INCOME_ITEMS.filter((i) => (i === item ? !on : shown.includes(i))),
+                  items: INCOME_ITEMS.filter((i) => (i === item ? !lit : shown.includes(i))),
                 })
               }
               className={cn(
                 "flex min-h-11 items-center gap-1.5 px-1.5 text-sm",
-                !on && "text-muted",
+                !lit && "text-muted",
                 absent && "line-through",
               )}
             >
               <span
                 className={cn(
                   "size-2.5 shrink-0 rounded-full",
-                  on ? ITEM_FILLS[item].dot : "border border-muted",
+                  lit ? ITEM_FILLS[item].dot : "border border-muted",
                 )}
                 aria-hidden
               />
@@ -605,95 +625,104 @@ function Trend({
       </div>
 
       <ul className="mt-1 grid grid-cols-4 gap-1">
-        {bars.map(({ from, up, down, total }) => (
-          <li
-            key={from}
-            aria-label={t.me.income.barTotal(nameOf(from), money(total))}
-            className="flex min-w-0 flex-col items-center"
-          >
-            <span
-              className={cn(
-                "h-4 max-w-full truncate text-[11px] tabular-nums",
-                total < 0 ? "text-loss" : "text-muted",
-              )}
-            >
-              {total === 0 ? "" : Math.round(total / 100).toLocaleString("en-US")}
-            </span>
-            {/* What was taken in stands on the line, the first item at the foot */}
-            <span
-              className="flex w-2/5 flex-col-reverse overflow-hidden rounded-t"
-              style={{ height: `${6 - under}rem` }}
-              aria-hidden
-            >
-              {up.map(({ item, amount }) => (
-                <span
-                  key={item}
-                  className={cn("w-full shrink-0", ITEM_FILLS[item].dot)}
-                  style={{ height: `${(amount / high) * 100}%` }}
-                />
-              ))}
-            </span>
-            <span className="h-px w-full bg-line" aria-hidden />
-            {/* What was lost hangs under it */}
-            <span className="flex w-2/5 flex-col" style={{ height: `${under}rem` }} aria-hidden>
-              {down.map(({ item, amount }) => (
-                <span
-                  key={item}
-                  className={cn("w-full shrink-0 rounded-b", LOSS_FILL.dot)}
-                  style={{ height: `${(-amount / low) * 100}%` }}
-                />
-              ))}
-            </span>
-            <span className="flex min-h-8 items-center text-xs text-muted tabular-nums">
-              {shortName(from)}
-            </span>
-          </li>
+        {bars.map(({ from, parts }) => (
+          <Bar
+            key={span + from}
+            name={nameOf(from)}
+            label={shortName(from)}
+            parts={parts}
+            high={high}
+            low={low}
+            under={under}
+            grown={grown}
+            playKey={playKey}
+            money={money}
+          />
         ))}
       </ul>
     </section>
   );
 }
 
-/** One game: when and what it was, then what it brought in and how much of that is still out. */
-function GameRow({ game, today, money }: { game: GameIncome; today: string; money: Money }) {
-  const { summary, income, unreceived } = game;
-  const day = dayName(summary.day, today);
+const growClass = "transition-[height] duration-500 ease-out motion-reduce:transition-none";
+
+/**
+ * One bar and the figure over it. Every item has its part in the bar whether it shows or not, at
+ * no height while it does not, so one ticked or unticked grows in or shrinks away, and the line
+ * the bars stand on moves with the room the losses need.
+ */
+function Bar({
+  name,
+  label,
+  parts,
+  high,
+  low,
+  under,
+  grown,
+  playKey,
+  money,
+}: {
+  /** For a reader */
+  name: string;
+  label: string;
+  /** Each item's amount, 0 for one that does not show */
+  parts: readonly { readonly item: IncomeItem; readonly amount: number }[];
+  /** The tallest reach over and under the line among the bars */
+  high: number;
+  low: number;
+  /** The room under the line, in rem */
+  under: number;
+  grown: boolean;
+  playKey: string;
+  money: Money;
+}) {
+  const total = parts.reduce((all, { amount }) => all + amount, 0);
+  const figure = Math.round(useCountUp(total, { duration: 500, resetKey: playKey }) / 100);
+  const part = (amount: number, of: number) => `${grown && of > 0 ? (amount / of) * 100 : 0}%`;
 
   return (
-    <li>
-      <Link
-        to="/games/$gameId/settlement"
-        params={{ gameId: summary.id }}
-        search={{ from: "income" }}
-        aria-label={t.me.income.openSettlement(day)}
-        className="flex min-h-16 items-center gap-2 py-2 pr-2 pl-5"
+    <li
+      aria-label={t.me.income.barTotal(name, money(cents(total)))}
+      className="flex min-w-0 flex-col items-center"
+    >
+      <span
+        className={cn(
+          "mb-1.5 h-4 max-w-full truncate text-[11px] tabular-nums",
+          total < 0 ? "text-loss" : "text-muted",
+        )}
       >
-        <span className="min-w-0 flex-1">
-          <span className="block truncate">
-            {day}
-            <span className="ml-2 text-muted tabular-nums">
-              {summary.smallBlindChips} / {summary.bigBlindChips}
-            </span>
-          </span>
-          <span className="block truncate text-xs text-muted">
-            {t.me.income.players(summary.playerCount)}
-            {summary.playedMs !== undefined && ` · ${formatSeatTime(summary.playedMs)}`}
-          </span>
-        </span>
-        <span className="shrink-0 text-right">
-          <span className={cn("block tabular-nums", income < 0 && "text-loss")}>
-            {money(income)}
-          </span>
-          <span className={cn("block text-xs", unreceived > 0 ? "text-highlight" : "text-muted")}>
-            {unreceived > 0
-              ? t.me.income.gameUnreceived(money(unreceived))
-              : income > 0
-                ? t.me.income.allReceived
-                : ""}
-          </span>
-        </span>
-        <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
-      </Link>
+        {total === 0 && figure === 0 ? "" : figure.toLocaleString("en-US")}
+      </span>
+      {/* What was taken in stands on the line, the first item at the foot */}
+      <span
+        className={cn("flex w-2/5 flex-col-reverse overflow-hidden rounded-t", growClass)}
+        style={{ height: `${6 - under}rem` }}
+        aria-hidden
+      >
+        {parts.map(({ item, amount }) => (
+          <span
+            key={item}
+            className={cn("w-full shrink-0", growClass, ITEM_FILLS[item].dot)}
+            style={{ height: part(Math.max(0, amount), high) }}
+          />
+        ))}
+      </span>
+      <span className="h-px w-full bg-line" aria-hidden />
+      {/* What was lost hangs under it */}
+      <span
+        className={cn("flex w-2/5 flex-col", growClass)}
+        style={{ height: `${under}rem` }}
+        aria-hidden
+      >
+        {parts.map(({ item, amount }) => (
+          <span
+            key={item}
+            className={cn("w-full shrink-0 rounded-b", growClass, LOSS_FILL.dot)}
+            style={{ height: part(Math.max(0, -amount), low) }}
+          />
+        ))}
+      </span>
+      <span className="flex min-h-8 items-center text-xs text-muted tabular-nums">{label}</span>
     </li>
   );
 }
