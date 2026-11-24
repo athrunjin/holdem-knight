@@ -3,7 +3,8 @@
 /*
  * Design tokens
  * Table-felt green is the base, and the gold of a chip edge is the only accent.
- * Follows the system theme by default. Live games are mostly indoors at night, so dark is the main mode.
+ * Dark is the only mode: live games are mostly indoors at night. How the tokens are used is in
+ * docs/design/README.md.
  */
 @theme {
   --font-sans:

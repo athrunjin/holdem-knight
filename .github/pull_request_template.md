@@ -5,7 +5,11 @@
 ## How it was verified
 
 - [ ] `pnpm check` passes
-- [ ] UI checked at phone size (if the UI changed)
+- [ ] Visual review done (`docs/design/review.md`), or nothing to see in this change
+  - Widths and languages looked at:
+  - Measured:
+  - Open findings (blocker / should fix / note):
+  - Not reviewed:
 
 ## Notes
 
