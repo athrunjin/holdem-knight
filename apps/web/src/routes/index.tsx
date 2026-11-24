@@ -1,46 +1,33 @@
-import { type Currency, type Game, gameStage } from "@holdem-knight/core";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronDown, Funnel } from "lucide-react";
+import { type Currency, type Game, PERIOD_CHOICES } from "@holdem-knight/core";
+import { createFileRoute } from "@tanstack/react-router";
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Check, ChevronDown, Funnel } from "lucide-react";
 import { useState } from "react";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
-import { GameOptions, OPTION_MARKS } from "@/components/game/GameOptions";
+import { GameListRow } from "@/components/game/GameListRow";
+import { OPTION_MARKS } from "@/components/game/GameOptions";
 import { InDevelopment } from "@/components/InDevelopment";
 import { Page } from "@/components/Page";
 import { TextMenu } from "@/components/TextMenu";
 import { useGames } from "@/data/games";
-import { localeTag, t } from "@/i18n";
+import { useGameSummaries } from "@/data/summaries";
+import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { dayOf } from "@/lib/game-day";
 import {
   DEFAULT_HISTORY_STATE,
   GAME_OPTIONS,
-  type HistoryPeriod,
-  type HistoryStage,
   type HistoryView,
+  historyChoices,
   historyGames,
   isFiltered,
   parseHistoryState,
 } from "@/lib/game-history";
+import { useListReturn } from "@/lib/list-return";
+import { periodName } from "@/lib/period-names";
 import { parseBoolean, useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/")({
   component: SessionsPage,
-});
-
-/** The day a game started, as 26/11/14 */
-const STARTED_ON = new Intl.DateTimeFormat(localeTag, {
-  year: "2-digit",
-  month: "numeric",
-  day: "numeric",
-});
-
-/** Its day of the week, as 周六 */
-const STARTED_WEEKDAY = new Intl.DateTimeFormat(localeTag, { weekday: "short" });
-
-/** The time it started, as 21:05 */
-const STARTED_AT = new Intl.DateTimeFormat(localeTag, {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
 });
 
 type Role = "host" | "player";
@@ -50,17 +37,8 @@ const ROLES: readonly { readonly role: Role; readonly label: string }[] = [
   { role: "player", label: "Player" },
 ];
 
-const STAGES: readonly { readonly value: HistoryStage; readonly label: string }[] = [
-  { value: "all", label: t.gamePages.list.all },
-  { value: "pending", label: t.gamePages.list.unsettled },
-  { value: "complete", label: t.gamePages.list.settled },
-];
-
-const PERIODS: readonly { readonly value: HistoryPeriod; readonly label: string }[] = [
-  { value: "all", label: t.gamePages.list.all },
-  { value: "week", label: t.gamePages.list.pastWeek },
-  { value: "month", label: t.gamePages.list.pastMonth },
-];
+/** Stands for no ratio or no blinds chosen, in a menu */
+const ANY = "any";
 
 /** Each currency is shown by its mark alone, and named after the animal for a reader. */
 const CURRENCY_NAMES: readonly { readonly value: Currency; readonly name: string }[] = [
@@ -79,42 +57,6 @@ const CURRENCIES = [
 
 const chevronClass = (open: boolean) =>
   cn("size-5 text-muted transition-transform", open && "rotate-180");
-
-/** A game's line in the list. A settled game still owed transfers says so before its date. */
-function GameRow({ game }: { game: Game }) {
-  const owed = gameStage(game) === "pending";
-  return (
-    <li>
-      <Link
-        // Only a game at the table opens on its table. The rest open on their results
-        to={game.status === "open" ? "/games/$gameId" : "/games/$gameId/settlement"}
-        params={{ gameId: game.id }}
-        className="flex min-h-12 items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-1"
-      >
-        <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-          <CurrencyIcon currency={game.currency} className="size-4.5 self-center text-muted" />
-          <span className="font-medium">
-            {game.smallBlindChips} / {game.bigBlindChips}
-          </span>
-          <GameOptions game={game} />
-        </span>
-        <span className="flex shrink-0 items-center gap-2.5">
-          {owed && (
-            <span className="rounded bg-highlight/15 px-1.5 py-0.5 text-xs font-medium text-highlight">
-              {t.gamePages.list.unsettled}
-            </span>
-          )}
-          <span className="flex flex-col items-end text-sm leading-tight text-muted tabular-nums">
-            {STARTED_ON.format(game.createdAt)}
-            <span className="text-xs leading-tight">
-              {STARTED_WEEKDAY.format(game.createdAt)}·{STARTED_AT.format(game.createdAt)}
-            </span>
-          </span>
-        </span>
-      </Link>
-    </li>
-  );
-}
 
 interface FoldHeadingProps {
   title: string;
@@ -160,7 +102,7 @@ function GameSection({ title, games, storageKey }: GameSectionProps) {
       {open && (
         <ul className="mt-1 flex flex-col gap-2">
           {games.map((game) => (
-            <GameRow key={game.id} game={game} />
+            <GameListRow key={game.id} game={game} />
           ))}
         </ul>
       )}
@@ -170,6 +112,8 @@ function GameSection({ title, games, storageKey }: GameSectionProps) {
 
 interface HistoryFiltersProps {
   view: HistoryView;
+  /** The ratios and blinds there are to narrow to */
+  choices: ReturnType<typeof historyChoices>;
   onChange: (part: Partial<HistoryView>) => void;
 }
 
@@ -177,27 +121,47 @@ interface HistoryFiltersProps {
 const optionSwitch = "relative px-2 font-medium after:absolute after:-inset-y-3";
 
 /**
- * What narrows history: the time and the currency as menus on one line, then the options a listed
- * game may have on, each in its own color until it is switched off.
+ * What narrows history: the currency, the chip ratio and the blinds as menus on one line, then the
+ * options a listed game may have on, each in its own color until it is switched off, and last
+ * a switch that lists only the games still owed transfers.
  */
-function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
+function HistoryFilters({ view, choices, onChange }: HistoryFiltersProps) {
   const allOptions = view.options.length === GAME_OPTIONS.length;
+  const ratio = choices.ratios.find(({ value }) => value === view.ratio);
+  const blinds = choices.blinds.find(({ value }) => value === view.blinds);
   return (
     <div className="mb-2 rounded-xl border border-line px-2.5 text-sm">
-      <div className="flex items-center gap-4">
-        <TextMenu
-          label={t.gamePages.list.played}
-          caption={t.gamePages.list.played}
-          options={PERIODS}
-          value={view.period}
-          onChange={(period) => onChange({ period })}
-        />
+      <div className="flex items-center justify-between gap-3">
         <TextMenu
           label={t.gamePages.list.currency}
           caption={t.gamePages.list.currency}
           options={CURRENCIES}
           value={view.currency}
-          onChange={(currency) => onChange({ currency })}
+          // Another currency has its own ratios and blinds
+          onChange={(currency) => onChange({ currency, ratio: undefined, blinds: undefined })}
+        />
+        <TextMenu
+          label={t.me.income.ratio}
+          caption={t.me.income.ratio}
+          options={[
+            { value: ANY, label: t.me.income.any },
+            ...choices.ratios.map(({ value, chips }) => ({ value, label: `${chips} : 1` })),
+          ]}
+          value={ratio?.value ?? ANY}
+          onChange={(value) => onChange({ ratio: value === ANY ? undefined : value })}
+          className="tabular-nums"
+        />
+        <TextMenu
+          label={t.me.income.blinds}
+          caption={t.me.income.blinds}
+          options={[
+            { value: ANY, label: t.me.income.any },
+            ...choices.blinds.map(({ value, name }) => ({ value, label: name })),
+          ]}
+          value={blinds?.value ?? ANY}
+          onChange={(value) => onChange({ blinds: value === ANY ? undefined : value })}
+          align="right"
+          className="tabular-nums"
         />
       </div>
       {/* Every option starts on. Switching one off leaves out the games that have it */}
@@ -242,6 +206,19 @@ function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
           All
         </button>
       </div>
+      {/* Off from the start. On lists only the games still owed transfers, in the order chosen */}
+      <button
+        type="button"
+        aria-pressed={view.onlyUnsettled}
+        onClick={() => onChange({ onlyUnsettled: !view.onlyUnsettled })}
+        className={cn(
+          "flex min-h-11 items-center gap-1 font-medium",
+          view.onlyUnsettled ? "text-highlight" : "text-muted",
+        )}
+      >
+        {t.gamePages.list.unsettled}
+        {view.onlyUnsettled && <Check className="size-4" strokeWidth={2.5} aria-hidden />}
+      </button>
     </div>
   );
 }
@@ -251,7 +228,7 @@ const iconButton = "grid h-11 w-9 shrink-0 place-items-center text-muted";
 
 /**
  * Settled games, which come back the way they were left: unfolded at first. Folded, the heading
- * has only their number. Unfolded, it carries what narrows and orders the list: the stage after
+ * has only their number. Unfolded, it carries what narrows and orders the list: the period after
  * the title, with the number of games listed, then the filter and the order at the right, next to
  * the fold.
  */
@@ -262,6 +239,8 @@ function HistorySection({ games }: { games: readonly Game[] }) {
     parseHistoryState,
   );
   const { open, filtering, view } = state;
+  // Whether a game is settled up is read from its summary
+  const { data: summaries } = useGameSummaries();
   const setOpen = (next: boolean) => setState({ ...state, open: next });
   const change = (part: Partial<HistoryView>) => setState({ ...state, view: { ...view, ...part } });
 
@@ -278,20 +257,20 @@ function HistorySection({ games }: { games: readonly Game[] }) {
     );
   }
 
-  const now = Date.now();
-  const shown = historyGames(games, view, now);
-  // Each stage is listed with the number of games it would show under the filters in force
-  const stages = STAGES.map(({ value, label }) => ({
+  const today = dayOf(Date.now());
+  const shown = historyGames(games, view, today, summaries);
+  // Each period is listed with the number of games it would show under the filters in force
+  const periods = PERIOD_CHOICES.map((value) => ({
     value,
-    label: `${label} (${
-      value === view.stage
+    label: `${periodName(value, today)} (${
+      value === view.period
         ? shown.length
-        : historyGames(games, { ...view, stage: value }, now).length
+        : historyGames(games, { ...view, period: value }, today, summaries).length
     })`,
   }));
   return (
     <section>
-      {/* The title, the stage and the number share one baseline, whatever font each falls to */}
+      {/* The title, the period and the number share one baseline, whatever font each falls to */}
       <div className="flex min-h-11 items-baseline font-medium">
         <h2 className="shrink-0">
           <button
@@ -307,10 +286,10 @@ function HistorySection({ games }: { games: readonly Game[] }) {
           ·
         </span>
         <TextMenu
-          label={t.gamePages.list.status}
-          options={stages}
-          value={view.stage}
-          onChange={(stage) => change({ stage })}
+          label={t.gamePages.list.played}
+          options={periods}
+          value={view.period}
+          onChange={(period) => change({ period })}
         />
         <div className="ml-auto flex shrink-0 self-center">
           {/* Filled while the filters are on show, and gold while any of them is set */}
@@ -354,11 +333,17 @@ function HistorySection({ games }: { games: readonly Game[] }) {
           </button>
         </div>
       </div>
-      {filtering && <HistoryFilters view={view} onChange={change} />}
+      {filtering && (
+        <HistoryFilters
+          view={view}
+          choices={historyChoices(games, view, today)}
+          onChange={change}
+        />
+      )}
       {shown.length > 0 ? (
         <ul className="mt-1 flex flex-col gap-2">
           {shown.map((game) => (
-            <GameRow key={game.id} game={game} />
+            <GameListRow key={game.id} game={game} />
           ))}
         </ul>
       ) : (
@@ -373,6 +358,12 @@ function HistorySection({ games }: { games: readonly Game[] }) {
 function HostGames() {
   const { data: games, isPending } = useGames();
   if (isPending || !games) return null;
+  return <HostGameList games={games} />;
+}
+
+/** The games once they are read, so the page can go back to where it was left. */
+function HostGameList({ games }: { games: readonly Game[] }) {
+  useListReturn("/");
   const settled = games.filter((game) => game.status === "settled");
 
   return (

@@ -495,6 +495,77 @@ export interface Game {
   readonly sources?: SettingsSources;
 }
 
+/** What the organizer takes from a game, each on its own line of a report. */
+export type IncomeItem = "rake" | "insurance" | "wage" | "tableFee";
+
+/** One person's result in a settled game, in cash. */
+export interface SummaryPlayer {
+  /** A player's ID, or the organizer's for an organizer who played. */
+  readonly playerId: string;
+  readonly boughtChips: number;
+  readonly cashedOutChips: number;
+  /** What the chips alone come to. */
+  readonly chipNet: Cents;
+  /** Their share of a difference split by win or loss. 0 with none. */
+  readonly share: Cents;
+  /** The insurance result, for the player who takes it. 0 for everyone else. */
+  readonly insurance: Cents;
+  /** Wages and the table fee they pay, without what they were let off. */
+  readonly wage: Cents;
+  readonly tableFee: Cents;
+  /**
+   * What they receive, or pay when negative: chips, share and insurance, less the charges. For an
+   * organizer who played it is their own play alone, apart from what the game brought in.
+   */
+  readonly total: Cents;
+}
+
+export interface SummaryTransfer extends Transfer {
+  /** Marked as made. */
+  readonly done: boolean;
+}
+
+/**
+ * The result of a settled game, kept when its settlement is confirmed and written again whenever
+ * the settled game changes, so reports read it without settling every game again (ADR 0049). It
+ * can always be worked out again from the game and its ledger.
+ */
+export interface GameSummary {
+  /** The game's ID: a game has one summary. */
+  readonly id: string;
+  readonly organizerId: OrganizerId;
+  /** What of the game it was worked out from. A summary with another basis is out of date. */
+  readonly basis: string;
+  readonly startedAt: Timestamp;
+  /** The day the game started where it was played, as `2026-11-21`. Reports go by it. */
+  readonly day: string;
+  readonly settledAt: Timestamp;
+  /** Time on the game clock. Missing for a game whose clock never ran. */
+  readonly playedMs?: number;
+  readonly currency: Currency;
+  readonly chipRatio: ChipRatio;
+  readonly smallBlindChips: number;
+  readonly bigBlindChips: number;
+  /** Players in the game, with an organizer who played. The insurance and rake seats are not. */
+  readonly playerCount: number;
+  /**
+   * What the game brought the organizer, due at settlement. Insurance counts only where its result
+   * is the organizer's, and can be a loss. Rake and insurance are after their share of any split.
+   */
+  readonly income: Readonly<Record<IncomeItem, Cents>>;
+  /** Who takes the insurance result. Missing for a game with no insurance seat. */
+  readonly insuranceOwnerId?: string;
+  /** The cash difference of the books before it was handled. */
+  readonly difference: Cents;
+  readonly imbalanceHandling?: ImbalanceHandling;
+  /** The difference the organizer took on: negative when they covered it. 0 otherwise. */
+  readonly absorbed: Cents;
+  readonly players: readonly SummaryPlayer[];
+  /** Who collects, or missing for the plan with the fewest transfers. */
+  readonly collectorId?: string;
+  readonly transfers: readonly SummaryTransfer[];
+}
+
 export interface Player {
   readonly id: string;
   readonly organizerId: OrganizerId;

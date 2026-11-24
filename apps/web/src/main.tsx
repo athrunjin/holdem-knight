@@ -8,6 +8,7 @@ import { createRoot } from "react-dom/client";
 import { RouteError } from "./components/layout/RouteError";
 import { queryClient } from "./data/query-client";
 import { trackKeyboardInset } from "./lib/keyboard-inset";
+import { notePreviousPath } from "./lib/list-return";
 import { reloadAfterRelease } from "./lib/reload-after-release";
 import { routeTree } from "./routeTree.gen";
 
@@ -20,6 +21,11 @@ const router = createRouter({
   defaultPreload: "intent",
   defaultErrorComponent: RouteError,
 });
+
+// Lists that are come back to from a game need to know where the app was before
+router.subscribe("onBeforeNavigate", ({ fromLocation }) =>
+  notePreviousPath(fromLocation?.pathname),
+);
 
 declare module "@tanstack/react-router" {
   interface Register {

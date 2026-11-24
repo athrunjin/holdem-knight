@@ -251,6 +251,15 @@ export function transferCollector(
     : undefined;
 }
 
+/** The transfers of the plan a game has: through its collector, or the fewest there can be. */
+export function planTransfers(
+  game: Pick<Game, "collectorId" | "insurance" | "tableFee" | "wage" | "rake">,
+  nets: readonly PlayerNet[],
+): Transfer[] {
+  const collectorId = transferCollector(game, nets);
+  return collectorId ? collectorTransfers(nets, collectorId) : settleTransfers(nets);
+}
+
 function sameTransfer(a: Transfer, b: Transfer) {
   return a.from === b.from && a.to === b.to && a.amount === b.amount;
 }

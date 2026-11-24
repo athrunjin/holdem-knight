@@ -53,6 +53,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0046](0046-the-books-in-use-follow-who-is-signed-in.md) | The books in use follow who is signed in | Accepted |
 | [0047](0047-interface-text-in-typed-catalogs.md) | Interface text in typed catalogs, one a language | Accepted |
 | [0048](0048-undoing-an-insurance-hand-keeps-later-stacks.md) | Undoing an insurance hand keeps the stacks changed since | Accepted |
+| [0049](0049-settled-games-keep-a-summary.md) | A settled game keeps a summary of its results, for reports | Accepted |
 
 ## Template
 

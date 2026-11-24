@@ -1,6 +1,7 @@
 import {
   type BackupData,
   ForeignOrganizerError,
+  type GameSummary,
   type OrganizerId,
   type Repository,
   type RestoreResult,
@@ -8,7 +9,7 @@ import {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { z } from "zod";
 
-import { recordSchemas } from "./backup";
+import { gameSummarySchema, recordSchemas } from "./backup";
 
 /** The app's lists of records, by the names a backup has for them. */
 type Collection = keyof typeof recordSchemas;
@@ -135,6 +136,50 @@ export function createSupabaseRepository(
     if (error) throw new StorageError(error.message);
   }
 
+  /** A summary as its schema allows it. It is kept apart from the lists, as no backup has it. */
+  function checkedSummary(record: unknown): GameSummary {
+    const parsed = gameSummarySchema.safeParse(record);
+    if (!parsed.success) {
+      throw new StorageError(`A game summary is not valid: ${parsed.error.message}`);
+    }
+    return parsed.data as GameSummary;
+  }
+
+  const gameSummaries: Repository["gameSummaries"] = {
+    list: async () => {
+      const summaries: GameSummary[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await client
+          .from("game_summaries")
+          .select("data")
+          .eq("organizer_id", organizerId)
+          .order("id")
+          .range(from, from + PAGE - 1);
+        if (error) throw new StorageError(error.message);
+        for (const found of data) summaries.push(checkedSummary(found.data));
+        if (data.length < PAGE) return summaries;
+      }
+    },
+    save: async (summary) => {
+      assertOwned(summary);
+      const { error } = await client
+        .from("game_summaries")
+        .upsert(
+          { organizer_id: organizerId, id: summary.id, data: checkedSummary(summary) },
+          { onConflict: "organizer_id,id" },
+        );
+      if (error) throw new StorageError(error.message);
+    },
+    remove: async (gameId) => {
+      const { error } = await client
+        .from("game_summaries")
+        .delete()
+        .eq("organizer_id", organizerId)
+        .eq("id", gameId);
+      if (error) throw new StorageError(error.message);
+    },
+  };
+
   // Ties go by ID, as the device's own storage orders them, so both read a list the same way
   const oldestFirst = (query: Query) => query.order("created_at").order("id");
   const byTime = (query: Query) => query.order("occurred_at").order("id");
@@ -175,6 +220,7 @@ export function createSupabaseRepository(
     gameConfigs: saved("gameConfigs"),
     oddsTables: saved("oddsTables"),
     chargeRules: saved("chargeRules"),
+    gameSummaries,
     backup: {
       exportAll: async () => {
         const lists = await Promise.all(

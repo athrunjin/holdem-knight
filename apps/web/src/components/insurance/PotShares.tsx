@@ -174,7 +174,7 @@ export interface CoverShares {
 }
 
 /** One arc of a ring: `start` and `length` are parts of the turn, clockwise from the top. */
-function Arc({
+export function Arc({
   radius,
   width,
   start,

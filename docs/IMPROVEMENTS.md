@@ -1649,6 +1649,16 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. A hand worked from outs is an `InsuranceHand` with `quick`: who was ahead before each street, and who won. `playerHandResults`, `streetLeaders` and `streetEntered` read it in place of cards. Removed: the ledger writes on buying and on recording, the pen on a quick cover that only said it was being built, and chips going to the game as they are typed, in both ways of working. Records made the old way still show, and can still be settled and undone.
 - Tracking: PR #102
 
+### #I-088 收益 on 我的: what the games brought in
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-23
+- Source: the organizer, as the first of the host's pages; the terms were settled on 2026-11-20
+- Problem: nothing in the app adds games up. What a host took in rake, insurance, wages and table fees over a month, and how much of it is still owed, had to be read off one settlement page at a time.
+- Proposal: a page 收益, reached from a line on 我的 that shows this month's total. A period (本周 to start with, Monday to Sunday, then 上一周, this month and the last by name, 近三个月, 近半年, 今年, 全部) and, with games in more than one, a currency shown by its mark. The total due, then a ring of where it came from: wages and table fees in two greens and rake in blue around the outside, and insurance inside in gold, running back in red where it lost. Beside the ring each kind in the order insurance, wages, table fees, rake, with its amount, how many games had it and the average a game; a tap counts a kind or leaves it out of the total and the games, kept on the device. How much of the total is in, with 未收 as a filter on the games. Differences the organizer took on, on their own line. A bar for each of the last four weeks, or the last four months, with choices of its own: the four kinds stacked, insurance at the foot and hanging under the line in red where it lost, each kind shown or not. The games, newest first, each leading to its settlement page, whose foot then leads back to 收益; a game that brought in nothing is listed too.
+- Decision: do, as [ADR 0049](adr/0049-settled-games-keep-a-summary.md). Income is counted as due at settlement, from settled games only; insurance only where its result is the organizer's; the organizer's own play is not income; a game belongs to the day it started. Income not received is what is owed to the organizer in transfers not marked, up to the game's income, since no transfer is the income itself. A custom range of days, a page of transfers across games and a player's history are left for later steps.
+- Tracking: no issue yet
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

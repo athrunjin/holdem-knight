@@ -18,6 +18,9 @@ const game = (space: string, id = "g1") =>
 const event = (space: string, id: string, gameId = "g1") =>
   row(space, id, { gameId, occurredAt: 5, type: "buy_in", playerId: "p1", chips: 1000 });
 
+const summary = (space: string, id = "g1") =>
+  row(space, id, { day: "2026-11-21", currency: "CNY", income: { rake: 100 } });
+
 const insert = (table: string, record: ReturnType<typeof row>, extra = "") =>
   db.query(
     `insert into public.${table} (organizer_id, id, data${extra && ", collection"})
@@ -42,6 +45,7 @@ beforeAll(async () => {
       row(host.space, "c1", { name: "标准工资", createdAt: 3 }),
       "chargeRules",
     );
+    await insert("game_summaries", summary(host.space));
   });
 });
 
@@ -200,6 +204,7 @@ describe("the owner of a space", () => {
         "ledger_events",
         "insurance_hands",
         "saved_configs",
+        "game_summaries",
       ]) {
         expect(await count(table), table).toBe(1);
       }
@@ -258,6 +263,7 @@ describe("another account", () => {
         "ledger_events",
         "insurance_hands",
         "saved_configs",
+        "game_summaries",
       ]) {
         expect(await count(table), table).toBe(0);
       }
@@ -270,6 +276,10 @@ describe("another account", () => {
       await expect(insert("ledger_events", event(host.space, "e2"))).rejects.toThrow(
         /row-level security/,
       );
+      await expect(insert("game_summaries", summary(host.space, "g1"))).rejects.toThrow(
+        /row-level security/,
+      );
+      await db.query("delete from public.game_summaries");
       // An update or a delete finds no row it may touch, and changes nothing
       await db.query(`update public.games set data = data || '{"status":"open"}'`);
       await db.query("delete from public.players");
@@ -284,6 +294,27 @@ describe("another account", () => {
       await insert("games", game(other.space));
       await insert("ledger_events", event(other.space, "e1"));
       expect(await count("ledger_events")).toBe(1);
+    });
+  });
+});
+
+describe("a game's summary", () => {
+  it("is replaced by the owner, and only for a game of the space", async () => {
+    await asAccount(db, host, async () => {
+      await db.query(
+        `update public.game_summaries set data = data || '{"day":"2026-11-22"}' where id = 'g1'`,
+      );
+      const kept = await db.query<{ day: string }>("select day from public.game_summaries");
+      expect(kept.rows).toEqual([{ day: "2026-11-22" }]);
+      await expect(insert("game_summaries", summary(host.space, "none"))).rejects.toThrow(
+        /foreign key/,
+      );
+    });
+  });
+
+  it("is not open to a visitor", async () => {
+    await asAccount(db, null, async () => {
+      await expect(count("game_summaries")).rejects.toThrow(/permission denied/);
     });
   });
 });

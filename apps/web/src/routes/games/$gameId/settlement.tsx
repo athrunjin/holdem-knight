@@ -1,38 +1,26 @@
 import {
-  applyCharges,
-  attributeInsurance,
-  attributeRake,
-  type Charge,
   type ChargeWaiver,
   cents,
-  chargeStatuses,
-  chargesFrom,
   chipDifference,
   chooseCollector,
   chooseInsuranceInSplit,
   chooseRakeInSplit,
-  collectorTransfers,
   type Game,
   INSURANCE_PLAYER_ID,
   isTransferDone,
   type LedgerEvent,
   markReceived,
   markTransfers,
+  netOf,
   ORGANIZER_COLLECTOR,
-  type PlayerChargeStatus,
-  type PlayerLedger,
-  type PlayerNet,
+  planTransfers,
   RAKE_PLAYER_ID,
   reviseGame,
-  type SettlementOutcome,
+  type SettledBooks,
+  settleBooks,
   settleGame,
-  settlementOutcome,
-  settleTransfers,
-  summarizeByPlayer,
   type Transfer,
-  transferCollector,
   waiveCharge,
-  ZERO,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronDown, Share2, Undo2 } from "lucide-react";
@@ -56,9 +44,10 @@ import { InfoButton } from "@/components/InfoButton";
 import { Modal } from "@/components/insurance/Modal";
 import { Page } from "@/components/Page";
 import { organizerNameOf } from "@/data";
-import { useGame, useSaveGame } from "@/data/games";
+import { useGame } from "@/data/games";
 import { useLedger } from "@/data/ledger";
 import { usePlayers } from "@/data/players";
+import { useSaveSettlement } from "@/data/summaries";
 import { t } from "@/i18n";
 import { CHARGE_CLOCK_RULE, chargeClock, chargeRuleSections } from "@/lib/charges";
 import { formatSignedChips } from "@/lib/chips";
@@ -71,6 +60,9 @@ import { netTone } from "@/lib/tone";
 
 export const Route = createFileRoute("/games/$gameId/settlement")({
   component: SettlementPage,
+  // Opened from 收益, the page leads back there instead of to the table
+  validateSearch: (search: Record<string, unknown>): { from?: "income" } =>
+    search.from === "income" ? { from: "income" } : {},
 });
 
 /**
@@ -106,11 +98,9 @@ function SettlementPage() {
 
   if (!game || !events || !players) return null;
 
-  const ledger = summarizeByPlayer(events);
-  // Table fees and wages come last, in cash, so they never touch the chip results
-  const statuses =
-    game.tableFee || game.wage ? chargeStatuses(game, events, chargeClock(game)) : [];
-  const charges = chargesFrom(game, statuses);
+  // Settled in one place, which a settled game's summary is kept from too (ADR 0049)
+  const books = settleBooks(game, events, chargeClock(game));
+  const { ledger, charges } = books;
   const ruleSections = chargeRuleSections(game, game.currency);
   const nameOf = gameNameOf(players, game);
   const initialsOf = gameInitialsOf(players);
@@ -184,14 +174,8 @@ function SettlementPage() {
           {difference === 0 || game.imbalanceHandling ? (
             <SettlementResult
               game={game}
-              outcome={settlementOutcome(ledger, game.chipRatio, game.imbalanceHandling, {
-                insuranceInSplit: game.insuranceInSplit === true,
-                rakeInSplit: game.rakeInSplit === true,
-              })}
-              ledger={ledger}
+              books={books}
               events={events}
-              statuses={statuses}
-              charges={charges}
               nameOf={nameOf}
               initialsOf={initialsOf}
               nudge={nudge}
@@ -223,18 +207,10 @@ function Notice({ gameId, children }: { gameId: string; children: ReactNode }) {
   );
 }
 
-/** One person's result in a list, 0 for someone not in it. */
-function netOf(list: readonly PlayerNet[], id: string) {
-  return list.find((p) => p.playerId === id)?.net ?? ZERO;
-}
-
 interface SettlementResultProps {
   game: Game;
-  outcome: SettlementOutcome;
-  ledger: readonly PlayerLedger[];
+  books: SettledBooks;
   events: readonly LedgerEvent[];
-  statuses: readonly PlayerChargeStatus[];
-  charges: readonly Charge[];
   nameOf: (playerId: string) => string;
   initialsOf: (playerId: string, name: string) => string;
   nudge: Nudge | undefined;
@@ -243,28 +219,23 @@ interface SettlementResultProps {
 
 function SettlementResult({
   game,
-  outcome,
-  ledger,
+  books,
   events,
-  statuses,
-  charges,
   nameOf,
   initialsOf,
   nudge,
   onNudge,
 }: SettlementResultProps) {
+  const { ledger, statuses, charges, outcome, chipNets, nets } = books;
   const { difference } = outcome;
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
-  const insured = attributeInsurance(outcome.nets, game.insuranceOwner);
-  const { ownerId } = insured;
-  // The rake is always the organizer's, as a share of the results like insurance
+  const ownerId = books.insuranceOwnerId;
   const rakeSeat = ledger.find((p) => p.playerId === RAKE_PLAYER_ID);
-  const charged = applyCharges(attributeRake(insured.nets), charges);
-  const { nets } = charged;
   const { currency, status, handChips, createdAt } = game;
   // An organizer who plays has chips under the organizer's own ID, and stays on the organizer's card
   const host = ledger.find((p) => p.playerId === ORGANIZER_COLLECTOR);
-  const saveGame = useSaveGame();
+  // A settled game saved here has its summary kept with it
+  const saveGame = useSaveSettlement(events);
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
   // A game with insurance or charges opens on its transfers, which then go through the organizer
@@ -292,10 +263,7 @@ function SettlementResult({
   const separateInsurance = ownerId === INSURANCE_PLAYER_ID;
 
   /** The transfers of the plan a game has, which may be this game with another plan chosen. */
-  function transfersOf(of: Game) {
-    const id = transferCollector(of, nets);
-    return id ? collectorTransfers(nets, id) : settleTransfers(nets);
-  }
+  const transfersOf = (of: Game) => planTransfers(of, nets);
   /** A settled game is complete while every transfer of its plan is in: none at all counts too. */
   const filed = (of: Game) =>
     markReceived(
@@ -303,16 +271,12 @@ function SettlementResult({
       transfersOf(of).every((transfer) => isTransferDone(of, transfer)),
     );
 
-  const collectorId = transferCollector(game, nets);
-  const transfers = transfersOf(game);
+  const { collectorId, transfers } = books;
   const planName = collectorId
     ? t.gamePages.settlement.collector(nameOf(collectorId))
     : t.gamePages.settlement.fewestTransfers;
 
   const organizerNet = nets.find((p) => p.playerId === ORGANIZER_COLLECTOR)?.net;
-  // Each person's result from the chips alone, before a difference is split
-  const chipNets = settlementOutcome(ledger, game.chipRatio, undefined).nets;
-
   // The insurance result before any split. Its share of a split is a line of its own
   const insuranceBefore = netOf(chipNets, INSURANCE_PLAYER_ID);
   function insuranceLine(id: string): ResultLine[] {
@@ -449,7 +413,7 @@ function SettlementResult({
           group: t.gamePages.settlement.difference,
         }
       : splitLine("split", t.gamePages.settlement.splitTheDifference, covered);
-  const receivesCharges = charged.recipientId === ORGANIZER_COLLECTOR;
+  const receivesCharges = books.chargeRecipientId === ORGANIZER_COLLECTOR;
   // The insurance seat sits on the organizer's card as on the game page, when its result is theirs
   const insuranceSeat = seat &&
     ownerId === ORGANIZER_COLLECTOR && {
@@ -633,6 +597,8 @@ function SettlementResult({
     else revise();
   }
 
+  const { from } = Route.useSearch();
+
   function handleConfirm() {
     onNudge(undefined);
     saveGame.mutate(filed(settleGame(game, Date.now())));
@@ -731,6 +697,7 @@ function SettlementResult({
             collectorId={collectorId}
             nameOf={nameOf}
             disabled={saveGame.isPending}
+            fromIncome={from === "income"}
             sharing={sharing}
             // A transfer's image is the player's own result, to send to them: the payer's, or
             // the receiver's where the organizer is the one who pays

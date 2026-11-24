@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as ToolsRouteImport } from './routes/tools'
 import { Route as GamesNewRouteImport } from './routes/games/new'
+import { Route as MeIncomeRouteImport } from './routes/me_.income'
 import { Route as MeNewPasswordRouteImport } from './routes/me_.new-password'
 import { Route as MePrivacyRouteImport } from './routes/me_.privacy'
 import { Route as MeResetRouteImport } from './routes/me_.reset'
@@ -48,6 +49,11 @@ const ToolsRoute = ToolsRouteImport.update({
 const GamesNewRoute = GamesNewRouteImport.update({
   id: '/games/new',
   path: '/games/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeIncomeRoute = MeIncomeRouteImport.update({
+  id: '/me_/income',
+  path: '/me/income',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MeNewPasswordRoute = MeNewPasswordRouteImport.update({
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/me': typeof MeRoute
   '/tools': typeof ToolsRoute
   '/games/new': typeof GamesNewRoute
+  '/me/income': typeof MeIncomeRoute
   '/me/new-password': typeof MeNewPasswordRoute
   '/me/privacy': typeof MePrivacyRoute
   '/me/reset': typeof MeResetRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/me': typeof MeRoute
   '/tools': typeof ToolsRoute
   '/games/new': typeof GamesNewRoute
+  '/me/income': typeof MeIncomeRoute
   '/me/new-password': typeof MeNewPasswordRoute
   '/me/privacy': typeof MePrivacyRoute
   '/me/reset': typeof MeResetRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/me': typeof MeRoute
   '/tools': typeof ToolsRoute
   '/games/new': typeof GamesNewRoute
+  '/me_/income': typeof MeIncomeRoute
   '/me_/new-password': typeof MeNewPasswordRoute
   '/me_/privacy': typeof MePrivacyRoute
   '/me_/reset': typeof MeResetRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/tools'
     | '/games/new'
+    | '/me/income'
     | '/me/new-password'
     | '/me/privacy'
     | '/me/reset'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/tools'
     | '/games/new'
+    | '/me/income'
     | '/me/new-password'
     | '/me/privacy'
     | '/me/reset'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/tools'
     | '/games/new'
+    | '/me_/income'
     | '/me_/new-password'
     | '/me_/privacy'
     | '/me_/reset'
@@ -272,6 +284,7 @@ export interface RootRouteChildren {
   MeRoute: typeof MeRoute
   ToolsRoute: typeof ToolsRoute
   GamesNewRoute: typeof GamesNewRoute
+  MeIncomeRoute: typeof MeIncomeRoute
   MeNewPasswordRoute: typeof MeNewPasswordRoute
   MePrivacyRoute: typeof MePrivacyRoute
   MeResetRoute: typeof MeResetRoute
@@ -318,6 +331,13 @@ declare module '@tanstack/react-router' {
       path: '/games/new'
       fullPath: '/games/new'
       preLoaderRoute: typeof GamesNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me_/income': {
+      id: '/me_/income'
+      path: '/me/income'
+      fullPath: '/me/income'
+      preLoaderRoute: typeof MeIncomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/me_/new-password': {
@@ -440,6 +460,7 @@ const rootRouteChildren: RootRouteChildren = {
   MeRoute: MeRoute,
   ToolsRoute: ToolsRoute,
   GamesNewRoute: GamesNewRoute,
+  MeIncomeRoute: MeIncomeRoute,
   MeNewPasswordRoute: MeNewPasswordRoute,
   MePrivacyRoute: MePrivacyRoute,
   MeResetRoute: MeResetRoute,

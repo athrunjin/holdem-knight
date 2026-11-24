@@ -1,5 +1,7 @@
 import type { Messages } from "../zh";
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 const records = (count: number) => `${count} ${count === 1 ? "record" : "records"}`;
 
 export const me: Messages["me"] = {
@@ -49,5 +51,53 @@ export const me: Messages["me"] = {
     foreignGuest: "This backup belongs to another account and can’t be restored.",
     failedAccount: "Restore failed. Nothing in the account was changed.",
     failedGuest: "Restore failed. Nothing on this device was changed.",
+  },
+  income: {
+    title: "Income",
+    back: "Back to Me",
+    thisMonth: "This month",
+    period: "Period",
+    periods: {
+      thisWeek: "This week",
+      lastWeek: "Last week",
+      last3Months: "Last 3 months",
+      last6Months: "Last 6 months",
+      thisYear: "This year",
+      all: "All time",
+    },
+    month: (year, month) => `${MONTHS[month - 1]} ${year}`,
+    monthShort: (month) => MONTHS[month - 1] ?? "",
+    day: (month, day) => `${MONTHS[month - 1]} ${day}`,
+    currency: "Points",
+    filter: "Filter",
+    ratio: "Ratio",
+    blinds: "Blinds",
+    any: "Any",
+    applyFilter: "Collapse and apply the filter",
+    due: "Total due",
+    gameCount: "games",
+    ring: "Share of each item",
+    itemGames: (games, average) => `${games} ${games === 1 ? "game" : "games"} · avg ${average}`,
+    itemNone: "None",
+    received: "Received",
+    receivedAll: "All received",
+    unreceived: "Outstanding",
+    unreceivedGames: (games) => `${games} ${games === 1 ? "game" : "games"}`,
+    unreceivedTitle: "Games outstanding",
+    items: "Breakdown",
+    counted: (item) => `Count ${item}`,
+    absorbed: "Difference covered",
+    kept: "Difference kept",
+    absorbedNote: "not part of the four above",
+    span: "Period",
+    spans: { weeks4: "Past 4 weeks", months4: "Last 4 months" },
+    barShown: (name) => `Show ${name}`,
+    weekFrom: (day) => `Week of ${day}`,
+    barTotal: (period, amount) => `${period}: ${amount}`,
+    noneYet:
+      "No settled games yet. Once a settlement is confirmed, the rake, insurance, wages and time charges it brought in show here.",
+    explain:
+      "Counted as due at settlement, from games whose settlement is confirmed. Insurance counts only where its result is the host’s, and the host’s own play does not count. A game belongs to the day it started.",
+    unread: "The income could not be read. Check the network and try again.",
   },
 };

@@ -343,6 +343,7 @@ export const game = {
     inAllReceived: (a: string | number, b: string | number, c: string | number) =>
       `共 ${a} 笔（已收 ${b} / ${c}）`,
     backToTheMainView: "返回主界面",
+    backToIncome: "返回收益界面",
     someTransfersAreMarkedDoneUntick: "存在已完成的转账。取消勾选后才能切换方案。",
   },
   chargeLines: {

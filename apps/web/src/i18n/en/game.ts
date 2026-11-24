@@ -351,6 +351,7 @@ export const game: Messages["game"] = {
     done: (a) => `${a} done`,
     inAllReceived: (a, b, c) => `${a} in all (${b} / ${c} received)`,
     backToTheMainView: "Back to the main view",
+    backToIncome: "Back to income",
     someTransfersAreMarkedDoneUntick:
       "Some transfers are marked done. Untick them to switch plans.",
   },

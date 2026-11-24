@@ -44,6 +44,8 @@ pnpm test:local       # Tests through its sign-in and API; pnpm db:reset empties
 - Storage goes through the repository interface: guest mode is local Dexie, account mode is Supabase (ADR 0005).
   Pages import `repository` and `currentOrganizerId()` from `apps/web/src/data`, which answer for the books in use (ADR 0046).
   Both pass one set of tests, `repository-contract.ts`; behavior a repository must have goes there (ADR 0045).
+- A game is settled by `settleBooks` in `core`, which the settlement page shows. A settled game keeps a
+  `GameSummary` made from it, which reports read instead of the ledgers (ADR 0049).
 - Calculations in `core` must have Vitest unit tests. Anything that conserves money also gets a fast-check property test.
 - TypeScript strict mode, no `any`. Touch targets are at least 44px.
 - Commit messages use Conventional Commits in English, for example `feat(core): compute minimal settlement transfers`.

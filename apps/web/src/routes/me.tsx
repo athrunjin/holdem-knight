@@ -1,11 +1,16 @@
+import { INCOME_ITEMS, incomeReport, periodOf } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChevronRight } from "lucide-react";
 import { AccountCard } from "@/components/account/AccountCard";
 import { BackupSection } from "@/components/BackupSection";
 import { InDevelopment } from "@/components/InDevelopment";
 import { Page } from "@/components/Page";
 import { TextMenu } from "@/components/TextMenu";
 import { useSession } from "@/data/session";
+import { useGameSummaries } from "@/data/summaries";
 import { LANGUAGES, type LanguageChoice, languageChoice, setLanguageChoice, t } from "@/i18n";
+import { formatGameMoney } from "@/lib/currency";
+import { dayOf } from "@/lib/game-day";
 
 export const Route = createFileRoute("/me")({
   component: MePage,
@@ -85,6 +90,45 @@ function LanguageRow() {
   );
 }
 
+/**
+ * The way in to what the games brought in, with this month's total in the currency of the newest
+ * game. The books it reads are the ones in use, a guest's as much as an account's.
+ */
+function IncomeRow() {
+  const { data: summaries = [] } = useGameSummaries();
+  const newest = summaries.reduce<(typeof summaries)[number] | undefined>(
+    (a, b) => (a && a.startedAt >= b.startedAt ? a : b),
+    undefined,
+  );
+  const month =
+    newest &&
+    incomeReport(
+      summaries,
+      { currency: newest.currency, items: INCOME_ITEMS },
+      periodOf("thisMonth", dayOf(Date.now())),
+    );
+
+  return (
+    <Link
+      to="/me/income"
+      className={`${cardClass} mt-4 flex min-h-11 items-center justify-between gap-3 py-3`}
+    >
+      <span className="shrink-0 font-medium">{t.me.income.title}</span>
+      <span className="flex min-w-0 items-center gap-2 text-sm text-muted">
+        {month && newest && (
+          <>
+            <span className="shrink-0">{t.me.income.thisMonth}</span>
+            <span className="truncate text-text tabular-nums">
+              {formatGameMoney(month.total, newest.currency)}
+            </span>
+          </>
+        )}
+        <ChevronRight className="size-4 shrink-0" aria-hidden />
+      </span>
+    </Link>
+  );
+}
+
 function MePage() {
   const session = useSession();
 
@@ -97,6 +141,7 @@ function MePage() {
       )}
       {/* While the kept session is being read, the card's place stays empty for a moment */}
       {session.status === "loading" && <section className={`${cardClass} min-h-40`} />}
+      <IncomeRow />
       <LanguageRow />
       <BackupSection account={session.status === "signed-in"} />
       <p className="mt-6 text-center text-xs text-muted">{t.me.version(__APP_VERSION__)}</p>
