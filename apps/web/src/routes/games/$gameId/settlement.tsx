@@ -61,8 +61,17 @@ import { netTone } from "@/lib/tone";
 export const Route = createFileRoute("/games/$gameId/settlement")({
   component: SettlementPage,
   // Opened from 收益, the page leads back there instead of to the table
-  validateSearch: (search: Record<string, unknown>): { from?: "income" | "transfers" } =>
-    search.from === "income" || search.from === "transfers" ? { from: search.from } : {},
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { from?: "income" | "transfers" | "player"; player?: string; open?: "transfers" } => ({
+    ...(search.from === "income" || search.from === "transfers"
+      ? { from: search.from }
+      : search.from === "player" && typeof search.player === "string"
+        ? { from: "player" as const, player: search.player }
+        : {}),
+    // Reached from a line of a transfer: the page starts at its transfers
+    ...(search.open === "transfers" && { open: "transfers" as const }),
+  }),
 });
 
 /**
@@ -239,17 +248,18 @@ function SettlementResult({
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
   // A game with insurance or charges opens on its transfers, which then go through the organizer
-  const { from } = Route.useSearch();
-  // A game with insurance or charges opens on its transfers, and so does one opened from 转账
+  const { from, player: backPlayerId, open: opensOn } = Route.useSearch();
+  // A game with insurance or charges opens on its transfers, and so does one opened from a
+  // transfer's line
   const [transfersOpen, setTransfersOpen] = useState(
-    () => from === "transfers" || hasGameRules(game),
+    () => opensOn === "transfers" || hasGameRules(game),
   );
-  // Reached from 转账, the page starts at its foot, where the transfers are
+  // Reached from a transfer's line, the page starts at its foot, where the transfers are
   useEffect(() => {
-    if (from !== "transfers") return;
+    if (opensOn !== "transfers") return;
     const frame = requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
     return () => cancelAnimationFrame(frame);
-  }, [from]);
+  }, [opensOn]);
   const [revising, setRevising] = useState(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const manageRef = useRef<HTMLButtonElement>(null);
@@ -706,6 +716,7 @@ function SettlementResult({
             nameOf={nameOf}
             disabled={saveGame.isPending}
             backTo={from}
+            backPlayerId={backPlayerId}
             sharing={sharing}
             // A transfer's image is the player's own result, to send to them: the payer's, or
             // the receiver's where the organizer is the one who pays

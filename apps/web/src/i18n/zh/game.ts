@@ -345,6 +345,7 @@ export const game = {
     backToTheMainView: "返回主界面",
     backToIncome: "返回收益界面",
     backToTransfers: "返回转账界面",
+    backToPlayer: "返回玩家主页",
     someTransfersAreMarkedDoneUntick: "存在已完成的转账。取消勾选后才能切换方案。",
   },
   chargeLines: {

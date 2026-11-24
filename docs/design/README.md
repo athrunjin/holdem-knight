@@ -51,6 +51,10 @@ The four kinds of income keep one color each on every page that charts them:
 
 They are listed in the order insurance, wage, table fee, rake. The two hex values live in the income page today; they move to tokens the next time a second page charts them.
 
+### Avatar grounds
+
+A player's avatar is the first character of the name in bone on one of six deep grounds, `avatar-1` to `avatar-6` in the stylesheet, which a record falls on by its ID. They are quiet on purpose and carry no meaning; nothing else uses them.
+
 ### Contrast
 
 Text meets WCAG 2.2 AA (4.5:1) on both `bg` and `surface`: `text` 13.6:1, `muted` 6.2:1, `highlight` 7.8:1, `win` 7.8:1, `loss` 6.6:1, `accent` 4.7:1. `line` is 1.5:1 and is never text. Color is never the only signal: a loss also has its minus sign, a switched-off option is also struck through, an unsettled game also has its word.
@@ -96,6 +100,7 @@ Use what exists before making something new. Each is one file under `apps/web/sr
 | Typing a number | `TextField` | A tap selects the whole value. Money fills to two decimals on leaving, odds to one |
 | A game in a list | `GameListRow` | The same row on every page that lists games |
 | A filter with several parts | `IncomeFilter` | A framed button that grows into its panel. What is chosen counts when the panel is put away |
+| A player | `PlayerAvatar` | Wherever a player is listed. A tap on it opens the player's page |
 | A transfer made or not | `DoneButton` | An empty box until ticked, at the end of its line. The same on the settlement page and on 转账 |
 | Help text | `InfoButton` | Explanations live behind the small (i), not on the page |
 | Currency | `CurrencyIcon`, `ChipStack` | Marks, not words |
@@ -114,6 +119,7 @@ Motion shows where something came from and that a figure changed. It never delay
 | A page's figures arriving | about 1250ms in all | ease-out cubic | The total counts up as the ring turns in and the bar runs out, together |
 | Leaving a list | 350ms | ease-in | A line confirmed as done closes up and moves off to the right as it fades |
 
+- **A chart builds in the order it is read.** Its line is drawn from the left, the bars grow from the line, and what is written at a bar steps out of it last.
 - **Direction means origin.** A panel grows from the button that opened it; a line unrolls from the figure it explains; a chart grows from its baseline. Closing is the same motion backward.
 - **Content follows the container.** Lines inside a panel show once it has grown.
 - **Things arriving in a list** come a short way into place out of nothing, one after another. Nothing flies across the screen.
@@ -171,5 +177,8 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | --- | --- |
 | 2026-11-24 | First version, from the app as built and the organizer's requests from 2026-11-07 to 2026-11-24 |
 | 2026-11-24 | With 转账: the tick as a component, rows that unfold their lines, and unfolded rows kept on return |
+| 2026-11-24 | Avatars and their six grounds, with the player's page |
+| 2026-11-24 | A line chart: a few round marks on each axis, shaded to its zero line, green or red by where it ends, a dot at the end; its days are picked in a dialog |
+| 2026-11-24 | A chart's line is drawn first and its bars grow from it; the extremes are written at the bars, sliding outward |
 | 2026-11-24 | Bad debts: red with its word, two buttons under ticked lines, marks side by side in a row's corner |
 | 2026-11-24 | Ticks that remove a line wait for a confirm, lines leave with their own motion, single-line rows carry their control, and what pages open on |

@@ -353,6 +353,7 @@ export const game: Messages["game"] = {
     backToTheMainView: "Back to the main view",
     backToIncome: "Back to income",
     backToTransfers: "Back to transfers",
+    backToPlayer: "Back to the player",
     someTransfersAreMarkedDoneUntick:
       "Some transfers are marked done. Untick them to switch plans.",
   },

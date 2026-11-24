@@ -1,4 +1,4 @@
-import { type Player, recentPlayers } from "@holdem-knight/core";
+import { numberPlayers, type Player, recentPlayers } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { toInitials } from "@/lib/pinyin";
@@ -16,8 +16,24 @@ export function newPlayer(name: string): Player {
   };
 }
 
+/**
+ * The player library, every record with its number (ADR 0043). A record made since the last read,
+ * or brought in with a number another already holds, is numbered here and kept. One that cannot
+ * be kept this time still reads with its number, and is numbered again on the next read.
+ */
+async function numberedPlayers(): Promise<Player[]> {
+  const players = await repository.players.list();
+  const numbered = numberPlayers(players);
+  if (numbered.length === 0) return players;
+  await Promise.all(
+    numbered.map((player) => repository.players.save(player).catch(() => undefined)),
+  );
+  const changed = new Map(numbered.map((player) => [player.id, player]));
+  return players.map((player) => changed.get(player.id) ?? player);
+}
+
 export function usePlayers() {
-  return useQuery({ queryKey: PLAYERS_KEY, queryFn: () => repository.players.list() });
+  return useQuery({ queryKey: PLAYERS_KEY, queryFn: numberedPlayers });
 }
 
 export function useSavePlayer() {

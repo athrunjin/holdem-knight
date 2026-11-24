@@ -17,7 +17,9 @@ interface TransfersProps {
   /** While a save is under way. */
   disabled: boolean;
   /** Opened from 收益, which the line at the foot then leads back to */
-  backTo?: "income" | "transfers" | undefined;
+  backTo?: "income" | "transfers" | "player" | undefined;
+  /** Whose page, where it leads back to a player's */
+  backPlayerId?: string | undefined;
   /** While an image is being made. */
   sharing: boolean;
   /** Shares the image of one transfer's payer, or of the whole game when none is named. */
@@ -44,6 +46,7 @@ export function Transfers({
   nameOf,
   disabled,
   backTo,
+  backPlayerId,
   sharing,
   onShare,
   onChoosePlan,
@@ -153,16 +156,26 @@ export function Transfers({
             t.game.transfers.inAllReceived(transfers.length, made.length, transfers.length)}
         </p>
         {/* A game opened from a page of 我的 leads back there */}
-        <Link
-          to={backTo === "income" ? "/me/income" : backTo === "transfers" ? "/me/transfers" : "/"}
-          className="flex min-h-11 shrink-0 items-center text-xs text-highlight"
-        >
-          {backTo === "income"
-            ? t.game.transfers.backToIncome
-            : backTo === "transfers"
-              ? t.game.transfers.backToTransfers
-              : t.game.transfers.backToTheMainView}
-        </Link>
+        {backTo === "player" && backPlayerId !== undefined ? (
+          <Link
+            to="/players/$playerId"
+            params={{ playerId: backPlayerId }}
+            className="flex min-h-11 shrink-0 items-center text-xs text-highlight"
+          >
+            {t.game.transfers.backToPlayer}
+          </Link>
+        ) : (
+          <Link
+            to={backTo === "income" ? "/me/income" : backTo === "transfers" ? "/me/transfers" : "/"}
+            className="flex min-h-11 shrink-0 items-center text-xs text-highlight"
+          >
+            {backTo === "income"
+              ? t.game.transfers.backToIncome
+              : backTo === "transfers"
+                ? t.game.transfers.backToTransfers
+                : t.game.transfers.backToTheMainView}
+          </Link>
+        )}
       </div>
 
       {locked && (

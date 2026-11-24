@@ -181,6 +181,7 @@ const playerSchema = z.object({
   name: z.string().min(1),
   initials: z.string(),
   createdAt: timestamp,
+  number: z.number().int().positive().optional(),
 });
 
 const eventBase = { ...owned, gameId: id, occurredAt: timestamp };

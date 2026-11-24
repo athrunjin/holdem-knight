@@ -84,3 +84,28 @@ export function comparePlayers(
 function compare(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
+
+/** A record's number as people read it: `#0042`. */
+export function playerNumberText(number: number): string {
+  return `#${String(number).padStart(4, "0")}`;
+}
+
+/**
+ * Gives a number to every record that needs one, and returns only the records changed. A record
+ * keeps the number it has. One with none, or with a number an older record already holds (as
+ * after records are brought in from elsewhere), gets the next number past the highest in use,
+ * oldest record first.
+ */
+export function numberPlayers(players: readonly Player[]): Player[] {
+  const oldestFirst = players.toSorted(
+    (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
+  );
+  const held = new Set<number>();
+  const unnumbered: Player[] = [];
+  for (const player of oldestFirst) {
+    if (player.number !== undefined && !held.has(player.number)) held.add(player.number);
+    else unnumbered.push(player);
+  }
+  let next = Math.max(0, ...held) + 1;
+  return unnumbered.map((player) => ({ ...player, number: next++ }));
+}
