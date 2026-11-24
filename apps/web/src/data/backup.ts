@@ -155,6 +155,9 @@ const gameFields = {
   doneTransfers: z
     .array(z.object({ from: id, to: id, amount: money, doneAt: timestamp.optional() }))
     .optional(),
+  badTransfers: z
+    .array(z.object({ from: id, to: id, amount: money, badAt: timestamp.optional() }))
+    .optional(),
   /** Added in version 13. */
   rake: rakeSchema.optional(),
   /** Added in version 13. */

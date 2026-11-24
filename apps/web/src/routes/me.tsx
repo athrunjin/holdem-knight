@@ -101,7 +101,7 @@ function TransfersRow() {
     (a, b) => (a && a.startedAt >= b.startedAt ? a : b),
     undefined,
   );
-  const open = newest && transferReport(summaries, { currency: newest.currency, done: false });
+  const open = newest && transferReport(summaries, { currency: newest.currency, state: "open" });
 
   return (
     <Link

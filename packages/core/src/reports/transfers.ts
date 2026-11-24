@@ -40,30 +40,35 @@ export interface TransferReport {
   readonly between: readonly TransferLine[];
 }
 
+/** Where a transfer stands: still to make, made, or set down as a bad debt. */
+export type TransferState = "open" | "done" | "bad";
+
+export const transferState = ({ done, bad }: SummaryTransfer): TransferState =>
+  done ? "done" : bad ? "bad" : "open";
+
 export interface TransferView {
   /** Amounts in different currencies are never added together. */
   readonly currency: Currency;
-  /** The transfers marked as made, or the ones still to make. */
-  readonly done: boolean;
+  readonly state: TransferState;
 }
 
 const newestFirst = (a: TransferLine, b: TransferLine) => b.startedAt - a.startedAt;
 
 /**
- * The transfers of settled games in one currency, made or still to make, by who they are with.
+ * The transfers of settled games in one currency and one state, by who they are with.
  * A period counts the games that started in it; without one every game counts, as a transfer
  * still to make does not lapse.
  */
 export function transferReport(
   summaries: readonly GameSummary[],
-  { currency, done }: TransferView,
+  { currency, state }: TransferView,
   period: Period = {},
 ): TransferReport {
   const lines: TransferLine[] = summaries
     .filter((summary) => summary.currency === currency && inPeriod(period, summary.day))
     .flatMap(({ id, day, startedAt, smallBlindChips, bigBlindChips, transfers }) =>
       transfers
-        .filter((transfer) => transfer.done === done)
+        .filter((transfer) => transferState(transfer) === state)
         .map((transfer) => ({
           ...transfer,
           gameId: id,

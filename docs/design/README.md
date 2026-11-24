@@ -34,7 +34,7 @@ Dark is the only mode, whatever the device is set to (2026-11-21). Nothing is de
 | `accent` | `#3f9a78` | Primary buttons, progress, the dealer's wage in charts |
 | `highlight` | `#d6b04c` | The one accent: links to act on, amounts still out, the unsettled mark, focus rings, insurance |
 | `win` | `#5cc79f` | A gain, with its plus sign. The charge labels on a game's row |
-| `loss` | `#ef8a7f` | A loss, with its minus sign |
+| `loss` | `#ef8a7f` | A loss, with its minus sign. Also what is overdue or set down as a bad debt, with its word |
 
 Use the Tailwind names (`bg-surface`, `text-muted`, `border-line`). A hex value in a component is a defect, with the one exception below.
 
@@ -136,7 +136,7 @@ What the organizer chose (period, filter, order, folded sections) is kept on the
 
 A row that stands for a person or a game unfolds its lines under itself, and the lines lead on to the page that has the whole of it. A row with a single line has that line's control on itself and no chevron.
 
-A tick that would take its line out of the list does not act at once: a button comes out from under the ticked lines, and the lines leave when it is tapped. A switch that can simply be switched back still needs no confirmation.
+A tick that would take its line out of the list does not act at once: buttons come out from under the ticked lines, and the lines leave when one is tapped. The one that confirms is at the right, filled green; another thing that can become of the lines is at the left, tinted red where it is a step back. A button that does not apply to every ticked line is not shown. A switch that can simply be switched back still needs no confirmation.
 
 **What a page opens on,** before the organizer has chosen anything: this month, panda points where there are any, and no other filter. Charts of periods open on four months.
 
@@ -171,4 +171,5 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | --- | --- |
 | 2026-11-24 | First version, from the app as built and the organizer's requests from 2026-11-07 to 2026-11-24 |
 | 2026-11-24 | With 转账: the tick as a component, rows that unfold their lines, and unfolded rows kept on return |
+| 2026-11-24 | Bad debts: red with its word, two buttons under ticked lines, marks side by side in a row's corner |
 | 2026-11-24 | Ticks that remove a line wait for a confirm, lines leave with their own motion, single-line rows carry their control, and what pages open on |

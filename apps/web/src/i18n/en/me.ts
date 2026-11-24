@@ -84,6 +84,7 @@ export const me: Messages["me"] = {
     unreceived: "Outstanding",
     unreceivedGames: (games) => `${games} ${games === 1 ? "game" : "games"}`,
     unreceivedTitle: "Games outstanding",
+    badDebtGames: (games) => (games === 1 ? "1 game" : `${games} games`),
     items: "Breakdown",
     counted: (item) => `Count ${item}`,
     absorbed: "Difference covered",
@@ -117,6 +118,8 @@ export const me: Messages["me"] = {
     markedOn: (day) => `marked ${day}`,
     confirmDone: (count) => `Confirm done (${count})`,
     confirmUndone: (count) => `Back to open (${count})`,
+    markBad: (count) => `Bad debt (${count})`,
+    markedBadOn: (day) => `bad debt since ${day}`,
     markLine: (who, amount) => `${who} ${amount} done`,
     showParty: (who) => `Transfers with ${who}`,
     between: "Between players",
@@ -127,7 +130,7 @@ export const me: Messages["me"] = {
     noneMade: "No transfers were made in this period.",
     noneYet: "No game is settled yet. Once one is, its transfers are listed here by person.",
     explain:
-      "The transfers of settled games, by person. The totals count only transfers between you and someone else; those between players are listed apart. Open transfers are listed whatever the period.",
+      "The transfers of settled games, by person. The totals count only transfers between you and someone else; those between players are listed apart. Open transfers are listed whatever the period. One that will not come in for now can be set down as a bad debt: it leaves the amount due and is kept folded at the foot of the page, and can be taken back once it is paid or chased again.",
     unread: "The transfers could not be read. Check the network and try again.",
   },
 };

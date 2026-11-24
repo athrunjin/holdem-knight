@@ -239,7 +239,17 @@ function SettlementResult({
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
   // A game with insurance or charges opens on its transfers, which then go through the organizer
-  const [transfersOpen, setTransfersOpen] = useState(() => hasGameRules(game));
+  const { from } = Route.useSearch();
+  // A game with insurance or charges opens on its transfers, and so does one opened from 转账
+  const [transfersOpen, setTransfersOpen] = useState(
+    () => from === "transfers" || hasGameRules(game),
+  );
+  // Reached from 转账, the page starts at its foot, where the transfers are
+  useEffect(() => {
+    if (from !== "transfers") return;
+    const frame = requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+    return () => cancelAnimationFrame(frame);
+  }, [from]);
   const [revising, setRevising] = useState(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const manageRef = useRef<HTMLButtonElement>(null);
@@ -596,8 +606,6 @@ function SettlementResult({
     if (transfers.some((transfer) => isTransferDone(game, transfer))) setRevising(true);
     else revise();
   }
-
-  const { from } = Route.useSearch();
 
   function handleConfirm() {
     onNudge(undefined);

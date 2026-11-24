@@ -303,5 +303,58 @@ export function markTransfers(
           })),
       ]
     : doneTransfers.filter((mark) => !transfers.some((t) => sameTransfer(mark, t)));
-  return next.length > 0 ? { ...rest, doneTransfers: next } : rest;
+  const marked: Game = next.length > 0 ? { ...rest, doneTransfers: next } : rest;
+  // One made after all is no bad debt any more
+  return done ? markBadDebts(marked, transfers, false) : marked;
+}
+
+/** Whether a transfer is set down as a bad debt. One marked as made is not, whatever was kept. */
+export function isBadDebt(game: Pick<Game, "doneTransfers" | "badTransfers">, transfer: Transfer) {
+  return (
+    !isTransferDone(game, transfer) &&
+    (game.badTransfers ?? []).some((bad) => sameTransfer(bad, transfer))
+  );
+}
+
+/** When a transfer was set down as a bad debt, where it is one. */
+export function badDebtAt(
+  game: Pick<Game, "doneTransfers" | "badTransfers">,
+  transfer: Transfer,
+): Timestamp | undefined {
+  if (!isBadDebt(game, transfer)) return undefined;
+  return (game.badTransfers ?? []).find((bad) => sameTransfer(bad, transfer))?.badAt;
+}
+
+/**
+ * Sets transfers down as bad debts at a time, or takes them off again. Only what is owed to the
+ * organizer and not made can be one: anything else among the transfers is left as it is. One
+ * already set down keeps the time it has.
+ */
+export function markBadDebts(
+  game: Game,
+  transfers: readonly Transfer[],
+  bad: boolean,
+  at?: Timestamp,
+): Game {
+  const { badTransfers = [], ...rest } = game;
+  const kept = (transfer: Transfer) => badTransfers.some((mark) => sameTransfer(mark, transfer));
+  const next = bad
+    ? [
+        ...badTransfers,
+        ...transfers
+          .filter(
+            (transfer) =>
+              transfer.to === ORGANIZER_COLLECTOR &&
+              !isTransferDone(game, transfer) &&
+              !kept(transfer),
+          )
+          .map(({ from, to, amount }) => ({
+            from,
+            to,
+            amount,
+            ...(at !== undefined && { badAt: at }),
+          })),
+      ]
+    : badTransfers.filter((mark) => !transfers.some((t) => sameTransfer(mark, t)));
+  return next.length > 0 ? { ...rest, badTransfers: next } : rest;
 }

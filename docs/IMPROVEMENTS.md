@@ -1669,6 +1669,16 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. A person's balance is shown net, and the ticks stay one to a transfer: nothing is set off against anything by itself. A tick now keeps when it was made (`doneAt` on a game's marked transfers and in its summary), for what the page says of a transfer made and for a player's history later; ticks from before have no time. Part payments and reminders are left out.
 - Tracking: no issue yet
 
+### #I-090 Bad debts: transfers that will not come in for now
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-24
+- Source: the organizer, on the preview of #I-089
+- Problem: a transfer nobody expects any time soon stayed among the ones to come in for good, in the amount due and on its game as 未结清, with no way to set it aside short of ticking it as made.
+- Proposal: on 转账 the buttons that come out under ticked lines are two. At the right, in green, 确认完成. At the left, in red, 记为坏账, there only while every ticked line is owed to the organizer: a payment of the organizer's own is never one, nor a transfer between players. Bad debts leave the amount due and are kept folded at the foot of the page, by person, with the day they were set down; from there one is confirmed as made after all, or put back among the ones to come in. A game's row has 坏账 in red in its corner, after 未结清 where it has both and alone in its place otherwise. On 收益 bad debts are the red end of the bar, with a line under what is still out, and are in neither what is in nor what is still out. On the settlement page the transfer is tagged, and a tick there takes the tag off. Each line of 转账 has an icon after its blinds that leads to the settlement page, opened at its transfers; nothing else on the line leads anywhere.
+- Decision: do. A bad debt is kept on the game beside its ticks (`badTransfers`, with the time), and in its summary. It is no income lost for good: nothing is written off, the total due stays, and it comes back by one tap. A game with only bad debts left is not unsettled, so 未结清 on the games page does not list it. Opening a game's results again clears its bad debts with its ticks, since the transfers follow the results. A bad debt is set down on 转账 and nowhere else, so the games page has no filter for it. It is the last state a transfer can have: writing one off for good is not planned. Left for later: a player's bad debts on their own page.
+- Tracking: no issue yet
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

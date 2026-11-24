@@ -25,6 +25,8 @@ import { type Cents, cents, sum, ZERO } from "../money";
 import {
   attributeInsurance,
   attributeRake,
+  badDebtAt,
+  isBadDebt,
   isTransferDone,
   ORGANIZER_COLLECTOR,
   type PlayerNet,
@@ -105,12 +107,19 @@ const SUMMARY_VERSION = 1;
  * Anything else can only change once the results are opened again, which clears the time.
  */
 export function summaryBasis(
-  game: Pick<Game, "settledAt" | "collectorId" | "doneTransfers">,
+  game: Pick<Game, "settledAt" | "collectorId" | "doneTransfers" | "badTransfers">,
 ): string {
-  const done = (game.doneTransfers ?? [])
-    .map(({ from, to, amount }) => `${from}>${to}:${amount}`)
-    .toSorted();
-  return JSON.stringify([SUMMARY_VERSION, game.settledAt ?? null, game.collectorId ?? null, done]);
+  const marks = (transfers: readonly Transfer[] = []) =>
+    transfers.map(({ from, to, amount }) => `${from}>${to}:${amount}`).toSorted();
+  const bad = marks(game.badTransfers);
+  return JSON.stringify([
+    SUMMARY_VERSION,
+    game.settledAt ?? null,
+    game.collectorId ?? null,
+    marks(game.doneTransfers),
+    // Only where there are any, so a game with none keeps the basis it had
+    ...(bad.length > 0 ? [bad] : []),
+  ]);
 }
 
 /** Whether a game's kept summary still says what the game does. */
@@ -198,10 +207,13 @@ export function gameSummary(
     ...(collectorId !== undefined && { collectorId }),
     transfers: transfers.map((transfer) => {
       const doneAt = transferDoneAt(game, transfer);
+      const badAt = badDebtAt(game, transfer);
       return {
         ...transfer,
         done: isTransferDone(game, transfer),
         ...(doneAt !== undefined && { doneAt }),
+        ...(isBadDebt(game, transfer) && { bad: true as const }),
+        ...(badAt !== undefined && { badAt }),
       };
     }),
   };

@@ -46,7 +46,7 @@ const GAMES = [
 ];
 
 describe("transferReport", () => {
-  const open = transferReport(GAMES, { currency: "CNY", done: false });
+  const open = transferReport(GAMES, { currency: "CNY", state: "open" });
 
   it("adds up what is still to come in and to go out, in one currency", () => {
     expect(open.toOrganizer).toBe(340);
@@ -72,12 +72,28 @@ describe("transferReport", () => {
   });
 
   it("lists the ones made instead when asked, within a period", () => {
-    const made = transferReport(GAMES, { currency: "CNY", done: true });
+    const made = transferReport(GAMES, { currency: "CNY", state: "done" });
     expect(made.toOrganizer).toBe(200);
     expect(made.parties.map(({ partyId }) => partyId)).toEqual(["wang"]);
     const earlier = { from: "2026-11-01", to: "2026-11-07" };
-    expect(transferReport(GAMES, { currency: "CNY", done: true }, earlier).parties).toEqual([]);
-    expect(transferReport(GAMES, { currency: "CNY", done: false }, earlier).toOrganizer).toBe(300);
+    expect(transferReport(GAMES, { currency: "CNY", state: "done" }, earlier).parties).toEqual([]);
+    expect(transferReport(GAMES, { currency: "CNY", state: "open" }, earlier).toOrganizer).toBe(
+      300,
+    );
+  });
+
+  it("keeps bad debts out of what is still to come in, in a list of their own", () => {
+    const games = [
+      summary("g", "2026-11-03", [
+        pay("a", ME, 300),
+        { ...pay("b", ME, 200), bad: true },
+        pay("c", ME, 100, true),
+      ]),
+    ];
+    expect(transferReport(games, { currency: "CNY", state: "open" }).toOrganizer).toBe(300);
+    const bad = transferReport(games, { currency: "CNY", state: "bad" });
+    expect(bad.toOrganizer).toBe(200);
+    expect(bad.parties.map(({ partyId }) => partyId)).toEqual(["b"]);
   });
 
   it("orders parties owed alike by who has waited longest", () => {
@@ -85,7 +101,7 @@ describe("transferReport", () => {
       summary("late", "2026-11-12", [pay("b", ME, 100)]),
       summary("early", "2026-11-02", [pay("a", ME, 100)]),
     ];
-    const { parties } = transferReport(games, { currency: "CNY", done: false });
+    const { parties } = transferReport(games, { currency: "CNY", state: "open" });
     expect(parties.map(({ partyId }) => partyId)).toEqual(["a", "b"]);
   });
 
@@ -103,10 +119,11 @@ describe("transferReport", () => {
     const games = fc.array(fc.array(transfer, { maxLength: 6 }), { maxLength: 8 });
     fc.assert(
       fc.property(games, fc.boolean(), (plans, done) => {
+        const state = done ? "done" : "open";
         const summaries = plans.map((transfers, i) =>
           summary(`g${i}`, `2026-11-${String(i + 1).padStart(2, "0")}`, transfers),
         );
-        const report = transferReport(summaries, { currency: "CNY", done });
+        const report = transferReport(summaries, { currency: "CNY", state });
         const counted = plans.flat().filter((t) => t.done === done);
         const listed = report.parties.flatMap(({ lines }) => lines).length + report.between.length;
         expect(listed).toBe(counted.length);

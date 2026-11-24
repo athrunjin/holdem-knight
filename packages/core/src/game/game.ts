@@ -212,7 +212,7 @@ export function settleGame(game: Game, settledAt: Timestamp): Game {
  * go, since the transfers follow the results, and with them the game being complete.
  */
 export function reviseGame(game: Game): Game {
-  const { settledAt: _, allReceived: __, doneTransfers: ___, ...rest } = game;
+  const { settledAt: _, allReceived: __, doneTransfers: ___, badTransfers: ____, ...rest } = game;
   return { ...rest, status: "settling" };
 }
 

@@ -33,6 +33,7 @@ export const common: Messages["common"] = {
   turn: "Turn",
   river: "River",
   unknownPlayer: "Unknown player",
+  badDebt: "Bad debt",
   tie: "Tie",
   outdraw: "Outdraw",
   ahead: "Ahead",

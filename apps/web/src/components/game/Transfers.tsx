@@ -1,4 +1,4 @@
-import { type Game, isTransferDone, type Transfer } from "@holdem-knight/core";
+import { type Game, isBadDebt, isTransferDone, type Transfer } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Share2 } from "lucide-react";
 import { useState } from "react";
@@ -114,6 +114,12 @@ export function Transfers({
                   aria-label={t.game.transfers.pays2}
                 />
                 <span className={cn("min-w-0 truncate font-medium", struck)}>{nameOf(to)}</span>
+                {/* Set down on 转账 as not coming in for now. A tick here takes it off */}
+                {settled && isBadDebt(game, transfer) && (
+                  <span className="shrink-0 rounded bg-loss/15 px-1.5 py-0.5 text-xs font-medium text-loss">
+                    {t.common.badDebt}
+                  </span>
+                )}
                 <span
                   className={cn(
                     "ml-auto shrink-0 pl-1 font-semibold whitespace-nowrap",

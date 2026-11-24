@@ -78,6 +78,7 @@ export const me = {
     unreceived: "未收",
     unreceivedGames: (games: number) => `${games} 局`,
     unreceivedTitle: "未收牌局",
+    badDebtGames: (games: number) => `${games} 局`,
     items: "收入明细",
     counted: (item: string) => `计入${item}`,
     absorbed: "承担差额",
@@ -110,6 +111,8 @@ export const me = {
     markedOn: (day: string) => `${day}标记`,
     confirmDone: (count: number) => `确认完成 (${count})`,
     confirmUndone: (count: number) => `改回未完成 (${count})`,
+    markBad: (count: number) => `记为坏账 (${count})`,
+    markedBadOn: (day: string) => `${day}记为坏账`,
     markLine: (who: string, amount: string) => `${who} ${amount} 已完成`,
     showParty: (who: string) => `${who}的转账`,
     between: "玩家之间",
@@ -120,7 +123,7 @@ export const me = {
     noneMade: "这段时间没有已完成的转账。",
     noneYet: "还没有结算过的牌局。确认结算后，这里会列出每个人的转账。",
     explain:
-      "列出已确认结算的牌局里的转账，按人汇总。待收和待付只算和你之间的转账，玩家之间的单独列出。未完成的转账不分时间段，全部列出。",
+      "列出已确认结算的牌局里的转账，按人汇总。待收和待付只算和你之间的转账，玩家之间的单独列出。未完成的转账不分时间段，全部列出。暂时收不回的可以记为坏账：它不再算进待收，折叠在页面最下方，之后收到了或想继续追，都可以改回来。",
     unread: "转账没有读出来，请检查网络后重试。",
   },
 };

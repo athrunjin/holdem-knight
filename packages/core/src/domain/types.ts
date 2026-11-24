@@ -297,6 +297,11 @@ export interface DoneTransfer extends Transfer {
   readonly doneAt?: Timestamp;
 }
 
+/** A transfer to the organizer set down as a bad debt, with when it was. */
+export interface BadTransfer extends Transfer {
+  readonly badAt?: Timestamp;
+}
+
 /**
  * The optimal transfer plan, chosen outright. It is saved where a collector's ID would be, so the
  * choice holds in a game whose own default is a collector.
@@ -489,6 +494,12 @@ export interface Game {
    */
   readonly doneTransfers?: readonly DoneTransfer[];
   /**
+   * Transfers to the organizer set down as bad debts: not made, and not expected for now. One is
+   * taken off again when it is made after all, or put back among the ones to come in. Missing
+   * means none.
+   */
+  readonly badTransfers?: readonly BadTransfer[];
+  /**
    * IANA time zone the game was started in, such as `Asia/Shanghai`. Wage rates by time of day
    * follow it on every device. Missing on earlier games, which use the viewing device's zone.
    */
@@ -530,6 +541,9 @@ export interface SummaryTransfer extends Transfer {
   readonly done: boolean;
   /** When it was marked. Missing for one not made, or marked before the time was kept. */
   readonly doneAt?: Timestamp;
+  /** Set down as a bad debt, which one marked as made never is. */
+  readonly bad?: true;
+  readonly badAt?: Timestamp;
 }
 
 /**

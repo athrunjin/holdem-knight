@@ -103,13 +103,20 @@ export function hasOption(game: Game, option: GameOption) {
 }
 
 /**
- * Whether a settled game still has transfers to be made. Its summary says so from the transfers
- * themselves, each with its tick. Until that is read, the game's own saved mark stands in, which a
+ * Whether a settled game still has transfers to be made, bad debts aside. Its summary says so from
+ * the transfers themselves, each with its tick. Until that is read, the game's own saved mark stands in, which a
  * game brought in from elsewhere may lack.
  */
 export function owesTransfers(game: Game, summary: GameSummary | undefined): boolean {
   if (game.status !== "settled") return false;
-  return summary ? summary.transfers.some(({ done }) => !done) : gameStage(game) === "pending";
+  return summary
+    ? summary.transfers.some(({ done, bad }) => !done && !bad)
+    : gameStage(game) === "pending";
+}
+
+/** Whether a settled game has a transfer set down as a bad debt. */
+export function hasBadDebt(summary: GameSummary | undefined): boolean {
+  return summary?.transfers.some(({ done, bad }) => !done && bad) ?? false;
 }
 
 const settledIn = (games: readonly Game[], view: HistoryView, today: string) => {

@@ -5,10 +5,12 @@ import {
   isSummaryCurrent,
   isTransferDone,
   type LedgerEvent,
+  markBadDebts,
   markReceived,
   markTransfers,
   type Repository,
   type Transfer,
+  type TransferState,
 } from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -57,7 +59,8 @@ export function useSaveSettlement(events: readonly LedgerEvent[]) {
 }
 
 /**
- * Marks transfers of a settled game as made or not from a page that lists them across games. The
+ * Moves transfers of a settled game between made, bad debt and still to make, from a page that
+ * lists them across games. The
  * game is saved as its settlement page would save it: complete while every transfer of its plan
  * is in, with its summary made again.
  */
@@ -68,15 +71,22 @@ export function useMarkTransfers() {
       game,
       summary,
       transfers,
-      done,
+      to,
     }: {
       game: Game;
       /** The game's summary, whose transfers are those of its plan */
       summary: GameSummary;
       transfers: readonly Transfer[];
-      done: boolean;
+      /** Made, set down as bad debts, or back among the ones still to make */
+      to: TransferState;
     }) => {
-      const marked = markTransfers(game, transfers, done, Date.now());
+      const now = Date.now();
+      const marked =
+        to === "done"
+          ? markTransfers(game, transfers, true, now)
+          : to === "bad"
+            ? markBadDebts(game, transfers, true, now)
+            : markBadDebts(markTransfers(game, transfers, false), transfers, false);
       const next = markReceived(
         marked,
         summary.transfers.every((transfer) => isTransferDone(marked, transfer)),

@@ -130,6 +130,28 @@ describe("incomeReport", () => {
     summary("aud", "2026-11-15", { rake: 9999 }, { currency: "AUD" }),
   ];
 
+  it("counts a bad debt apart from what is in and what is still expected", () => {
+    const transfers = [
+      { from: "a", to: ORGANIZER_PLAYER_ID, amount: cents(300), done: false, bad: true as const },
+      { from: "b", to: ORGANIZER_PLAYER_ID, amount: cents(400), done: false },
+      { from: "c", to: ORGANIZER_PLAYER_ID, amount: cents(900), done: true },
+    ];
+    const games = [summary("bad", "2026-11-05", { rake: 600 }, { transfers })];
+    const report = incomeReport(
+      games,
+      { currency: "CNY", items: INCOME_ITEMS },
+      { from: "2026-11-01", to: "2026-11-30" },
+    );
+    // 600 of income: 300 is a bad debt, and of the 400 still owed only 300 is income
+    expect(report).toMatchObject({
+      total: 600,
+      badDebt: 300,
+      unreceived: 300,
+      received: 0,
+      badDebtGames: 1,
+    });
+  });
+
   it("takes the games of the period and the currency, newest first, with those that brought in nothing", () => {
     const report = incomeReport(games, all, monthPeriod("2026-11"));
     expect(report.games.map(({ summary: { id } }) => id)).toEqual(["last", "none", "first"]);

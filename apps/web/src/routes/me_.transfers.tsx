@@ -6,6 +6,7 @@ import {
   daysBetween,
   type Game,
   type GameSummary,
+  ORGANIZER_COLLECTOR,
   type PartyTransfers,
   PERIOD_CHOICES,
   type PeriodChoice,
@@ -13,10 +14,11 @@ import {
   periodOf,
   type TransferLine,
   type TransferReport,
+  type TransferState,
   transferReport,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ReceiptText } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { DoneButton } from "@/components/game/Transfers";
@@ -131,22 +133,22 @@ function TransfersPage() {
 
 type Money = (value: Cents) => string;
 
-/** How long a line takes to leave once its tick is confirmed, in milliseconds */
+/** How long a line takes to leave once what is to become of it is confirmed, in milliseconds */
 const LEAVE_MS = 350;
 
 const keyOf = (line: TransferLine) => `${line.gameId}|${line.from}|${line.to}`;
 
 /**
- * Ticks that are not saved yet. A tick only marks a line; the button that comes out under it
- * confirms, and the lines then leave before they are saved.
+ * Ticks that are not saved yet. A tick only picks a line out; the buttons that come out under it
+ * say what becomes of the ticked lines, which then leave before they are saved.
  */
 interface Draft {
   readonly ticked: ReadonlySet<string>;
   /** Confirmed and on their way out */
   readonly leaving: ReadonlySet<string>;
   readonly onToggle: (line: TransferLine) => void;
-  /** Confirms the ticked ones among these lines */
-  readonly onConfirm: (lines: readonly TransferLine[]) => void;
+  /** Moves the ticked ones among these lines to another state */
+  readonly onConfirm: (lines: readonly TransferLine[], to: TransferState) => void;
 }
 
 /** What leaves: it closes up and moves off to the right as it fades. */
@@ -175,6 +177,7 @@ function Transfers({
     parseView,
   );
   const [betweenOpen, setBetweenOpen] = useState(false);
+  const [badOpen, setBadOpen] = useState(false);
   const markTransfers = useMarkTransfers();
 
   // The currencies there are games in, in the app's own order. The newest game's comes up first
@@ -183,12 +186,15 @@ function Transfers({
   const currency =
     view.currency && currencies.includes(view.currency) ? view.currency : newest.currency;
   const { done, period } = view;
+  const state: TransferState = done ? "done" : "open";
 
-  const open = transferReport(summaries, { currency, done: false });
+  const open = transferReport(summaries, { currency, state: "open" });
   const madeIn = (choice: PeriodChoice) =>
-    transferReport(summaries, { currency, done: true }, periodOf(choice, today));
+    transferReport(summaries, { currency, state: "done" }, periodOf(choice, today));
   const made = madeIn(period);
   const report = done ? made : open;
+  // Set down as not coming in for now: under everything else, folded, and in no total above
+  const bad = transferReport(summaries, { currency, state: "bad" });
 
   const money: Money = (value) => formatGameMoney(value, currency);
   const nameOf = gameNameOf(players, newest);
@@ -200,7 +206,7 @@ function Transfers({
     new Set([...all].filter((key) => !keys.includes(key)));
 
   // Saved to each game the lines belong to, as that game's settlement page would save it
-  const save = (lines: readonly TransferLine[]) => {
+  const save = (lines: readonly TransferLine[], to: TransferState) => {
     for (const gameId of new Set(lines.map((line) => line.gameId))) {
       const game = games.find(({ id }) => id === gameId);
       const summary = summaries.find(({ id }) => id === gameId);
@@ -208,8 +214,7 @@ function Transfers({
       // Whether saved or not, the lines are read again by then and stand where they belong
       const settle = () => setLeaving(without(own.map(keyOf)));
       if (!game || !summary) settle();
-      else
-        markTransfers.mutate({ game, summary, transfers: own, done: !done }, { onSettled: settle });
+      else markTransfers.mutate({ game, summary, transfers: own, to }, { onSettled: settle });
     }
   };
 
@@ -222,7 +227,7 @@ function Transfers({
         if (!next.delete(keyOf(line))) next.add(keyOf(line));
         return next;
       }),
-    onConfirm: (lines) => {
+    onConfirm: (lines, to) => {
       const chosen = lines.filter((line) => ticked.has(keyOf(line)));
       if (chosen.length === 0) return;
       const keys = chosen.map(keyOf);
@@ -230,10 +235,27 @@ function Transfers({
       // Saved once they have left, so nothing jumps under a finger
       window.setTimeout(() => {
         setTicked(without(keys));
-        save(chosen);
+        save(chosen, to);
       }, LEAVE_MS);
     },
   };
+  const disabled = markTransfers.isPending;
+
+  const partyRows = (parties: readonly PartyTransfers[], of: TransferState) =>
+    parties.map((party, index) => (
+      <PartyRow
+        key={party.partyId + of + playKey}
+        party={party}
+        name={nameOf(party.partyId)}
+        state={of}
+        today={today}
+        index={index}
+        playKey={playKey}
+        money={money}
+        draft={draft}
+        disabled={disabled}
+      />
+    ));
 
   return (
     <QuietMotion value={returning}>
@@ -294,70 +316,92 @@ function Transfers({
             {done ? t.me.transfers.noneMade : t.me.transfers.noneOpen}
           </p>
         ) : (
-          <ul className="mt-3">
-            {report.parties.map((party, index) => (
-              <PartyRow
-                key={party.partyId + playKey}
-                party={party}
-                name={nameOf(party.partyId)}
-                done={done}
-                today={today}
-                index={index}
-                playKey={playKey}
-                money={money}
-                draft={draft}
-                disabled={markTransfers.isPending}
-              />
-            ))}
-          </ul>
+          <ul className="mt-3">{partyRows(report.parties, state)}</ul>
         )}
 
         {/* The organizer is no part of these, so they are kept out of the way and of the totals */}
         {report.between.length > 0 && (
-          <section className="mt-5">
-            <button
-              type="button"
-              aria-expanded={betweenOpen}
-              onClick={() => setBetweenOpen(!betweenOpen)}
-              className="flex min-h-11 w-full items-center justify-between gap-2 pl-1 font-medium"
-            >
-              <span>
-                {t.me.transfers.between}
-                <span className="ml-2 text-sm font-normal text-muted tabular-nums">
-                  {t.me.transfers.betweenCount(report.between.length)}
-                </span>
-              </span>
-              <ChevronDown
-                className={cn(
-                  "size-5 text-muted transition-transform duration-300",
-                  betweenOpen && "rotate-180",
-                )}
-                aria-hidden
-              />
-            </button>
-            <Fold open={betweenOpen}>
-              <div className="rounded-xl border border-line bg-surface">
-                <ul className="px-4">
-                  {report.between.map((line) => (
-                    <Line
-                      key={keyOf(line)}
-                      line={line}
-                      who={t.me.transfers.pays(nameOf(line.from), nameOf(line.to))}
-                      between
-                      today={today}
-                      money={money}
-                      draft={draft}
-                      disabled={markTransfers.isPending}
-                    />
-                  ))}
-                </ul>
-                <Confirm lines={report.between} done={done} draft={draft} />
-              </div>
-            </Fold>
-          </section>
+          <FoldedSection
+            title={t.me.transfers.between}
+            note={t.me.transfers.betweenCount(report.between.length)}
+            open={betweenOpen}
+            onToggle={() => setBetweenOpen(!betweenOpen)}
+          >
+            <div className="rounded-xl border border-line bg-surface">
+              <ul className="px-4">
+                {report.between.map((line) => (
+                  <Line
+                    key={keyOf(line)}
+                    line={line}
+                    who={t.me.transfers.pays(nameOf(line.from), nameOf(line.to))}
+                    between
+                    today={today}
+                    money={money}
+                    draft={draft}
+                    disabled={disabled}
+                  />
+                ))}
+              </ul>
+              <Confirm lines={report.between} state={state} draft={draft} />
+            </div>
+          </FoldedSection>
+        )}
+
+        {/* Last on the page, under the transfers still to make */}
+        {!done && bad.parties.length > 0 && (
+          <FoldedSection
+            title={t.common.badDebt}
+            note={`${t.me.transfers.betweenCount(linesOf(bad))} · ${money(bad.toOrganizer)}`}
+            tone="loss"
+            open={badOpen}
+            onToggle={() => setBadOpen(!badOpen)}
+          >
+            <ul>{partyRows(bad.parties, "bad")}</ul>
+          </FoldedSection>
         )}
       </div>
     </QuietMotion>
+  );
+}
+
+/** A group kept folded under the list: its name and what is in it, and a chevron that opens it. */
+function FoldedSection({
+  title,
+  note,
+  tone,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  note: string;
+  tone?: "loss";
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <section className="mt-5">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className="flex min-h-11 w-full items-center justify-between gap-2 pl-1 font-medium"
+      >
+        <span className={cn(tone === "loss" && "text-loss")}>
+          {title}
+          <span className="ml-2 text-sm font-normal text-muted tabular-nums">{note}</span>
+        </span>
+        <ChevronDown
+          className={cn(
+            "size-5 text-muted transition-transform duration-300",
+            open && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </button>
+      <Fold open={open}>{children}</Fold>
+    </section>
   );
 }
 
@@ -417,33 +461,87 @@ function Fold({ open, children }: { open: boolean; children: ReactNode }) {
   );
 }
 
-/** Comes out from under the lines once one of them is ticked, and confirms the ticked ones. */
+const confirmButton = "min-h-11 rounded-xl px-2 text-sm font-medium";
+
+/**
+ * Comes out from under the lines once one of them is ticked: at the right, in green, what the
+ * ticked lines are confirmed as; at the left, the other thing that can become of them. Among
+ * transfers still to make that is a bad debt, in red, and only while every ticked one is owed to
+ * the organizer: a payment of the organizer's own is never one.
+ */
 function Confirm({
   lines,
-  done,
+  state,
   draft,
 }: {
   lines: readonly TransferLine[];
-  done: boolean;
+  state: TransferState;
   draft: Draft;
 }) {
   const chosen = lines.filter(
     (line) => draft.ticked.has(keyOf(line)) && !draft.leaving.has(keyOf(line)),
-  ).length;
-  // The number it had stays while it goes back in
-  const [last, setLast] = useState(1);
-  if (chosen > 0 && chosen !== last) setLast(chosen);
+  );
+  // What it showed stays while it goes back in, with nothing ticked any more
+  const now = {
+    count: chosen.length,
+    owed: chosen.every((line) => line.to === ORGANIZER_COLLECTOR),
+  };
+  const [shown, setShown] = useState(now);
+  if (now.count > 0 && (now.count !== shown.count || now.owed !== shown.owed)) setShown(now);
+  const { count: last, owed } = now.count > 0 ? now : shown;
 
   return (
-    <Fold open={chosen > 0}>
-      <button
-        type="button"
-        onClick={() => draft.onConfirm(lines)}
-        className="flex min-h-11 w-full items-center justify-center border-t border-line text-sm font-medium text-highlight"
-      >
-        {done ? t.me.transfers.confirmUndone(last) : t.me.transfers.confirmDone(last)}
-      </button>
+    <Fold open={chosen.length > 0}>
+      <div className="grid grid-cols-2 gap-2 border-t border-line p-2">
+        {state === "open" && owed && (
+          <button
+            type="button"
+            onClick={() => draft.onConfirm(lines, "bad")}
+            className={cn(confirmButton, "bg-loss/15 text-loss")}
+          >
+            {t.me.transfers.markBad(last)}
+          </button>
+        )}
+        {state === "bad" && (
+          <button
+            type="button"
+            onClick={() => draft.onConfirm(lines, "open")}
+            className={cn(confirmButton, "border border-line")}
+          >
+            {t.me.transfers.confirmUndone(last)}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => draft.onConfirm(lines, state === "done" ? "open" : "done")}
+          className={cn(
+            confirmButton,
+            "col-start-2",
+            state === "done" ? "border border-line" : "bg-accent text-accent-text",
+          )}
+        >
+          {state === "done" ? t.me.transfers.confirmUndone(last) : t.me.transfers.confirmDone(last)}
+        </button>
+      </div>
     </Fold>
+  );
+}
+
+/** After a game's blinds: leads to its settlement page, opened on its transfers. */
+function RecordLink({ line }: { line: TransferLine }) {
+  return (
+    <Link
+      to="/games/$gameId/settlement"
+      params={{ gameId: line.gameId }}
+      search={{ from: "transfers" }}
+      aria-label={t.me.transfers.openSettlement(dayName(line.day))}
+      // The page is come back to where it was left
+      onClick={leaveList}
+      // The icon takes its own small room in the line, and the tap target reaching past it is 44px
+      className="relative ml-2 size-4 shrink-0 text-muted after:absolute after:-inset-3.5"
+    >
+      <ReceiptText className="size-4" strokeWidth={1.75} aria-hidden />
+    </Link>
   );
 }
 
@@ -455,7 +553,7 @@ function Confirm({
 function PartyRow({
   party,
   name,
-  done,
+  state,
   today,
   index,
   playKey,
@@ -465,7 +563,7 @@ function PartyRow({
 }: {
   party: PartyTransfers;
   name: string;
-  done: boolean;
+  state: TransferState;
   today: string;
   /** Where it is in the list, for the order rows arrive in */
   index: number;
@@ -474,33 +572,40 @@ function PartyRow({
   draft: Draft;
   disabled: boolean;
 }) {
-  const [open, setOpen] = useState(() => opened.has(party.partyId));
+  const openKey = `${state}|${party.partyId}`;
+  const [open, setOpen] = useState(() => opened.has(openKey));
   const toggle = () => {
-    if (open) opened.delete(party.partyId);
-    else opened.add(party.partyId);
+    if (open) opened.delete(openKey);
+    else opened.add(openKey);
     setOpen(!open);
   };
   const playsIn = usePlaysIn(playKey);
   const { net, games, oldestDay, lines } = party;
-  const late = !done && daysBetween(oldestDay, today) > LATE_DAYS;
+  const late = state === "open" && daysBetween(oldestDay, today) > LATE_DAYS;
   const only = lines.length === 1 ? lines[0] : undefined;
   const gone = lines.every((line) => draft.leaving.has(keyOf(line)));
 
   const who = (
     <>
       <span className="block truncate font-medium">{name}</span>
-      <span className="block truncate text-xs text-muted tabular-nums">
+      {/* Not clipped: the icon's tap target reaches past the line */}
+      <span className="flex items-center text-xs whitespace-nowrap text-muted tabular-nums">
         {only ? (
           <>
             <span className={cn(late && "text-loss")}>{dayName(only.day)}</span>
             {` · ${only.smallBlindChips} / ${only.bigBlindChips}`}
-            {only.doneAt !== undefined &&
-              ` · ${t.me.transfers.markedOn(dayName(dayOf(only.doneAt)))}`}
+            <RecordLink line={only} />
+            {only.doneAt !== undefined && (
+              <span className="ml-2">{t.me.transfers.markedOn(dayName(dayOf(only.doneAt)))}</span>
+            )}
+            {only.badAt !== undefined && (
+              <span className="ml-2">{t.me.transfers.markedBadOn(dayName(dayOf(only.badAt)))}</span>
+            )}
           </>
         ) : (
           <>
             {t.me.transfers.partyGames(games)}
-            {!done && (
+            {state === "open" && (
               <>
                 {" · "}
                 <span className={cn(late && "text-loss")}>
@@ -513,22 +618,29 @@ function PartyRow({
       </span>
     </>
   );
-  // The balance: gold while it is still to come in
+  // The balance: gold while it is still to come in, red once it is a bad debt
   const balance = (
     <span className="flex shrink-0 items-baseline gap-1.5">
       <span className="text-xs text-muted">
-        {net === 0
-          ? t.me.transfers.even
-          : net > 0
-            ? done
-              ? t.me.transfers.received
-              : t.me.transfers.toCome
-            : done
-              ? t.me.transfers.paid
-              : t.me.transfers.toPay}
+        {state === "bad"
+          ? t.common.badDebt
+          : net === 0
+            ? t.me.transfers.even
+            : net > 0
+              ? state === "done"
+                ? t.me.transfers.received
+                : t.me.transfers.toCome
+              : state === "done"
+                ? t.me.transfers.paid
+                : t.me.transfers.toPay}
       </span>
       {net !== 0 && (
-        <span className={cn("font-medium tabular-nums", net > 0 && !done && "text-highlight")}>
+        <span
+          className={cn(
+            "font-medium tabular-nums",
+            state === "bad" ? "text-loss" : net > 0 && state === "open" && "text-highlight",
+          )}
+        >
           {money(cents(Math.abs(net)))}
         </span>
       )}
@@ -547,17 +659,7 @@ function PartyRow({
           <div className="mb-2 rounded-xl border border-line bg-surface">
             {only ? (
               <div className="flex min-h-14 items-center gap-3 px-4">
-                <Link
-                  to="/games/$gameId/settlement"
-                  params={{ gameId: only.gameId }}
-                  search={{ from: "transfers" }}
-                  aria-label={t.me.transfers.openSettlement(dayName(only.day))}
-                  // The page is come back to where it was left
-                  onClick={leaveList}
-                  className="flex min-h-14 min-w-0 flex-1 flex-col justify-center"
-                >
-                  {who}
-                </Link>
+                <span className="min-w-0 flex-1">{who}</span>
                 {balance}
                 <DoneButton
                   label={t.me.transfers.markLine(name, money(only.amount))}
@@ -586,7 +688,7 @@ function PartyRow({
               </button>
             )}
             {only ? (
-              <Confirm lines={lines} done={done} draft={draft} />
+              <Confirm lines={lines} state={state} draft={draft} />
             ) : (
               <Fold open={open}>
                 <ul className="border-t border-line px-4">
@@ -604,7 +706,7 @@ function PartyRow({
                     />
                   ))}
                 </ul>
-                <Confirm lines={lines} done={done} draft={draft} />
+                <Confirm lines={lines} state={state} draft={draft} />
               </Fold>
             )}
           </div>
@@ -615,8 +717,9 @@ function PartyRow({
 }
 
 /**
- * One transfer: its game's day and blinds, which lead to the settlement page, then the amount and
- * the tick. One made says when it was marked, where that was kept. Confirmed, it leaves.
+ * One transfer: its game's day and blinds, with an icon after them that leads to the settlement
+ * page, then the amount and the tick. Nothing else on the line leads anywhere. One made or set
+ * down as a bad debt says when, where that was kept. Confirmed, it leaves.
  */
 function Line({
   line,
@@ -640,41 +743,42 @@ function Line({
   draft: Draft;
   disabled: boolean;
 }) {
-  const day = dayName(line.day);
-  const late = !line.done && daysBetween(line.day, today) > LATE_DAYS;
+  const late = !line.done && !line.bad && daysBetween(line.day, today) > LATE_DAYS;
+  const when =
+    line.doneAt !== undefined
+      ? t.me.transfers.markedOn(dayName(dayOf(line.doneAt)))
+      : line.badAt !== undefined
+        ? t.me.transfers.markedBadOn(dayName(dayOf(line.badAt)))
+        : undefined;
 
   return (
     <li className={leaveClass(draft.leaving.has(keyOf(line)))} style={leaveStyle}>
       <div className="min-h-0 overflow-hidden">
         <div className="flex min-h-11 items-center gap-2 text-sm">
-          <Link
-            to="/games/$gameId/settlement"
-            params={{ gameId: line.gameId }}
-            search={{ from: "transfers" }}
-            aria-label={t.me.transfers.openSettlement(day)}
-            // The page is come back to where it was left
-            onClick={leaveList}
-            className="flex min-h-11 min-w-0 flex-1 flex-col justify-center"
-          >
-            <span className="truncate tabular-nums">
-              <span className={cn(late && "text-loss")}>{day}</span>
+          <span className="flex min-w-0 flex-1 flex-col justify-center">
+            {/* Not clipped: the icon's tap target reaches past the line */}
+            <span className="flex items-center whitespace-nowrap tabular-nums">
+              <span className={cn(late && "text-loss")}>{dayName(line.day)}</span>
               <span className="ml-2 text-muted">
                 {line.smallBlindChips} / {line.bigBlindChips}
               </span>
+              <RecordLink line={line} />
             </span>
-            {(between || line.doneAt !== undefined) && (
+            {(between || when !== undefined) && (
               <span className="truncate text-xs text-muted">
                 {between && who}
-                {between && line.doneAt !== undefined && " · "}
-                {line.doneAt !== undefined && t.me.transfers.markedOn(dayName(dayOf(line.doneAt)))}
+                {between && when !== undefined && " · "}
+                {when}
               </span>
             )}
-          </Link>
+          </span>
           {note && <span className="shrink-0 text-xs text-muted">{note}</span>}
           <span
             className={cn(
               "shrink-0 tabular-nums",
-              !line.done && note === undefined && !between && "text-highlight",
+              line.bad
+                ? "text-loss"
+                : !line.done && note === undefined && !between && "text-highlight",
             )}
           >
             {money(line.amount)}

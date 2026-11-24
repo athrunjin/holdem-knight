@@ -32,6 +32,7 @@ export const common = {
   turn: "转牌",
   river: "河牌",
   unknownPlayer: "未知玩家",
+  badDebt: "坏账",
   tie: "平分",
   outdraw: "反超",
   ahead: "领先",

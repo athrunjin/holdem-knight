@@ -13,23 +13,41 @@ export function incomeOf(summary: GameSummary, items: readonly IncomeItem[]): Ce
   );
 }
 
-/** The transfers to the organizer that are not marked as made yet, together. */
+/** The transfers to the organizer still expected: not marked as made, and no bad debts. */
 export function owedToOrganizer(summary: GameSummary): Cents {
   return sum(
     summary.transfers
-      .filter(({ to, done }) => to === ORGANIZER_COLLECTOR && !done)
+      .filter(({ to, done, bad }) => to === ORGANIZER_COLLECTOR && !done && !bad)
+      .map(({ amount }) => amount),
+  );
+}
+
+/** The transfers to the organizer set down as bad debts, together. */
+export function badDebtToOrganizer(summary: GameSummary): Cents {
+  return sum(
+    summary.transfers
+      .filter(({ to, done, bad }) => to === ORGANIZER_COLLECTOR && !done && bad)
       .map(({ amount }) => amount),
   );
 }
 
 /**
+ * How much of a game's income is set down as a bad debt: what is owed in bad debts, up to the
+ * income there is. It is counted before what is still expected, so the two never come to more
+ * than the income together.
+ */
+export function badDebtOf(summary: GameSummary, items: readonly IncomeItem[]): Cents {
+  return cents(Math.max(0, Math.min(incomeOf(summary, items), badDebtToOrganizer(summary))));
+}
+
+/**
  * How much of a game's income is still to come in. Transfers carry wins, losses and charges in
  * one amount, so no transfer is the income itself: what is still owed to the organizer counts as
- * income not received, up to the income there is.
+ * income not received, up to the income there is less its bad debts.
  */
 export function unreceivedOf(summary: GameSummary, items: readonly IncomeItem[]): Cents {
-  const income = incomeOf(summary, items);
-  return cents(Math.max(0, Math.min(income, owedToOrganizer(summary))));
+  const left = incomeOf(summary, items) - badDebtOf(summary, items);
+  return cents(Math.max(0, Math.min(left, owedToOrganizer(summary))));
 }
 
 /** Days as `2026-11-21`, both ends included. A missing end leaves that side open. */
@@ -130,6 +148,7 @@ export interface GameIncome {
   /** Of the items asked for. */
   readonly income: Cents;
   readonly unreceived: Cents;
+  readonly badDebt: Cents;
 }
 
 export interface IncomeReport {
@@ -141,6 +160,9 @@ export interface IncomeReport {
   readonly unreceived: Cents;
   /** How many games still have income to come in. */
   readonly unreceivedGames: number;
+  /** Income set down as bad debts: in neither `received` nor `unreceived`. */
+  readonly badDebt: Cents;
+  readonly badDebtGames: number;
   /** Each item over these games, whether it was asked for or not. */
   readonly byItem: Readonly<Record<IncomeItem, Cents>>;
   /** How many of these games each item brought anything in, or lost anything. */
@@ -162,18 +184,22 @@ export function incomeReport(
       summary,
       income: incomeOf(summary, items),
       unreceived: unreceivedOf(summary, items),
+      badDebt: badDebtOf(summary, items),
     }));
   const total = sum(games.map((game) => game.income));
   const unreceived = sum(games.map((game) => game.unreceived));
+  const badDebt = sum(games.map((game) => game.badDebt));
   const item = (key: IncomeItem) => sum(games.map(({ summary }) => summary.income[key]));
   const count = (key: IncomeItem) =>
     games.filter(({ summary }) => summary.income[key] !== 0).length;
   return {
     games,
     total,
-    received: cents(total - unreceived),
+    received: cents(total - unreceived - badDebt),
     unreceived,
     unreceivedGames: games.filter((game) => game.unreceived > 0).length,
+    badDebt,
+    badDebtGames: games.filter((game) => game.badDebt > 0).length,
     byItem: {
       rake: item("rake"),
       insurance: item("insurance"),

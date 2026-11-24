@@ -9,9 +9,11 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_HISTORY_STATE,
   DEFAULT_HISTORY_VIEW,
+  hasBadDebt,
   historyChoices,
   historyGames,
   isFiltered,
+  owesTransfers,
   parseHistoryState,
 } from "./game-history";
 
@@ -153,6 +155,28 @@ describe("historyGames", () => {
     expect(only(["wage", "tableFee", "rake"])).toEqual(["plain", "waged"]);
     expect(only(["insurance"])).toEqual(["plain", "insured"]);
     expect(only([])).toEqual(["plain"]);
+  });
+});
+
+describe("owesTransfers and hasBadDebt", () => {
+  const transfer = { from: "a", to: "b", amount: cents(100), done: false };
+  const withTransfers = (transfers: unknown[]) => ({ transfers }) as unknown as GameSummary;
+  const settled = game("g", 1);
+
+  it("counts a bad debt as a bad debt, and not as a transfer still to make", () => {
+    const bad = withTransfers([{ ...transfer, bad: true }]);
+    expect(owesTransfers(settled, bad)).toBe(false);
+    expect(hasBadDebt(bad)).toBe(true);
+    const both = withTransfers([transfer, { ...transfer, from: "c", bad: true }]);
+    expect(owesTransfers(settled, both)).toBe(true);
+    expect(hasBadDebt(both)).toBe(true);
+  });
+
+  it("has neither for a game with every transfer made, or none read yet", () => {
+    const made = withTransfers([{ ...transfer, done: true }]);
+    expect(owesTransfers(settled, made)).toBe(false);
+    expect(hasBadDebt(made)).toBe(false);
+    expect(hasBadDebt(undefined)).toBe(false);
   });
 });
 

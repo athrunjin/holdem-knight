@@ -7,7 +7,7 @@ import { useGameSummaries } from "@/data/summaries";
 import { localeTag, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
-import { owesTransfers } from "@/lib/game-history";
+import { hasBadDebt, owesTransfers } from "@/lib/game-history";
 import { leaveList } from "@/lib/list-return";
 import { GameOptions, OPTION_MARKS } from "./GameOptions";
 
@@ -68,6 +68,7 @@ export function GameListRow({ game, fromIncome = false }: { game: Game; fromInco
   // Only a settled game has one
   const summary = summaries?.find(({ id }) => id === game.id);
   const owed = owesTransfers(game, summary);
+  const bad = hasBadDebt(summary);
   const revenue = summary && revenueOf(summary);
   const [open, setOpen] = useState(false);
   // Still in the page while the parts close up
@@ -95,10 +96,16 @@ export function GameListRow({ game, fromIncome = false }: { game: Game; fromInco
 
   return (
     <li className="relative rounded-xl border border-line bg-surface">
-      {owed && (
-        // Small, in the corner over the line, its own corner turning with the frame's
-        <span className="absolute top-0 left-0 rounded-tl-[0.6875rem] rounded-br-lg bg-highlight/15 px-1.5 text-[9px] leading-[13px] font-medium text-highlight">
-          {t.gamePages.list.unsettled}
+      {(owed || bad) && (
+        // Small, in the corner over the line, the corner turning with the frame's: unsettled
+        // first, then bad debts after it, or bad debts alone in its place
+        <span className="absolute top-0 left-0 flex overflow-hidden rounded-tl-[0.6875rem] rounded-br-lg text-[9px] leading-[13px] font-medium">
+          {owed && (
+            <span className="bg-highlight/15 px-1.5 text-highlight">
+              {t.gamePages.list.unsettled}
+            </span>
+          )}
+          {bad && <span className="bg-loss/15 px-1.5 text-loss">{t.common.badDebt}</span>}
         </span>
       )}
       <div className="flex min-h-[2.875rem] items-center justify-between gap-3 px-4 py-px">

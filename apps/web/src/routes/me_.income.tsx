@@ -311,9 +311,20 @@ function Breakdown({
   money: Money;
   onToggle: (item: IncomeItem) => void;
 }) {
-  const { total, received, unreceived, unreceivedGames, byItem, gamesByItem, absorbed } = report;
+  const {
+    total,
+    received,
+    unreceived,
+    unreceivedGames,
+    badDebt,
+    badDebtGames,
+    byItem,
+    gamesByItem,
+    absorbed,
+  } = report;
   const share = total > 0 ? Math.min(100, Math.max(0, (received / total) * 100)) : 0;
-  const allIn = total > 0 && unreceived === 0;
+  const allIn = total > 0 && unreceived === 0 && badDebt === 0;
+  const badShare = total > 0 ? Math.min(100 - share, Math.max(0, (badDebt / total) * 100)) : 0;
 
   // All of it plays in together and is there in about a second and a quarter: the total counts
   // up while the ring turns in, the items come down beside it and the bar runs out with what is
@@ -324,6 +335,9 @@ function Breakdown({
   const play = { duration: PLAY_MS, resetKey: playKey };
   const totalShown = useCountUp(total, play);
   const shareShown = useCountUp(share, play);
+  // How far the bar has run, from 0 to 100, for what runs in with it
+  const barRun = useCountUp(100, play);
+  const badDebtShown = useCountUp(badDebt, play);
   const receivedShown = useCountUp(received, play);
   const unreceivedShown = useCountUp(unreceived, play);
   const unreceivedGamesShown = Math.round(useCountUp(unreceivedGames, play));
@@ -400,8 +414,15 @@ function Breakdown({
       </div>
 
       {/* How much of the total is in. An empty bar where nothing is due */}
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--line)]" aria-hidden>
+      <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-[var(--line)]" aria-hidden>
         <div className="h-full rounded-full bg-accent" style={{ width: `${shareShown}%` }} />
+        {/* Bad debts stand at the far end, in red: what will not come in for now */}
+        {badDebt > 0 && (
+          <div
+            className="absolute inset-y-0 right-0 rounded-full bg-loss"
+            style={{ width: `${(badShare * barRun) / 100}%` }}
+          />
+        )}
       </div>
       {allIn ? (
         // Nothing still out: one line, which turns green with a tick once the bar has run
@@ -439,6 +460,14 @@ function Breakdown({
             )}
           </p>
         </div>
+      )}
+      {/* Under what is still out: what is set down as not coming in for now */}
+      {badDebt > 0 && (
+        <p className="-mt-2 flex min-h-9 items-center justify-end gap-2 text-sm whitespace-nowrap">
+          <span className="text-muted">{t.common.badDebt}</span>
+          <span className="text-loss tabular-nums">{figure(badDebtShown, badDebt)}</span>
+          <span className="text-muted">· {t.me.income.badDebtGames(badDebtGames)}</span>
+        </p>
       )}
 
       {/* Only where there was a difference, opening from its rule once the rest is in */}
