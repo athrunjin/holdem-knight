@@ -204,6 +204,8 @@ export function trendPeriods(span: TrendSpan, today: string): Period[] {
 export interface PeriodIncome {
   /** Always closed at both ends. */
   readonly period: Period;
+  /** How many games started in it. */
+  readonly games: number;
   /** All four items together. */
   readonly total: Cents;
   readonly byItem: Readonly<Record<IncomeItem, Cents>>;
@@ -216,7 +218,11 @@ export function incomeSeries(
   periods: readonly Period[],
 ): PeriodIncome[] {
   return periods.map((period) => {
-    const { total, byItem } = incomeReport(summaries, { currency, items: INCOME_ITEMS }, period);
-    return { period, total, byItem };
+    const { games, total, byItem } = incomeReport(
+      summaries,
+      { currency, items: INCOME_ITEMS },
+      period,
+    );
+    return { period, games: games.length, total, byItem };
   });
 }

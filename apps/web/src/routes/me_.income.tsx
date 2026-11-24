@@ -10,12 +10,10 @@ import {
   incomeReport,
   incomeSeries,
   inPeriod,
-  monthOf,
   multiply,
   PERIOD_CHOICES,
   type PeriodChoice,
   periodOf,
-  shiftMonth,
   TREND_SPANS,
   type TrendSpan,
   trendPeriods,
@@ -37,6 +35,7 @@ import { formatGameMoney } from "@/lib/currency";
 import { dayOf } from "@/lib/game-day";
 import { blindsKey, filterChoices, ratioKey } from "@/lib/income-filter";
 import { useCountUp, useEntered } from "@/lib/motion";
+import { periodName } from "@/lib/period-names";
 import { useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/me_/income")({
@@ -115,11 +114,6 @@ function parseBars(stored: unknown): BarsView | undefined {
 }
 
 const numbers = (text: string) => text.split("-").map(Number) as [number, number, number];
-
-function monthName(month: string) {
-  const [year, number] = numbers(month);
-  return t.me.income.month(year, number);
-}
 
 function IncomePage() {
   const { data: summaries, isError, refetch } = useGameSummaries();
@@ -204,17 +198,15 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   };
 
   const money = (value: Cents) => formatGameMoney(value, currency);
-  // This month and the last go by their names, the last with its year where that is another
-  const thisMonth = monthOf(today);
-  const lastMonth = shiftMonth(thisMonth, -1);
-  const periodName = (choice: PeriodChoice) =>
-    choice === "thisMonth"
-      ? t.me.income.monthShort(numbers(thisMonth)[1])
-      : choice === "lastMonth"
-        ? lastMonth.slice(0, 4) === thisMonth.slice(0, 4)
-          ? t.me.income.monthShort(numbers(lastMonth)[1])
-          : monthName(lastMonth)
-        : t.me.income.periods[choice];
+  // Each period with the number of games it has under the filter in force
+  const counted = (choice: PeriodChoice) => {
+    const within = periodOf(choice, today);
+    const count =
+      choice === period
+        ? report.games.length
+        : narrowed.filter((s) => inPeriod(within, s.day)).length;
+    return `${periodName(choice, today)} (${count})`;
+  };
   // Newest first, as the report has them. One not read yet is left out until it is
   const owing = report.games
     .filter((game) => game.unreceived > 0)
@@ -232,7 +224,7 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
             label={t.me.income.period}
             options={PERIOD_CHOICES.map((choice) => ({
               value: choice,
-              label: periodName(choice),
+              label: counted(choice),
             }))}
             value={period}
             onChange={(choice) => change({ period: choice })}
@@ -606,7 +598,14 @@ function Trend({
         </div>
         <TextMenu
           label={t.me.income.span}
-          options={TREND_SPANS.map((value) => ({ value, label: t.me.income.spans[value] }))}
+          options={TREND_SPANS.map((value) => ({
+            value,
+            label: `${t.me.income.spans[value]} (${incomeSeries(
+              summaries,
+              currency,
+              trendPeriods(value, today),
+            ).reduce((all, { games }) => all + games, 0)})`,
+          }))}
           value={span}
           onChange={(value) => setBars({ span: value, items: shown })}
           align="right"

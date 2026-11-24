@@ -190,6 +190,7 @@ describe("incomeSeries", () => {
     ];
     const series = incomeSeries(games, "CNY", trendPeriods("weeks4", "2026-11-23").slice(-2));
     expect(series.map(({ total }) => total)).toEqual([600, 100]);
+    expect(series.reduce((all, { games }) => all + games, 0)).toBeGreaterThan(0);
     expect(series[0]?.byItem).toEqual({ rake: 500, insurance: -200, wage: 300, tableFee: 0 });
   });
 });

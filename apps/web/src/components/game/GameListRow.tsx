@@ -78,9 +78,23 @@ export function GameListRow({ game, fromIncome = false }: { game: Game; fromInco
   // Still in the page while the parts close up
   const [closing, setClosing] = useState(false);
   const money = (value: Cents) => formatGameMoney(value, game.currency);
+  // A gain in green with its plus, a loss in red with its minus
   const figure = revenue && (
-    <span className={cn("text-sm tabular-nums", revenue.total < 0 && "text-loss")}>
-      {money(revenue.total)}
+    <span
+      className={cn(
+        "text-[15px] font-medium tabular-nums",
+        revenue.total > 0 ? "text-win" : revenue.total < 0 ? "text-loss" : "text-muted",
+      )}
+    >
+      {formatGameMoney(revenue.total, game.currency, "exceptZero")}
+    </span>
+  );
+  const started = (
+    <span className="flex flex-col items-end text-sm leading-tight text-muted tabular-nums">
+      {STARTED_ON.format(game.createdAt)}
+      <span className="text-xs leading-tight">
+        {STARTED_WEEKDAY.format(game.createdAt)}·{STARTED_AT.format(game.createdAt)}
+      </span>
     </span>
   );
 
@@ -132,23 +146,24 @@ export function GameListRow({ game, fromIncome = false }: { game: Game; fromInco
                 />
               </button>
             ))}
-          <span className="flex flex-col items-end text-sm leading-tight text-muted tabular-nums">
-            {STARTED_ON.format(game.createdAt)}
-            <span className="text-xs leading-tight">
-              {STARTED_WEEKDAY.format(game.createdAt)}·{STARTED_AT.format(game.createdAt)}
-            </span>
-          </span>
+          {started}
         </span>
       </div>
       {revenue && (open || closing) && (
         <div
           onAnimationEnd={() => setClosing(false)}
           className={cn(
-            "overflow-hidden motion-reduce:animate-none",
+            "flex justify-end gap-2 overflow-hidden px-4 motion-reduce:animate-none",
             closing ? "animate-fold" : "animate-unfold",
           )}
         >
-          <ul className="flex flex-wrap justify-end gap-x-3 gap-y-0.5 px-4 pb-2 text-xs">
+          {/* Unrolls leftward from under the figure, where its right end stays */}
+          <ul
+            className={cn(
+              "flex min-w-0 flex-wrap justify-end gap-x-3 gap-y-0.5 pb-2 text-xs motion-reduce:animate-none",
+              closing ? "animate-roll-up-right" : "animate-unroll-left",
+            )}
+          >
             {revenue.parts.map(({ key, label, className, amount }) => (
               <li key={key} className="flex items-baseline gap-1 whitespace-nowrap">
                 <span className={cn("font-medium", className)}>{label}</span>
@@ -158,6 +173,11 @@ export function GameListRow({ game, fromIncome = false }: { game: Game; fromInco
               </li>
             ))}
           </ul>
+          {/* As wide as the chevron and the date over it, so the line ends where the figure does */}
+          <span className="invisible flex h-0 shrink-0 items-center gap-2" aria-hidden>
+            <span className="-ml-1.5 w-4" />
+            {started}
+          </span>
         </div>
       )}
     </li>

@@ -1,6 +1,6 @@
-import type { Currency, Game } from "@holdem-knight/core";
+import { type Currency, type Game, PERIOD_CHOICES } from "@holdem-knight/core";
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronDown, Funnel } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Check, ChevronDown, Funnel } from "lucide-react";
 import { useState } from "react";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { GameListRow } from "@/components/game/GameListRow";
@@ -11,16 +11,17 @@ import { TextMenu } from "@/components/TextMenu";
 import { useGames } from "@/data/games";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { dayOf } from "@/lib/game-day";
 import {
   DEFAULT_HISTORY_STATE,
   GAME_OPTIONS,
-  type HistoryPeriod,
-  type HistoryStage,
   type HistoryView,
+  historyChoices,
   historyGames,
   isFiltered,
   parseHistoryState,
 } from "@/lib/game-history";
+import { periodName } from "@/lib/period-names";
 import { parseBoolean, useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/")({
@@ -34,17 +35,8 @@ const ROLES: readonly { readonly role: Role; readonly label: string }[] = [
   { role: "player", label: "Player" },
 ];
 
-const STAGES: readonly { readonly value: HistoryStage; readonly label: string }[] = [
-  { value: "all", label: t.gamePages.list.all },
-  { value: "pending", label: t.gamePages.list.unsettled },
-  { value: "complete", label: t.gamePages.list.settled },
-];
-
-const PERIODS: readonly { readonly value: HistoryPeriod; readonly label: string }[] = [
-  { value: "all", label: t.gamePages.list.all },
-  { value: "week", label: t.gamePages.list.pastWeek },
-  { value: "month", label: t.gamePages.list.pastMonth },
-];
+/** Stands for no ratio or no blinds chosen, in a menu */
+const ANY = "any";
 
 /** Each currency is shown by its mark alone, and named after the animal for a reader. */
 const CURRENCY_NAMES: readonly { readonly value: Currency; readonly name: string }[] = [
@@ -118,6 +110,8 @@ function GameSection({ title, games, storageKey }: GameSectionProps) {
 
 interface HistoryFiltersProps {
   view: HistoryView;
+  /** The ratios and blinds there are to narrow to */
+  choices: ReturnType<typeof historyChoices>;
   onChange: (part: Partial<HistoryView>) => void;
 }
 
@@ -125,27 +119,47 @@ interface HistoryFiltersProps {
 const optionSwitch = "relative px-2 font-medium after:absolute after:-inset-y-3";
 
 /**
- * What narrows history: the time and the currency as menus on one line, then the options a listed
- * game may have on, each in its own color until it is switched off.
+ * What narrows history: the currency, the chip ratio and the blinds as menus on one line, then the
+ * options a listed game may have on, each in its own color until it is switched off, and last
+ * whether games still owed transfers are listed.
  */
-function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
+function HistoryFilters({ view, choices, onChange }: HistoryFiltersProps) {
   const allOptions = view.options.length === GAME_OPTIONS.length;
+  const ratio = choices.ratios.find(({ value }) => value === view.ratio);
+  const blinds = choices.blinds.find(({ value }) => value === view.blinds);
   return (
     <div className="mb-2 rounded-xl border border-line px-2.5 text-sm">
-      <div className="flex items-center gap-4">
-        <TextMenu
-          label={t.gamePages.list.played}
-          caption={t.gamePages.list.played}
-          options={PERIODS}
-          value={view.period}
-          onChange={(period) => onChange({ period })}
-        />
+      <div className="flex items-center justify-between gap-3">
         <TextMenu
           label={t.gamePages.list.currency}
           caption={t.gamePages.list.currency}
           options={CURRENCIES}
           value={view.currency}
-          onChange={(currency) => onChange({ currency })}
+          // Another currency has its own ratios and blinds
+          onChange={(currency) => onChange({ currency, ratio: undefined, blinds: undefined })}
+        />
+        <TextMenu
+          label={t.me.income.ratio}
+          caption={t.me.income.ratio}
+          options={[
+            { value: ANY, label: t.me.income.any },
+            ...choices.ratios.map(({ value, chips }) => ({ value, label: `${chips} : 1` })),
+          ]}
+          value={ratio?.value ?? ANY}
+          onChange={(value) => onChange({ ratio: value === ANY ? undefined : value })}
+          className="tabular-nums"
+        />
+        <TextMenu
+          label={t.me.income.blinds}
+          caption={t.me.income.blinds}
+          options={[
+            { value: ANY, label: t.me.income.any },
+            ...choices.blinds.map(({ value, name }) => ({ value, label: name })),
+          ]}
+          value={blinds?.value ?? ANY}
+          onChange={(value) => onChange({ blinds: value === ANY ? undefined : value })}
+          align="right"
+          className="tabular-nums"
         />
       </div>
       {/* Every option starts on. Switching one off leaves out the games that have it */}
@@ -190,6 +204,19 @@ function HistoryFilters({ view, onChange }: HistoryFiltersProps) {
           All
         </button>
       </div>
+      {/* On from the start. Off leaves out the games still owed transfers */}
+      <button
+        type="button"
+        aria-pressed={view.unsettled}
+        onClick={() => onChange({ unsettled: !view.unsettled })}
+        className={cn(
+          "flex min-h-11 items-center gap-1 font-medium",
+          view.unsettled ? "text-highlight" : "text-muted line-through",
+        )}
+      >
+        {t.gamePages.list.unsettled}
+        {view.unsettled && <Check className="size-4" strokeWidth={2.5} aria-hidden />}
+      </button>
     </div>
   );
 }
@@ -199,7 +226,7 @@ const iconButton = "grid h-11 w-9 shrink-0 place-items-center text-muted";
 
 /**
  * Settled games, which come back the way they were left: unfolded at first. Folded, the heading
- * has only their number. Unfolded, it carries what narrows and orders the list: the stage after
+ * has only their number. Unfolded, it carries what narrows and orders the list: the period after
  * the title, with the number of games listed, then the filter and the order at the right, next to
  * the fold.
  */
@@ -226,20 +253,20 @@ function HistorySection({ games }: { games: readonly Game[] }) {
     );
   }
 
-  const now = Date.now();
-  const shown = historyGames(games, view, now);
-  // Each stage is listed with the number of games it would show under the filters in force
-  const stages = STAGES.map(({ value, label }) => ({
+  const today = dayOf(Date.now());
+  const shown = historyGames(games, view, today);
+  // Each period is listed with the number of games it would show under the filters in force
+  const periods = PERIOD_CHOICES.map((value) => ({
     value,
-    label: `${label} (${
-      value === view.stage
+    label: `${periodName(value, today)} (${
+      value === view.period
         ? shown.length
-        : historyGames(games, { ...view, stage: value }, now).length
+        : historyGames(games, { ...view, period: value }, today).length
     })`,
   }));
   return (
     <section>
-      {/* The title, the stage and the number share one baseline, whatever font each falls to */}
+      {/* The title, the period and the number share one baseline, whatever font each falls to */}
       <div className="flex min-h-11 items-baseline font-medium">
         <h2 className="shrink-0">
           <button
@@ -255,10 +282,10 @@ function HistorySection({ games }: { games: readonly Game[] }) {
           ·
         </span>
         <TextMenu
-          label={t.gamePages.list.status}
-          options={stages}
-          value={view.stage}
-          onChange={(stage) => change({ stage })}
+          label={t.gamePages.list.played}
+          options={periods}
+          value={view.period}
+          onChange={(period) => change({ period })}
         />
         <div className="ml-auto flex shrink-0 self-center">
           {/* Filled while the filters are on show, and gold while any of them is set */}
@@ -302,7 +329,13 @@ function HistorySection({ games }: { games: readonly Game[] }) {
           </button>
         </div>
       </div>
-      {filtering && <HistoryFilters view={view} onChange={change} />}
+      {filtering && (
+        <HistoryFilters
+          view={view}
+          choices={historyChoices(games, view, today)}
+          onChange={change}
+        />
+      )}
       {shown.length > 0 ? (
         <ul className="mt-1 flex flex-col gap-2">
           {shown.map((game) => (

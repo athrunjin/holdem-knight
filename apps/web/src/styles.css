@@ -130,6 +130,19 @@
     }
   }
 
+  /* A line unrolling leftward from its right end, and rolling back up into it */
+  --animate-unroll-left: unroll-left 0.35s ease-out both;
+  --animate-roll-up-right: unroll-left 0.25s ease-in both reverse;
+
+  @keyframes unroll-left {
+    from {
+      clip-path: inset(0 0 0 100%);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
   /* A fill that runs out from the right, for a button that stays lit a few seconds */
   --animate-drain: drain 5s linear forwards;
 
