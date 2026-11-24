@@ -155,16 +155,18 @@ export function GameListRow({ game, fromIncome = false }: { game: Game; fromInco
       </div>
       {revenue && (open || closing) && (
         <div
+          // With motion turned down the stylesheet cuts these animations short, and they still end:
+          // switching them off here instead would leave the line waiting for an end that never comes
           onAnimationEnd={() => setClosing(false)}
           className={cn(
-            "flex justify-end gap-2 overflow-hidden px-4 motion-reduce:animate-none",
+            "flex justify-end gap-2 overflow-hidden px-4",
             closing ? "animate-fold" : "animate-unfold",
           )}
         >
           {/* Unrolls leftward from under the figure, where its right end stays */}
           <ul
             className={cn(
-              "flex min-w-0 flex-wrap justify-end gap-x-3 gap-y-0.5 pb-2 text-xs motion-reduce:animate-none",
+              "flex min-w-0 flex-wrap justify-end gap-x-3 gap-y-0.5 pb-2 text-xs",
               closing ? "animate-roll-up-right" : "animate-unroll-left",
             )}
           >

@@ -538,7 +538,7 @@ function RecordLink({ line }: { line: TransferLine }) {
       // The page is come back to where it was left
       onClick={leaveList}
       // The icon takes its own small room in the line, and the tap target reaching past it is 44px
-      className="relative ml-2 size-4 shrink-0 text-muted after:absolute after:-inset-3.5"
+      className="relative ml-2 size-4 shrink-0 text-highlight after:absolute after:-inset-3.5"
     >
       <ReceiptText className="size-4" strokeWidth={1.75} aria-hidden />
     </Link>
