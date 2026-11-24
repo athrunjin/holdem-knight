@@ -7,6 +7,7 @@ import {
   OPTIMAL_PLAN,
   ORGANIZER_PLAYER_ID,
   RAKE_PLAYER_ID,
+  type Timestamp,
   type Transfer,
 } from "../domain";
 import { chipsToCents, type PlayerLedger } from "../ledger";
@@ -269,11 +270,38 @@ export function isTransferDone(game: Pick<Game, "doneTransfers">, transfer: Tran
   return (game.doneTransfers ?? []).some((done) => sameTransfer(done, transfer));
 }
 
-/** Marks transfers as made, or as not made again. Marks on other transfers stay as they are. */
-export function markTransfers(game: Game, transfers: readonly Transfer[], done: boolean): Game {
+/** When a transfer was marked as made, where that was kept. */
+export function transferDoneAt(
+  game: Pick<Game, "doneTransfers">,
+  transfer: Transfer,
+): Timestamp | undefined {
+  return (game.doneTransfers ?? []).find((done) => sameTransfer(done, transfer))?.doneAt;
+}
+
+/**
+ * Marks transfers as made at a time, or as not made again. Marks on other transfers stay as they
+ * are, and one already marked keeps the time it has.
+ */
+export function markTransfers(
+  game: Game,
+  transfers: readonly Transfer[],
+  done: boolean,
+  at?: Timestamp,
+): Game {
   const { doneTransfers = [], ...rest } = game;
-  const others = doneTransfers.filter((saved) => !transfers.some((t) => sameTransfer(saved, t)));
-  const marked = transfers.map(({ from, to, amount }) => ({ from, to, amount }));
-  const next = done ? [...others, ...marked] : others;
+  const saved = (transfer: Transfer) => doneTransfers.some((mark) => sameTransfer(mark, transfer));
+  const next = done
+    ? [
+        ...doneTransfers,
+        ...transfers
+          .filter((transfer) => !saved(transfer))
+          .map(({ from, to, amount }) => ({
+            from,
+            to,
+            amount,
+            ...(at !== undefined && { doneAt: at }),
+          })),
+      ]
+    : doneTransfers.filter((mark) => !transfers.some((t) => sameTransfer(mark, t)));
   return next.length > 0 ? { ...rest, doneTransfers: next } : rest;
 }

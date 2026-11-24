@@ -86,7 +86,7 @@ The first hosted project and its sending domain wait until these are done, in th
 - [x] The interface in English as well as Chinese, with a language setting on 我的 ([ADR 0047](adr/0047-interface-text-in-typed-catalogs.md))
 - [x] Sharing: an image of a game's whole result, and one for each player's own, both laid out like the settlement page
 - Insurance: how it ties into the game, its flow, and its settlement screen, once the organizer has thought them through
-- The host's pages, the figures above all. Done: 收益 on 我的, with income by kind, by month and by game, and what is still to come in ([ADR 0049](adr/0049-settled-games-keep-a-summary.md)). Still to come: transfers received or not across games, and a player's history
+- The host's pages, the figures above all. Done: 收益 on 我的, with income by kind, by month and by game, and what is still to come in ([ADR 0049](adr/0049-settled-games-keep-a-summary.md)). 转账 on 我的, with what is still to come in and to go out by person, and ticks kept with their time. Still to come: a player's history
 
 ## M7 and beyond
 

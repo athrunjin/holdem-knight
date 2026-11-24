@@ -165,7 +165,7 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   const today = dayOf(Date.now());
   // Come back to from a game, the page is where it was left and nothing plays in again
   const returning = useListReturn("/me/income");
-  const [view, setView] = useStoredState<View>("income.view", { period: "thisWeek" }, parseView);
+  const [view, setView] = useStoredState<View>("income.view.2", { period: "thisMonth" }, parseView);
   const [items, setItems] = useStoredState<readonly IncomeItem[]>(
     "income.items",
     INCOME_ITEMS,
@@ -173,11 +173,16 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   );
   const { data: games } = useGames();
 
-  // The currencies there are games in, in the app's own order. The newest game's comes up first
+  // The currencies there are games in, in the app's own order. Panda points come up first, and
+  // the newest game's currency where there are none
   const currencies = CURRENCIES.filter((c) => summaries.some((s) => s.currency === c));
   const newest = summaries.reduce((a, b) => (b.startedAt > a.startedAt ? b : a));
   const currency =
-    view.currency && currencies.includes(view.currency) ? view.currency : newest.currency;
+    view.currency && currencies.includes(view.currency)
+      ? view.currency
+      : currencies.includes("CNY")
+        ? "CNY"
+        : newest.currency;
 
   const period = view.period;
   const days = periodOf(period, today);
@@ -556,8 +561,8 @@ function Trend({
   money: Money;
 }) {
   const [{ span, items: shown }, setBars] = useStoredState<BarsView>(
-    "income.bars",
-    { span: "weeks4", items: INCOME_ITEMS },
+    "income.bars.2",
+    { span: "months4", items: INCOME_ITEMS },
     parseBars,
   );
   const series = incomeSeries(summaries, currency, trendPeriods(span, today));
@@ -675,7 +680,8 @@ function BarItem({
       disabled={absent}
       onClick={onToggle}
       className={cn(
-        "flex min-h-11 flex-col items-start justify-center px-1.5 text-sm",
+        // The figure ends where the name does, and may run back under the dot
+        "flex min-h-11 flex-col items-end justify-center px-1.5 text-sm",
         !lit && "text-muted",
       )}
     >
@@ -691,7 +697,7 @@ function BarItem({
       </span>
       <span
         className={cn(
-          "pl-4 text-[11px] leading-tight tabular-nums",
+          "text-[11px] leading-tight tabular-nums",
           lit && total < 0 ? "text-loss" : "text-muted",
         )}
       >

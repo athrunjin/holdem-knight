@@ -292,6 +292,11 @@ export interface Transfer {
   readonly amount: Cents;
 }
 
+/** A transfer marked as made, with when it was marked. Marks from before the time was kept lack it. */
+export interface DoneTransfer extends Transfer {
+  readonly doneAt?: Timestamp;
+}
+
 /**
  * The optimal transfer plan, chosen outright. It is saved where a collector's ID would be, so the
  * choice holds in a game whose own default is a collector.
@@ -482,7 +487,7 @@ export interface Game {
    * Transfers marked as made. Each is the payment itself, so a mark holds in every plan that has
    * the same payment and no longer applies once its amount changes. Missing means none.
    */
-  readonly doneTransfers?: readonly Transfer[];
+  readonly doneTransfers?: readonly DoneTransfer[];
   /**
    * IANA time zone the game was started in, such as `Asia/Shanghai`. Wage rates by time of day
    * follow it on every device. Missing on earlier games, which use the viewing device's zone.
@@ -523,6 +528,8 @@ export interface SummaryPlayer {
 export interface SummaryTransfer extends Transfer {
   /** Marked as made. */
   readonly done: boolean;
+  /** When it was marked. Missing for one not made, or marked before the time was kept. */
+  readonly doneAt?: Timestamp;
 }
 
 /**

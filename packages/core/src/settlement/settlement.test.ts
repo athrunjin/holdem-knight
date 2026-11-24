@@ -20,6 +20,7 @@ import {
   settlementOutcome,
   settleTransfers,
   transferCollector,
+  transferDoneAt,
 } from "./settlement";
 
 const ledger = (playerId: string, boughtChips: number, cashedOutChips: number): PlayerLedger => ({
@@ -223,6 +224,15 @@ describe("markTransfers", () => {
     const marked = markTransfers(markTransfers(game, [first], true), [first, second], true);
     expect(marked.doneTransfers).toEqual([first, second]);
     expect(markTransfers(marked, [first, second], false)).toEqual(game);
+  });
+
+  it("keeps when each was marked, and the first time for one marked again", () => {
+    const marked = markTransfers(markTransfers(game, [first], true, 10), [first, second], true, 20);
+    expect(transferDoneAt(marked, first)).toBe(10);
+    expect(transferDoneAt(marked, second)).toBe(20);
+    expect(transferDoneAt(game, first)).toBeUndefined();
+    // A mark with no time stays one
+    expect(transferDoneAt(markTransfers(game, [first], true), first)).toBeUndefined();
   });
 
   it("does not carry a mark to the same people for another amount", () => {

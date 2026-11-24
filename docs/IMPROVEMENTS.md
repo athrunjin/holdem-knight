@@ -1659,6 +1659,16 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do, as [ADR 0049](adr/0049-settled-games-keep-a-summary.md). Income is counted as due at settlement, from settled games only; insurance only where its result is the organizer's; the organizer's own play is not income; a game belongs to the day it started. Income not received is what is owed to the organizer in transfers not marked, up to the game's income, since no transfer is the income itself. A custom range of days, a page of transfers across games and a player's history are left for later steps.
 - Tracking: no issue yet
 
+### #I-089 转账 on 我的: what is still to come in and to go out, by person
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-24
+- Source: the organizer, as the second of the host's pages
+- Problem: what is still owed after a game could only be read one settlement page at a time, or as one figure on 收益. Nothing said who owes how much over several games, or since when.
+- Proposal: a page 转账, reached from a line on 我的 that shows what is still to come in. The transfers still to make, or the ones made within a period, each with the number of transfers behind it; a currency where games are in more than one. What is to come in as the page's figure, with what is to go out under it. Then each person: how many games, since which day, in red past 7 days, and the balance between them and the organizer. Someone with one transfer has its tick on their row; with more, a tap unfolds the transfers, each with its game's day and blinds, which lead to the settlement page and back, and its tick. A tick saves nothing by itself: a button comes out under the ticked lines, and once it is tapped they leave the list and are saved. Transfers the organizer is no part of are listed apart, folded, in neither total.
+- Decision: do. A person's balance is shown net, and the ticks stay one to a transfer: nothing is set off against anything by itself. A tick now keeps when it was made (`doneAt` on a game's marked transfers and in its summary), for what the page says of a transfer made and for a player's history later; ticks from before have no time. Part payments and reminders are left out.
+- Tracking: no issue yet
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game

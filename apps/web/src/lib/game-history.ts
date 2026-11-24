@@ -31,7 +31,7 @@ export interface HistoryView {
 }
 
 export const DEFAULT_HISTORY_VIEW: HistoryView = {
-  period: "all",
+  period: "thisMonth",
   currency: "all",
   onlyUnsettled: false,
   options: GAME_OPTIONS,
@@ -84,17 +84,12 @@ export function parseHistoryState(stored: unknown): HistoryState | undefined {
   };
 }
 
-/** Whether the view leaves out any game: anything but the order it lists them in. */
-export function isFiltered({
-  period,
-  currency,
-  ratio,
-  blinds,
-  onlyUnsettled,
-  options,
-}: HistoryView) {
+/**
+ * Whether the filters leave out any game. The period is no filter: it is chosen in the heading,
+ * where it shows.
+ */
+export function isFiltered({ currency, ratio, blinds, onlyUnsettled, options }: HistoryView) {
   return (
-    period !== "all" ||
     currency !== "all" ||
     ratio !== undefined ||
     blinds !== undefined ||

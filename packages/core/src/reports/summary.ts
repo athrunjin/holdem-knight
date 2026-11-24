@@ -32,6 +32,7 @@ import {
   type SettlementOutcome,
   settlementOutcome,
   transferCollector,
+  transferDoneAt,
 } from "../settlement";
 
 export interface SettledBooks {
@@ -195,9 +196,13 @@ export function gameSummary(
     absorbed: covering ? cents(-outcome.difference) : ZERO,
     players,
     ...(collectorId !== undefined && { collectorId }),
-    transfers: transfers.map((transfer) => ({
-      ...transfer,
-      done: isTransferDone(game, transfer),
-    })),
+    transfers: transfers.map((transfer) => {
+      const doneAt = transferDoneAt(game, transfer);
+      return {
+        ...transfer,
+        done: isTransferDone(game, transfer),
+        ...(doneAt !== undefined && { doneAt }),
+      };
+    }),
   };
 }

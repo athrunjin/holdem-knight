@@ -20,6 +20,7 @@ import { Route as MeResetRouteImport } from './routes/me_.reset'
 import { Route as MeSignInRouteImport } from './routes/me_.sign-in'
 import { Route as MeSignUpRouteImport } from './routes/me_.sign-up'
 import { Route as MeTermsRouteImport } from './routes/me_.terms'
+import { Route as MeTransfersRouteImport } from './routes/me_.transfers'
 import { Route as MeVerifyRouteImport } from './routes/me_.verify'
 import { Route as PlayersIndexRouteImport } from './routes/players/index'
 import { Route as PlayersPlayerIdRouteImport } from './routes/players/$playerId'
@@ -86,6 +87,11 @@ const MeTermsRoute = MeTermsRouteImport.update({
   path: '/me/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MeTransfersRoute = MeTransfersRouteImport.update({
+  id: '/me_/transfers',
+  path: '/me/transfers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MeVerifyRoute = MeVerifyRouteImport.update({
   id: '/me_/verify',
   path: '/me/verify',
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/me/sign-in': typeof MeSignInRoute
   '/me/sign-up': typeof MeSignUpRoute
   '/me/terms': typeof MeTermsRoute
+  '/me/transfers': typeof MeTransfersRoute
   '/me/verify': typeof MeVerifyRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
   '/tools/call-time': typeof ToolsCallTimeRoute
@@ -172,6 +179,7 @@ export interface FileRoutesByTo {
   '/me/sign-in': typeof MeSignInRoute
   '/me/sign-up': typeof MeSignUpRoute
   '/me/terms': typeof MeTermsRoute
+  '/me/transfers': typeof MeTransfersRoute
   '/me/verify': typeof MeVerifyRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
   '/tools/call-time': typeof ToolsCallTimeRoute
@@ -196,6 +204,7 @@ export interface FileRoutesById {
   '/me_/sign-in': typeof MeSignInRoute
   '/me_/sign-up': typeof MeSignUpRoute
   '/me_/terms': typeof MeTermsRoute
+  '/me_/transfers': typeof MeTransfersRoute
   '/me_/verify': typeof MeVerifyRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
   '/tools_/call-time': typeof ToolsCallTimeRoute
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
     | '/me/sign-in'
     | '/me/sign-up'
     | '/me/terms'
+    | '/me/transfers'
     | '/me/verify'
     | '/players/$playerId'
     | '/tools/call-time'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/me/sign-in'
     | '/me/sign-up'
     | '/me/terms'
+    | '/me/transfers'
     | '/me/verify'
     | '/players/$playerId'
     | '/tools/call-time'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/me_/sign-in'
     | '/me_/sign-up'
     | '/me_/terms'
+    | '/me_/transfers'
     | '/me_/verify'
     | '/players/$playerId'
     | '/tools_/call-time'
@@ -291,6 +303,7 @@ export interface RootRouteChildren {
   MeSignInRoute: typeof MeSignInRoute
   MeSignUpRoute: typeof MeSignUpRoute
   MeTermsRoute: typeof MeTermsRoute
+  MeTransfersRoute: typeof MeTransfersRoute
   MeVerifyRoute: typeof MeVerifyRoute
   PlayersPlayerIdRoute: typeof PlayersPlayerIdRoute
   ToolsCallTimeRoute: typeof ToolsCallTimeRoute
@@ -382,6 +395,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MeTermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/me_/transfers': {
+      id: '/me_/transfers'
+      path: '/me/transfers'
+      fullPath: '/me/transfers'
+      preLoaderRoute: typeof MeTransfersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/me_/verify': {
       id: '/me_/verify'
       path: '/me/verify'
@@ -467,6 +487,7 @@ const rootRouteChildren: RootRouteChildren = {
   MeSignInRoute: MeSignInRoute,
   MeSignUpRoute: MeSignUpRoute,
   MeTermsRoute: MeTermsRoute,
+  MeTransfersRoute: MeTransfersRoute,
   MeVerifyRoute: MeVerifyRoute,
   PlayersPlayerIdRoute: PlayersPlayerIdRoute,
   ToolsCallTimeRoute: ToolsCallTimeRoute,

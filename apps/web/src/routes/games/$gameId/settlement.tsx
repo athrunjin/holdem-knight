@@ -61,8 +61,8 @@ import { netTone } from "@/lib/tone";
 export const Route = createFileRoute("/games/$gameId/settlement")({
   component: SettlementPage,
   // Opened from 收益, the page leads back there instead of to the table
-  validateSearch: (search: Record<string, unknown>): { from?: "income" } =>
-    search.from === "income" ? { from: "income" } : {},
+  validateSearch: (search: Record<string, unknown>): { from?: "income" | "transfers" } =>
+    search.from === "income" || search.from === "transfers" ? { from: search.from } : {},
 });
 
 /**
@@ -697,7 +697,7 @@ function SettlementResult({
             collectorId={collectorId}
             nameOf={nameOf}
             disabled={saveGame.isPending}
-            fromIncome={from === "income"}
+            backTo={from}
             sharing={sharing}
             // A transfer's image is the player's own result, to send to them: the payer's, or
             // the receiver's where the organizer is the one who pays
@@ -705,7 +705,9 @@ function SettlementResult({
               handleShare(transfer?.from === ORGANIZER_COLLECTOR ? transfer.to : transfer?.from)
             }
             onChoosePlan={(next) => saveGame.mutate(filed(chooseCollector(game, next)))}
-            onMark={(marked, done) => saveGame.mutate(filed(markTransfers(game, marked, done)))}
+            onMark={(marked, done) =>
+              saveGame.mutate(filed(markTransfers(game, marked, done, Date.now())))
+            }
             onUnsettled={() => point("confirm")}
           />
         )}

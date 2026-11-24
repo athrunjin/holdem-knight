@@ -234,7 +234,7 @@ const iconButton = "grid h-11 w-9 shrink-0 place-items-center text-muted";
  */
 function HistorySection({ games }: { games: readonly Game[] }) {
   const [state, setState] = useStoredState(
-    "games-list.history",
+    "games-list.history.2",
     DEFAULT_HISTORY_STATE,
     parseHistoryState,
   );
