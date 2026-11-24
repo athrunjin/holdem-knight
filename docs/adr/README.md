@@ -54,6 +54,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0047](0047-interface-text-in-typed-catalogs.md) | Interface text in typed catalogs, one a language | Accepted |
 | [0048](0048-undoing-an-insurance-hand-keeps-later-stacks.md) | Undoing an insurance hand keeps the stacks changed since | Accepted |
 | [0049](0049-settled-games-keep-a-summary.md) | A settled game keeps a summary of its results, for reports | Accepted |
+| [0050](0050-a-visual-guide-and-a-visual-review.md) | A visual guide, and a visual review before hand-over | Accepted |
 
 ## Template
 

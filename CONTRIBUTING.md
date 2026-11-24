@@ -43,6 +43,19 @@ exercise Chinese names.
 - Calculations in `core` must have unit tests. Anything that conserves money also gets a fast-check property test.
 - Run `pnpm check` before committing. `pnpm format` fixes formatting.
 
+## Interface changes
+
+How the app looks and moves is written in the [visual guide](docs/design/README.md). A change to what the app shows:
+
+1. is built from the guide's tokens and components, and says in its plan what is new;
+2. passes `pnpm check`;
+3. goes through the [visual review](docs/design/review.md) in the preview: 360, 393 and 412px wide, dark, in Chinese and in English, through its states and animations;
+4. has its blockers fixed, and lists in the pull request what was reviewed, what was measured, what is left open and what was not looked at;
+5. is read by the organizer on a phone from the preview build;
+6. adds to the guide any decision from that reading the guide did not have.
+
+A change with nothing to see skips the review and says so ([ADR 0050](docs/adr/0050-a-visual-guide-and-a-visual-review.md)).
+
 ## Architecture decisions
 
 When a choice affects the long-term structure (a new dependency, a data model change, a layering change),

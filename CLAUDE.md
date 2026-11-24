@@ -8,6 +8,7 @@ An assistant (PWA) for organizers of live Texas Hold'em games: buy-in ledger, se
 The product name is Hold’em Knight (Chinese name, on record only: 有局). It is built for organizers, phone and tablet first. Interface text is in Simplified Chinese.
 The roadmap is in docs/ROADMAP.md, confirmed rules and background are in docs/CONTEXT.md,
 discussions of feature and process improvements are in docs/IMPROVEMENTS.md,
+the visual guide and the visual review are in docs/design/,
 and manual test plans handed to testers are in docs/testing/.
 
 ## Common commands
@@ -56,7 +57,11 @@ pnpm test:local       # Tests through its sign-in and API; pnpm db:reset empties
   Discussions with the user are in Chinese.
 - Decisions that affect the long-term structure get a new record in `docs/adr/`.
 
-## Design tokens
+## Design
 
 Table-felt green is the base and chip gold is the only accent color; dark is the only mode, whatever the device is set to. Tokens are defined in `apps/web/src/styles.css`.
 The logo, icons and brand rules are in `docs/brand/README.md` (ADR 0021).
+
+- How the app looks and moves is in `docs/design/README.md`: color, type, space, components, motion, the order of a page. Read it before planning or building anything the app shows, and build from its tokens and components.
+- Every change to what the app shows goes through the visual review in `docs/design/review.md` after `pnpm check` and before it is handed over: in the preview at 360, 393 and 412px, dark, in Chinese and English, through its states and animations. Blockers are fixed first; the hand-over says what was reviewed, what was measured, what is left open and what was not looked at (ADR 0050).
+- A decision the organizer makes about how something looks that the guide does not have is added to the guide in the same pull request.
