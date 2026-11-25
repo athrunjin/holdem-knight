@@ -21,6 +21,17 @@
   --color-bone: #f3efe2;
   --color-chip-gold: #d6b04c;
   --color-chip-gold-deep: #9a7a22;
+
+  /*
+   * Grounds for a player's avatar: six deep, quiet colors a record falls on by its ID, so
+   * namesakes differ at a glance. Bone reads on each at 7:1 or better. Nothing else uses them.
+   */
+  --color-avatar-1: #1d5c47;
+  --color-avatar-2: #1f5560;
+  --color-avatar-3: #2c4a6b;
+  --color-avatar-4: #55395f;
+  --color-avatar-5: #6a4234;
+  --color-avatar-6: #6b5a22;
 }
 
 :root {

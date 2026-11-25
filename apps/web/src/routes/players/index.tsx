@@ -1,7 +1,9 @@
+import { playerNumberText } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Page } from "@/components/Page";
+import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import {
   matchPlayers,
   PlayerGroups,
@@ -54,14 +56,17 @@ function PlayersPage() {
 
         {players.length > 0 && <PlayerListHeading className="mt-3" />}
         <PlayerGroups groups={groups}>
-          {({ id, name, initials }) => (
+          {({ id, name, number }) => (
             <Link
               to="/players/$playerId"
               params={{ playerId: id }}
               className="flex min-h-12 items-center gap-3 rounded-xl border border-line bg-surface pl-3"
             >
+              <PlayerAvatar id={id} name={name} size="sm" />
               <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
-              <span className="text-xs text-muted">{initials}</span>
+              {number !== undefined && (
+                <span className="text-xs text-muted tabular-nums">{playerNumberText(number)}</span>
+              )}
               <span className="grid size-11 shrink-0 place-items-center text-muted">
                 <ChevronRight className="size-5" aria-hidden />
               </span>

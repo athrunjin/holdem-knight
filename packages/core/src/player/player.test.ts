@@ -6,7 +6,9 @@ import {
   groupByInitial,
   initialLetter,
   MAX_PLAYER_NAME_LENGTH,
+  numberPlayers,
   parsePlayerName,
+  playerNumberText,
   searchPlayers,
 } from "./player";
 
@@ -136,5 +138,39 @@ describe("groupByInitial", () => {
         expect(new Set(flat)).toEqual(new Set(players));
       }),
     );
+  });
+});
+
+describe("numberPlayers", () => {
+  const record = (id: string, createdAt: number, number?: number): Player => ({
+    id,
+    organizerId: "me",
+    name: id,
+    initials: id,
+    createdAt,
+    ...(number !== undefined && { number }),
+  });
+
+  it("numbers records without one from the oldest, past the highest in use", () => {
+    const changed = numberPlayers([record("c", 30), record("a", 10, 7), record("b", 20)]);
+    expect(changed.map(({ id, number }) => [id, number])).toEqual([
+      ["b", 8],
+      ["c", 9],
+    ]);
+  });
+
+  it("starts at 1, and changes nothing once every record has its own number", () => {
+    expect(numberPlayers([record("a", 10)]).map(({ number }) => number)).toEqual([1]);
+    expect(numberPlayers([record("a", 10, 1), record("b", 20, 2)])).toEqual([]);
+  });
+
+  it("gives a new number to a newer record that holds one already taken", () => {
+    const changed = numberPlayers([record("old", 10, 1), record("brought-in", 20, 1)]);
+    expect(changed.map(({ id, number }) => [id, number])).toEqual([["brought-in", 2]]);
+  });
+
+  it("reads a number as four digits", () => {
+    expect(playerNumberText(42)).toBe("#0042");
+    expect(playerNumberText(12345)).toBe("#12345");
   });
 });

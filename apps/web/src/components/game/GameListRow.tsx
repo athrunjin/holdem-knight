@@ -1,4 +1,11 @@
-import { type Cents, cents, type Game, type GameSummary, INCOME_ITEMS } from "@holdem-knight/core";
+import {
+  type Cents,
+  cents,
+  type Game,
+  type GameSummary,
+  INCOME_ITEMS,
+  playerResult,
+} from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
@@ -58,18 +65,48 @@ function revenueOf(summary: GameSummary) {
 }
 
 /**
+ * What a settled game came to for one of its players: what they won or lost in chips. A share of
+ * a difference split is no part of that, and is the one thing spelled out under it.
+ */
+function playerFigureOf(summary: GameSummary, playerId: string) {
+  const row = summary.players.find((player) => player.playerId === playerId);
+  if (!row) return undefined;
+  const part = (key: string, label: string, amount: Cents) => ({
+    key,
+    label,
+    className: "text-muted",
+    amount,
+  });
+  return {
+    total: playerResult(row),
+    parts: row.share === 0 ? [] : [part("shared", t.gamePages.list.shared, row.share)],
+  };
+}
+
+/**
  * A game's line in a list, and what a settled game came to for the organizer, before its date.
  * With anything to spell out, that figure is a button with a chevron: a tap opens the parts in a
  * line under the game, and another closes it. A settled game still owed transfers is marked in
- * its top left corner. Opened from the income page, its results lead back there.
+ * its top left corner. Opened from the income page or a player's, its results lead back there. On
+ * a player's page the figure is that player's own result.
  */
-export function GameListRow({ game, fromIncome = false }: { game: Game; fromIncome?: boolean }) {
+export function GameListRow({
+  game,
+  fromIncome = false,
+  playerId,
+}: {
+  game: Game;
+  fromIncome?: boolean;
+  /** Shows this player's result in place of the organizer's */
+  playerId?: string;
+}) {
   const { data: summaries } = useGameSummaries();
   // Only a settled game has one
   const summary = summaries?.find(({ id }) => id === game.id);
   const owed = owesTransfers(game, summary);
   const bad = hasBadDebt(summary);
-  const revenue = summary && revenueOf(summary);
+  const revenue =
+    summary && (playerId === undefined ? revenueOf(summary) : playerFigureOf(summary, playerId));
   const [open, setOpen] = useState(false);
   // Still in the page while the parts close up
   const [closing, setClosing] = useState(false);
@@ -114,6 +151,7 @@ export function GameListRow({ game, fromIncome = false }: { game: Game; fromInco
           to={game.status === "open" ? "/games/$gameId" : "/games/$gameId/settlement"}
           params={{ gameId: game.id }}
           {...(fromIncome && { search: { from: "income" as const } })}
+          {...(playerId !== undefined && { search: { from: "player" as const, player: playerId } })}
           // The list is come back to where it was left
           onClick={leaveList}
           // The whole frame opens the game, but for the button over it

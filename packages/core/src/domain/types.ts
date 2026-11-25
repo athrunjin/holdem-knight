@@ -594,6 +594,11 @@ export interface Player {
   /** Lowercase pinyin initials of the name, for search. Generated in the app layer, so `core` needs no pinyin library. */
   readonly initials: string;
   readonly createdAt: Timestamp;
+  /**
+   * The record's number in its space, shown as `#0042`: for people to tell records apart by, while
+   * the ID stays the identity (ADR 0043). Missing until the record has been numbered.
+   */
+  readonly number?: number;
 }
 
 interface LedgerEventBase {

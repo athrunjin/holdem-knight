@@ -35,7 +35,7 @@ import { formatGameMoney } from "@/lib/currency";
 import { dayOf } from "@/lib/game-day";
 import { blindsKey, filterChoices, ratioKey } from "@/lib/income-filter";
 import { useListReturn } from "@/lib/list-return";
-import { QuietMotion, useCountUp, useEntered, usePlaysIn } from "@/lib/motion";
+import { QuietMotion, useCountUp, useEntered, usePlaysIn, useQuietArrival } from "@/lib/motion";
 import { periodName } from "@/lib/period-names";
 import { useStoredState } from "@/lib/stored-state";
 
@@ -165,6 +165,7 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   const today = dayOf(Date.now());
   // Come back to from a game, the page is where it was left and nothing plays in again
   const returning = useListReturn("/me/income");
+  const quiet = useQuietArrival(returning);
   const [view, setView] = useStoredState<View>("income.view.2", { period: "thisMonth" }, parseView);
   const [items, setItems] = useStoredState<readonly IncomeItem[]>(
     "income.items",
@@ -250,7 +251,7 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   );
 
   return (
-    <QuietMotion value={returning}>
+    <QuietMotion value={quiet}>
       <div className="pb-8">
         <Breakdown
           // What is shown comes in afresh for another period or other games, not for an item ticked

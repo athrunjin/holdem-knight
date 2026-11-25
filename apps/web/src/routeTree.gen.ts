@@ -31,6 +31,7 @@ import { Route as GamesGameIdCallTimeRouteImport } from './routes/games/$gameId/
 import { Route as GamesGameIdInsuranceRouteImport } from './routes/games/$gameId/insurance'
 import { Route as GamesGameIdSettingsRouteImport } from './routes/games/$gameId/settings'
 import { Route as GamesGameIdSettlementRouteImport } from './routes/games/$gameId/settlement'
+import { Route as PlayersPlayerIdEditRouteImport } from './routes/players/$playerId_.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -142,6 +143,11 @@ const GamesGameIdSettlementRoute = GamesGameIdSettlementRouteImport.update({
   path: '/games/$gameId/settlement',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlayersPlayerIdEditRoute = PlayersPlayerIdEditRouteImport.update({
+  id: '/players/$playerId_/edit',
+  path: '/players/$playerId/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/games/$gameId/insurance': typeof GamesGameIdInsuranceRoute
   '/games/$gameId/settings': typeof GamesGameIdSettingsRoute
   '/games/$gameId/settlement': typeof GamesGameIdSettlementRoute
+  '/players/$playerId/edit': typeof PlayersPlayerIdEditRoute
   '/games/$gameId/': typeof GamesGameIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/games/$gameId/insurance': typeof GamesGameIdInsuranceRoute
   '/games/$gameId/settings': typeof GamesGameIdSettingsRoute
   '/games/$gameId/settlement': typeof GamesGameIdSettlementRoute
+  '/players/$playerId/edit': typeof PlayersPlayerIdEditRoute
   '/games/$gameId': typeof GamesGameIdIndexRoute
 }
 export interface FileRoutesById {
@@ -214,6 +222,7 @@ export interface FileRoutesById {
   '/games/$gameId/insurance': typeof GamesGameIdInsuranceRoute
   '/games/$gameId/settings': typeof GamesGameIdSettingsRoute
   '/games/$gameId/settlement': typeof GamesGameIdSettlementRoute
+  '/players/$playerId_/edit': typeof PlayersPlayerIdEditRoute
   '/games/$gameId/': typeof GamesGameIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -240,6 +249,7 @@ export interface FileRouteTypes {
     | '/games/$gameId/insurance'
     | '/games/$gameId/settings'
     | '/games/$gameId/settlement'
+    | '/players/$playerId/edit'
     | '/games/$gameId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -264,6 +274,7 @@ export interface FileRouteTypes {
     | '/games/$gameId/insurance'
     | '/games/$gameId/settings'
     | '/games/$gameId/settlement'
+    | '/players/$playerId/edit'
     | '/games/$gameId'
   id:
     | '__root__'
@@ -288,6 +299,7 @@ export interface FileRouteTypes {
     | '/games/$gameId/insurance'
     | '/games/$gameId/settings'
     | '/games/$gameId/settlement'
+    | '/players/$playerId_/edit'
     | '/games/$gameId/'
   fileRoutesById: FileRoutesById
 }
@@ -313,6 +325,7 @@ export interface RootRouteChildren {
   GamesGameIdInsuranceRoute: typeof GamesGameIdInsuranceRoute
   GamesGameIdSettingsRoute: typeof GamesGameIdSettingsRoute
   GamesGameIdSettlementRoute: typeof GamesGameIdSettlementRoute
+  PlayersPlayerIdEditRoute: typeof PlayersPlayerIdEditRoute
   GamesGameIdIndexRoute: typeof GamesGameIdIndexRoute
 }
 
@@ -472,6 +485,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GamesGameIdSettlementRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/players/$playerId_/edit': {
+      id: '/players/$playerId_/edit'
+      path: '/players/$playerId/edit'
+      fullPath: '/players/$playerId/edit'
+      preLoaderRoute: typeof PlayersPlayerIdEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -497,6 +517,7 @@ const rootRouteChildren: RootRouteChildren = {
   GamesGameIdInsuranceRoute: GamesGameIdInsuranceRoute,
   GamesGameIdSettingsRoute: GamesGameIdSettingsRoute,
   GamesGameIdSettlementRoute: GamesGameIdSettlementRoute,
+  PlayersPlayerIdEditRoute: PlayersPlayerIdEditRoute,
   GamesGameIdIndexRoute: GamesGameIdIndexRoute,
 }
 export const routeTree = rootRouteImport
