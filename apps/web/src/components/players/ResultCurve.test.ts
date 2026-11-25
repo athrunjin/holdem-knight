@@ -1,25 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { axisTicks, parseTypedDay } from "./ResultCurve";
+import { axisTicks, composeDay } from "./ResultCurve";
 
-describe("parseTypedDay", () => {
-  it("reads a day with dashes, slashes or dots, with or without leading zeros", () => {
-    expect(parseTypedDay("2026-11-18")).toBe("2026-11-18");
-    expect(parseTypedDay(" 2026/1/5 ")).toBe("2026-01-05");
-    expect(parseTypedDay("2026.02.28")).toBe("2026-02-28");
+describe("composeDay", () => {
+  it("makes a day of a year, a month and a day as typed, with or without leading zeros", () => {
+    expect(composeDay("2026", "11", "18")).toBe("2026-11-18");
+    expect(composeDay(" 2026 ", "1", "05")).toBe("2026-01-05");
+    expect(composeDay("2028", "2", "29")).toBe("2028-02-29");
   });
 
   it("gives nothing for what is not a day of the calendar", () => {
-    expect(parseTypedDay("2026-02-30")).toBeUndefined();
-    expect(parseTypedDay("2026-13-01")).toBeUndefined();
-    expect(parseTypedDay("2026-00-10")).toBeUndefined();
-    expect(parseTypedDay("2025-02-29")).toBeUndefined();
-    expect(parseTypedDay("11-18")).toBeUndefined();
-    expect(parseTypedDay("yesterday")).toBeUndefined();
-    expect(parseTypedDay("")).toBeUndefined();
+    expect(composeDay("2026", "2", "30")).toBeUndefined();
+    expect(composeDay("2025", "2", "29")).toBeUndefined();
+    expect(composeDay("2026", "13", "1")).toBeUndefined();
+    expect(composeDay("2026", "0", "10")).toBeUndefined();
+    expect(composeDay("2026", "11", "0")).toBeUndefined();
   });
 
-  it("knows a leap day", () => {
-    expect(parseTypedDay("2028-02-29")).toBe("2028-02-29");
+  it("gives nothing for parts that are not whole numbers, or a year that is not four digits", () => {
+    expect(composeDay("26", "11", "18")).toBeUndefined();
+    expect(composeDay("2026", "", "18")).toBeUndefined();
+    expect(composeDay("2026", "11", "1.5")).toBeUndefined();
+    expect(composeDay("2026", "nov", "18")).toBeUndefined();
+    expect(composeDay("2026", "-1", "18")).toBeUndefined();
   });
 });
 

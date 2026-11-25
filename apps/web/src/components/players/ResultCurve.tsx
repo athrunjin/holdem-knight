@@ -4,6 +4,7 @@ import {
   type Currency,
   cents,
   type GameSummary,
+  multiply,
   playerCurve,
   playerReport,
 } from "@holdem-knight/core";
@@ -17,6 +18,7 @@ import { formatGameMoney } from "@/lib/currency";
 import { blindsKey, filterChoices, ratioKey } from "@/lib/income-filter";
 import { useCountUp, useEntered } from "@/lib/motion";
 import { useStoredState } from "@/lib/stored-state";
+import { ResultHead } from "./ResultHead";
 
 type Money = (value: Cents, signed?: boolean) => string;
 
@@ -30,15 +32,15 @@ const toDay = (year: number, month: number, date: number) =>
   `${year}-${String(month).padStart(2, "0")}-${String(date).padStart(2, "0")}`;
 
 /**
- * A day as typed: `2026-11-18`, with `/` or `.` between its parts as well, the month and the day
- * with or without a leading zero. Nothing for anything that is not a day of the calendar.
+ * A day from its year, month and day as typed in three fields: `2026-11-18`. Nothing where a part
+ * is not a whole number, the year is not four digits, or the day is not on the calendar.
  */
-export function parseTypedDay(text: string): string | undefined {
-  const match = /^\s*(\d{4})\s*[-/.]\s*(\d{1,2})\s*[-/.]\s*(\d{1,2})\s*$/.exec(text);
-  if (!match) return undefined;
-  const [year, month, date] = [Number(match[1]), Number(match[2]), Number(match[3])];
-  if (month < 1 || month > 12 || date < 1 || date > daysIn(year, month)) return undefined;
-  return toDay(year, month, date);
+export function composeDay(year: string, month: string, date: string): string | undefined {
+  const typed = [year, month, date].map((part) => part.trim());
+  if (!typed.every((part) => /^\d+$/.test(part)) || typed[0]?.length !== 4) return undefined;
+  const [y, m, d] = typed.map(Number) as [number, number, number];
+  if (m < 1 || m > 12 || d < 1 || d > daysIn(y, m)) return undefined;
+  return toDay(y, m, d);
 }
 
 /**
@@ -181,12 +183,8 @@ export function ResultCurve({
   // Whole amounts on the way, and the cents only of the amount arrived at
   const whole = (running: Cents, arrived: Cents) =>
     running === arrived ? arrived : cents(Math.round(running / 100) * 100);
-  const charge = (label: string, amount: Cents) => (
-    <span className="flex items-baseline justify-end gap-1.5">
-      <span className="text-xs font-medium text-win">{label}</span>
-      {money(amount)}
-    </span>
-  );
+  // A game is won where the running total rose over it
+  const won = totals.filter((total, i) => i > 0 && total > (totals[i - 1] ?? 0)).length;
 
   // Drawn afresh for other days or other games, and the figures run to their new values
   const drawKey = [from, to, currency, ratio, blinds].join();
@@ -234,47 +232,36 @@ export function ResultCurve({
         />
       </div>
 
-      {/* Right under the title, as the card over this one has it: what the stretch came to, with
-          what it came to after charges under it, and the charges themselves at the right */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="flex items-baseline gap-2">
-            <span
-              className={cn("text-4xl font-semibold tracking-tight tabular-nums", toneOf(result))}
-            >
-              {money(whole(resultShown, result), true)}
-            </span>
-            <span className="text-xs text-muted">{t.players.playerPage.games(shown.length)}</span>
-          </p>
-          {/* Always there. Its tick draws it as a second line */}
-          <button
-            type="button"
-            aria-pressed={withCharges}
-            aria-label={t.players.playerPage.showAfterCharges}
-            onClick={() => setWithCharges(!withCharges)}
-            className="-mb-1 flex min-h-11 items-center gap-2 text-sm"
-          >
-            <span className="text-muted">{t.players.playerPage.afterCharges}</span>
-            <span className="text-highlight tabular-nums">
-              {money(whole(afterShown, after), true)}
-            </span>
-            <span
-              className={cn(
-                "grid size-5 place-items-center rounded-md border transition-colors",
-                withCharges ? "border-highlight bg-highlight text-accent-text" : "border-muted",
-              )}
-            >
-              {withCharges && <Check className="size-3.5" strokeWidth={3} aria-hidden />}
-            </span>
-          </button>
-        </div>
-        {(wage > 0 || tableFee > 0) && (
-          <p className="flex shrink-0 flex-col pt-3 text-sm leading-tight tabular-nums">
-            {wage > 0 && charge(t.common.dealerWage, wage)}
-            {tableFee > 0 && charge(t.common.timeCharge, tableFee)}
-          </p>
-        )}
-      </div>
+      {/* Right under the title, laid out as the card over this one is */}
+      <ResultHead
+        result={result}
+        shown={whole(resultShown, result)}
+        games={shown.length}
+        won={won}
+        average={shown.length > 0 ? multiply(result, 1 / shown.length, "half-up") : cents(0)}
+        wage={wage}
+        tableFee={tableFee}
+        money={money}
+      />
+      {/* Always there. Its tick draws it as a second line */}
+      <button
+        type="button"
+        aria-pressed={withCharges}
+        aria-label={t.players.playerPage.showAfterCharges}
+        onClick={() => setWithCharges(!withCharges)}
+        className="-mb-1 flex min-h-11 items-center gap-2 text-sm"
+      >
+        <span className="text-muted">{t.players.playerPage.afterCharges}</span>
+        <span className="text-highlight tabular-nums">{money(whole(afterShown, after), true)}</span>
+        <span
+          className={cn(
+            "grid size-5 place-items-center rounded-md border transition-colors",
+            withCharges ? "border-highlight bg-highlight text-accent-text" : "border-muted",
+          )}
+        >
+          {withCharges && <Check className="size-3.5" strokeWidth={3} aria-hidden />}
+        </span>
+      </button>
 
       {shown.length === 0 ? (
         <p className="grid h-36 place-items-center text-sm text-muted">
@@ -446,13 +433,71 @@ function DayButton({
   );
 }
 
-const fieldClass =
-  "min-h-11 w-full rounded-xl border border-line bg-surface px-2 text-text outline-none focus:border-highlight";
+/**
+ * One part of a day, typed or picked. A tap on the number selects it all for typing over; a tap
+ * on the chevron opens the list. The list is the device's own, laid unseen over the chevron.
+ */
+function PartField({
+  label,
+  unit,
+  value,
+  options,
+  invalid,
+  onChange,
+}: {
+  label: string;
+  /** After the number, such as 年 */
+  unit: string;
+  value: string;
+  options: readonly number[];
+  invalid: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-h-11 items-center rounded-xl border bg-surface pl-2 focus-within:border-highlight",
+        invalid ? "border-loss" : "border-line",
+      )}
+    >
+      <input
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        aria-label={label}
+        aria-invalid={invalid || undefined}
+        value={value}
+        onFocus={(event) => event.target.select()}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-11 w-0 min-w-0 flex-1 bg-transparent text-text tabular-nums outline-none"
+      />
+      <span className="shrink-0 text-xs text-muted">{unit}</span>
+      <span className="relative grid h-11 w-8 shrink-0 place-items-center">
+        <ChevronDown className="size-4 text-muted" aria-hidden />
+        <select
+          aria-label={label}
+          tabIndex={-1}
+          // Empty while what is typed is not one of the choices
+          value={options.includes(Number(value)) ? Number(value) : ""}
+          onChange={(event) => onChange(event.target.value)}
+          className="absolute inset-0 size-full opacity-0"
+        >
+          <option value="" disabled />
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </span>
+    </div>
+  );
+}
 
 /**
- * Picks a day: by year, month and day from lists, or typed as `2026-11-18`. The two follow each
- * other. A day that is not on the calendar, or on the wrong side of the other end of the stretch,
- * says so and cannot be confirmed.
+ * Picks a day by its year, month and day, each typed or picked from a list. A day that is not on
+ * the calendar, or on the wrong side of the other end of the stretch, says so and cannot be
+ * confirmed.
  */
 function DayDialog({
   title,
@@ -476,9 +521,9 @@ function DayDialog({
   onPick: (day: string | undefined) => void;
   onClose: () => void;
 }) {
-  const [typed, setTyped] = useState(day);
-  const picked = parseTypedDay(typed);
-  const [year, month, date] = parts(picked ?? day);
+  const [typed, setTyped] = useState(() => parts(day).map(String) as [string, string, string]);
+  const [year, month, date] = typed;
+  const picked = composeDay(year, month, date);
   const issue =
     picked === undefined
       ? t.players.playerPage.dayInvalid
@@ -487,64 +532,43 @@ function DayDialog({
         : notAfter !== undefined && picked > notAfter
           ? t.players.playerPage.dayAfterEnd
           : undefined;
-  // A list keeps the other two parts, with the day brought back inside a shorter month
-  const choose = (y: number, m: number, d: number) =>
-    setTyped(toDay(y, m, Math.min(d, daysIn(y, m))));
   const range = (first: number, last: number) =>
     Array.from({ length: last - first + 1 }, (_, i) => first + i);
+  // As many days as the month typed has, or the most a month can have while it is not one
+  const monthDays =
+    /^\d{4}$/.test(year.trim()) && Number(month) >= 1 && Number(month) <= 12
+      ? daysIn(Number(year), Number(month))
+      : 31;
+  const bad = picked === undefined;
 
   return (
     <Modal title={title} onClose={onClose}>
       <div className="grid grid-cols-3 gap-2">
-        <select
-          aria-label={t.players.playerPage.year}
+        <PartField
+          label={t.players.playerPage.year}
+          unit={t.players.playerPage.year}
           value={year}
-          onChange={(event) => choose(Number(event.target.value), month, date)}
-          className={fieldClass}
-        >
-          {range(Math.min(years[0], year), Math.max(years[1], year)).map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label={t.players.playerPage.month}
+          options={range(years[0], years[1])}
+          invalid={bad}
+          onChange={(value) => setTyped([value, month, date])}
+        />
+        <PartField
+          label={t.players.playerPage.month}
+          unit={t.players.playerPage.month}
           value={month}
-          onChange={(event) => choose(year, Number(event.target.value), date)}
-          className={fieldClass}
-        >
-          {range(1, 12).map((value) => (
-            <option key={value} value={value}>
-              {t.me.income.monthShort(value)}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label={t.players.playerPage.date}
+          options={range(1, 12)}
+          invalid={bad}
+          onChange={(value) => setTyped([year, value, date])}
+        />
+        <PartField
+          label={t.players.playerPage.date}
+          unit={t.players.playerPage.date}
           value={date}
-          onChange={(event) => choose(year, month, Number(event.target.value))}
-          className={fieldClass}
-        >
-          {range(1, daysIn(year, month)).map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
+          options={range(1, monthDays)}
+          invalid={bad}
+          onChange={(value) => setTyped([year, month, value])}
+        />
       </div>
-      <input
-        type="text"
-        inputMode="numeric"
-        autoComplete="off"
-        aria-label={t.players.playerPage.typeDay}
-        placeholder="2026-11-18"
-        value={typed}
-        aria-invalid={issue ? true : undefined}
-        onFocus={(event) => event.target.select()}
-        onChange={(event) => setTyped(event.target.value)}
-        className={cn(fieldClass, "mt-2 tabular-nums aria-invalid:border-loss")}
-      />
       {/* Its room is kept, so the buttons do not move as it comes and goes */}
       <p role="alert" className="min-h-6 pt-1 text-xs text-loss">
         {issue}

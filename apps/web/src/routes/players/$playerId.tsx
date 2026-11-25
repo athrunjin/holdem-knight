@@ -25,6 +25,7 @@ import { IncomeFilter } from "@/components/income/IncomeFilter";
 import { Page } from "@/components/Page";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { ResultCurve } from "@/components/players/ResultCurve";
+import { ResultHead } from "@/components/players/ResultHead";
 import { TextMenu } from "@/components/TextMenu";
 import { PartyRow, TransferBack, useTransferDraft } from "@/components/transfers/TransferRows";
 import { useGames } from "@/data/games";
@@ -247,7 +248,7 @@ function History({
               onApply={change}
             />
           </div>
-          <Result report={report} money={money} playKey={playKey} />
+          <Result report={report} hideGames={isLast(period)} money={money} playKey={playKey} />
         </section>
 
         {played.length > 0 && (
@@ -288,10 +289,13 @@ const toneOf = (value: number) => (value > 0 ? "text-win" : value < 0 ? "text-lo
  */
 function Result({
   report,
+  hideGames,
   money,
   playKey,
 }: {
   report: PlayerReport;
+  /** The title says how many games, as for the latest ten */
+  hideGames: boolean;
   money: Money;
   playKey: string;
 }) {
@@ -300,36 +304,19 @@ function Result({
   const shown = useCountUp(result, { duration: 800, resetKey: playKey });
   // Whole amounts on the way, and the cents only of the amount arrived at
   const figure = shown === result ? result : cents(Math.round(shown / 100) * 100);
-  const charge = (label: string, amount: Cents) => (
-    <span className="flex items-baseline justify-end gap-1.5">
-      <span className="text-xs font-medium text-win">{label}</span>
-      {money(amount)}
-    </span>
-  );
-
   return (
     <>
-      {/* What they paid in charges stands beside the figure, and is no part of it */}
-      <div className="flex items-start justify-between gap-3">
-        <p className={cn("text-4xl font-semibold tracking-tight tabular-nums", toneOf(result))}>
-          {money(figure, true)}
-        </p>
-        {(wage > 0 || tableFee > 0) && (
-          <p className="flex shrink-0 flex-col pt-3 text-sm leading-tight tabular-nums">
-            {wage > 0 && charge(t.common.dealerWage, wage)}
-            {tableFee > 0 && charge(t.common.timeCharge, tableFee)}
-          </p>
-        )}
-      </div>
-      <p className="mt-1 text-sm text-muted tabular-nums">
-        {t.players.playerPage.games(games.length)}
-        {games.length > 0 && (
-          <>
-            {` · ${t.players.playerPage.won(won)} · `}
-            {t.players.playerPage.average(money(average, true))}
-          </>
-        )}
-      </p>
+      <ResultHead
+        result={result}
+        shown={figure}
+        games={games.length}
+        hideGames={hideGames}
+        won={won}
+        average={average}
+        wage={wage}
+        tableFee={tableFee}
+        money={money}
+      />
       {/* Made again for other games, so every bar grows from the line each time */}
       {games.length > 0 && <Bars key={playKey} games={games} money={money} playKey={playKey} />}
       {games.length > BARS && (
