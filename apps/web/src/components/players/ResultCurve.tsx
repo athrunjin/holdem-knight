@@ -121,8 +121,8 @@ function parseCurveView(stored: unknown): CurveView | undefined {
 /**
  * The player's running result, game by game, from one day to another: from their first game to
  * now until other days are picked after the title. It is narrowed by currency, ratio and blinds
- * by itself, apart from the card over it. Over the curve what the stretch came to, and what it
- * came to after the charges paid in it, whose tick draws that as a second line. The axes are
+ * by itself, apart from the card over it. Under the title what the stretch came to, what it came
+ * to after the charges paid in it, whose tick draws that as a second line, and the charges. The axes are
  * marked with a few amounts and days, and the line ends in a dot at where the player stands. The
  * curve is drawn again from the left whenever its days or its games change.
  */
@@ -176,6 +176,17 @@ export function ResultCurve({
   const afters = [0, ...shown.map((point) => point.afterCharges - (before?.afterCharges ?? 0))];
   const result = cents(totals.at(-1) ?? 0);
   const after = cents(afters.at(-1) ?? 0);
+  const wage = cents((end?.wage ?? 0) - (before?.wage ?? 0));
+  const tableFee = cents((end?.tableFee ?? 0) - (before?.tableFee ?? 0));
+  // Whole amounts on the way, and the cents only of the amount arrived at
+  const whole = (running: Cents, arrived: Cents) =>
+    running === arrived ? arrived : cents(Math.round(running / 100) * 100);
+  const charge = (label: string, amount: Cents) => (
+    <span className="flex items-baseline justify-end gap-1.5">
+      <span className="text-xs font-medium text-win">{label}</span>
+      {money(amount)}
+    </span>
+  );
 
   // Drawn afresh for other days or other games, and the figures run to their new values
   const drawKey = [from, to, currency, ratio, blinds].join();
@@ -223,39 +234,46 @@ export function ResultCurve({
         />
       </div>
 
-      <div className="flex items-end justify-between gap-3">
-        <p className="flex items-baseline gap-2">
-          <span
-            className={cn("text-2xl font-semibold tracking-tight tabular-nums", toneOf(result))}
+      {/* Right under the title, as the card over this one has it: what the stretch came to, with
+          what it came to after charges under it, and the charges themselves at the right */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-baseline gap-2">
+            <span
+              className={cn("text-4xl font-semibold tracking-tight tabular-nums", toneOf(result))}
+            >
+              {money(whole(resultShown, result), true)}
+            </span>
+            <span className="text-xs text-muted">{t.players.playerPage.games(shown.length)}</span>
+          </p>
+          {/* Always there. Its tick draws it as a second line */}
+          <button
+            type="button"
+            aria-pressed={withCharges}
+            aria-label={t.players.playerPage.showAfterCharges}
+            onClick={() => setWithCharges(!withCharges)}
+            className="-mb-1 flex min-h-11 items-center gap-2 text-sm"
           >
-            {money(
-              resultShown === result ? result : cents(Math.round(resultShown / 100) * 100),
-              true,
-            )}
-          </span>
-          <span className="text-xs text-muted">{t.players.playerPage.games(shown.length)}</span>
-        </p>
-        {/* Always there. Its tick draws it as a second line */}
-        <button
-          type="button"
-          aria-pressed={withCharges}
-          aria-label={t.players.playerPage.showAfterCharges}
-          onClick={() => setWithCharges(!withCharges)}
-          className="flex min-h-11 shrink-0 items-center gap-2 text-sm"
-        >
-          <span className="text-xs text-muted">{t.players.playerPage.afterCharges}</span>
-          <span className="text-highlight tabular-nums">
-            {money(afterShown === after ? after : cents(Math.round(afterShown / 100) * 100), true)}
-          </span>
-          <span
-            className={cn(
-              "grid size-5 place-items-center rounded-md border transition-colors",
-              withCharges ? "border-highlight bg-highlight text-accent-text" : "border-muted",
-            )}
-          >
-            {withCharges && <Check className="size-3.5" strokeWidth={3} aria-hidden />}
-          </span>
-        </button>
+            <span className="text-muted">{t.players.playerPage.afterCharges}</span>
+            <span className="text-highlight tabular-nums">
+              {money(whole(afterShown, after), true)}
+            </span>
+            <span
+              className={cn(
+                "grid size-5 place-items-center rounded-md border transition-colors",
+                withCharges ? "border-highlight bg-highlight text-accent-text" : "border-muted",
+              )}
+            >
+              {withCharges && <Check className="size-3.5" strokeWidth={3} aria-hidden />}
+            </span>
+          </button>
+        </div>
+        {(wage > 0 || tableFee > 0) && (
+          <p className="flex shrink-0 flex-col pt-3 text-sm leading-tight tabular-nums">
+            {wage > 0 && charge(t.common.dealerWage, wage)}
+            {tableFee > 0 && charge(t.common.timeCharge, tableFee)}
+          </p>
+        )}
       </div>
 
       {shown.length === 0 ? (
@@ -263,7 +281,7 @@ export function ResultCurve({
           {t.players.playerPage.noGames}
         </p>
       ) : (
-        <div className="grid grid-cols-[3rem_1fr] grid-rows-[8rem_1.25rem] gap-x-1.5">
+        <div className="mt-3 grid grid-cols-[3rem_1fr] grid-rows-[8rem_1.25rem] gap-x-1.5">
           {/* A few round amounts up the side */}
           <div className="relative text-[11px] text-muted tabular-nums" aria-hidden>
             {ticks.map((tick) => (

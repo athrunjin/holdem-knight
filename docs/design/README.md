@@ -132,7 +132,7 @@ Motion shows where something came from and that a figure changed. It never delay
 ## 7. Order and layout of a page
 
 1. Title, with the emblem or actions at the right.
-2. The headline card: what it is of and its period on one line, filters at the right of that line, then the figure.
+2. The headline card: what it is of and its period on one line, filters at the right of that line, then the figure. The figure stands right under that line in every card, at the same place, so the eye finds it by the title and not by whatever chart follows; figures that go with it sit at its right, and a chart starts a clear step below.
 3. The breakdown of that figure.
 4. Charts or trends, with their own controls inside their card.
 5. Lists, newest first unless the organizer chose otherwise.
@@ -179,6 +179,7 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | 2026-11-24 | First version, from the app as built and the organizer's requests from 2026-11-07 to 2026-11-24 |
 | 2026-11-24 | With 转账: the tick as a component, rows that unfold their lines, and unfolded rows kept on return |
 | 2026-11-24 | Avatars and their six grounds, with the player's page |
+| 2026-11-25 | A card's figure is placed by its title, the same in every card, with a step before its chart |
 | 2026-11-24 | A line chart: a few round marks on each axis, shaded to its zero line, green or red by where it ends, a dot at the end; its days are picked in a dialog |
 | 2026-11-24 | A chart's line is drawn first and its bars grow from it; the extremes are written at the bars, sliding outward |
 | 2026-11-24 | Bad debts: red with its word, two buttons under ticked lines, marks side by side in a row's corner |

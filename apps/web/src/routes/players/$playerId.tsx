@@ -310,12 +310,12 @@ function Result({
   return (
     <>
       {/* What they paid in charges stands beside the figure, and is no part of it */}
-      <div className="flex items-end justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <p className={cn("text-4xl font-semibold tracking-tight tabular-nums", toneOf(result))}>
           {money(figure, true)}
         </p>
         {(wage > 0 || tableFee > 0) && (
-          <p className="flex shrink-0 flex-col pb-0.5 text-sm leading-tight tabular-nums">
+          <p className="flex shrink-0 flex-col pt-3 text-sm leading-tight tabular-nums">
             {wage > 0 && charge(t.common.dealerWage, wage)}
             {tableFee > 0 && charge(t.common.timeCharge, tableFee)}
           </p>
@@ -391,7 +391,7 @@ function Bars({
     <div
       role="img"
       aria-label={t.players.playerPage.eachGame}
-      className="relative mt-1"
+      className="relative mt-3"
       style={{ height: `${TALL + NOTE * 2}rem` }}
     >
       {best >= 0 && (
