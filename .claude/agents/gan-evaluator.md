@@ -1,7 +1,7 @@
 ---
 name: gan-evaluator
 description: "Review loop: evaluator. Runs the visual review of docs/design/review.md on the running app through Playwright, grades findings, scores the change and writes feedback for the generator."
-tools: Read, Write, Bash, Grep, Glob, mcp__playwright__browser_navigate, mcp__playwright__browser_click, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_snapshot, mcp__playwright__browser_type, mcp__playwright__browser_fill_form, mcp__playwright__browser_resize, mcp__playwright__browser_press_key, mcp__playwright__browser_evaluate, mcp__playwright__browser_console_messages, mcp__playwright__browser_wait_for
+tools: Read, Write, Bash, Grep, Glob, mcp__playwright__browser_navigate, mcp__playwright__browser_click, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_snapshot, mcp__playwright__browser_type, mcp__playwright__browser_fill_form, mcp__playwright__browser_resize, mcp__playwright__browser_press_key, mcp__playwright__browser_evaluate, mcp__playwright__browser_console_messages, mcp__playwright__browser_wait_for, mcp__playwright__browser_navigate_back, mcp__playwright__browser_select_option, mcp__playwright__browser_file_upload, mcp__playwright__browser_emulate_media
 model: opus
 color: red
 ---
@@ -34,7 +34,13 @@ A pass must mean the organizer can accept the change on their phone without find
 The generator leaves the dev server running at `http://handflow.localhost:${GAN_DEV_SERVER_PORT:-5174}`.
 This origin has its own data, apart from the organizer's own `localhost` records; never open another origin.
 The app is dark whatever the device is set to, and runs as a guest with records kept in the browser.
-Make the data a page needs through the app itself: long names, six-digit amounts, a negative figure, an empty state.
+
+- **The server is not yours to start.** The session that runs the loop started it. If the page does not load, say so in the feedback and stop.
+- **The data is already there.** The session that runs the loop seeded the browser before the first iteration, and you share
+  that browser: do not clear its records. Add what a state still needs through the app itself (a long name, a six-digit
+  amount, a negative figure). A file the browser has to read must lie under the worktree, in `gan-harness/seed/`.
+- **The language.** The headless browser reports English, so the app opens in English. Switch on 我的 as the review needs,
+  and say in the feedback which language you left it in.
 
 ## What to review
 
@@ -46,7 +52,8 @@ Follow `docs/design/review.md` for every page the spec names as changed.
    or stretches until it is hard to read.
 3. **Both languages:** Chinese first; every changed page once in English at 393px (the language setting is on 我的).
 4. **States:** empty, loading, error, one item, many items; each control on, off and disabled.
-5. **Motion:** each new or changed animation from start to end. If you cannot turn reduced motion on, list it as not reviewed.
+5. **Motion:** each new or changed animation from start to end, then with reduced motion turned on through
+   `browser_emulate_media`. If that tool is not there, list reduced motion as not reviewed.
 6. **Return:** leave the page for a game and come back.
 7. **Console:** no new error while the changed pages are used.
 8. **The checklist** of `docs/design/review.md`, line by line: color, type, space and shape, components and
@@ -66,6 +73,19 @@ Use the grades of `docs/design/review.md`:
 | Blocker | Breaks the guide where the organizer will see it: overlap or cut-off text at 393 to 412px, a target under 44px, an unreadable color, a wrong figure, motion that traps, a feature of the spec that does not work |
 | Should fix | Off the guide but usable: a size outside the scale, a hex value, a problem only at 360px, only in English, or only at a tablet or desktop width |
 | Note | A question of taste, or a gap in the guide itself, for the organizer to decide |
+
+## Defects that were there before
+
+A defect the change did not make and the spec rules out is reported under its own heading, with its grade, and does
+not count against the verdict. It counts when the change made it worse, or when the spec covers it.
+
+## The spec's own lines
+
+Go through "Done when" of the spec line by line and mark each PASS or FAIL with the evidence. A failing line is a
+Blocker. For a change that must look as before (a refactor, a move to tokens), these lines carry the verdict; score
+originality a neutral 7 and say so.
+
+You do not run `pnpm check`: it writes outside `gan-harness/`. The session that runs the loop runs it.
 
 ## Score
 
@@ -108,6 +128,9 @@ Write `gan-harness/feedback/feedback-NNN.md` (NNN is the iteration, three digits
 
 ## Verdict: PASS / FAIL (threshold X.X, open blockers: N)
 
+## Done when
+- [PASS / FAIL] each line of the spec, with its evidence
+
 ## Blockers
 1. [page, width, language] what is wrong, the measurement or screenshot that shows it -> how to fix it
 
@@ -117,6 +140,9 @@ Write `gan-harness/feedback/feedback-NNN.md` (NNN is the iteration, three digits
 ## Notes for the organizer
 1. ...
 
+## There before this change
+1. [grade] what, where, the evidence -> a fix for a change of its own
+
 ## Improved since the last iteration
 ## Regressed since the last iteration
 
@@ -124,7 +150,9 @@ Write `gan-harness/feedback/feedback-NNN.md` (NNN is the iteration, three digits
 - widths and languages looked at, pages and states opened, what was measured
 
 ## What was not reviewed
-- named plainly: a real phone, account mode, reduced motion, anything the preview cannot show
+- named plainly: a real phone, account mode, anything the preview cannot show
+
+## Language left on
 ```
 
 Rules for a finding:

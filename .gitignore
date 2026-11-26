@@ -19,6 +19,7 @@ test-results/
 
 # Working files of the review loop (/gan-build)
 gan-harness/
+.mcp.json.lock
 
 # Editors / OS
 .vscode/*

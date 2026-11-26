@@ -63,7 +63,7 @@ Table-felt green is the base and chip gold is the only accent color; dark is the
 The logo, icons and brand rules are in `docs/brand/README.md` (ADR 0021).
 
 - How the app looks and moves is in `docs/design/README.md`: color, type, space, components, motion, the order of a page. Read it before planning or building anything the app shows, and build from its tokens and components.
-- Every change to what the app shows goes through the visual review in `docs/design/review.md` after `pnpm check` and before it is handed over: in the preview at 360, 393 and 412px, dark, in Chinese and English, through its states and animations. Blockers are fixed first; the hand-over says what was reviewed, what was measured, what is left open and what was not looked at (ADR 0050).
+- Every change to what the app shows goes through the visual review in `docs/design/review.md` after `pnpm check` and before it is handed over: in the preview at 360, 393 and 412px, then 768, 1024 and 1440px, dark, in Chinese and English, through its states and animations. Blockers are fixed first; the hand-over says what was reviewed, what was measured, what is left open and what was not looked at (ADR 0050).
 - A decision the organizer makes about how something looks that the guide does not have is added to the guide in the same pull request.
 
 ## Review loop
@@ -74,4 +74,6 @@ The logo, icons and brand rules are in `docs/brand/README.md` (ADR 0021).
 - The spec is written first, from the plan the organizer agreed to; the loop has no planner and does not invent scope.
 - It runs on a branch, never on `main`, one loop at a time on a machine: the preview port 5174 and the local Supabase are shared.
 - The evaluator's findings never change a figure or a rule of `core`; a conflict is reported, not settled by the loop.
+- The session that runs the loop starts the dev server, seeds the browser's data and runs `pnpm check` again at the end; the agents do neither.
+- A new worktree asks once whether to use the Playwright server of `.mcp.json`. A person answers that; a session started unattended waits on it.
 - A pass is not acceptance. The pull request still says what was reviewed and what was not, and the organizer reads the preview on a phone.
