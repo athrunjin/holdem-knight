@@ -139,7 +139,7 @@ function GameLedger({ game }: { game: Game }) {
   const balanceChips = ledgerTotals(ledger).balanceChips;
   const live = useLiveCharges(game, events);
   const totals = ledgerTotals(people);
-  const nameOf = gameNameOf(players, game);
+  const nameOf = gameNameOf(players, game, events);
   const initialsOf = gameInitialsOf(players);
 
   function playerTotals(playerId: string) {

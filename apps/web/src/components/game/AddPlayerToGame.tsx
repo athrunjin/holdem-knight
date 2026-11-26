@@ -1,15 +1,25 @@
-import { type Player, parsePlayerName, searchPlayers } from "@holdem-knight/core";
-import { Plus } from "lucide-react";
+import {
+  orderNamesakesByRecent,
+  type Player,
+  parsePlayerName,
+  playerNumberText,
+  searchPlayers,
+} from "@holdem-knight/core";
+import { Plus, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { Modal } from "@/components/insurance/Modal";
+import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { TextField } from "@/components/TextField";
-import { newPlayer, usePlayers, useSavePlayer } from "@/data/players";
+import { newPlayer, usePlayers, useRecentPlayers, useSavePlayer } from "@/data/players";
 import { t } from "@/i18n";
+import { namesakesOf } from "@/lib/player-name";
 
 const MAX_SUGGESTIONS = 8;
 
-const pillClass =
-  "inline-flex min-h-11 items-center rounded-full border border-line bg-surface px-4 font-medium";
+/** Everyone in the recent games, so that namesakes can all be put in order of recency */
+const ALL_RECENT = Number.MAX_SAFE_INTEGER;
+
+const rowClass = "flex min-h-12 w-full items-center gap-3 rounded-xl border px-3 text-left";
 
 interface AddPlayerToGameProps {
   /** Players already in this game, left out of the suggestions */
@@ -25,14 +35,21 @@ interface AddPlayerToGameProps {
 /** Opens the search: pick a player to buy in, or create one if it finds nothing. */
 export function AddPlayerToGame({ excludedIds, variant, onPick }: AddPlayerToGameProps) {
   const { data: players = [] } = usePlayers();
+  const { data: recent = [] } = useRecentPlayers(ALL_RECENT);
   const savePlayer = useSavePlayer();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
   const available = players.filter(({ id }) => !excludedIds.has(id));
-  const matches = searchPlayers(available, query).slice(0, MAX_SUGGESTIONS);
+  // Namesakes come in order of who played last, so the one at the table now is likely first
+  const matches = orderNamesakesByRecent(
+    searchPlayers(available, query),
+    recent.map(({ id }) => id),
+  ).slice(0, MAX_SUGGESTIONS);
   const parsed = parsePlayerName(query);
-  const newName = parsed.ok && matches.length === 0 ? parsed.name : undefined;
+  // Names may repeat (ADR 0043): a name someone has, here or not, can be given to another player
+  const namesake = parsed.ok && namesakesOf(players, parsed.name).length > 0;
+  const newName = parsed.ok && (matches.length === 0 || namesake) ? parsed.name : undefined;
 
   function close() {
     setQuery("");
@@ -86,11 +103,21 @@ export function AddPlayerToGame({ excludedIds, variant, onPick }: AddPlayerToGam
             onChange={setQuery}
           />
           {(matches.length > 0 || newName !== undefined) && (
-            <ul className="mt-2 flex flex-wrap gap-2">
+            <ul className="mt-2 flex flex-col gap-1.5">
               {matches.map((player) => (
                 <li key={player.id}>
-                  <button type="button" onClick={() => pick(player)} className={pillClass}>
-                    {player.name}
+                  <button
+                    type="button"
+                    onClick={() => pick(player)}
+                    className={`${rowClass} border-line`}
+                  >
+                    <PlayerAvatar id={player.id} name={player.name} size="sm" />
+                    <span className="min-w-0 flex-1 truncate font-medium">{player.name}</span>
+                    {player.number !== undefined && (
+                      <span className="shrink-0 text-xs text-muted tabular-nums">
+                        {playerNumberText(player.number)}
+                      </span>
+                    )}
                   </button>
                 </li>
               ))}
@@ -100,9 +127,16 @@ export function AddPlayerToGame({ excludedIds, variant, onPick }: AddPlayerToGam
                     type="button"
                     disabled={savePlayer.isPending}
                     onClick={handleCreate}
-                    className={`${pillClass} border-accent disabled:opacity-60`}
+                    className={`${rowClass} border-accent text-accent disabled:opacity-60`}
                   >
-                    {t.game.addPlayerToGame.create(newName)}
+                    <span className="grid size-8 shrink-0 place-items-center">
+                      <UserPlus className="size-5" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-medium">
+                      {namesake
+                        ? t.game.addPlayerToGame.createNamesake(newName)
+                        : t.game.addPlayerToGame.create(newName)}
+                    </span>
                   </button>
                 </li>
               )}

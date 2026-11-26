@@ -6,6 +6,7 @@ export const game = {
     nameOrInitials: "名字或拼音首字母",
     couldntSaveTryAgain: "保存失败，请重试",
     create: (a: string | number) => `新建「${a}」`,
+    createNamesake: (a: string | number) => `新建同名玩家 ${a}`,
   },
   buyInRecord: {
     satDown: "上桌",

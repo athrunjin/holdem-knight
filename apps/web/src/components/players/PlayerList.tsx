@@ -10,13 +10,15 @@ import { type ReactNode, useEffect, useState } from "react";
 import { LetterIndex, letterSectionId, useActiveLetter } from "@/components/game/LetterIndex";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { PLAYER_NAME_ISSUE_TEXT } from "@/lib/player-name";
+import { namesakesOf, PLAYER_NAME_ISSUE_TEXT } from "@/lib/player-name";
 
 interface PlayerMatches {
   /** The players the query finds, under their initial letter */
   groups: InitialGroup<Player>[];
   /** Set when the query finds nobody and can be saved as a new player */
   newName: string | undefined;
+  /** The players whose name is the query's, spaces and case aside */
+  namesakes: Player[];
   tooLong: boolean;
 }
 
@@ -27,6 +29,7 @@ export function matchPlayers(players: readonly Player[], query: string): PlayerM
   return {
     groups,
     newName: parsed.ok && groups.length === 0 ? parsed.name : undefined,
+    namesakes: namesakesOf(players, query),
     tooLong: !parsed.ok && parsed.issue === "too-long",
   };
 }
@@ -39,6 +42,8 @@ interface PlayerSearchProps {
   onQueryChange: (query: string) => void;
   newName: string | undefined;
   tooLong: boolean;
+  /** A quiet line under the field, such as that another player has this name */
+  hint?: string | undefined;
   /** Text of the button that adds the query as a player */
   createLabel: (name: string) => string;
   saving: boolean;
@@ -54,6 +59,7 @@ export function PlayerSearch({
   onQueryChange,
   newName,
   tooLong,
+  hint,
   createLabel,
   saving,
   saveFailed,
@@ -82,6 +88,7 @@ export function PlayerSearch({
       {tooLong && (
         <p className="mt-1 text-sm text-highlight">{PLAYER_NAME_ISSUE_TEXT["too-long"]}</p>
       )}
+      {hint !== undefined && <p className="mt-1 text-sm text-muted tabular-nums">{hint}</p>}
       {newName !== undefined && (
         <button
           type="submit"

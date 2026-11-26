@@ -111,7 +111,7 @@ function SettlementPage() {
   const books = settleBooks(game, events, chargeClock(game));
   const { ledger, charges } = books;
   const ruleSections = chargeRuleSections(game, game.currency);
-  const nameOf = gameNameOf(players, game);
+  const nameOf = gameNameOf(players, game, events);
   const initialsOf = gameInitialsOf(players);
   const seated = ledger
     .filter((p) => p.seated && p.playerId !== INSURANCE_PLAYER_ID)

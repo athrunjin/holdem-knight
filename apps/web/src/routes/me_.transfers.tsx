@@ -38,7 +38,7 @@ import { dayOf } from "@/lib/game-day";
 import { useListReturn } from "@/lib/list-return";
 import { QuietMotion, useCountUp, useQuietArrival } from "@/lib/motion";
 import { periodName } from "@/lib/period-names";
-import { gameNameOf } from "@/lib/player-name";
+import { libraryNameOf, libraryNameText } from "@/lib/player-name";
 import { useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/me_/transfers")({
@@ -158,7 +158,8 @@ function Transfers({
   const bad = transferReport(summaries, { currency, state: "bad" });
 
   const money: Money = (value) => formatGameMoney(value, currency);
-  const nameOf = gameNameOf(players, newest);
+  // Across games there is no order of sitting down: namesakes read with their numbers (ADR 0043)
+  const nameOf = libraryNameOf(players, newest);
   const playKey = [done, period, currency].join();
   const { draft, disabled } = useTransferDraft(games, summaries);
 
@@ -167,7 +168,8 @@ function Transfers({
       <PartyRow
         key={party.partyId + of + playKey}
         party={party}
-        name={nameOf(party.partyId)}
+        name={nameOf(party.partyId).name}
+        number={nameOf(party.partyId).number}
         // A seat of the game, such as insurance, has no page of its own
         isPlayer={players.some(({ id }) => id === party.partyId)}
         state={of}
@@ -256,7 +258,10 @@ function Transfers({
                   <Line
                     key={keyOf(line)}
                     line={line}
-                    who={t.me.transfers.pays(nameOf(line.from), nameOf(line.to))}
+                    who={t.me.transfers.pays(
+                      libraryNameText(nameOf(line.from)),
+                      libraryNameText(nameOf(line.to)),
+                    )}
                     between
                     today={today}
                     money={money}

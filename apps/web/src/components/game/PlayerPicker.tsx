@@ -10,6 +10,7 @@ import {
 import { newPlayer, usePlayers, useRecentPlayers, useSavePlayer } from "@/data/players";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { type LibraryName, libraryNameOf, libraryNameText } from "@/lib/player-name";
 
 /** Four tiles a row, at most three rows. */
 const MAX_RECENT = 12;
@@ -34,7 +35,8 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
   const [startClock, setStartClock] = useState(false);
 
   const all = players.data ?? [];
-  const byId = new Map(all.map((player) => [player.id, player]));
+  // No game yet, so no suffix: namesakes read with their numbers (ADR 0043)
+  const nameOf = libraryNameOf(all);
   const recent = recentPlayers.data ?? [];
 
   const recentMatches = searchPlayers(recent, query);
@@ -86,9 +88,13 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
           <>
             <h2 className="mt-5 mb-2 font-semibold">{t.game.playerPicker.recentPlayers}</h2>
             <ul className="grid grid-cols-4 gap-2">
-              {recentMatches.map(({ id, name }) => (
-                <li key={id}>
-                  <RecentTile name={name} active={isSelected(id)} onToggle={() => toggle(id)} />
+              {recentMatches.map(({ id }) => (
+                <li key={id} className="min-w-0">
+                  <RecentTile
+                    name={nameOf(id)}
+                    active={isSelected(id)}
+                    onToggle={() => toggle(id)}
+                  />
                 </li>
               ))}
             </ul>
@@ -100,6 +106,7 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
           {(player) => (
             <PlayerRow
               player={player}
+              name={nameOf(player.id)}
               checked={isSelected(player.id)}
               onToggle={() => toggle(player.id)}
             />
@@ -111,18 +118,24 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
         {selected.length > 0 && (
           // Wraps onto up to three rows, then scrolls
           <ul className="mb-1 flex max-h-[4.25rem] flex-wrap gap-1 overflow-y-auto">
-            {selected.map((id) => (
-              <li key={id}>
-                <button
-                  type="button"
-                  aria-label={t.game.playerPicker.unselect(byId.get(id)?.name ?? "")}
-                  onClick={() => toggle(id)}
-                  className="h-5 rounded-full bg-accent/15 px-2 text-xs leading-5 font-medium"
-                >
-                  {byId.get(id)?.name}
-                </button>
-              </li>
-            ))}
+            {selected.map((id) => {
+              const name = nameOf(id);
+              return (
+                <li key={id} className="min-w-0 max-w-full">
+                  <button
+                    type="button"
+                    aria-label={t.game.playerPicker.unselect(libraryNameText(name))}
+                    onClick={() => toggle(id)}
+                    className="flex h-5 max-w-full items-center gap-1 rounded-full bg-accent/15 px-2 text-xs leading-5 font-medium"
+                  >
+                    <span className="truncate">{name.name}</span>
+                    {name.number !== undefined && (
+                      <span className="shrink-0 text-muted tabular-nums">{name.number}</span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
         {saveFailed && (
@@ -169,7 +182,7 @@ function RecentTile({
   active,
   onToggle,
 }: {
-  name: string;
+  name: LibraryName;
   active: boolean;
   onToggle: () => void;
 }) {
@@ -190,9 +203,15 @@ function RecentTile({
           active ? "bg-accent text-accent-text" : "bg-line/60",
         )}
       >
-        {[...name][0]?.toUpperCase()}
+        {[...name.name][0]?.toUpperCase()}
       </span>
-      <span className="max-w-full truncate text-sm font-medium">{name}</span>
+      {/* The name gives way before the number does */}
+      <span className="flex max-w-full items-baseline gap-1">
+        <span className="truncate text-sm font-medium">{name.name}</span>
+        {name.number !== undefined && (
+          <span className="shrink-0 text-xs text-muted tabular-nums">{name.number}</span>
+        )}
+      </span>
       {active && (
         <Check
           className="absolute top-1 right-1 size-3.5 text-accent"
@@ -206,10 +225,12 @@ function RecentTile({
 
 function PlayerRow({
   player,
+  name,
   checked,
   onToggle,
 }: {
   player: Player;
+  name: LibraryName;
   checked: boolean;
   onToggle: () => void;
 }) {
@@ -220,12 +241,17 @@ function PlayerRow({
         checked ? "border-accent bg-accent/10" : "border-line bg-surface",
       )}
     >
-      <span className="min-w-0 flex-1 truncate font-medium">{player.name}</span>
+      <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+        <span className="truncate font-medium">{name.name}</span>
+        {name.number !== undefined && (
+          <span className="shrink-0 text-xs text-muted tabular-nums">{name.number}</span>
+        )}
+      </span>
       <span className="text-xs text-muted">{player.initials}</span>
       <label className="grid size-11 shrink-0 cursor-pointer place-items-center">
         <input
           type="checkbox"
-          aria-label={t.game.playerPicker.select(player.name)}
+          aria-label={t.game.playerPicker.select(libraryNameText(name))}
           checked={checked}
           onChange={onToggle}
           className="peer sr-only"

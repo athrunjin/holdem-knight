@@ -65,5 +65,8 @@ export const lib = {
     aNameCantBeLongerThan: (a: string | number) => `名字不能超过 ${a} 个字`,
     andAreReservedNamesChooseAnother: (a: string | number, b: string | number) =>
       `「${a}」和「${b}」是保留名称，请换一个名字`,
+    namesakeExists: (a: string | number) => `已有同名玩家 ${a}`,
+    /** Between the numbers of several namesakes */
+    numberSeparator: "、",
   },
 };

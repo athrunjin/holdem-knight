@@ -5,7 +5,7 @@ import { Page } from "@/components/Page";
 import { usePlayers, useSavePlayer } from "@/data/players";
 import { t } from "@/i18n";
 import { toInitials } from "@/lib/pinyin";
-import { PLAYER_NAME_ISSUE_TEXT } from "@/lib/player-name";
+import { namesakeHint, namesakesOf, PLAYER_NAME_ISSUE_TEXT } from "@/lib/player-name";
 
 export const Route = createFileRoute("/players/$playerId_/edit")({
   component: EditPlayerPage,
@@ -28,14 +28,17 @@ function EditPlayerPage() {
     );
   }
 
-  return <EditPlayerForm player={player} />;
+  const others = players.filter(({ id }) => id !== playerId);
+  return <EditPlayerForm player={player} others={others} />;
 }
 
-function EditPlayerForm({ player }: { player: Player }) {
+function EditPlayerForm({ player, others }: { player: Player; others: readonly Player[] }) {
   const navigate = Route.useNavigate();
   const savePlayer = useSavePlayer();
   const [name, setName] = useState(player.name);
   const [issue, setIssue] = useState<PlayerNameIssue>();
+  // Names may repeat (ADR 0043): only said, saving goes ahead
+  const hint = namesakeHint(namesakesOf(others, name));
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -68,13 +71,22 @@ function EditPlayerForm({ player }: { player: Player }) {
             autoComplete="off"
             value={name}
             aria-invalid={issue ? true : undefined}
-            aria-describedby={issue ? "name-issue" : undefined}
+            aria-describedby={
+              [issue && "name-issue", hint !== undefined && "name-hint"]
+                .filter(Boolean)
+                .join(" ") || undefined
+            }
             onChange={(event) => setName(event.target.value)}
             className="min-h-12 w-full rounded-xl border border-line bg-surface px-3 text-lg outline-none focus:border-highlight aria-invalid:border-highlight"
           />
           {issue && (
             <p id="name-issue" className="mt-1 text-sm text-highlight">
               {PLAYER_NAME_ISSUE_TEXT[issue]}
+            </p>
+          )}
+          {hint !== undefined && (
+            <p id="name-hint" className="mt-1 text-sm text-muted tabular-nums">
+              {hint}
             </p>
           )}
         </div>
