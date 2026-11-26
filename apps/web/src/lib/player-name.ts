@@ -34,6 +34,48 @@ export function gameNameOf(
   return (playerId: string) => names.get(playerId) ?? t.common.unknownPlayer;
 }
 
+/**
+ * The suffix a player's name takes in a game (`_1`), so a name cut short can keep it: the end of
+ * their label beyond their plain name, from `gamePlayerNames`, never read off the text, since a
+ * real name may end in `_1`. Nothing for a player who reads their plain name, nor for the seats.
+ */
+export function gameNameSuffixOf(players: readonly Player[], events: readonly LedgerEvent[]) {
+  const plain = new Map(players.map(({ id, name }) => [id, name]));
+  const suffixes = new Map<string, string>();
+  for (const [id, label] of gamePlayerNames(events, players)) {
+    const name = plain.get(id);
+    if (name === undefined || label === name) continue;
+    const base = name.trim();
+    if (label.length > base.length && label.startsWith(base)) {
+      suffixes.set(id, label.slice(base.length));
+    }
+  }
+  return (playerId: string): string | undefined => suffixes.get(playerId);
+}
+
+/**
+ * The name a player reads in a game once bought in, for the dialog of their buy-in: the label
+ * they have if they are in the game, or the one a buy-in after the ledger's events gives them.
+ */
+export function gameNameOnBuyIn(
+  players: readonly Player[],
+  events: readonly LedgerEvent[],
+  playerId: string,
+): string {
+  const player = players.find(({ id }) => id === playerId);
+  if (!player) return t.common.unknownPlayer;
+  const buyIn: LedgerEvent = {
+    id: `${playerId}:next-buy-in`,
+    organizerId: player.organizerId,
+    gameId: events[0]?.gameId ?? "",
+    occurredAt: events.at(-1)?.occurredAt ?? 0,
+    type: "buy_in",
+    playerId,
+    chips: 1,
+  };
+  return gamePlayerNames([...events, buyIn], players).get(playerId) ?? player.name;
+}
+
 /** A name across games: the plain name, and the record's number where another record has the name. */
 export interface LibraryName {
   name: string;

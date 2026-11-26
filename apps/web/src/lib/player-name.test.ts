@@ -9,6 +9,8 @@ import { describe, expect, it } from "vitest";
 import { t } from "@/i18n";
 import {
   gameNameOf,
+  gameNameOnBuyIn,
+  gameNameSuffixOf,
   libraryNameOf,
   libraryNameText,
   namesakeHint,
@@ -54,6 +56,67 @@ describe("gameNameOf", () => {
     expect(nameOf(INSURANCE_PLAYER_ID)).toBe(t.common.insurance);
     expect(nameOf(RAKE_PLAYER_ID)).toBe(t.common.rake);
     expect(nameOf("nobody")).toBe(t.common.unknownPlayer);
+  });
+});
+
+describe("gameNameSuffixOf", () => {
+  it("gives a namesake's label as their plain name and its suffix", () => {
+    const players = [named("a", "小王", 1), named("b", " 小王 ", 2), named("c", "老张", 3)];
+    const events: LedgerEvent[] = [buyIn("1", "a"), buyIn("2", "b"), buyIn("3", "c")];
+    const nameOf = gameNameOf(players, game, events);
+    const suffixOf = gameNameSuffixOf(players, events);
+
+    expect(nameOf("b")).toBe("小王_1");
+    expect(suffixOf("b")).toBe("_1");
+    expect(nameOf("b").slice(0, -"_1".length)).toBe("小王");
+    expect(suffixOf("a")).toBeUndefined();
+    expect(suffixOf("c")).toBeUndefined();
+  });
+
+  it("gives no suffix to a real name that ends in _1, nor to players and seats not in the game", () => {
+    const players = [named("a", "小王", 1), named("b", "小王_1", 2), named("c", "小王", 3)];
+    const events: LedgerEvent[] = [buyIn("1", "a"), buyIn("2", "b"), buyIn("3", "c")];
+    const suffixOf = gameNameSuffixOf(players, events);
+
+    expect(gameNameOf(players, game, events)("c")).toBe("小王_2");
+    expect(suffixOf("b")).toBeUndefined();
+    expect(suffixOf("c")).toBe("_2");
+    expect(gameNameSuffixOf(players, [])("c")).toBeUndefined();
+    expect(suffixOf(INSURANCE_PLAYER_ID)).toBeUndefined();
+    expect(suffixOf("nobody")).toBeUndefined();
+  });
+
+  it("keeps the suffix of a namesake whose own name ends in _1", () => {
+    const players = [named("a", "小王_1", 1), named("b", "小王_1", 2)];
+    const events: LedgerEvent[] = [buyIn("1", "a"), buyIn("2", "b")];
+
+    expect(gameNameOf(players, game, events)("b")).toBe("小王_1_1");
+    expect(gameNameSuffixOf(players, events)("b")).toBe("_1");
+  });
+});
+
+describe("gameNameOnBuyIn", () => {
+  it("gives a namesake not yet in the game the label they get once bought in", () => {
+    const players = [named("a", "小王", 1), named("b", "小王", 2), named("c", "小王", 3)];
+    const events: LedgerEvent[] = [buyIn("1", "a"), buyIn("2", "b")];
+
+    expect(gameNameOnBuyIn(players, events, "c")).toBe("小王_2");
+  });
+
+  it("keeps the label of a player already in the game", () => {
+    const players = [named("a", "小王", 1), named("b", "小王", 2)];
+    const events: LedgerEvent[] = [buyIn("1", "b"), buyIn("2", "a")];
+
+    expect(gameNameOnBuyIn(players, events, "a")).toBe("小王_1");
+    expect(gameNameOnBuyIn(players, events, "b")).toBe("小王");
+  });
+
+  it("reads the plain name of a player whose name no one else in the game has", () => {
+    const players = [named("a", "小王", 1), named("c", "老张", 3)];
+    const events: LedgerEvent[] = [buyIn("1", "a")];
+
+    expect(gameNameOnBuyIn(players, events, "c")).toBe("老张");
+    expect(gameNameOnBuyIn(players, [], "a")).toBe("小王");
   });
 });
 

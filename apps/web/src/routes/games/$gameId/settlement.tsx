@@ -53,7 +53,7 @@ import { CHARGE_CLOCK_RULE, chargeClock, chargeRuleSections } from "@/lib/charge
 import { formatSignedChips } from "@/lib/chips";
 import { cn } from "@/lib/cn";
 import { formatGameAmount, formatGameMoney } from "@/lib/currency";
-import { gameInitialsOf, gameNameOf } from "@/lib/player-name";
+import { gameInitialsOf, gameNameOf, gameNameSuffixOf } from "@/lib/player-name";
 import { type ImageSeat, renderSettlementImage } from "@/lib/settlement-image";
 import { shareFile } from "@/lib/share";
 import { netTone } from "@/lib/tone";
@@ -112,6 +112,7 @@ function SettlementPage() {
   const { ledger, charges } = books;
   const ruleSections = chargeRuleSections(game, game.currency);
   const nameOf = gameNameOf(players, game, events);
+  const nameSuffixOf = gameNameSuffixOf(players, events);
   const initialsOf = gameInitialsOf(players);
   const seated = ledger
     .filter((p) => p.seated && p.playerId !== INSURANCE_PLAYER_ID)
@@ -186,6 +187,7 @@ function SettlementPage() {
               books={books}
               events={events}
               nameOf={nameOf}
+              nameSuffixOf={nameSuffixOf}
               initialsOf={initialsOf}
               nudge={nudge}
               onNudge={setNudge}
@@ -221,6 +223,7 @@ interface SettlementResultProps {
   books: SettledBooks;
   events: readonly LedgerEvent[];
   nameOf: (playerId: string) => string;
+  nameSuffixOf: (playerId: string) => string | undefined;
   initialsOf: (playerId: string, name: string) => string;
   nudge: Nudge | undefined;
   onNudge: (nudge: Nudge | undefined) => void;
@@ -231,6 +234,7 @@ function SettlementResult({
   books,
   events,
   nameOf,
+  nameSuffixOf,
   initialsOf,
   nudge,
   onNudge,
@@ -395,9 +399,11 @@ function SettlementResult({
             ? []
             : [splitLine("split", t.gamePages.settlement.splitTheDifference, share)];
       const name = nameOf(playerId);
+      const nameSuffix = nameSuffixOf(playerId);
       return {
         id: playerId,
         name,
+        ...(nameSuffix !== undefined && { nameSuffix }),
         initials: initialsOf(playerId, name),
         hands: handChips === undefined ? "—" : String(player.boughtChips / handChips),
         chips: player.cashedOutChips.toLocaleString("zh-CN"),

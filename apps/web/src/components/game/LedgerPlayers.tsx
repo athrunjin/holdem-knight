@@ -57,6 +57,8 @@ interface LedgerPlayersProps {
   organizerName: string;
   players: readonly PlayerLedger[];
   nameOf: (playerId: string) => string;
+  /** The suffix that tells a namesake apart, kept in view when the name is cut short */
+  nameSuffixOf: (playerId: string) => string | undefined;
   /** Initials for ordering by name */
   initialsOf: (playerId: string, name: string) => string;
   /** Actions are hidden once the game is settled */
@@ -135,6 +137,7 @@ export function LedgerPlayers({
   organizerName,
   players,
   nameOf,
+  nameSuffixOf,
   initialsOf,
   editable,
   live,
@@ -329,9 +332,11 @@ export function LedgerPlayers({
     const { playerId, netChips, stackChips } = player;
     const cash = chipsToCents(netChips, ratio);
     const name = nameOf(playerId);
+    const nameSuffix = nameSuffixOf(playerId);
     return {
       id: playerId,
       name,
+      ...(nameSuffix !== undefined && { nameSuffix }),
       initials: initialsOf(playerId, name),
       hands: "—",
       chips: "—",
