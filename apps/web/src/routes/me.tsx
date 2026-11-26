@@ -1,4 +1,5 @@
 import {
+  type Currency,
   cents,
   daysBetween,
   type GameSummary,
@@ -13,6 +14,7 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import { AccountCard } from "@/components/account/AccountCard";
 import { IdentityHeader } from "@/components/account/Identity";
 import { BackupSection } from "@/components/BackupSection";
+import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { InDevelopment } from "@/components/InDevelopment";
 import {
   CollectedBar,
@@ -46,8 +48,11 @@ export const Route = createFileRoute("/me")({
 
 const cardClass = "rounded-2xl border border-line bg-surface";
 
-/** A card's title line, as on 收益 and 转账: a muted name, `·`, then what it is of. */
-function TitleLine({ name, of }: { name: string; of: string }) {
+/**
+ * A card's title line, as on 收益 and 转账: a muted name, `·`, then what it is of. With the
+ * currency its figures are in, that currency's mark follows, muted: a mark only, not a control.
+ */
+function TitleLine({ name, of, currency }: { name: string; of: string; currency?: Currency }) {
   return (
     <p className="flex min-h-11 min-w-0 items-center text-sm">
       <span className="shrink-0 text-muted">{name}</span>
@@ -55,6 +60,7 @@ function TitleLine({ name, of }: { name: string; of: string }) {
         ·
       </span>
       <span className="truncate font-medium">{of}</span>
+      {currency && <CurrencyIcon currency={currency} className="ml-2 size-4.5 text-muted" />}
     </p>
   );
 }
@@ -133,7 +139,11 @@ function IncomePreview({
 
   return (
     <Link to="/me/income" className={card}>
-      <TitleLine name={t.me.income.due} of={`${thisMonth} (${report.games.length})`} />
+      <TitleLine
+        name={t.me.income.due}
+        of={`${thisMonth} (${report.games.length})`}
+        currency={currency}
+      />
       <IncomeFigures
         report={report}
         money={(value) => formatGameMoney(value, currency)}
@@ -281,7 +291,11 @@ function TransfersPreview({ summaries }: { summaries: readonly GameSummary[] | u
 
   return (
     <Link to="/me/transfers" className={card}>
-      <TitleLine name={t.me.transfers.title} of={`${t.me.transfers.open} (${linesOf(open)})`} />
+      <TitleLine
+        name={t.me.transfers.title}
+        of={`${t.me.transfers.open} (${linesOf(open)})`}
+        currency={currency}
+      />
       {empty ? (
         <p className="pb-2 text-sm text-muted">{t.me.transfers.noneOpen}</p>
       ) : (
