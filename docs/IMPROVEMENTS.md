@@ -1689,6 +1689,16 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do. What a player won or lost is their chips in cash; a share of a difference split, insurance and charges are no part of it, and insurance is left out of the page for now. Late is paid more than 7 days after settlement, as on 转账. Numbers are given on the device when the list is read, oldest record first; a record brought in with a number already held is numbered again. Sharing a name, with a suffix in a game, is the next step. The organizer's own play has no page.
 - Tracking: no issue yet
 
+### #I-092 The visual review run by a second agent, and wider screens in it
+
+- Type: process
+- Date: proposed, decided and completed 2026-11-26
+- Source: discussion with the organizer on 2026-11-26, after a trial of a generator and evaluator loop on a scratch repository
+- Problem: the visual review of [ADR 0050](adr/0050-a-visual-guide-and-a-visual-review.md) is run by the author of the change, who reads their own work kindly. It also looked at phone widths alone, while the app is opened on tablets and in a browser on a desk as well.
+- Proposal: a loop of two agents, adapted from ECC (MIT): a generator that builds from a spec written beforehand, and an evaluator that opens the running app through Playwright, runs the review's checklist, grades its findings as the review does and scores the change. The loop ends when the score passes with no blocker open, when it stops improving, or after a set number of rounds.
+- Decision: do, for changes to what the app shows only. The evaluator reviews at 360, 393 and 412px as before and at 768, 1024 and 1440px as well, where a problem is a should-fix; dark, in Chinese and in English. Its weights lean on craft and on what works (0.35 each) over design (0.25) and originality (0.05), and an open blocker fails whatever the score. There is no planner: the spec comes from the plan the organizer agreed to. Money rules are not the loop's to change: the generator keeps a rule of `core` against a finding and reports the conflict. A pass does not replace the organizer's reading of the preview on a phone. Playwright's MCP server is pinned in `.mcp.json` so that every worktree has it.
+- Tracking: no issue yet
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
