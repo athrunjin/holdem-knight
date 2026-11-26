@@ -648,7 +648,7 @@ function Trend({
         />
       </div>
 
-      {/* The items, each over its bars' column and over what it came to in them */}
+      {/* The items as chips, each over its bars' column and holding what it came to in them */}
       <div className="grid grid-cols-4 gap-1">
         {INCOME_ITEMS.map((item) => (
           <BarItem
@@ -668,7 +668,8 @@ function Trend({
         ))}
       </div>
 
-      <ul className="mt-1 grid grid-cols-4 gap-1">
+      {/* A clear step of space, so the chips' figures and the bars' figures read as two rows */}
+      <ul className="mt-4 grid grid-cols-4 gap-1">
         {bars.map(({ from, parts }) => (
           <Bar
             key={span + from}
@@ -688,7 +689,7 @@ function Trend({
   );
 }
 
-/** An item of the bars: a tap shows or hides it, and under its name is what it came to. */
+/** An item of the bars as a chip: a tap shows or hides it, and under its name is what it came to. */
 function BarItem({
   item,
   total,
@@ -717,9 +718,10 @@ function BarItem({
       disabled={absent}
       onClick={onToggle}
       className={cn(
-        // Centered in its column: the dot and name, the figure under them
-        "flex min-h-11 min-w-0 flex-col items-center justify-center text-sm",
-        !lit && "text-muted",
+        // A chip centered in its column: the dot and name, the figure under them. On it is filled
+        // with a tint of line, which keeps the muted figure readable; off or absent it has no fill
+        "flex min-h-11 min-w-0 flex-col items-center justify-center rounded-lg border border-line px-1 py-1 text-sm",
+        lit ? "bg-line/50" : "text-muted",
       )}
     >
       <span className={cn("flex max-w-full items-center gap-1.5", absent && "line-through")}>
