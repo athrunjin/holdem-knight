@@ -23,10 +23,7 @@ interface PlayerMatches {
 /** What a search of the player library shows: the matches by letter, or a name to add. */
 export function matchPlayers(players: readonly Player[], query: string): PlayerMatches {
   const groups = groupByInitial(searchPlayers(players, query));
-  const parsed = parsePlayerName(
-    query,
-    players.map(({ name }) => name),
-  );
+  const parsed = parsePlayerName(query);
   return {
     groups,
     newName: parsed.ok && groups.length === 0 ? parsed.name : undefined,

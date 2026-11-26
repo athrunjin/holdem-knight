@@ -65,8 +65,6 @@ ${b} game settings use it. Games started from them will follow the new values.`,
   playerName: {
     enterAName: "Enter a name",
     aNameCantBeLongerThan: (a) => `A name can’t be longer than ${a} characters`,
-    aPlayerWithThisNameExists:
-      "A player with this name exists. Write something like “Wang2” to tell them apart",
     andAreReservedNamesChooseAnother: (a, b) =>
       `“${a}” and “${b}” are reserved names. Choose another`,
   },

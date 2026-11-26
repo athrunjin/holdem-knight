@@ -63,7 +63,6 @@ export const lib = {
   playerName: {
     enterAName: "请输入名字",
     aNameCantBeLongerThan: (a: string | number) => `名字不能超过 ${a} 个字`,
-    aPlayerWithThisNameExists: "已有同名玩家，可以写成「小王2」来区分",
     andAreReservedNamesChooseAnother: (a: string | number, b: string | number) =>
       `「${a}」和「${b}」是保留名称，请换一个名字`,
   },

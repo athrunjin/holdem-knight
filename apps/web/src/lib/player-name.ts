@@ -33,7 +33,6 @@ export function gameInitialsOf(players: readonly Player[]) {
 export const PLAYER_NAME_ISSUE_TEXT: Record<PlayerNameIssue, string> = {
   empty: t.lib.playerName.enterAName,
   "too-long": t.lib.playerName.aNameCantBeLongerThan(MAX_PLAYER_NAME_LENGTH),
-  duplicate: t.lib.playerName.aPlayerWithThisNameExists,
   reserved: t.lib.playerName.andAreReservedNamesChooseAnother(
     INSURANCE_PLAYER_NAME,
     RAKE_PLAYER_NAME,

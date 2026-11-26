@@ -8,6 +8,7 @@ import {
   MAX_PLAYER_NAME_LENGTH,
   numberPlayers,
   parsePlayerName,
+  playerNameKey,
   playerNumberText,
   searchPlayers,
 } from "./player";
@@ -22,31 +23,37 @@ const player = (name: string, initials: string): Player => ({
 
 describe("parsePlayerName", () => {
   it("trims the ends and collapses inner whitespace", () => {
-    expect(parsePlayerName("  老  王 ", [])).toEqual({ ok: true, name: "老 王" });
+    expect(parsePlayerName("  老  王 ")).toEqual({ ok: true, name: "老 王" });
   });
 
   it("requires a name", () => {
-    expect(parsePlayerName("   ", [])).toEqual({ ok: false, issue: "empty" });
+    expect(parsePlayerName("   ")).toEqual({ ok: false, issue: "empty" });
   });
 
   it("limits length by characters, counting rare characters as one", () => {
     const longest = "𠮷".repeat(MAX_PLAYER_NAME_LENGTH);
-    expect(parsePlayerName(longest, []).ok).toBe(true);
-    expect(parsePlayerName(`${longest}x`, [])).toEqual({ ok: false, issue: "too-long" });
+    expect(parsePlayerName(longest).ok).toBe(true);
+    expect(parsePlayerName(`${longest}x`)).toEqual({ ok: false, issue: "too-long" });
   });
 
-  it("ignores case and whitespace when checking duplicates", () => {
-    expect(parsePlayerName("BO B", ["bob"])).toEqual({ ok: false, issue: "duplicate" });
+  it("accepts a name another player has", () => {
+    expect(parsePlayerName("小王")).toEqual({ ok: true, name: "小王" });
   });
 });
 
 describe("reserved names", () => {
-  it.each(["保险", " 保险 ", "保 险"])("keeps %j for the insurance seat", (name) => {
-    expect(parsePlayerName(name, [])).toEqual({ ok: false, issue: "reserved" });
+  it.each(["保险", " 保险 ", "保 险", "抽水", " 抽水 ", "抽 水"])("keeps %j for a seat", (name) => {
+    expect(parsePlayerName(name)).toEqual({ ok: false, issue: "reserved" });
   });
 
   it("still allows names that only contain the word", () => {
-    expect(parsePlayerName("保险哥", []).ok).toBe(true);
+    expect(parsePlayerName("保险哥").ok).toBe(true);
+  });
+});
+
+describe("playerNameKey", () => {
+  it("removes whitespace and ignores case", () => {
+    expect(playerNameKey(" Bo b ")).toBe("bob");
   });
 });
 

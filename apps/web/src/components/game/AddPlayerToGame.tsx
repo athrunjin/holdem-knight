@@ -31,10 +31,7 @@ export function AddPlayerToGame({ excludedIds, variant, onPick }: AddPlayerToGam
 
   const available = players.filter(({ id }) => !excludedIds.has(id));
   const matches = searchPlayers(available, query).slice(0, MAX_SUGGESTIONS);
-  const parsed = parsePlayerName(
-    query,
-    players.map(({ name }) => name),
-  );
+  const parsed = parsePlayerName(query);
   const newName = parsed.ok && matches.length === 0 ? parsed.name : undefined;
 
   function close() {

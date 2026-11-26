@@ -28,11 +28,10 @@ function EditPlayerPage() {
     );
   }
 
-  const otherNames = players.filter(({ id }) => id !== playerId).map(({ name }) => name);
-  return <EditPlayerForm player={player} otherNames={otherNames} />;
+  return <EditPlayerForm player={player} />;
 }
 
-function EditPlayerForm({ player, otherNames }: { player: Player; otherNames: string[] }) {
+function EditPlayerForm({ player }: { player: Player }) {
   const navigate = Route.useNavigate();
   const savePlayer = useSavePlayer();
   const [name, setName] = useState(player.name);
@@ -40,7 +39,7 @@ function EditPlayerForm({ player, otherNames }: { player: Player; otherNames: st
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const parsed = parsePlayerName(name, otherNames);
+    const parsed = parsePlayerName(name);
     if (!parsed.ok) {
       setIssue(parsed.issue);
       return;

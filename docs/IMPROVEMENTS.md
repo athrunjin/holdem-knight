@@ -1699,6 +1699,16 @@ Records discussions of feature and process improvements: what was proposed, how 
 - Decision: do, for changes to what the app shows only. The evaluator reviews at 360, 393 and 412px as before and at 768, 1024 and 1440px as well, where a problem is a should-fix; dark, in Chinese and in English. Its weights lean on craft and on what works (0.35 each) over design (0.25) and originality (0.05), and an open blocker fails whatever the score. There is no planner: the spec comes from the plan the organizer agreed to. Money rules are not the loop's to change: the generator keeps a rule of `core` against a finding and reports the conflict. A pass does not replace the organizer's reading of the preview on a phone. Playwright's MCP server is pinned in `.mcp.json` so that every worktree has it. After the first run on 2026-11-26 (the chart colors of table fee and rake as tokens, passed in one round): the session that runs the loop starts the dev server, seeds the data and runs `pnpm check` again at the end; the evaluator marks each "done when" line of the spec, can turn reduced motion on, and reports a defect that was there before apart from the verdict.
 - Tracking: no issue yet
 
+### #I-093 Players who share a name, with a suffix in a game
+
+- Type: feature
+- Date: proposed, decided and completed 2026-11-26
+- Source: the organizer, as the second half of [ADR 0043](adr/0043-namesakes-in-a-space.md), after the numbers and avatars of #I-091
+- Problem: the player list refused a name another player had and suggested writing a second 小王 as 小王2, so the host had to invent a name and remember who was who.
+- Proposal: a name may repeat in the list. In a game each row reads differently, worked out from the ledger: the first namesake to buy in keeps the name, the later ones read `小王_1`, `小王_2`. Adding a player to a game lists namesakes with their avatars and numbers, most recently seen first, and offers 新建同名玩家 at the foot. The list and the edit page say under the name when another player has it, with the number, and save anyway. Pages across games, such as 转账 and the player step of a new game, show the number after a name more than one record carries.
+- Decision: do. Two points clarify the ADR: only players with a buy-in or rebuy in effect are counted, so a player taken back out leaves no gap and those after them move up; and the order is that of each player's earliest buy-in or rebuy, reversed or not, so a hand count corrected down, which takes back a first buy-in and records it again, moves nobody's label. Nothing is stored, and no dialog asks to confirm a namesake.
+- Tracking: no issue yet
+
 ## Not doing or deferred
 
 ### #I-004 Hand size when blinds change mid-game
