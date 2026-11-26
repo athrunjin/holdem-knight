@@ -154,7 +154,6 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
         </p>
       )}
 
-      <p className="mt-3 text-sm text-muted">{t.me.account.note}</p>
       <button
         type="button"
         disabled={leaving}

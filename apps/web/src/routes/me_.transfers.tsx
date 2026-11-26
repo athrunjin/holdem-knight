@@ -1,5 +1,4 @@
 import {
-  CURRENCIES,
   type Currency,
   cents,
   type Game,
@@ -24,6 +23,7 @@ import {
   FoldedSection,
   keyOf,
   Line,
+  linesOf,
   type Money,
   PartyRow,
   useTransferDraft,
@@ -39,6 +39,14 @@ import { useListReturn } from "@/lib/list-return";
 import { QuietMotion, useCountUp, useQuietArrival } from "@/lib/motion";
 import { periodName } from "@/lib/period-names";
 import { libraryNameOf, libraryNameText } from "@/lib/player-name";
+import {
+  currenciesOf,
+  currencyShown,
+  parseTransfersView,
+  TRANSFERS_VIEW_FALLBACK,
+  TRANSFERS_VIEW_KEY,
+  type TransfersView,
+} from "@/lib/report-views";
 import { useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/me_/transfers")({
@@ -51,27 +59,6 @@ const CURRENCY_NAMES: Record<Currency, string> = {
   CNY: t.gamePages.list.panda,
   AUD: t.gamePages.list.kangaroo,
 };
-
-/** What the page shows, as it was left. */
-interface View {
-  /** The transfers made, or the ones still to make */
-  readonly done: boolean;
-  /** Narrows the transfers made to the games of a period. The ones to make are never narrowed */
-  readonly period: PeriodChoice;
-  /** Missing for the currency of the newest game */
-  readonly currency?: Currency | undefined;
-}
-
-function parseView(stored: unknown): View | undefined {
-  if (typeof stored !== "object" || stored === null) return undefined;
-  const { done, period, currency } = stored as Record<string, unknown>;
-  const kept = PERIOD_CHOICES.find((choice) => choice === period);
-  if (typeof done !== "boolean" || !kept) return undefined;
-  return { done, period: kept, currency: CURRENCIES.find((c) => c === currency) };
-}
-
-const linesOf = (report: TransferReport) =>
-  report.parties.reduce((all, { lines }) => all + lines.length, 0) + report.between.length;
 
 function TransfersPage() {
   const { data: summaries, isError, refetch } = useGameSummaries();
@@ -133,19 +120,20 @@ function Transfers({
   // Come back to from a game, the page is where it was left and nothing plays in again
   const returning = useListReturn("/me/transfers");
   const quiet = useQuietArrival(returning);
-  const [view, setView] = useStoredState<View>(
-    "transfers.view",
-    { done: false, period: "thisMonth" },
-    parseView,
+  const [view, setView] = useStoredState<TransfersView>(
+    TRANSFERS_VIEW_KEY,
+    TRANSFERS_VIEW_FALLBACK,
+    parseTransfersView,
   );
   const [betweenOpen, setBetweenOpen] = useState(false);
   const [badOpen, setBadOpen] = useState(false);
 
-  // The currencies there are games in, in the app's own order. The newest game's comes up first
-  const currencies = CURRENCIES.filter((c) => summaries.some((s) => s.currency === c));
+  // The currencies there are games in, in the app's own order. Panda points come up first, and
+  // the newest game's currency where there are none. The preview on 我的 resolves it the same way
+  const currencies = currenciesOf(summaries);
   const newest = summaries.reduce((a, b) => (b.startedAt > a.startedAt ? b : a));
-  const currency =
-    view.currency && currencies.includes(view.currency) ? view.currency : newest.currency;
+  // There is at least one game, so there is a currency
+  const currency = currencyShown(summaries, view.currency) as Currency;
   const { done, period } = view;
   const state: TransferState = done ? "done" : "open";
 

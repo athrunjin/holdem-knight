@@ -93,7 +93,8 @@ Use what exists before making something new. Each is one file under `apps/web/sr
 
 | Need | Component | Rule |
 | --- | --- | --- |
-| Page frame | `Page` | Title at the left, on every page. An emblem at the right leads back where a page has no tab of its own |
+| Page frame | `Page` | Title at the left, on every page. An emblem at the right leads back where a page has no tab of its own. One exception, the organizer's decision: 我的 has no title; its header is who is using the app at the left (avatar, name, a muted line with its (i)) and the role switch at the right, and its title is kept for readers only |
+| Host or Player | `RoleSwitch` | A small pill of two segments, about 30px tall in a 44px target; one tap anywhere flips it. The chosen segment is filled with `line`, in `text` and medium weight; the other is muted. No gold. The role is kept on the device and shared by 牌局 and 我的 |
 | A choice among a few | `TextMenu` | Text and a chevron; the list opens under it, in the page. The choice in force is white, the rest gray. No radio circles, frames or ticks |
 | A saved setting | `ConfigMenu` | One tap switches, with no second confirmation. A dialog only past five saved entries |
 | Options that can be on or off | Text switches | On in the option's own color, off gray and struck through |
@@ -187,3 +188,8 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | 2026-11-26 | The picked players' chips keep their 20px; the income chart's span menu kept its width beside its legend (since replaced, see below); long initials in a row are cut short before the name |
 | 2026-11-26 | A card's title at its top left, as a muted name, `·` and the period as a menu; a legend that filters in one row under it, one item over each column of the chart |
 | 2026-11-26 | A legend that filters as a row of chips, each holding its name and its figure, on a tint of `line` (half) so a muted figure stays readable, with a 16px step before the chart |
+| 2026-11-26 | 我的 without a title: who is using the app at the left of its header and the role switch at the right; a guest's sign-in is a small gold outline pill after the name, inside the identity's link |
+| 2026-11-26 | The role switch, shared by 牌局 and 我的 in place of two large buttons: two segments, the chosen one on `line`, one tap flips, kept on the device |
+| 2026-11-26 | 我的 for a Host: previews of 收益 and 转账 as whole-card links with the income page's ring at a smaller size, then the settings as rows of one card |
+| 2026-11-26 | A preview card that shows money names its currency by its mark after the title, muted at 18px (`size-4.5`, as in a game's row), a mark and not a control; a card with nothing to show has none |
+| 2026-11-26 | Each preview card on 我的 shows what its page would open on, the view kept there or the page's own defaults, so its figures equal the page's; 转账 also opens on panda points where there are any, as 收益 does |

@@ -7,6 +7,7 @@ import {
   ORGANIZER_COLLECTOR,
   type PartyTransfers,
   type TransferLine,
+  type TransferReport,
   type TransferState,
 } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
@@ -30,7 +31,7 @@ export const TransferBack = createContext<
 >({ from: "transfers" });
 
 /** A transfer still to make after this many days has its date in red. */
-const LATE_DAYS = 7;
+export const LATE_DAYS = 7;
 
 /**
  * The people whose transfers are unfolded, kept while the app is open so the page is as it was
@@ -44,6 +45,10 @@ export function dayName(day: string) {
 }
 
 export type Money = (value: Cents) => string;
+
+/** The number of transfers in a report: each party's lines, and those between players. */
+export const linesOf = (report: TransferReport) =>
+  report.parties.reduce((all, { lines }) => all + lines.length, 0) + report.between.length;
 
 /** How long a line takes to leave once what is to become of it is confirmed, in milliseconds */
 export const LEAVE_MS = 350;
