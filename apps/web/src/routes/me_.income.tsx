@@ -625,27 +625,13 @@ function Trend({
   };
 
   return (
-    <section className={cn(cardClass, "mt-3 px-4 pt-2 pb-3")}>
-      {/* The items, each over what it came to in these bars, then how the bars are cut */}
-      <div className="flex items-start justify-between gap-1">
-        <div className="-ml-1.5 flex min-w-0 flex-wrap">
-          {INCOME_ITEMS.map((item) => (
-            <BarItem
-              key={item}
-              item={item}
-              total={series.reduce((all, { byItem }) => all + byItem[item], 0)}
-              lit={on(item)}
-              absent={!there(item)}
-              playKey={playKey}
-              onToggle={() =>
-                setBars({
-                  span,
-                  items: INCOME_ITEMS.filter((i) => (i === item ? !on(i) : shown.includes(i))),
-                })
-              }
-            />
-          ))}
-        </div>
+    <section className={cn(cardClass, "mt-3 px-4 pt-1 pb-3")}>
+      {/* What the chart is of and its span, as the first card's head is */}
+      <div className="flex min-w-0 items-center text-sm">
+        <span className="shrink-0 text-muted">{t.me.income.trend}</span>
+        <span className="mx-1.5 text-muted" aria-hidden>
+          ·
+        </span>
         <TextMenu
           label={t.me.income.span}
           options={TREND_SPANS.map((value) => ({
@@ -658,12 +644,32 @@ function Trend({
           }))}
           value={span}
           onChange={(value) => setBars({ span: value, items: shown })}
-          align="right"
-          className="shrink-0 text-sm whitespace-nowrap"
+          className="font-medium"
         />
       </div>
 
-      <ul className="mt-1 grid grid-cols-4 gap-1">
+      {/* The items as chips, each over its bars' column and holding what it came to in them */}
+      <div className="grid grid-cols-4 gap-1">
+        {INCOME_ITEMS.map((item) => (
+          <BarItem
+            key={item}
+            item={item}
+            total={series.reduce((all, { byItem }) => all + byItem[item], 0)}
+            lit={on(item)}
+            absent={!there(item)}
+            playKey={playKey}
+            onToggle={() =>
+              setBars({
+                span,
+                items: INCOME_ITEMS.filter((i) => (i === item ? !on(i) : shown.includes(i))),
+              })
+            }
+          />
+        ))}
+      </div>
+
+      {/* A clear step of space, so the chips' figures and the bars' figures read as two rows */}
+      <ul className="mt-4 grid grid-cols-4 gap-1">
         {bars.map(({ from, parts }) => (
           <Bar
             key={span + from}
@@ -683,7 +689,7 @@ function Trend({
   );
 }
 
-/** An item of the bars: a tap shows or hides it, and under its name is what it came to. */
+/** An item of the bars as a chip: a tap shows or hides it, and under its name is what it came to. */
 function BarItem({
   item,
   total,
@@ -702,6 +708,8 @@ function BarItem({
   onToggle: () => void;
 }) {
   const figure = Math.round(useCountUp(total, { duration: 500, resetKey: playKey }) / 100);
+  // Six digits and more take a step down, by where the count ends so it does not change midway
+  const wide = String(Math.abs(Math.round(total / 100))).length >= 6;
   return (
     <button
       type="button"
@@ -710,12 +718,13 @@ function BarItem({
       disabled={absent}
       onClick={onToggle}
       className={cn(
-        // The figure ends where the name does, and may run back under the dot
-        "flex min-h-11 flex-col items-end justify-center px-1.5 text-sm",
-        !lit && "text-muted",
+        // A chip centered in its column: the dot and name, the figure under them. On it is filled
+        // with a tint of line, which keeps the muted figure readable; off or absent it has no fill
+        "flex min-h-11 min-w-0 flex-col items-center justify-center rounded-lg border border-line px-1 py-1 text-sm",
+        lit ? "bg-line/50" : "text-muted",
       )}
     >
-      <span className={cn("flex items-center gap-1.5", absent && "line-through")}>
+      <span className={cn("flex max-w-full items-center gap-1.5", absent && "line-through")}>
         <span
           className={cn(
             "size-2.5 shrink-0 rounded-full",
@@ -723,11 +732,14 @@ function BarItem({
           )}
           aria-hidden
         />
-        {ITEM_NAMES[item]}
+        <span className="truncate">
+          {item === "insurance" ? t.me.income.barInsurance : ITEM_NAMES[item]}
+        </span>
       </span>
       <span
         className={cn(
-          "text-[11px] leading-tight tabular-nums",
+          "max-w-full truncate leading-tight tabular-nums",
+          wide ? "text-[10px]" : "text-[11px]",
           lit && total < 0 ? "text-loss" : "text-muted",
         )}
       >

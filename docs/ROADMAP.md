@@ -85,8 +85,8 @@ The first hosted project and its sending domain wait until these are done, in th
 - [x] Dark whatever the device is set to
 - [x] The interface in English as well as Chinese, with a language setting on 我的 ([ADR 0047](adr/0047-interface-text-in-typed-catalogs.md))
 - [x] Sharing: an image of a game's whole result, and one for each player's own, both laid out like the settlement page
-- Insurance: how it ties into the game, its flow, and its settlement screen, once the organizer has thought them through
-- The host's pages, the figures above all. Done: 收益 on 我的, with income by kind, by month and by game, and what is still to come in ([ADR 0049](adr/0049-settled-games-keep-a-summary.md)). 转账 on 我的, with what is still to come in and to go out by person, ticks kept with their time, and bad debts set aside. A player's page with what they won and lost and how they pay, each record with a number and an avatar. Still to come: players who share a name
+- [x] Insurance: how it ties into the game, its flow, and its summary of a hand ([ADR 0048](adr/0048-undoing-an-insurance-hand-keeps-later-stacks.md))
+- [x] The host's pages, the figures above all: 收益 on 我的, with income by kind, by month and by game, and what is still to come in ([ADR 0049](adr/0049-settled-games-keep-a-summary.md)). 转账 on 我的, with what is still to come in and to go out by person, ticks kept with their time, and bad debts set aside. A player's page with what they won and lost and how they pay, each record with a number and an avatar. Players who share a name, told apart by a suffix in a game and by number elsewhere ([ADR 0043](adr/0043-namesakes-in-a-space.md))
 
 ## M7 and beyond
 

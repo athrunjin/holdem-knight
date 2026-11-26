@@ -83,7 +83,7 @@ Text meets WCAG 2.2 AA (4.5:1) on both `bg` and `surface`: `text` 13.6:1, `muted
 - Spacing is the Tailwind 4px scale. Pages have 16px side margins, cards 16px of padding, rows 8px between them.
 - **Radius:** `rounded-2xl` for a card that holds a section, `rounded-xl` for rows, buttons, menus and inputs, `rounded-lg` for chips and pills inside them, `rounded-full` for dots and round badges. A mark in a card's corner turns with the card's own corner.
 - **Borders, not shadows.** A surface is set off by a 1px `line` border. Only something floating over the page (a menu, a panel) has a shadow as well.
-- **Touch targets are at least 44px** in both directions. Small text may sit in a larger invisible target; two targets never overlap.
+- **Touch targets are at least 44px** in both directions. Small text may sit in a larger invisible target; two targets never overlap. One exception, the organizer's decision: the picked players' chips above 开局 stay 20px tall, since each can also be unpicked from its tile or its row.
 - **Widths.** Phones first: the layout must hold at 360px, and is judged at 393 to 412px, which is where it is used. Three figure columns in a card fit four digits comfortably, five tightly and six at the limit at 393px; a seventh wraps to the title line and never runs under its neighbor. Tablets get the same pages, centered at a readable width.
 - When a line cannot fit, its least important part wraps. Nothing is cut off with an ellipsis unless it is a name.
 
@@ -134,7 +134,7 @@ Motion shows where something came from and that a figure changed. It never delay
 1. Title, with the emblem or actions at the right.
 2. The headline card: what it is of and its period on one line, filters at the right of that line, then the figure. The figure stands right under that line in every card, at the same place, so the eye finds it by the title and not by whatever chart follows; figures that go with it sit at its right, and a chart starts a clear step below.
 3. The breakdown of that figure.
-4. Charts or trends, with their own controls inside their card.
+4. Charts or trends, with their own controls inside their card. A card's title sits at its top left: a muted name, `·`, then the period as a menu with the count in brackets. A legend that also filters is a row of chips under it, in the chart's columns, each chip holding its name and its figure, with a clear step of space before the chart.
 5. Lists, newest first unless the organizer chose otherwise.
 
 Fixed orders are kept everywhere they appear: insurance, wage, table fee, rake for charges; the app's own order for currencies; periods from the nearest to the widest (this week, last week, this month, last month, three months, six months, this year, all). A menu of periods or stages shows the number of games behind each choice in brackets.
@@ -184,3 +184,6 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | 2026-11-24 | Bad debts: red with its word, two buttons under ticked lines, marks side by side in a row's corner |
 | 2026-11-24 | Ticks that remove a line wait for a confirm, lines leave with their own motion, single-line rows carry their control, and what pages open on |
 | 2026-11-26 | The table fee and rake chart colors are tokens, `table-fee` and `rake` |
+| 2026-11-26 | The picked players' chips keep their 20px; the income chart's span menu kept its width beside its legend (since replaced, see below); long initials in a row are cut short before the name |
+| 2026-11-26 | A card's title at its top left, as a muted name, `·` and the period as a menu; a legend that filters in one row under it, one item over each column of the chart |
+| 2026-11-26 | A legend that filters as a row of chips, each holding its name and its figure, on a tint of `line` (half) so a muted figure stays readable, with a 16px step before the chart |
