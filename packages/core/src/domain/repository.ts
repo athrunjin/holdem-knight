@@ -33,6 +33,11 @@ export interface PlayerRepository {
   list(): Promise<Player[]>;
   get(id: string): Promise<Player | undefined>;
   save(player: Player): Promise<void>;
+  /**
+   * Saves the record only if none with its ID is there, and returns the one kept: the record
+   * already there, as it is, or this one. Two calls at once keep one record.
+   */
+  ensure(player: Player): Promise<Player>;
 }
 
 export interface InsuranceRuleRepository {

@@ -1,8 +1,14 @@
-import { numberPlayers, type Player, recentPlayers } from "@holdem-knight/core";
+import {
+  numberPlayers,
+  ORGANIZER_PLAYER_ID,
+  type Player,
+  recentPlayers,
+} from "@holdem-knight/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { t } from "@/i18n";
 import { toInitials } from "@/lib/pinyin";
-import { currentOrganizerId, repository } from ".";
+import { currentOrganizerId, currentOwnerName, repository } from ".";
 
 const PLAYERS_KEY = ["players"] as const;
 
@@ -22,6 +28,7 @@ export function newPlayer(name: string): Player {
  * be kept this time still reads with its number, and is numbered again on the next read.
  */
 async function numberedPlayers(): Promise<Player[]> {
+  await ensureOwnRecord();
   const players = await repository.players.list();
   const numbered = numberPlayers(players);
   if (numbered.length === 0) return players;
@@ -30,6 +37,25 @@ async function numberedPlayers(): Promise<Player[]> {
   );
   const changed = new Map(numbered.map((player) => [player.id, player]));
   return players.map((player) => changed.get(player.id) ?? player);
+}
+
+/** Whether a record is the host's own, which every set of books has once (ADR 0051). */
+export const isOwnRecord = (player: Pick<Player, "id">) => player.id === ORGANIZER_PLAYER_ID;
+
+/**
+ * Makes the host's own record in the books in use if they have none, under the organizer seat's
+ * ID (ADR 0051): named after the account, or 我 in the language of the moment for a guest, and
+ * kept as named from then on. In an account's space the database links it to the owner.
+ */
+async function ensureOwnRecord() {
+  const name = currentOwnerName() ?? t.players.ownName;
+  await repository.players.ensure({
+    id: ORGANIZER_PLAYER_ID,
+    organizerId: currentOrganizerId(),
+    name,
+    initials: toInitials(name),
+    createdAt: Date.now(),
+  });
 }
 
 export function usePlayers() {

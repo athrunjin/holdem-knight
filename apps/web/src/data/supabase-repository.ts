@@ -204,6 +204,17 @@ export function createSupabaseRepository(
       list: () => all("players", (query) => query.order("name").order("id")),
       get: (id) => one("players", id),
       save: (player) => save("players", player),
+      ensure: async (player) => {
+        // Never replaces the record there. Two devices making it at once keep one: the one that
+        // loses may trip the record's other key, its link to the owner, and reads the one kept
+        const { error } = await client.from(TABLES.players).upsert(row("players", player), {
+          onConflict: "organizer_id,id",
+          ignoreDuplicates: true,
+        });
+        const kept = await one("players", player.id);
+        if (kept) return kept;
+        throw new StorageError(error?.message ?? `Record ${player.id} was not kept`);
+      },
     },
     ledger: {
       listByGame: (gameId) => all("ledgerEvents", (query) => byTime(query.eq("game_id", gameId))),

@@ -210,6 +210,33 @@ export function describeRepository(name: string, open: () => Promise<Storage>) {
       expect(await repository.players.get("a")).toEqual(player("a", me, "Alice"));
     });
 
+    it("keeps the record first ensured under an ID, once, and returns it", async () => {
+      const own = player("organizer", me, "我");
+      expect(await repository.players.ensure(own)).toEqual(own);
+      // Again, under another name: the record kept stays as it is
+      expect(await repository.players.ensure({ ...own, name: "Me" })).toEqual(own);
+      // A rename is kept too, and ensuring again does not undo it
+      await repository.players.save({ ...own, name: "老板" });
+      expect(await repository.players.ensure(own)).toEqual({ ...own, name: "老板" });
+      expect((await repository.players.list()).filter((p) => p.id === "organizer")).toHaveLength(1);
+    });
+
+    it("keeps one record when it is ensured twice at once", async () => {
+      const own = player("organizer", me, "我");
+      const [first, second] = await Promise.all([
+        repository.players.ensure(own),
+        repository.players.ensure({ ...own, name: "Me" }),
+      ]);
+      expect(first).toEqual(second);
+      expect(await repository.players.list()).toEqual([first]);
+    });
+
+    it("refuses to ensure another organizer's record", async () => {
+      await expect(repository.players.ensure(player("organizer", them, "Eve"))).rejects.toThrow(
+        ForeignOrganizerError,
+      );
+    });
+
     it("sorts ledger events by time, then by ID, and returns only this game's", async () => {
       await repository.games.save(game("g1", me, 1));
       await repository.games.save(game("g2", me, 2));
@@ -390,6 +417,31 @@ export function describeRepository(name: string, open: () => Promise<Storage>) {
       expect(await target.backup.exportAll()).toEqual(theirs);
       // A second time adds nothing
       expect(await target.backup.restore(theirs)).toEqual({ added: 0, skipped: 8 });
+    });
+
+    it("keeps one own record through a backup restored, and through guest data brought in", async () => {
+      const own = player("organizer", me, "我");
+      await repository.players.ensure(own);
+      await repository.players.save(player("p", me, "Alice"));
+      const backup = await repository.backup.exportAll();
+
+      // Restored to the same books: nothing added, the record as it was
+      expect(await repository.backup.restore(backup)).toEqual({ added: 0, skipped: 2 });
+
+      // Brought into books that already have their own record: theirs stays, under the one ID
+      const { repository: target, organizerId } = storage.elsewhere;
+      const theirs = player("organizer", organizerId, "Host");
+      await target.players.ensure(theirs);
+      expect(await target.backup.restore(backupForOrganizer(backup, organizerId))).toEqual({
+        added: 1,
+        skipped: 1,
+      });
+      const kept = (await target.players.list()).filter((p) => p.id === "organizer");
+      expect(kept).toEqual([theirs]);
+
+      // An older backup with no own record leaves the one there
+      await target.backup.restore({ ...EMPTY, players: [player("q", organizerId, "Bob")] });
+      expect((await target.players.list()).filter((p) => p.id === "organizer")).toHaveLength(1);
     });
 
     it("skips existing records on restore without overwriting what is kept", async () => {

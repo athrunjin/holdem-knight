@@ -134,6 +134,19 @@ export function createDexieRepository(db: GuestDatabase, organizerId: OrganizerI
         assertOwned(player);
         await db.players.put(player);
       },
+      ensure: async (player) => {
+        assertOwned(player);
+        return db.transaction("rw", db.players, async () => {
+          const kept = await db.players.get(player.id);
+          if (kept) {
+            const owned = onlyOwned(kept);
+            if (!owned) throw new ForeignOrganizerError(`Record ${player.id} is another's`);
+            return owned;
+          }
+          await db.players.add(player);
+          return player;
+        });
+      },
     },
     ledger: {
       listByGame: (gameId) =>

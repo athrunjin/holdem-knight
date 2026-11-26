@@ -1,6 +1,8 @@
 /** The player library. */
 export const players = {
   title: "玩家",
+  // The name a guest's own record is made with, once, in the language of that moment
+  ownName: "我",
   playerList: {
     allPlayers: "全部玩家",
     groups: "分组",

@@ -279,9 +279,9 @@ export const DEFAULT_RAKE_RULE: RakeRule = {
 };
 
 /**
- * The organizer in a game. Playing, they have chips under this ID like the insurance seat, with no
- * record in the player list, and at settlement everything else they receive lands on the same row
- * (ADR 0028).
+ * The organizer in a game. Playing, they have chips under this ID like the insurance seat, and at
+ * settlement everything else they receive lands on the same row (ADR 0028). It is also the ID of
+ * the host's own record in the player list, which every set of books has once (ADR 0051).
  */
 export const ORGANIZER_PLAYER_ID = "organizer";
 
