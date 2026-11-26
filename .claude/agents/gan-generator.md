@@ -31,9 +31,8 @@ The ones most often broken:
 2. Build the change, or fix every Blocker and every Should fix of the feedback. A Note is left for the organizer
    unless the spec already decides it.
 3. Run `pnpm check` (lint, types, tests, build). It must pass before you hand over.
-4. Make sure the dev server is running on the isolated origin, and leave it running:
-   `pnpm --filter web exec vite --port ${GAN_DEV_SERVER_PORT:-5174} --strictPort`, opened as
-   `http://handflow.localhost:${GAN_DEV_SERVER_PORT:-5174}`.
+4. The dev server at `http://handflow.localhost:${GAN_DEV_SERVER_PORT:-5174}` belongs to the session that runs the
+   loop; it reloads on your edits. Do not start a second one. If it is not answering, say so in the state file.
 5. Commit on the current branch with a Conventional Commits message in English, for example
    `feat(web): players who share a name told apart in a game`. Never commit to `main`, never push, never merge.
 6. Write `gan-harness/generator-state.md`.
@@ -70,7 +69,7 @@ after two attempts.
 - ...
 
 ## Dev server
-- URL, command, running or not
+- answering or not
 
 ## Pages to review
 - the routes the evaluator should open, and how to reach each state

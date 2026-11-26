@@ -22,8 +22,15 @@ what "good" means for this change. If `spec.md` is missing, stop and say so; do 
 ## Phase 0: set up
 
 1. Check that the branch is not `main`; stop if it is.
-2. Create `gan-harness/feedback/` and `gan-harness/screenshots/` (the folder is ignored by git).
-3. Note the start time and the settings.
+2. Create `gan-harness/feedback/`, `gan-harness/screenshots/` and `gan-harness/seed/` (the folder is ignored by git).
+3. Start the dev server yourself, once, and keep it for the whole loop:
+   `pnpm --filter web exec vite --port ${GAN_DEV_SERVER_PORT:-5174} --strictPort`, opened as
+   `http://handflow.localhost:${GAN_DEV_SERVER_PORT:-5174}`. If the port is taken, another loop is running: stop.
+4. Seed the data the spec's pages need, in the Playwright browser, on that origin only. Restore a backup where one fits
+   (我的, then the restore from a file); the browser reads files under the worktree only, so copy the file to
+   `gan-harness/seed/` first. Otherwise make the records through the app. The agents share this browser; keep it open.
+5. Take a screenshot of each page of the spec at 393px before any code changes, as `gan-harness/screenshots/before-*.png`.
+6. Note the start time and the settings. Note the time with `date` at the start and end of every phase from here on.
 
 ## Phase 1: the loop
 
@@ -34,7 +41,7 @@ while iteration <= max_iterations:
     # Generate
     Launch the gan-generator agent:
     - reads spec.md, and feedback-{iteration-1}.md after the first iteration
-    - builds or fixes, runs pnpm check, leaves the dev server running, commits
+    - builds or fixes, runs pnpm check, commits
     - writes generator-state.md
 
     If generator-state.md lists open questions, or pnpm check failed: stop the loop and report them.
@@ -55,6 +62,10 @@ while iteration <= max_iterations:
 
 One loop at a time on a machine: the dev server port and the local Supabase are shared.
 
+After the last iteration, run `pnpm check` yourself and read the diff against `main`: the evaluator cannot run the
+check, and the generator's word is not evidence. A failing check makes the result FAIL whatever the score.
+Then stop the dev server you started.
+
 ## Phase 2: report
 
 Write `gan-harness/build-report.md` and show it:
@@ -67,18 +78,28 @@ Write `gan-harness/build-report.md` and show it:
 **Iterations:** N / max
 **Final score:** X.X / 10, open blockers: N
 **Evaluation mode achieved:** ...
+**`pnpm check` by this session:** passed / failed
+**Commits:** ...
 
 ### Scores
 | Iter | Design | Originality | Craft | Functionality | Total | Blockers |
 | --- | --- | --- | --- | --- | --- | --- |
 
+### Done when
+- each line of the spec, PASS or FAIL
+
 ### Left open
 - Should fix and Notes from the last evaluation, by grade
+
+### There before this change
+- defects the evaluator found that the change did not make, for changes of their own
 
 ### Not reviewed
 - what the evaluator could not look at
 
 ### Time
+| Phase | Start | End | Tool calls, tokens |
+| --- | --- | --- | --- |
 ```
 
 The report feeds "How it was verified" in the pull request: widths and languages looked at, what was measured,
