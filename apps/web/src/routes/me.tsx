@@ -62,6 +62,39 @@ function TitleLine({ name, of }: { name: string; of: string }) {
 const newestOf = (summaries: readonly GameSummary[]) =>
   summaries.reduce((a, b) => (b.startedAt > a.startedAt ? b : a));
 
+/** Stands in for a figure while the summaries are read: about as wide as one usually is */
+const FIGURE = "00,000";
+
+/**
+ * The income card's own structure with nothing in it, while the summaries are read: its title
+ * line, the headline, the ring's row and the collected line, so nothing moves when it arrives.
+ */
+function IncomePlaceholder({ className }: { className: string }) {
+  return (
+    <section className={cn(className, "invisible")} aria-hidden>
+      <TitleLine name={t.me.income.due} of={FIGURE} />
+      <p className="text-4xl font-semibold tracking-tight tabular-nums">{FIGURE}</p>
+      <div className="mt-3 flex items-center gap-4">
+        <div className="size-24 shrink-0" />
+        <ul className="flex min-w-0 flex-1 flex-col gap-1">
+          {INCOME_ITEMS.map((item) => (
+            <li key={item} className="min-h-6 text-sm" />
+          ))}
+        </ul>
+      </div>
+      <div className="mt-3 h-2" />
+      <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 text-sm">
+        <p className="flex min-h-11 items-center gap-2 whitespace-nowrap">
+          {t.me.income.received} {FIGURE}
+        </p>
+        <p className="flex min-h-11 items-center gap-2 whitespace-nowrap">
+          {t.me.income.unreceived} {FIGURE} · {t.me.income.unreceivedGames(10)}
+        </p>
+      </div>
+    </section>
+  );
+}
+
 /**
  * What this month brought in, as 收益 opens on it before anything is chosen: panda points where
  * any game has them, otherwise the newest game's currency, all four kinds and no other filter.
@@ -79,7 +112,7 @@ function IncomePreview({
   const card = cn(cardClass, "block px-4 pt-1 pb-3");
 
   // While the games are read, the card keeps its height empty
-  if (summaries === undefined) return <section className={cn(cardClass, "min-h-69")} />;
+  if (summaries === undefined) return <IncomePlaceholder className={card} />;
   if (summaries.length === 0) {
     return (
       <Link to="/me/income" className={card}>
@@ -193,6 +226,31 @@ function IncomeFigures({
 const SHOWN_PARTIES = 3;
 
 /**
+ * The transfers card's own structure with nothing in it, while the summaries are read: its title
+ * line, the line of what is to come in and to go out, and the rows of the people owing the most.
+ */
+function TransfersPlaceholder({ className }: { className: string }) {
+  return (
+    <section className={cn(className, "invisible")} aria-hidden>
+      <TitleLine name={t.me.transfers.title} of={t.me.transfers.open} />
+      <p className="flex flex-wrap items-baseline justify-between gap-x-3">
+        <span className="flex items-baseline gap-2">
+          <span className="text-4xl font-semibold tracking-tight tabular-nums">{FIGURE}</span>
+          <span className="text-sm whitespace-nowrap">
+            {t.me.transfers.toCome} · {t.me.transfers.people(10)}
+          </span>
+        </span>
+        <span className="text-sm whitespace-nowrap">
+          {t.me.transfers.toPay} {FIGURE}
+        </span>
+      </p>
+      {/* The rows of the people owing the most, 44px each */}
+      <div className="mt-2" style={{ height: `${SHOWN_PARTIES * 2.75}rem` }} />
+    </section>
+  );
+}
+
+/**
  * The transfers still to make, as 转账 opens on them before anything is chosen: in the newest
  * game's currency, with what is to come in, what is to go out, and the people owing the most.
  * The whole card leads to 转账, so nothing inside it is a target of its own.
@@ -201,7 +259,7 @@ function TransfersPreview({ summaries }: { summaries: readonly GameSummary[] | u
   const { data: players = [] } = usePlayers();
   const card = cn(cardClass, "mt-3 block px-4 pt-1 pb-3");
 
-  if (summaries === undefined) return <section className={cn(cardClass, "mt-3 min-h-60")} />;
+  if (summaries === undefined) return <TransfersPlaceholder className={card} />;
   if (summaries.length === 0) {
     return (
       <Link to="/me/transfers" className={card}>
