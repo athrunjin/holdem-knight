@@ -15,10 +15,12 @@ import {
 } from "../domain";
 import { RULE_30 } from "../insurance";
 import { cents } from "../money";
+import { playerNameKey } from "../player";
 import {
   activeChipEvents,
   adjustHands,
   chipsToCents,
+  gamePlayerNames,
   gameRecord,
   hasPlayerEvents,
   insuranceRecords,
@@ -28,6 +30,7 @@ import {
   latestCashOut,
   ledgerTotals,
   nextBuyType,
+  orderNamesakesByRecent,
   rakeChips,
   rakeRecords,
   recentPlayers,
@@ -1044,5 +1047,137 @@ describe("recentPlayers", () => {
         expect(result.length).toBe(Math.min(limit, known.size));
       }),
     );
+  });
+});
+
+describe("gamePlayerNames", () => {
+  const named = (id: string, name: string, createdAt = 1): Player => ({
+    id,
+    organizerId: "me",
+    name,
+    initials: id,
+    createdAt,
+  });
+  const buyIn = (id: string, playerId: string) => chip(id, "buy_in", playerId, 100);
+  const labels = (events: LedgerEvent[], players: Player[]) => {
+    const names = gamePlayerNames(events, players);
+    return players.map(({ id }) => names.get(id));
+  };
+
+  it("keeps the first namesake's name and numbers the later ones by first buy-in", () => {
+    // Made in the order a, b, c, but sat down c, a, b
+    const players = [named("a", "小王", 1), named("b", "小王", 2), named("c", "小王", 3)];
+    const events = [
+      buyIn("1", "c"),
+      buyIn("2", "a"),
+      chip("3", "rebuy", "c", 100),
+      buyIn("4", "b"),
+    ];
+    expect(labels(events, players)).toEqual(["小王_1", "小王_2", "小王"]);
+  });
+
+  it("skips a label that is a real name in the game", () => {
+    const players = [
+      named("a", "小王"),
+      named("x", "小王_1"),
+      named("b", "小王"),
+      named("c", "小王"),
+    ];
+    const events = [buyIn("1", "a"), buyIn("2", "x"), buyIn("3", "b"), buyIn("4", "c")];
+    expect(labels(events, players)).toEqual(["小王", "小王_1", "小王_2", "小王_3"]);
+  });
+
+  it("skips a real name even when its player sits down later", () => {
+    const players = [named("a", "小王"), named("b", "小王"), named("x", "小王_1")];
+    const events = [buyIn("1", "a"), buyIn("2", "b"), buyIn("3", "x")];
+    expect(labels(events, players)).toEqual(["小王", "小王_2", "小王_1"]);
+  });
+
+  it("moves the later namesakes up when the first one's only buy-in is reversed", () => {
+    const players = [named("a", "小王"), named("b", "小王"), named("c", "小王")];
+    const events = [buyIn("1", "a"), buyIn("2", "b"), buyIn("3", "c"), reversal("4", "1")];
+    expect(labels(events, players)).toEqual([undefined, "小王", "小王_1"]);
+  });
+
+  it("keeps the labels when a first buy-in is reversed and recorded again", () => {
+    const players = [named("a", "小王"), named("b", "小王")];
+    // Three hands in one buy-in, corrected down to one
+    const start = [chip("1", "buy_in", "a", 300), buyIn("3", "b")];
+    const { reversedEventIds, buy } = adjustHands(start, "a", 100, { to: 1 });
+    expect(buy?.type).toBe("buy_in");
+    const events = [
+      ...start,
+      ...reversedEventIds.map((id, i) => reversal(`r${i}`, id)),
+      ...(buy ? [chip("5", buy.type, "a", buy.chips)] : []),
+    ];
+    expect(labels(events, players)).toEqual(["小王", "小王_1"]);
+  });
+
+  it("compares names without case or whitespace", () => {
+    const players = [named("a", "Bob"), named("b", " bo b ")];
+    const names = gamePlayerNames([buyIn("1", "a"), buyIn("2", "b")], players);
+    expect(names.get("a")).toBe("Bob");
+    expect(playerNameKey(names.get("b") ?? "")).toBe("bob_1");
+  });
+
+  it("leaves out players taken back out, the seats and the organizer", () => {
+    const players = [named("a", "小王"), named("b", "小王")];
+    const events = [
+      buyIn("1", INSURANCE_PLAYER_ID),
+      buyIn("2", "a"),
+      reversal("3", "2"),
+      buyIn("4", "b"),
+      buyIn("5", "organizer"),
+      buyIn("6", RAKE_PLAYER_ID),
+    ];
+    const names = gamePlayerNames(events, players);
+    expect([...names]).toEqual([["b", "小王"]]);
+  });
+
+  it("gives every counted player a label no other row has", () => {
+    const pool = ["小王", "小王_1", "小王_2", " 小 王", "老张"];
+    fc.assert(
+      fc.property(
+        fc.array(fc.constantFrom(...pool), { minLength: 1, maxLength: 8 }),
+        fc.array(fc.nat(7)),
+        (names, order) => {
+          const players = names.map((name, i) => named(`p${i}`, name));
+          const events = order
+            .filter((i) => i < players.length)
+            .map((i, n) => buyIn(`${n}`, `p${i}`));
+          const result = gamePlayerNames(events, players);
+          const keys = [...result.values()].map(playerNameKey);
+          expect(new Set(keys).size).toBe(keys.length);
+          expect(result.size).toBe(new Set(events.map((e) => e.playerId)).size);
+        },
+      ),
+    );
+  });
+});
+
+describe("orderNamesakesByRecent", () => {
+  const named = (id: string, name: string): Player => ({
+    id,
+    organizerId: "me",
+    name,
+    initials: id,
+    createdAt: 1,
+  });
+
+  it("orders namesakes by recency in their own positions, and moves nobody else", () => {
+    const players = [
+      named("w1", "小王"),
+      named("z", "老张"),
+      named("w2", "小王"),
+      named("l", "李四"),
+      named("w3", "小 王"),
+    ];
+    const ordered = orderNamesakesByRecent(players, ["l", "w3", "z", "w2"]);
+    expect(ordered.map(({ id }) => id)).toEqual(["w3", "z", "w2", "l", "w1"]);
+  });
+
+  it("returns the same players", () => {
+    const players = [named("a", "A"), named("b", "a"), named("c", "C")];
+    expect(orderNamesakesByRecent(players, []).map(({ id }) => id)).toEqual(["a", "b", "c"]);
   });
 });

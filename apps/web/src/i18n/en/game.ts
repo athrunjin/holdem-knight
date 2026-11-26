@@ -7,6 +7,7 @@ export const game: Messages["game"] = {
     nameOrInitials: "Name or initials",
     couldntSaveTryAgain: "Couldn’t save. Try again",
     create: (a) => `Create “${a}”`,
+    createNamesake: (a) => `Create another “${a}”`,
   },
   buyInRecord: {
     satDown: "Sit",

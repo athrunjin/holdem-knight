@@ -105,7 +105,7 @@ function GameInsurance({ game }: { game: Game }) {
     return true;
   }
 
-  const nameOf = gameNameOf(players, game);
+  const nameOf = gameNameOf(players, game, events);
   const ledger = summarizeByPlayer(events);
   const seat = ledger.find((p) => p.playerId === INSURANCE_PLAYER_ID);
   // In the table's order: an organizer who plays first, then the players as they bought in

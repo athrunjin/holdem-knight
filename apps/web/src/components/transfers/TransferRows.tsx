@@ -271,6 +271,7 @@ function RecordLink({ line }: { line: TransferLine }) {
 export function PartyRow({
   party,
   name,
+  number,
   isPlayer,
   state,
   today,
@@ -282,6 +283,8 @@ export function PartyRow({
 }: {
   party: PartyTransfers;
   name: string;
+  /** The record's number, where another player of the library has the same name */
+  number?: string | undefined;
   /** In the player library, so the avatar leads to their page */
   isPlayer: boolean;
   state: TransferState;
@@ -305,10 +308,17 @@ export function PartyRow({
   const late = state === "open" && daysBetween(oldestDay, today) > LATE_DAYS;
   const only = lines.length === 1 ? lines[0] : undefined;
   const gone = lines.every((line) => draft.leaving.has(keyOf(line)));
+  const label = number === undefined ? name : `${name} ${number}`;
 
   const who = (
     <>
-      <span className="block truncate font-medium">{name}</span>
+      {/* The name gives way before the number does */}
+      <span className="flex min-w-0 items-baseline gap-1.5">
+        <span className="truncate font-medium">{name}</span>
+        {number !== undefined && (
+          <span className="shrink-0 text-xs text-muted tabular-nums">{number}</span>
+        )}
+      </span>
       {/* Not clipped: the icon's tap target reaches past the line */}
       <span className="flex items-center text-xs whitespace-nowrap text-muted tabular-nums">
         {only ? (
@@ -344,7 +354,7 @@ export function PartyRow({
     <Link
       to="/players/$playerId"
       params={{ playerId: party.partyId }}
-      aria-label={name}
+      aria-label={label}
       onClick={leaveList}
       // 44px to tap, drawn in at the sides so the row keeps its spacing
       className="-mx-1.5 -my-1.5 grid size-11 shrink-0 place-items-center"
@@ -397,7 +407,7 @@ export function PartyRow({
                 <span className="min-w-0 flex-1">{who}</span>
                 {balance}
                 <DoneButton
-                  label={t.me.transfers.markLine(name, money(only.amount))}
+                  label={t.me.transfers.markLine(label, money(only.amount))}
                   done={only.done !== draft.ticked.has(keyOf(only))}
                   disabled={disabled}
                   onClick={() => draft.onToggle(only)}
@@ -410,7 +420,7 @@ export function PartyRow({
                 <button
                   type="button"
                   aria-expanded={open}
-                  aria-label={t.me.transfers.showParty(name)}
+                  aria-label={t.me.transfers.showParty(label)}
                   onClick={toggle}
                   className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-1.5 pr-4 text-left"
                 >
@@ -435,7 +445,7 @@ export function PartyRow({
                     <Line
                       key={keyOf(line)}
                       line={line}
-                      who={name}
+                      who={label}
                       // The organizer's own payments are said to be theirs
                       note={line.to === party.partyId ? t.me.transfers.iPay : undefined}
                       today={today}

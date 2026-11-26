@@ -62,6 +62,11 @@ type SummaryGroup = (typeof SUMMARY_GROUPS)[number];
 export interface ResultCard {
   readonly id: string;
   readonly name: string;
+  /**
+   * The end of `name` that tells a namesake apart in the game (`_1`), kept in view when the rest of
+   * the name is cut short. Missing for a name without one.
+   */
+  readonly nameSuffix?: string;
   /** Initials of the name, for ordering by name. Missing orders by the name itself */
   readonly initials?: string;
   readonly hands: string;
@@ -437,6 +442,37 @@ function Summary({
 }
 
 /**
+ * A name in a card's first row. A name with a suffix cuts its base short, never the suffix, which
+ * sits after the base's last line; a name without one is cut as `nameClass` cuts it.
+ */
+function CardName({
+  name,
+  suffix,
+  dimmed,
+}: {
+  name: string;
+  suffix: string | undefined;
+  dimmed: boolean;
+}) {
+  if (suffix === undefined || suffix === "" || !name.endsWith(suffix)) {
+    return <span className={cn(nameClass, dimmed && "text-muted")}>{name}</span>;
+  }
+  // Read aloud as one word, `小王_1`, not as the two parts drawn
+  return (
+    <>
+      <span className="sr-only">{name}</span>
+      <span
+        aria-hidden
+        className={cn("flex min-w-0 items-end leading-tight", dimmed && "text-muted")}
+      >
+        <span className={cn(nameClass, "min-w-0")}>{name.slice(0, -suffix.length)}</span>
+        <span className="shrink-0 whitespace-nowrap">{suffix}</span>
+      </span>
+    </>
+  );
+}
+
+/**
  * One person's card: a tinted row with their chips and result, then their Buy-in record, the
  * adjustments to the result and a total. A card that folds shows the row and a one-line summary.
  */
@@ -472,7 +508,7 @@ export function PersonCard({
           aria-hidden
         />
       )}
-      <span className={cn(nameClass, card.dimmed && "text-muted")}>{name}</span>
+      <CardName name={name} suffix={card.nameSuffix} dimmed={card.dimmed === true} />
     </>
   );
   const net = netChips === undefined ? "—" : breakable(formatSignedChips(netChips));

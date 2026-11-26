@@ -1,4 +1,4 @@
-import { playerNumberText } from "@holdem-knight/core";
+import { parsePlayerName, playerNumberText } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
@@ -12,6 +12,7 @@ import {
 } from "@/components/players/PlayerList";
 import { newPlayer, usePlayers, useSavePlayer } from "@/data/players";
 import { t } from "@/i18n";
+import { namesakeHint } from "@/lib/player-name";
 
 export const Route = createFileRoute("/players/")({
   component: PlayersPage,
@@ -23,11 +24,14 @@ function PlayersPage() {
   const savePlayer = useSavePlayer();
   const [query, setQuery] = useState("");
 
-  const { groups, newName, tooLong } = matchPlayers(players, query);
+  const { groups, newName, namesakes, tooLong } = matchPlayers(players, query);
+  // Names may repeat (ADR 0043): with namesakes found, the query can still be added as another
+  const parsed = parsePlayerName(query);
+  const createName = newName ?? (namesakes.length > 0 && parsed.ok ? parsed.name : undefined);
 
   function handleCreate() {
-    if (newName === undefined) return;
-    savePlayer.mutate(newPlayer(newName), { onSuccess: () => setQuery("") });
+    if (createName === undefined) return;
+    savePlayer.mutate(newPlayer(createName), { onSuccess: () => setQuery("") });
   }
 
   if (isPending) return null;
@@ -40,8 +44,9 @@ function PlayersPage() {
           placeholder={t.players.library.searchOrAddNameOrInitials}
           query={query}
           onQueryChange={setQuery}
-          newName={newName}
+          newName={createName}
           tooLong={tooLong}
+          hint={namesakeHint(namesakes)}
           createLabel={(name) => t.players.library.create(name)}
           saving={savePlayer.isPending}
           saveFailed={savePlayer.isError}

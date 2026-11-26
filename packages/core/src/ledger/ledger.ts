@@ -15,7 +15,7 @@ import {
   type StackSetEvent,
 } from "../domain";
 import { type Cents, multiply } from "../money";
-import { comparePlayers } from "../player";
+import { comparePlayers, playerNameKey } from "../player";
 
 function isChipEvent(event: LedgerEvent): event is ChipEvent {
   return event.type === "buy_in" || event.type === "rebuy" || event.type === "cash_out";
@@ -291,6 +291,87 @@ export function recentPlayers(
     if (recent.length >= limit) break;
   }
   return recent.slice(0, limit);
+}
+
+/**
+ * The name each player reads in one game, so that no two rows read the same (ADR 0043). Counts the
+ * players in `players` with a buy-in or rebuy in effect, in the order of their earliest buy-in or
+ * rebuy in the ledger, reversed or not, so taking back and recording again a first buy-in moves
+ * nobody. Among players whose names share a key, the first keeps the name and each later one reads
+ * it with `_1`, `_2` and so on, skipping a label that is a counted player's real name or already
+ * given. Seats and the organizer are not players and get nothing; a player not in the map reads
+ * their plain name.
+ */
+export function gamePlayerNames(
+  events: readonly LedgerEvent[],
+  players: readonly Player[],
+): Map<string, string> {
+  const byId = new Map(players.map((player) => [player.id, player]));
+  const inEffect = new Set(
+    activeChipEvents(events).flatMap((e) => (e.type === "cash_out" ? [] : [e.playerId])),
+  );
+  const seated: Player[] = [];
+  const seen = new Set<string>();
+  for (const event of events) {
+    if (event.type !== "buy_in" && event.type !== "rebuy") continue;
+    const player = byId.get(event.playerId);
+    if (!player || seen.has(player.id) || !inEffect.has(player.id)) continue;
+    seen.add(player.id);
+    seated.push(player);
+  }
+
+  const realNames = new Set(seated.map(({ name }) => playerNameKey(name)));
+  const given = new Set<string>();
+  const nextSuffix = new Map<string, number>();
+  const names = new Map<string, string>();
+  for (const player of seated) {
+    const key = playerNameKey(player.name);
+    let suffix = nextSuffix.get(key);
+    let label = player.name;
+    if (suffix === undefined) {
+      suffix = 1;
+    } else {
+      const base = player.name.trim();
+      while (true) {
+        label = `${base}_${suffix}`;
+        const labelKey = playerNameKey(label);
+        suffix += 1;
+        if (!realNames.has(labelKey) && !given.has(labelKey)) break;
+      }
+    }
+    nextSuffix.set(key, suffix);
+    given.add(playerNameKey(label));
+    names.set(player.id, label);
+  }
+  return names;
+}
+
+/**
+ * Puts namesakes in order of recency: players whose names share a key take the positions their
+ * group holds, in the order of `recentIds` (most recent first), those not in it last. Everyone
+ * else keeps their position.
+ */
+export function orderNamesakesByRecent(
+  players: readonly Player[],
+  recentIds: readonly string[],
+): Player[] {
+  const rank = new Map(recentIds.map((id, index) => [id, index]));
+  const groups = new Map<string, number[]>();
+  players.forEach((player, index) => {
+    const key = playerNameKey(player.name);
+    groups.set(key, [...(groups.get(key) ?? []), index]);
+  });
+  const ordered = [...players];
+  for (const positions of groups.values()) {
+    if (positions.length < 2) continue;
+    const members = positions
+      .map((index) => players[index] as Player)
+      .toSorted((a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity));
+    positions.forEach((position, i) => {
+      ordered[position] = members[i] as Player;
+    });
+  }
+  return ordered;
 }
 
 /** Everything except the insurance seat's own buy-in, which is written when the game starts. */

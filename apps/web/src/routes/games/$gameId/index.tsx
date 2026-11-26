@@ -60,7 +60,7 @@ import {
 import { usePlayers } from "@/data/players";
 import { t } from "@/i18n";
 import { formatGameAmount } from "@/lib/currency";
-import { gameInitialsOf, gameNameOf } from "@/lib/player-name";
+import { gameInitialsOf, gameNameOf, gameNameOnBuyIn, gameNameSuffixOf } from "@/lib/player-name";
 
 export const Route = createFileRoute("/games/$gameId/")({
   component: GamePage,
@@ -139,7 +139,8 @@ function GameLedger({ game }: { game: Game }) {
   const balanceChips = ledgerTotals(ledger).balanceChips;
   const live = useLiveCharges(game, events);
   const totals = ledgerTotals(people);
-  const nameOf = gameNameOf(players, game);
+  const nameOf = gameNameOf(players, game, events);
+  const nameSuffixOf = gameNameSuffixOf(players, events);
   const initialsOf = gameInitialsOf(players);
 
   function playerTotals(playerId: string) {
@@ -346,6 +347,7 @@ function GameLedger({ game }: { game: Game }) {
         onReturnAll={handleReturnAll}
         players={ledger}
         nameOf={nameOf}
+        nameSuffixOf={nameSuffixOf}
         initialsOf={initialsOf}
         editable={editable}
         onEditHands={(playerId) =>
@@ -364,11 +366,12 @@ function GameLedger({ game }: { game: Game }) {
                 <AddPlayerToGame
                   variant={variant}
                   excludedIds={new Set(people.map(({ playerId }) => playerId))}
-                  onPick={({ id, name }: Player) =>
+                  onPick={(player: Player) =>
                     setPending({
                       kind: handChips === undefined ? "buy" : "join",
-                      playerId: id,
-                      name,
+                      playerId: player.id,
+                      // The label the player reads in the row once bought in, as `小王_2`
+                      name: gameNameOnBuyIn(players, events, player),
                     })
                   }
                 />
