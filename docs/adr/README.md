@@ -32,7 +32,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0025](0025-wage-segments-and-billing-units.md) | Wage segments, billing units and rounding up | Superseded in part by 0027 |
 | [0026](0026-insurance-cover-limits-and-odds-tables.md) | Insurance cover limits, and odds tables kept apart from the rule's settings | Accepted |
 | [0027](0027-wage-units-rounding-and-game-time-zone.md) | Wage units at the longer rate, rounding modes, and the game's time zone | Accepted |
-| [0028](0028-organizer-seat.md) | The organizer plays under a seat of their own | Accepted |
+| [0028](0028-organizer-seat.md) | The organizer plays under a seat of their own | Superseded in part by 0051 |
 | [0029](0029-default-transfer-plan.md) | The transfer plan a game starts with, and changing it after settlement | Accepted |
 | [0030](0030-transfers-marked-as-made.md) | Marking transfers as made | Accepted |
 | [0031](0031-game-stages.md) | The stages of a game: open, settling, pending and complete | Accepted |
@@ -46,7 +46,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0039](0039-rake-configs-keep-amounts-in-blinds.md) | Rake configs keep their amounts in blinds | Accepted |
 | [0040](0040-accounts-host-spaces-and-player-records.md) | Accounts, host spaces and player records are three things | Accepted |
 | [0041](0041-sign-in-by-email-and-password-with-codes.md) | Sign-in by email and password, confirmed with codes | Accepted |
-| [0042](0042-linked-players-and-claiming-records.md) | Linked players read their own results and what a game was played under, and claim their records by invitation | Accepted |
+| [0042](0042-linked-players-and-claiming-records.md) | Linked players read their own results and what a game was played under, and claim their records by invitation | Superseded in part by 0051 |
 | [0043](0043-namesakes-in-a-space.md) | Players may share a name, told apart in a game and by number | Accepted |
 | [0044](0044-books-in-postgres-as-documents.md) | The books in Postgres as the app's documents, with their security tested in process | Accepted |
 | [0045](0045-one-contract-for-both-repositories.md) | One contract for the device's repository and the account's | Accepted |
@@ -55,6 +55,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0048](0048-undoing-an-insurance-hand-keeps-later-stacks.md) | Undoing an insurance hand keeps the stacks changed since | Accepted |
 | [0049](0049-settled-games-keep-a-summary.md) | A settled game keeps a summary of its results, for reports | Accepted |
 | [0050](0050-a-visual-guide-and-a-visual-review.md) | A visual guide, and a visual review before hand-over | Accepted |
+| [0051](0051-the-hosts-own-record.md) | The host has a record of their own, under the organizer seat's ID | Accepted |
 
 ## Template
 
