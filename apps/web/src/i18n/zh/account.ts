@@ -74,6 +74,24 @@ export const account = {
     agreeEnd: "",
     toSignIn: "已有账户？登录",
   },
+  /** Signing in with Google, on the sign-in and sign-up pages (ADR 0052). */
+  google: {
+    continue: "使用 Google 账号继续",
+    /** Between the Google button and the email form */
+    or: "或",
+    cancelled: "已取消 Google 登录。",
+    failed: "Google 登录没有完成，请重试。",
+    /** On the sign-up page of a build with email sign-up closed */
+    only: "目前只能用 Google 账号注册。",
+  },
+  /** The step an account that has not agreed to the terms passes before its books open. */
+  firstEntry: {
+    title: "完成注册",
+    /** Read around the address: `signedInBefore`, the address, `signedInAfter`. */
+    signedInBefore: "已登录为 ",
+    signedInAfter: "。确认昵称并同意协议后开始使用。",
+    start: "开始使用",
+  },
   terms: "用户协议",
   privacy: "隐私政策",
   textToCome: "正式文本会在账户功能上线前补充。",

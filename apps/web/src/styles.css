@@ -39,6 +39,15 @@
    */
   --color-table-fee: #a9e4c8;
   --color-rake: #6aa9e9;
+
+  /*
+   * Google's own dark button, which its sign-in guidelines ask for: fill, stroke and label. The
+   * one exception to the app's colors, with the G mark in Google's four (ADR 0052). Nothing but
+   * the button that signs in with Google uses them.
+   */
+  --color-google-fill: #131314;
+  --color-google-line: #8e918f;
+  --color-google-text: #e3e3e3;
 }
 
 :root {

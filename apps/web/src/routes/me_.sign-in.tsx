@@ -5,11 +5,15 @@ import {
   AuthPage,
   EmailField,
   FormIssue,
+  GoogleButton,
+  GoogleReturnNote,
+  OrDivider,
   PasswordField,
   SubmitButton,
   textLinkClass,
+  useGoogleReturn,
 } from "@/components/account/AuthParts";
-import { type AuthIssue, resendCode, signIn } from "@/data/auth";
+import { type AuthIssue, emailSignUpOpen, resendCode, signIn } from "@/data/auth";
 import { t } from "@/i18n";
 import { keepPendingCode } from "@/lib/pending-code";
 
@@ -25,6 +29,7 @@ function SignInPage() {
   const [passwordIssue, setPasswordIssue] = useState<string>();
   const [issue, setIssue] = useState<AuthIssue>();
   const [busy, setBusy] = useState(false);
+  const [returned, setReturned] = useGoogleReturn("/me/sign-in");
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -54,6 +59,13 @@ function SignInPage() {
 
   return (
     <AuthPage title={t.common.signIn} audience="guests" onSubmit={handleSubmit}>
+      <GoogleReturnNote returned={returned} />
+      <GoogleButton
+        page="/me/sign-in"
+        onLeave={() => setReturned(undefined)}
+        onFail={() => setReturned("failed")}
+      />
+      <OrDivider />
       <EmailField
         value={email}
         issue={emailIssue}
@@ -72,11 +84,14 @@ function SignInPage() {
       />
       <FormIssue issue={issue} />
       <SubmitButton busy={busy}>{t.common.signIn}</SubmitButton>
+      {/* A reset sends a code by email, which needs a sending domain as sign-up does (ADR 0052) */}
       <div className="flex justify-between">
-        <Link to="/me/reset" className={textLinkClass}>
-          {t.account.signInPage.forgot}
-        </Link>
-        <Link to="/me/sign-up" className={textLinkClass}>
+        {emailSignUpOpen() && (
+          <Link to="/me/reset" className={textLinkClass}>
+            {t.account.signInPage.forgot}
+          </Link>
+        )}
+        <Link to="/me/sign-up" className={`${textLinkClass} ml-auto`}>
           {t.account.signInPage.toSignUp}
         </Link>
       </div>

@@ -1,5 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "@tanstack/react-router";
 import { Fragment, type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
+import { FirstEntry } from "@/components/account/FirstEntry";
 import { Page } from "@/components/Page";
 import { retryBooks, useBooks } from "@/data";
 import { signOut } from "@/data/auth";
@@ -102,17 +104,25 @@ function ReadFailure({ account }: { account: boolean }) {
   );
 }
 
+/** The pages an account that has not agreed may read: what it is asked to agree to. */
+const READ_BEFORE_AGREEING = new Set(["/me/terms", "/me/privacy"]);
+
 /**
  * Shows the pages once there are books to read: at once for a guest, and after the account's
  * space is found for someone signed in. When the books change hands at a sign-in or a sign-out,
  * every page starts over, so nothing that was read from one set shows for the other (ADR 0046).
+ * An account that has not agreed to the terms is asked to first, in place of every page but the
+ * terms themselves, and its books stay closed until it has (ADR 0052).
  */
 export function BooksGate({ children }: { children: ReactNode }) {
   const books = useBooks();
+  const pathname = useLocation({ select: (location) => location.pathname });
 
-  // An account that has not agreed to the terms waits here until its step is built
-  if (books.status === "opening" || books.status === "agreeing") return <Opening />;
+  if (books.status === "opening") return <Opening />;
   if (books.status === "unreachable") return <Unreachable />;
+  if (books.status === "agreeing") {
+    return READ_BEFORE_AGREEING.has(pathname) ? children : <FirstEntry userId={books.userId} />;
+  }
   return (
     <Fragment key={books.key}>
       <ReadFailure account={books.mode === "account"} />
