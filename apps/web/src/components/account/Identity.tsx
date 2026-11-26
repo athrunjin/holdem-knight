@@ -35,7 +35,7 @@ export type Identity =
 export function useIdentity(): Identity {
   const session = useSession();
   const { data: account } = useAccount(session.status === "signed-in" ? session.userId : undefined);
-  const { data: players } = usePlayers();
+  const { data: players, isPending: playersPending } = usePlayers();
 
   switch (session.status) {
     case "loading":
@@ -57,8 +57,9 @@ export function useIdentity(): Identity {
         signIn: true,
       };
     case "signed-in": {
-      if (players === undefined) return { status: "loading" };
-      const own = players.find(({ id }) => id === ORGANIZER_PLAYER_ID);
+      // Waits only while the list is read: one that fails, or has no own record, keeps the name
+      if (playersPending) return { status: "loading" };
+      const own = players?.find(({ id }) => id === ORGANIZER_PLAYER_ID);
       const name = account?.displayName || session.email.split("@")[0] || session.email;
       return {
         status: "ready",

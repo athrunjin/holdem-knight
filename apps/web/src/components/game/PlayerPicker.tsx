@@ -35,7 +35,8 @@ interface PlayerPickerProps {
  */
 export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps) {
   const players = usePlayers();
-  const recentPlayers = useRecentPlayers(MAX_RECENT);
+  // One more than shown, as the host's own record is taken out of them
+  const recentPlayers = useRecentPlayers(MAX_RECENT + 1);
   const savePlayer = useSavePlayer();
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [query, setQuery] = useState("");
@@ -49,7 +50,7 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
   // The host's own record comes first, on a row of its own, and nowhere else (ADR 0051)
   const own = searchPlayers(all.filter(isOwnRecord), query)[0];
   const recentMatches = searchPlayers(
-    recent.filter((p) => !isOwnRecord(p)),
+    recent.filter((p) => !isOwnRecord(p)).slice(0, MAX_RECENT),
     query,
   );
   // Recent players appear in the full list too, so everyone can be found by letter

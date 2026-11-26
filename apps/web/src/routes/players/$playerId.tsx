@@ -252,14 +252,17 @@ function History({
           <ResultCurve key={player.id} playerId={player.id} summaries={played} today={today} />
         )}
 
-        <Payments
-          player={player}
-          payments={payments}
-          summaries={summaries}
-          games={games}
-          currency={currency}
-          today={today}
-        />
+        {/* The host's own record is the organizer: what they pay or are paid is on 转账 (ADR 0051) */}
+        {!isOwnRecord(player) && (
+          <Payments
+            player={player}
+            payments={payments}
+            summaries={summaries}
+            games={games}
+            currency={currency}
+            today={today}
+          />
+        )}
 
         {/* Folded until asked for, and narrowed and ordered as on the games page */}
         <div className="mt-5">

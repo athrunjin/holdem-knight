@@ -27,8 +27,9 @@ export function newPlayer(name: string): Player {
  * or brought in with a number another already holds, is numbered here and kept. One that cannot
  * be kept this time still reads with its number, and is numbered again on the next read.
  */
-async function numberedPlayers(): Promise<Player[]> {
-  await ensureOwnRecord();
+export async function numberedPlayers(): Promise<Player[]> {
+  // Kept from the next read if not this one: the list still reads without it
+  await ensureOwnRecord().catch(() => undefined);
   const players = await repository.players.list();
   const numbered = numberPlayers(players);
   if (numbered.length === 0) return players;

@@ -133,7 +133,8 @@ export function libraryNameOf(
 
 /** Initials for ordering everyone in a game by name: a player's own, or the name of a seat. */
 export function gameInitialsOf(players: readonly Player[]) {
-  const initials = new Map(players.map((player) => [player.id, player.initials]));
+  // The organizer's seat sorts by the name it shows in the game, not by the own record's
+  const initials = new Map(withoutOwnRecord(players).map((player) => [player.id, player.initials]));
   return (playerId: string, name: string) => initials.get(playerId) ?? name;
 }
 

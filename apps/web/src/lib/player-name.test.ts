@@ -9,6 +9,7 @@ import {
 import { describe, expect, it } from "vitest";
 import { t } from "@/i18n";
 import {
+  gameInitialsOf,
   gameNameOf,
   gameNameOnBuyIn,
   gameNameSuffixOf,
@@ -71,6 +72,15 @@ describe("gameNameOf", () => {
     expect(gameNameOnBuyIn(players, [buyIn("1", ORGANIZER_PLAYER_ID)], players[1] as Player)).toBe(
       "小王",
     );
+  });
+});
+
+describe("gameInitialsOf", () => {
+  it("sorts the organizer's seat by the name it shows, not by the own record", () => {
+    const players = [named(ORGANIZER_PLAYER_ID, "我"), named("a", "小王")];
+    const initialsOf = gameInitialsOf(players);
+    expect(initialsOf(ORGANIZER_PLAYER_ID, "guest")).toBe("guest");
+    expect(initialsOf("a", "小王")).toBe("a");
   });
 });
 
