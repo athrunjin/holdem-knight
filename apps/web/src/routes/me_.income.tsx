@@ -646,21 +646,24 @@ function Trend({
             />
           ))}
         </div>
-        <TextMenu
-          label={t.me.income.span}
-          options={TREND_SPANS.map((value) => ({
-            value,
-            label: `${t.me.income.spans[value]} (${incomeSeries(
-              summaries,
-              currency,
-              trendPeriods(value, today),
-            ).reduce((all, { games }) => all + games, 0)})`,
-          }))}
-          value={span}
-          onChange={(value) => setBars({ span: value, items: shown })}
-          align="right"
-          className="shrink-0 text-sm whitespace-nowrap"
-        />
+        {/* The menu keeps its width; the items wrap first */}
+        <div className="shrink-0">
+          <TextMenu
+            label={t.me.income.span}
+            options={TREND_SPANS.map((value) => ({
+              value,
+              label: `${t.me.income.spans[value]} (${incomeSeries(
+                summaries,
+                currency,
+                trendPeriods(value, today),
+              ).reduce((all, { games }) => all + games, 0)})`,
+            }))}
+            value={span}
+            onChange={(value) => setBars({ span: value, items: shown })}
+            align="right"
+            className="shrink-0 text-sm whitespace-nowrap"
+          />
+        </div>
       </div>
 
       <ul className="mt-1 grid grid-cols-4 gap-1">

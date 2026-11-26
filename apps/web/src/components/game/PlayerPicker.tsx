@@ -247,7 +247,8 @@ function PlayerRow({
           <span className="shrink-0 text-xs text-muted tabular-nums">{name.number}</span>
         )}
       </span>
-      <span className="text-xs text-muted">{player.initials}</span>
+      {/* A long name's initials are cut short, so the name keeps the row */}
+      <span className="max-w-14 shrink-0 truncate text-xs text-muted">{player.initials}</span>
       <label className="grid size-11 shrink-0 cursor-pointer place-items-center">
         <input
           type="checkbox"

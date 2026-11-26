@@ -83,7 +83,7 @@ Text meets WCAG 2.2 AA (4.5:1) on both `bg` and `surface`: `text` 13.6:1, `muted
 - Spacing is the Tailwind 4px scale. Pages have 16px side margins, cards 16px of padding, rows 8px between them.
 - **Radius:** `rounded-2xl` for a card that holds a section, `rounded-xl` for rows, buttons, menus and inputs, `rounded-lg` for chips and pills inside them, `rounded-full` for dots and round badges. A mark in a card's corner turns with the card's own corner.
 - **Borders, not shadows.** A surface is set off by a 1px `line` border. Only something floating over the page (a menu, a panel) has a shadow as well.
-- **Touch targets are at least 44px** in both directions. Small text may sit in a larger invisible target; two targets never overlap.
+- **Touch targets are at least 44px** in both directions. Small text may sit in a larger invisible target; two targets never overlap. One exception, the organizer's decision: the picked players' chips above 开局 stay 20px tall, since each can also be unpicked from its tile or its row.
 - **Widths.** Phones first: the layout must hold at 360px, and is judged at 393 to 412px, which is where it is used. Three figure columns in a card fit four digits comfortably, five tightly and six at the limit at 393px; a seventh wraps to the title line and never runs under its neighbor. Tablets get the same pages, centered at a readable width.
 - When a line cannot fit, its least important part wraps. Nothing is cut off with an ellipsis unless it is a name.
 
@@ -184,3 +184,4 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | 2026-11-24 | Bad debts: red with its word, two buttons under ticked lines, marks side by side in a row's corner |
 | 2026-11-24 | Ticks that remove a line wait for a confirm, lines leave with their own motion, single-line rows carry their control, and what pages open on |
 | 2026-11-26 | The table fee and rake chart colors are tokens, `table-fee` and `rake` |
+| 2026-11-26 | The picked players' chips keep their 20px; a menu beside a legend keeps its width and the legend wraps first; long initials in a row are cut short before the name |
