@@ -302,15 +302,17 @@ export function AgreeField({
   return (
     <div>
       <div className="flex items-start gap-1">
-        <input
-          id="agreed"
-          type="checkbox"
-          checked={checked}
-          aria-describedby={issue ? "agreed-issue" : undefined}
-          onChange={(event) => onChange(event.target.checked)}
-          // 44px for a thumb around a box of 20
-          className="m-3 size-5 shrink-0 accent-(--accent)"
-        />
+        {/* 44px for a thumb around a box of 20: a margin would not take the tap, the label does */}
+        <label htmlFor="agreed" className="grid size-11 shrink-0 place-items-center">
+          <input
+            id="agreed"
+            type="checkbox"
+            checked={checked}
+            aria-describedby={issue ? "agreed-issue" : undefined}
+            onChange={(event) => onChange(event.target.checked)}
+            className="size-5 accent-(--accent)"
+          />
+        </label>
         <p className="pt-2.5 text-sm text-muted">
           <label htmlFor="agreed">{t.account.signUpPage.agree}</label>
           <Link to="/me/terms" className="text-highlight">
