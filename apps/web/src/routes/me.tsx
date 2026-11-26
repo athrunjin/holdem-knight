@@ -15,7 +15,7 @@ import {
   transferReport,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useId, useRef, useState } from "react";
 import { AccountCard } from "@/components/account/AccountCard";
 import { IdentityHeader } from "@/components/account/Identity";
 import { MyPlayerPicker } from "@/components/account/MyPlayerPicker";
@@ -670,6 +670,8 @@ function PlayerFace({
   const [picking, setPicking] = useState(false);
   // Quiet only for the player already played in, until another is chosen
   const [quietFor, setQuietFor] = useState(() => played.current);
+  // 更换 is read with whose player it changes
+  const mineLine = useId();
 
   const picker = picking && (
     <MyPlayerPicker
@@ -719,7 +721,7 @@ function PlayerFace({
       {/* In the cards' content column, as their title lines are */}
       <div className="mt-3 flex items-center justify-between gap-3 px-4 text-sm text-muted">
         {/* The name gives way before the number does */}
-        <p className="flex min-w-0 items-baseline gap-1.5">
+        <p id={mineLine} className="flex min-w-0 items-baseline gap-1.5">
           <span className="shrink-0">{t.me.playerFace.mine}</span>
           <span className="truncate">{player.name}</span>
           {player.number !== undefined && (
@@ -728,6 +730,7 @@ function PlayerFace({
         </p>
         <button
           type="button"
+          aria-describedby={mineLine}
           onClick={() => setPicking(true)}
           className="min-h-11 min-w-11 shrink-0 text-right font-medium text-highlight"
         >
