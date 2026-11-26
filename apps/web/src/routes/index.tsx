@@ -52,7 +52,7 @@ function HostGameList({ games }: { games: readonly Game[] }) {
   const settled = games.filter((game) => game.status === "settled");
 
   return (
-    <div className="flex flex-col gap-2 pt-4 pb-6">
+    <div className="flex flex-col gap-2 pb-6">
       {games.length === 0 && (
         <div className="space-y-2 px-1 py-6 text-center">
           <p className="text-lg font-medium">{t.gamePages.list.noGamesYet2}</p>
