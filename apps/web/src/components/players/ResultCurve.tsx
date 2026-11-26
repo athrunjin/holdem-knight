@@ -10,6 +10,7 @@ import {
 } from "@holdem-knight/core";
 import { Check, ChevronDown } from "lucide-react";
 import { useId, useState } from "react";
+import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { IncomeFilter } from "@/components/income/IncomeFilter";
 import { Modal } from "@/components/insurance/Modal";
 import { t } from "@/i18n";
@@ -129,22 +130,69 @@ function parseCurveView(stored: unknown): CurveView | undefined {
  * curve is drawn again from the left whenever its days or its games change.
  */
 export function ResultCurve({
-  playerId,
-  summaries,
-  today,
-}: {
+  preview = false,
+  ...props
+}: CurveProps & {
+  /**
+   * As a preview inside a link to the player's page: the same card from the first game to now in
+   * the default currency, its title as text with the currency's mark, and no control in it. It
+   * neither reads nor keeps how the curve was left.
+   */
+  preview?: boolean;
+}) {
+  return preview ? <CurveCard {...props} /> : <KeptCurve {...props} />;
+}
+
+interface CurveProps {
   playerId: string;
   /** Every settled game the player was in */
   summaries: readonly GameSummary[];
   today: string;
-}) {
+}
+
+/** What the curve is narrowed to and the days picked, as the player's page keeps them. */
+interface Kept {
+  readonly view: CurveView;
+  readonly setView: (view: CurveView) => void;
+  readonly from: string | undefined;
+  readonly setFrom: (day: string | undefined) => void;
+  readonly to: string | undefined;
+  readonly setTo: (day: string | undefined) => void;
+  readonly withCharges: boolean;
+  readonly setWithCharges: (on: boolean) => void;
+}
+
+/** The curve of the player's page, as it was left. */
+function KeptCurve(props: CurveProps) {
+  const { playerId } = props;
   const [view, setView] = useStoredState<CurveView>("player.curve", {}, parseCurveView);
   // A day picked, or missing for the first game and for now
   const [from, setFrom] = useState(() => left.get(playerId)?.from);
   const [to, setTo] = useState(() => left.get(playerId)?.to);
-  const [picking, setPicking] = useState<"from" | "to">();
   const [withCharges, setWithCharges] = useState(() => left.get(playerId)?.withCharges ?? false);
   left.set(playerId, { from, to, withCharges });
+  return (
+    <CurveCard
+      {...props}
+      kept={{ view, setView, from, setFrom, to, setTo, withCharges, setWithCharges }}
+    />
+  );
+}
+
+function CurveCard({
+  playerId,
+  summaries,
+  today,
+  kept,
+}: CurveProps & {
+  /** Missing for the preview: no filter, from the first game to now, no second line */
+  kept?: Kept;
+}) {
+  const view = kept?.view ?? {};
+  const from = kept?.from;
+  const to = kept?.to;
+  const withCharges = kept?.withCharges ?? false;
+  const [picking, setPicking] = useState<"from" | "to">();
   const fill = useId();
 
   // The currencies the player has games in, in the app's own order. Panda points come up first
@@ -208,29 +256,45 @@ export function ResultCurve({
   const revealed = "[clip-path:inset(-1rem_-1rem_-1rem_0)]";
 
   return (
-    <section className="mt-3 rounded-2xl border border-line bg-surface px-4 pt-1 pb-3">
-      <div className="flex items-center justify-between gap-2">
-        {/* The title, then from which day to which: a tap on either opens the days to pick from */}
-        <div className="flex min-w-0 items-center text-sm">
+    <section
+      className={cn(kept && "mt-3", "rounded-2xl border border-line bg-surface px-4 pt-1 pb-3")}
+    >
+      {kept ? (
+        <div className="flex items-center justify-between gap-2">
+          {/* The title, then from which day to which: a tap on either opens the days to pick from */}
+          <div className="flex min-w-0 items-center text-sm">
+            <h2 className="shrink-0 text-muted">{t.players.playerPage.curve}</h2>
+            <span className="mx-1.5 text-muted" aria-hidden>
+              ·
+            </span>
+            <DayButton label={t.players.playerPage.rangeStart} onClick={() => setPicking("from")}>
+              {dayName(from ?? earliest)}
+            </DayButton>
+            <span className="mx-1.5 text-muted">{t.players.playerPage.to}</span>
+            <DayButton label={t.players.playerPage.rangeEnd} onClick={() => setPicking("to")}>
+              {to ? dayName(to) : t.players.playerPage.now}
+            </DayButton>
+          </div>
+          <IncomeFilter
+            applied={{ currency, ratio, blinds }}
+            currencies={currencies.length > 0 ? currencies : [currency]}
+            games={summaries}
+            onApply={(filter) => kept.setView(filter)}
+          />
+        </div>
+      ) : (
+        // As text: the whole card is one link, so nothing in it is a target of its own
+        <div className="flex min-h-11 min-w-0 items-center text-sm">
           <h2 className="shrink-0 text-muted">{t.players.playerPage.curve}</h2>
           <span className="mx-1.5 text-muted" aria-hidden>
             ·
           </span>
-          <DayButton label={t.players.playerPage.rangeStart} onClick={() => setPicking("from")}>
-            {dayName(from ?? earliest)}
-          </DayButton>
-          <span className="mx-1.5 text-muted">{t.players.playerPage.to}</span>
-          <DayButton label={t.players.playerPage.rangeEnd} onClick={() => setPicking("to")}>
-            {to ? dayName(to) : t.players.playerPage.now}
-          </DayButton>
+          <span className="truncate font-medium">
+            {`${dayName(earliest)} ${t.players.playerPage.to} ${t.players.playerPage.now}`}
+          </span>
+          <CurrencyIcon currency={currency} className="ml-2 size-4.5 shrink-0 text-muted" />
         </div>
-        <IncomeFilter
-          applied={{ currency, ratio, blinds }}
-          currencies={currencies.length > 0 ? currencies : [currency]}
-          games={summaries}
-          onApply={(filter) => setView(filter)}
-        />
-      </div>
+      )}
 
       {/* Right under the title, laid out as the card over this one is */}
       <ResultHead
@@ -243,25 +307,29 @@ export function ResultCurve({
         tableFee={tableFee}
         money={money}
       />
-      {/* Always there. Its tick draws it as a second line */}
-      <button
-        type="button"
-        aria-pressed={withCharges}
-        aria-label={t.players.playerPage.showAfterCharges}
-        onClick={() => setWithCharges(!withCharges)}
-        className="-mb-1 flex min-h-11 items-center gap-2 text-sm"
-      >
-        <span className="text-muted">{t.players.playerPage.afterCharges}</span>
-        <span className="text-highlight tabular-nums">{money(whole(afterShown, after), true)}</span>
-        <span
-          className={cn(
-            "grid size-5 place-items-center rounded-md border transition-colors",
-            withCharges ? "border-highlight bg-highlight text-accent-text" : "border-muted",
-          )}
+      {/* Always there on the player's page. Its tick draws it as a second line */}
+      {kept && (
+        <button
+          type="button"
+          aria-pressed={withCharges}
+          aria-label={t.players.playerPage.showAfterCharges}
+          onClick={() => kept.setWithCharges(!withCharges)}
+          className="-mb-1 flex min-h-11 items-center gap-2 text-sm"
         >
-          {withCharges && <Check className="size-3.5" strokeWidth={3} aria-hidden />}
-        </span>
-      </button>
+          <span className="text-muted">{t.players.playerPage.afterCharges}</span>
+          <span className="text-highlight tabular-nums">
+            {money(whole(afterShown, after), true)}
+          </span>
+          <span
+            className={cn(
+              "grid size-5 place-items-center rounded-md border transition-colors",
+              withCharges ? "border-highlight bg-highlight text-accent-text" : "border-muted",
+            )}
+          >
+            {withCharges && <Check className="size-3.5" strokeWidth={3} aria-hidden />}
+          </span>
+        </button>
+      )}
 
       {shown.length === 0 ? (
         <p className="grid h-36 place-items-center text-sm text-muted">
@@ -387,7 +455,7 @@ export function ResultCurve({
         </div>
       )}
 
-      {picking && (
+      {kept && picking && (
         <DayDialog
           title={
             picking === "from" ? t.players.playerPage.rangeStart : t.players.playerPage.rangeEnd
@@ -398,8 +466,8 @@ export function ResultCurve({
           {...(picking === "from" ? { notAfter: to ?? today } : { notBefore: from ?? earliest })}
           reset={picking === "from" ? t.players.playerPage.earliest : t.players.playerPage.now}
           onPick={(day) => {
-            if (picking === "from") setFrom(day);
-            else setTo(day);
+            if (picking === "from") kept.setFrom(day);
+            else kept.setTo(day);
             setPicking(undefined);
           }}
           onClose={() => setPicking(undefined)}
