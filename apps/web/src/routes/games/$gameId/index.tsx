@@ -366,12 +366,12 @@ function GameLedger({ game }: { game: Game }) {
                 <AddPlayerToGame
                   variant={variant}
                   excludedIds={new Set(people.map(({ playerId }) => playerId))}
-                  onPick={({ id }: Player) =>
+                  onPick={(player: Player) =>
                     setPending({
                       kind: handChips === undefined ? "buy" : "join",
-                      playerId: id,
+                      playerId: player.id,
                       // The label the player reads in the row once bought in, as `小王_2`
-                      name: gameNameOnBuyIn(players, events, id),
+                      name: gameNameOnBuyIn(players, events, player),
                     })
                   }
                 />

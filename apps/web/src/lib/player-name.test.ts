@@ -100,23 +100,30 @@ describe("gameNameOnBuyIn", () => {
     const players = [named("a", "小王", 1), named("b", "小王", 2), named("c", "小王", 3)];
     const events: LedgerEvent[] = [buyIn("1", "a"), buyIn("2", "b")];
 
-    expect(gameNameOnBuyIn(players, events, "c")).toBe("小王_2");
+    expect(gameNameOnBuyIn(players, events, named("c", "小王", 3))).toBe("小王_2");
+  });
+
+  it("names a player just made, who is not yet in the list of players", () => {
+    const players = [named("a", "小王", 1), named("b", "小王", 2)];
+    const events: LedgerEvent[] = [buyIn("1", "a"), buyIn("2", "b")];
+
+    expect(gameNameOnBuyIn(players, events, named("new", "小王", 9))).toBe("小王_2");
   });
 
   it("keeps the label of a player already in the game", () => {
     const players = [named("a", "小王", 1), named("b", "小王", 2)];
     const events: LedgerEvent[] = [buyIn("1", "b"), buyIn("2", "a")];
 
-    expect(gameNameOnBuyIn(players, events, "a")).toBe("小王_1");
-    expect(gameNameOnBuyIn(players, events, "b")).toBe("小王");
+    expect(gameNameOnBuyIn(players, events, named("a", "小王", 1))).toBe("小王_1");
+    expect(gameNameOnBuyIn(players, events, named("b", "小王", 2))).toBe("小王");
   });
 
   it("reads the plain name of a player whose name no one else in the game has", () => {
     const players = [named("a", "小王", 1), named("c", "老张", 3)];
     const events: LedgerEvent[] = [buyIn("1", "a")];
 
-    expect(gameNameOnBuyIn(players, events, "c")).toBe("老张");
-    expect(gameNameOnBuyIn(players, [], "a")).toBe("小王");
+    expect(gameNameOnBuyIn(players, events, named("c", "老张", 3))).toBe("老张");
+    expect(gameNameOnBuyIn(players, [], named("a", "小王", 1))).toBe("小王");
   });
 });
 

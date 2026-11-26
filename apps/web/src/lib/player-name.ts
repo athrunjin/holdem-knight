@@ -60,20 +60,20 @@ export function gameNameSuffixOf(players: readonly Player[], events: readonly Le
 export function gameNameOnBuyIn(
   players: readonly Player[],
   events: readonly LedgerEvent[],
-  playerId: string,
+  player: Player,
 ): string {
-  const player = players.find(({ id }) => id === playerId);
-  if (!player) return t.common.unknownPlayer;
+  // A player just made may not be in `players` yet
+  const everyone = players.some(({ id }) => id === player.id) ? players : [...players, player];
   const buyIn: LedgerEvent = {
-    id: `${playerId}:next-buy-in`,
+    id: `${player.id}:next-buy-in`,
     organizerId: player.organizerId,
     gameId: events[0]?.gameId ?? "",
     occurredAt: events.at(-1)?.occurredAt ?? 0,
     type: "buy_in",
-    playerId,
+    playerId: player.id,
     chips: 1,
   };
-  return gamePlayerNames([...events, buyIn], players).get(playerId) ?? player.name;
+  return gamePlayerNames([...events, buyIn], everyone).get(player.id) ?? player.name;
 }
 
 /** A name across games: the plain name, and the record's number where another record has the name. */

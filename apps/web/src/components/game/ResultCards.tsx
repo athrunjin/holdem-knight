@@ -457,11 +457,18 @@ function CardName({
   if (suffix === undefined || suffix === "" || !name.endsWith(suffix)) {
     return <span className={cn(nameClass, dimmed && "text-muted")}>{name}</span>;
   }
+  // Read aloud as one word, `小王_1`, not as the two parts drawn
   return (
-    <span className={cn("flex min-w-0 items-end leading-tight", dimmed && "text-muted")}>
-      <span className={cn(nameClass, "min-w-0")}>{name.slice(0, -suffix.length)}</span>
-      <span className="shrink-0 whitespace-nowrap">{suffix}</span>
-    </span>
+    <>
+      <span className="sr-only">{name}</span>
+      <span
+        aria-hidden
+        className={cn("flex min-w-0 items-end leading-tight", dimmed && "text-muted")}
+      >
+        <span className={cn(nameClass, "min-w-0")}>{name.slice(0, -suffix.length)}</span>
+        <span className="shrink-0 whitespace-nowrap">{suffix}</span>
+      </span>
+    </>
   );
 }
 
