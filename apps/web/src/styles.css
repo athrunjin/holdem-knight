@@ -32,6 +32,13 @@
   --color-avatar-4: #55395f;
   --color-avatar-5: #6a4234;
   --color-avatar-6: #6b5a22;
+
+  /*
+   * Two of the four kinds of income in charts: the table fee in a lighter green beside the
+   * deeper green of wages, and rake in the only blue in the app. Nothing else uses them.
+   */
+  --color-table-fee: #a9e4c8;
+  --color-rake: #6aa9e9;
 }
 
 :root {
