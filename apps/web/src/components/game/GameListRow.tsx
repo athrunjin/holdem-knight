@@ -1,11 +1,4 @@
-import {
-  type Cents,
-  cents,
-  type Game,
-  type GameSummary,
-  INCOME_ITEMS,
-  playerResult,
-} from "@holdem-knight/core";
+import { type Cents, type Game, type GameSummary, playerResult } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
@@ -16,7 +9,8 @@ import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { hasBadDebt, owesTransfers } from "@/lib/game-history";
 import { leaveList } from "@/lib/list-return";
-import { GameOptions, OPTION_MARKS } from "./GameOptions";
+import { GameOptions } from "./GameOptions";
+import { revenueOf } from "./revenue";
 
 /** The day a game started, as 26/7/21 */
 const STARTED_ON = new Intl.DateTimeFormat(localeTag, {
@@ -34,35 +28,6 @@ const STARTED_AT = new Intl.DateTimeFormat(localeTag, {
   minute: "2-digit",
   hour12: false,
 });
-
-/**
- * What a settled game came to for the organizer, in the order a row spells it out: their own play,
- * the four items of income, and the differences that fell to them. Parts that are 0 are left out.
- */
-function revenueOf(summary: GameSummary) {
-  const own = summary.players.find(({ playerId }) => playerId === summary.organizerId);
-  const share = cents((own?.share ?? 0) + summary.absorbed);
-  const parts: { key: string; label: string; className: string; amount: Cents }[] = [
-    {
-      key: "asPlayer",
-      label: t.gamePages.list.asPlayer,
-      className: "text-muted",
-      // Without their share of a difference, which has its own place at the end
-      amount: cents((own?.total ?? 0) - (own?.share ?? 0)),
-    },
-    ...INCOME_ITEMS.map((item) => ({
-      key: item,
-      label: OPTION_MARKS[item].label,
-      className: OPTION_MARKS[item].className,
-      amount: summary.income[item],
-    })),
-    { key: "shared", label: t.gamePages.list.shared, className: "text-muted", amount: share },
-  ];
-  return {
-    total: cents(parts.reduce((all, { amount }) => all + amount, 0)),
-    parts: parts.filter(({ amount }) => amount !== 0),
-  };
-}
 
 /**
  * What a settled game came to for one of its players: what they won or lost in chips. A share of
