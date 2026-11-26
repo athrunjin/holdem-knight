@@ -84,8 +84,11 @@ export const me = {
     absorbed: "承担差额",
     kept: "收取差额",
     absorbedNote: "不计入四项收入",
+    trend: "趋势",
     span: "时间",
     spans: { weeks4: "过去四周", months4: "近 4 个月" },
+    // Insurance over its column of the chart, where the full word does not fit
+    barInsurance: "保险",
     barShown: (name: string) => `显示${name}`,
     weekFrom: (day: string) => `${day}起一周`,
     barTotal: (period: string, amount: string) => `${period}：${amount}`,

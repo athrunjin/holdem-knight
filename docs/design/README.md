@@ -134,7 +134,7 @@ Motion shows where something came from and that a figure changed. It never delay
 1. Title, with the emblem or actions at the right.
 2. The headline card: what it is of and its period on one line, filters at the right of that line, then the figure. The figure stands right under that line in every card, at the same place, so the eye finds it by the title and not by whatever chart follows; figures that go with it sit at its right, and a chart starts a clear step below.
 3. The breakdown of that figure.
-4. Charts or trends, with their own controls inside their card.
+4. Charts or trends, with their own controls inside their card. A card's title sits at its top left: a muted name, `·`, then the period as a menu with the count in brackets. A legend that also filters sits in one row under it, in the chart's columns.
 5. Lists, newest first unless the organizer chose otherwise.
 
 Fixed orders are kept everywhere they appear: insurance, wage, table fee, rake for charges; the app's own order for currencies; periods from the nearest to the widest (this week, last week, this month, last month, three months, six months, this year, all). A menu of periods or stages shows the number of games behind each choice in brackets.
@@ -184,4 +184,5 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | 2026-11-24 | Bad debts: red with its word, two buttons under ticked lines, marks side by side in a row's corner |
 | 2026-11-24 | Ticks that remove a line wait for a confirm, lines leave with their own motion, single-line rows carry their control, and what pages open on |
 | 2026-11-26 | The table fee and rake chart colors are tokens, `table-fee` and `rake` |
-| 2026-11-26 | The picked players' chips keep their 20px; a menu beside a legend keeps its width and the legend wraps first; long initials in a row are cut short before the name |
+| 2026-11-26 | The picked players' chips keep their 20px; the income chart's span menu kept its width beside its legend (since replaced, see below); long initials in a row are cut short before the name |
+| 2026-11-26 | A card's title at its top left, as a muted name, `·` and the period as a menu; a legend that filters in one row under it, one item over each column of the chart |

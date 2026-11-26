@@ -90,8 +90,11 @@ export const me: Messages["me"] = {
     absorbed: "Difference covered",
     kept: "Difference kept",
     absorbedNote: "not part of the four above",
+    trend: "Trend",
     span: "Period",
     spans: { weeks4: "Past 4 weeks", months4: "Last 4 months" },
+    // Insurance over its column of the chart, where the full word does not fit
+    barInsurance: "Ins.",
     barShown: (name) => `Show ${name}`,
     weekFrom: (day) => `Week of ${day}`,
     barTotal: (period, amount) => `${period}: ${amount}`,
