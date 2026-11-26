@@ -18,11 +18,14 @@ It sits beside `pnpm check`, which cannot see a page. `pnpm check` says the chan
 
 A change with nothing to see (rules in `core`, the database, tooling, documents) skips steps 4 to 7 and says so.
 
+Step 4 can be run as a loop by a second agent that did not write the code: `/gan-build` starts a generator and an evaluator, the evaluator runs this review on the running app through Playwright and grades its findings, and the generator fixes them until the score passes with no blocker open. The agents are in `.claude/agents`. Its report feeds step 5; it does not replace step 6.
+
 ## How to review
 
 Open the changed pages in the preview with data that fills them: long names, six-digit amounts, a negative figure, an empty state. Dark mode, in Chinese first.
 
 1. **Widths:** 360, 393 and 412px. At 360 nothing may overlap or be cut off; 393 to 412 is where it must look right.
+   Then 768, 1024 and 1440px, for a tablet and a browser on a desk: the page must hold, with nothing overlapping, cut off or stretched until it is hard to read.
 2. **Both languages:** every changed page once in English at 393px.
 3. **States:** empty, loading, error, one item, many items; each control on, off and disabled.
 4. **Motion:** each new or changed animation played from start to end, then with reduced motion turned on.
@@ -47,6 +50,7 @@ Measure where the eye cannot be trusted: row heights, touch targets and alignmen
 - [ ] Borders set surfaces off; shadows only on what floats
 - [ ] Every touch target at least 44px, none overlapping
 - [ ] Holds at 360px; right at 393 to 412px; long names and six-digit amounts wrap as the guide says
+- [ ] Holds at 768, 1024 and 1440px
 
 **Components and layout**
 - [ ] Existing components used; anything new is justified in the pull request and added to the guide
@@ -75,7 +79,7 @@ Each finding is graded, and the pull request lists the ones left open.
 | Grade | Meaning | Before hand-over |
 | --- | --- | --- |
 | Blocker | Breaks the guide where the organizer will see it: overlap or cut-off text at 393 to 412px, a target under 44px, an unreadable color, a wrong figure, motion that traps | Fixed |
-| Should fix | Off the guide but usable: a size outside the scale, a hex value, a problem only at 360px or only in English | Fixed, or listed with a reason |
+| Should fix | Off the guide but usable: a size outside the scale, a hex value, a problem only at 360px, only in English, or only at a tablet or desktop width | Fixed, or listed with a reason |
 | Note | A question of taste, or a gap in the guide itself | Listed for the organizer to decide |
 
 ## What the pull request says

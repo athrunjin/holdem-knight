@@ -65,3 +65,13 @@ The logo, icons and brand rules are in `docs/brand/README.md` (ADR 0021).
 - How the app looks and moves is in `docs/design/README.md`: color, type, space, components, motion, the order of a page. Read it before planning or building anything the app shows, and build from its tokens and components.
 - Every change to what the app shows goes through the visual review in `docs/design/review.md` after `pnpm check` and before it is handed over: in the preview at 360, 393 and 412px, dark, in Chinese and English, through its states and animations. Blockers are fixed first; the hand-over says what was reviewed, what was measured, what is left open and what was not looked at (ADR 0050).
 - A decision the organizer makes about how something looks that the guide does not have is added to the guide in the same pull request.
+
+## Review loop
+
+`/gan-build "<what changed>" --max-iterations 3 --pass-threshold 8.0` runs the visual review as a loop of two agents (`.claude/agents`): a generator that builds from `gan-harness/spec.md` and an evaluator that reviews the running app through the Playwright MCP server of `.mcp.json`.
+
+- For changes to what the app shows only. Rules in `core`, the database and tooling are held by tests and review, not by a score.
+- The spec is written first, from the plan the organizer agreed to; the loop has no planner and does not invent scope.
+- It runs on a branch, never on `main`, one loop at a time on a machine: the preview port 5174 and the local Supabase are shared.
+- The evaluator's findings never change a figure or a rule of `core`; a conflict is reported, not settled by the loop.
+- A pass is not acceptance. The pull request still says what was reviewed and what was not, and the organizer reads the preview on a phone.

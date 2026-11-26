@@ -17,6 +17,9 @@ coverage/
 playwright-report/
 test-results/
 
+# Working files of the review loop (/gan-build)
+gan-harness/
+
 # Editors / OS
 .vscode/*
 !.vscode/extensions.json
