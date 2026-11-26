@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import { type BooksState, createBooks, type Store } from "./books";
 import { createDexieRepository, createGuestDatabase } from "./dexie-repository";
 import { queryClient } from "./query-client";
-import { accountQuery, currentSession, onSessionChange } from "./session";
+import { accountKey, accountQuery, currentSession, onSessionChange } from "./session";
 import { supabase } from "./supabase";
 import { createSupabaseRepository } from "./supabase-repository";
 
@@ -31,7 +31,9 @@ const books = createBooks({
   },
   async openAccount(userId) {
     if (!supabase) throw new Error("No project to sign in to");
-    const { spaceId, spaceName } = await queryClient.fetchQuery(accountQuery(userId));
+    const { spaceId, spaceName, agreed } = await queryClient.fetchQuery(accountQuery(userId));
+    // The account is asked first, and nothing of its books is read before it answers (ADR 0052)
+    if (!agreed) return "agreeing";
     return {
       key: `account:${spaceId}`,
       mode: "account",
@@ -51,6 +53,16 @@ void books.follow();
 /** Books that could not be reached are tried again, as they are when the network comes back. */
 export const retryBooks = () => void books.follow();
 
+/**
+ * Opens an account's books once it has agreed to the terms: the account is read again, as what
+ * was read of it said it had not, and its space with the name it confirmed is opened, so its own
+ * record is made under that name (ADR 0051).
+ */
+export async function openAgreedBooks(userId: string) {
+  await queryClient.invalidateQueries({ queryKey: accountKey(userId), refetchType: "none" });
+  await books.follow();
+}
+
 if (typeof window !== "undefined") {
   window.addEventListener("online", () => {
     if (books.state().status === "unreachable") retryBooks();
@@ -61,6 +73,9 @@ if (typeof window !== "undefined") {
 export function useBooks(): BooksState {
   return useSyncExternalStore(books.subscribe, books.state);
 }
+
+/** The same, read once, outside a page. */
+export const booksState = (): BooksState => books.state();
 
 /** The organizer every new record is written under: the guest, or the space of the account signed in. */
 export const currentOrganizerId = (): OrganizerId => books.current().organizerId;

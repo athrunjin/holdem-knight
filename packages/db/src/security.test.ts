@@ -195,6 +195,134 @@ describe("agreeing to the terms", () => {
   });
 });
 
+describe("an account made through Google", () => {
+  const shown = async (email: string, meta: Record<string, string>) => {
+    const account = await signUp(db, email, meta);
+    const profile = await db.query<{ display_name: string; agreed_at: Date | null }>(
+      "select display_name, agreed_at from public.profiles where id = $1",
+      [account.id],
+    );
+    return profile.rows[0];
+  };
+
+  it("shows Google's full name, then its name, where it gave no name of its own", async () => {
+    expect(
+      (await shown("g1@example.com", { full_name: "Lin Wei", name: "Wei" }))?.display_name,
+    ).toBe("Lin Wei");
+    expect((await shown("g2@example.com", { name: "Wei" }))?.display_name).toBe("Wei");
+  });
+
+  it("shows its own name over both", async () => {
+    const profile = await shown("g3@example.com", {
+      display_name: "小林",
+      full_name: "Lin Wei",
+      name: "Wei",
+    });
+    expect(profile?.display_name).toBe("小林");
+  });
+
+  it("passes over a name it may not show, to the next one and then the address", async () => {
+    expect(
+      (await shown("g4@example.com", { full_name: "O'Brien", name: "Pat" }))?.display_name,
+    ).toBe("Pat");
+    expect(
+      (await shown("g5@example.com", { full_name: "O'Brien", name: "<b>" }))?.display_name,
+    ).toBe("g5");
+  });
+
+  it("has not agreed to the terms", async () => {
+    expect((await shown("g6@example.com", { full_name: "Lin Wei" }))?.agreed_at).toBeNull();
+  });
+});
+
+describe("agreeing to the terms after signing in", () => {
+  let lin: TestAccount;
+  let bystander: TestAccount;
+
+  interface Agreement {
+    display_name: string;
+    agreed_at: Date | null;
+    agreed_version: string | null;
+    name: string;
+  }
+
+  const agreement = async (account: TestAccount) =>
+    (
+      await db.query<Agreement>(
+        `select p.display_name, p.agreed_at, p.agreed_version, o.name
+         from public.profiles p join public.organizers o on o.owner_id = p.id where p.id = $1`,
+        [account.id],
+      )
+    ).rows[0];
+
+  const agree = (account: TestAccount | null, name: string, version: string) =>
+    asAccount(db, account, () => db.query("select public.agree_to_terms($1, $2)", [name, version]));
+
+  beforeAll(async () => {
+    lin = await signUp(db, "lin@example.com", { full_name: "Lin Wei" });
+    bystander = await signUp(db, "bystander@example.com", { full_name: "Bystander" });
+  });
+
+  it("records the time, the version and the name on the profile and the space", async () => {
+    await agree(lin, "小林", "2026-11");
+    const after = await agreement(lin);
+    expect(after?.agreed_at).toBeInstanceOf(Date);
+    expect(after?.agreed_version).toBe("2026-11");
+    expect(after?.display_name).toBe("小林");
+    expect(after?.name).toBe("小林");
+  });
+
+  it("keeps the first time and version at a second call", async () => {
+    const before = await agreement(lin);
+    await agree(lin, "林伟", "2027-01");
+    const after = await agreement(lin);
+    expect(after?.agreed_at).toEqual(before?.agreed_at);
+    expect(after?.agreed_version).toBe("2026-11");
+  });
+
+  it("changes no other account", async () => {
+    expect(await agreement(bystander)).toEqual({
+      display_name: "Bystander",
+      agreed_at: null,
+      agreed_version: null,
+      name: "Bystander",
+    });
+  });
+
+  it("is refused to a visitor who has not signed in", async () => {
+    await expect(agree(null, "访客", "0")).rejects.toThrow(/permission denied/);
+  });
+
+  it("refuses a name an account may not show, or a version out of bounds, and changes nothing", async () => {
+    const before = await agreement(bystander);
+    for (const name of ["", "保险", "<b>", "王".repeat(31)]) {
+      await expect(agree(bystander, name, "0"), JSON.stringify(name)).rejects.toThrow(
+        /may not show/,
+      );
+    }
+    for (const version of ["", "v".repeat(21)]) {
+      await expect(agree(bystander, "旁人", version), version).rejects.toThrow(/1 to 20/);
+    }
+    expect(await agreement(bystander)).toEqual(before);
+  });
+
+  it("is the only way to the agreement: it still cannot be written or cleared by hand", async () => {
+    await asAccount(db, lin, async () => {
+      await expect(
+        db.query("update public.profiles set agreed_at = null where id = $1", [lin.id]),
+      ).rejects.toThrow(/permission denied/);
+      await expect(
+        db.query("update public.profiles set agreed_version = 'x' where id = $1", [lin.id]),
+      ).rejects.toThrow(/permission denied/);
+    });
+    await asAccount(db, bystander, async () => {
+      await expect(
+        db.query("update public.profiles set agreed_at = now() where id = $1", [bystander.id]),
+      ).rejects.toThrow(/permission denied/);
+    });
+  });
+});
+
 describe("the owner of a space", () => {
   it("reads and keeps its books", async () => {
     await asAccount(db, host, async () => {

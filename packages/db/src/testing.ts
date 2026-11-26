@@ -49,15 +49,20 @@ export interface TestAccount {
   readonly space: string;
 }
 
-/** Signs an account up, as Supabase Auth does by adding a user, and finds the space it was given. */
+/**
+ * Signs an account up, as Supabase Auth does by adding a user, and finds the space it was given.
+ * The metadata is what the user arrives with: the app's sign-up gives a name and the version of
+ * the terms, Google a `full_name` and a `name`.
+ */
 export async function signUp(
   db: TestDatabase,
   email: string,
-  displayName?: string,
+  displayName?: string | Record<string, string>,
   termsVersion?: string,
 ): Promise<TestAccount> {
   const meta = JSON.stringify({
-    ...(displayName !== undefined && { display_name: displayName }),
+    ...(typeof displayName === "string" && { display_name: displayName }),
+    ...(typeof displayName === "object" && displayName),
     ...(termsVersion !== undefined && { terms_version: termsVersion }),
   });
   const user = await db.query<{ id: string }>(

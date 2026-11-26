@@ -21,14 +21,20 @@ interface Account {
 
 const made: string[] = [];
 
-/** An account with its address confirmed, signed in as the app would be. */
-async function account(name: string): Promise<Account> {
+/**
+ * An account with its address confirmed, signed in as the app would be. It arrives with the name
+ * it gave, unless it is given other metadata, such as Google's.
+ */
+async function account(
+  name: string,
+  metadata: Record<string, string> = { display_name: name },
+): Promise<Account> {
   const email = `${name}-${run}@example.com`;
   const created = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
-    user_metadata: { display_name: name },
+    user_metadata: metadata,
   });
   if (created.error) throw created.error;
   const id = created.data.user.id;
@@ -94,6 +100,57 @@ describe("an account made through sign-in", () => {
     expect(games.data).toEqual([{ id: "g1", status: "open", created_at: 1 }]);
     const events = await host.client.from("ledger_events").select("id, game_id, type, player_id");
     expect(events.data).toEqual([{ id: "e1", game_id: "g1", type: "buy_in", player_id: "p1" }]);
+  });
+});
+
+describe("an account that has not agreed to the terms", () => {
+  let lin: Account;
+
+  const agreement = async () =>
+    (await lin.client.from("profiles").select("display_name, agreed_at, agreed_version").single())
+      .data;
+
+  beforeAll(async () => {
+    // As Google or the dashboard makes one: a full name, and no version of the terms
+    lin = await account("lin", { full_name: "Lin Wei" });
+  });
+
+  it("shows the name it came with and has no agreement", async () => {
+    expect(await agreement()).toEqual({
+      display_name: "Lin Wei",
+      agreed_at: null,
+      agreed_version: null,
+    });
+  });
+
+  it("agrees once, under the name it confirms, which its space takes too", async () => {
+    expect(
+      (await lin.client.rpc("agree_to_terms", { display_name: "小林", version: "0" })).error,
+    ).toBeNull();
+    const first = await agreement();
+    expect(first?.display_name).toBe("小林");
+    expect(first?.agreed_version).toBe("0");
+    expect(Date.parse(first?.agreed_at)).toBeGreaterThan(Date.now() - 60_000);
+    expect((await lin.client.from("organizers").select("name").single()).data?.name).toBe("小林");
+
+    expect(
+      (await lin.client.rpc("agree_to_terms", { display_name: "小林", version: "9" })).error,
+    ).toBeNull();
+    const second = await agreement();
+    expect(second?.agreed_at).toBe(first?.agreed_at);
+    expect(second?.agreed_version).toBe("0");
+  });
+
+  it("is refused a name an account may not show", async () => {
+    const refused = await lin.client.rpc("agree_to_terms", { display_name: "保险", version: "0" });
+    expect(refused.error?.code).toBe("23514");
+    expect((await agreement())?.display_name).toBe("小林");
+  });
+
+  it("is refused to a visitor who has not signed in", async () => {
+    const visitor = appClient(stack);
+    const refused = await visitor.rpc("agree_to_terms", { display_name: "访客", version: "0" });
+    expect(refused.error?.code).toBe("42501");
   });
 });
 

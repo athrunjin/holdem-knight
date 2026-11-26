@@ -8,4 +8,9 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL?: string;
   /** The project's public key: row-level security decides what it may read and write. */
   readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string;
+  /**
+   * `off` closes making an account by email and password, and hides the password reset, until the
+   * project has a sending domain: online builds set it. Missing, or `on`, both are open (ADR 0052).
+   */
+  readonly VITE_EMAIL_SIGN_UP?: "on" | "off";
 }

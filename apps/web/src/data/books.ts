@@ -19,20 +19,25 @@ export type Reader =
   | { readonly status: "account"; readonly userId: string };
 
 /**
- * Whether there are books to show: not known yet, an account's that cannot be reached, or open.
- * Nothing reads or writes until they are open.
+ * Whether there are books to show: not known yet, an account's that cannot be reached, an
+ * account's that wait until it agrees to the terms (ADR 0052), or open. Nothing reads or writes
+ * until they are open.
  */
 export type BooksState =
   | { readonly status: "opening" }
   | { readonly status: "unreachable" }
+  | { readonly status: "agreeing"; readonly userId: string }
   | { readonly status: "open"; readonly key: string; readonly mode: Store["mode"] };
 
 interface Sources {
   /** The books on this device, which are there with or without an account. */
   readonly guest: Store;
   reader(): Reader;
-  /** The books of an account's space. Fails when they cannot be reached. */
-  openAccount(userId: string): Promise<Store>;
+  /**
+   * The books of an account's space, or `agreeing` for an account that has not agreed to the
+   * terms, whose books are not opened. Fails when they cannot be reached.
+   */
+  openAccount(userId: string): Promise<Store | "agreeing">;
   /** Called as the books change hands, before anything reads the new ones. */
   onSwitch(): void;
 }
@@ -73,10 +78,15 @@ export function createBooks({ guest, reader, openAccount, onSwitch }: Sources) {
     if (who.status === "loading") return show({ status: "opening" });
     if (who.status === "guest") return open(guest);
     if (state.status === "open" && account === who.userId) return;
-    show({ status: "opening" });
+    // An account asked again once it has agreed keeps its step on screen until its books open
+    const agreeing = state.status === "agreeing" && state.userId === who.userId;
+    if (!agreeing) show({ status: "opening" });
     try {
-      const store = await openAccount(who.userId);
-      if (mine === turn) open(store, who.userId);
+      const found = await openAccount(who.userId);
+      if (mine !== turn) return;
+      // Its books stay closed, and what was in use stays so: nothing is switched or let go
+      if (found === "agreeing") show({ status: "agreeing", userId: who.userId });
+      else open(found, who.userId);
     } catch {
       if (mine === turn) show({ status: "unreachable" });
     }

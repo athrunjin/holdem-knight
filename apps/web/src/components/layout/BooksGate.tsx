@@ -110,7 +110,8 @@ function ReadFailure({ account }: { account: boolean }) {
 export function BooksGate({ children }: { children: ReactNode }) {
   const books = useBooks();
 
-  if (books.status === "opening") return <Opening />;
+  // An account that has not agreed to the terms waits here until its step is built
+  if (books.status === "opening" || books.status === "agreeing") return <Opening />;
   if (books.status === "unreachable") return <Unreachable />;
   return (
     <Fragment key={books.key}>

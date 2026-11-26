@@ -167,7 +167,16 @@ site_url = "http://localhost:5173"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["http://localhost:5173", "http://localhost:5174"]
+# Any address on `localhost` passes as the site's own. Signing in with Google comes back to the
+# page it left (ADR 0052), so the review loop's origins on `handflow.localhost` are listed with
+# every path under them.
+additional_redirect_urls = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://handflow.localhost:5174/**",
+  "http://*.handflow.localhost:5174/**",
+  "http://handflow.localhost:5175/**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -351,6 +360,25 @@ url = ""
 # If enabled, the nonce check will be skipped. Required for local sign in with Google auth.
 skip_nonce_check = false
 # If enabled, it will allow the user to successfully authenticate when the provider does not return an email address.
+email_optional = false
+
+# Signing in with Google (ADR 0052). Off here, so the stack starts for anyone with no secret. To
+# try it locally, make an OAuth client of type "Web application" in Google Cloud with
+# http://127.0.0.1:54321/auth/v1/callback as its redirect URI, then set these three, in the shell
+# or in `supabase/.env` (ignored by git), and run `pnpm db:stop` and `pnpm db:start`:
+#   SUPABASE_AUTH_EXTERNAL_GOOGLE_ENABLED=true (the CLI's own override of `enabled` below)
+#   SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID=...
+#   SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET=...
+# `enabled` cannot read `env(...)` itself: the CLI refuses the file when the variable is unset.
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+# DO NOT commit your OAuth provider secret to git. Use environment variable substitution instead:
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+redirect_uri = ""
+url = ""
+# Local sign-in with Google needs it, as the comment on Apple above says
+skip_nonce_check = true
 email_optional = false
 
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS) standard.
