@@ -55,7 +55,7 @@ export function Result({
           rule once the rest is in, and no part of the figure */}
       {share !== 0 && (
         <div
-          key={playKey}
+          key={`${playKey}:share`}
           className={cn("-mb-2 overflow-hidden", playsIn && "animate-unfold")}
           style={{ animationDelay: "1000ms" }}
         >

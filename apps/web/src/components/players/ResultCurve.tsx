@@ -290,7 +290,7 @@ function CurveCard({
             ·
           </span>
           <span className="truncate font-medium">
-            {`${dayName(earliest)} ${t.players.playerPage.to} ${t.players.playerPage.now}`}
+            {t.me.playerFace.sinceFirst(dayName(earliest))}
           </span>
           <CurrencyIcon currency={currency} className="ml-2 size-4.5 shrink-0 text-muted" />
         </div>

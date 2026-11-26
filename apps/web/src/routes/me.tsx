@@ -456,53 +456,6 @@ const SHOWN_LINES = 3;
 
 const curveCard = cn(cardClass, "px-4 pt-1 pb-3");
 
-/** A result head with nothing in it, for a placeholder's structure */
-function EmptyHead() {
-  const zero = cents(0);
-  return (
-    <ResultHead
-      result={zero}
-      shown={zero}
-      games={1}
-      won={0}
-      average={zero}
-      wage={zero}
-      tableFee={zero}
-      money={() => FIGURE}
-    />
-  );
-}
-
-/**
- * The Player face's three cards with nothing in them, while the player, the players or the
- * summaries are read: each card's title line, its figure and its chart's room, so nothing moves
- * when they arrive.
- */
-function PlayerPlaceholder() {
-  return (
-    <div className="invisible" aria-hidden>
-      <section className={curveCard}>
-        <TitleLine name={t.players.playerPage.curve} of={FIGURE} />
-        <EmptyHead />
-        {/* The chart and its days, as the curve card draws them */}
-        <div className="mt-3 h-[9.25rem]" />
-      </section>
-      <section className={cn(curveCard, "mt-3")}>
-        <TitleLine name={t.players.playerPage.result} of={FIGURE} />
-        <EmptyHead />
-        {/* The bars and the room for their notes */}
-        <div className="mt-3" style={{ height: `${TALL + NOTE * 2}rem` }} />
-      </section>
-      <section className={cn(curveCard, "mt-3")}>
-        <TitleLine name={t.players.playerPage.payments} of={t.me.transfers.open} />
-        <PaymentTotals toPay={FIGURE} toReceive={FIGURE} />
-        <div className="mt-1" style={{ height: `${SHOWN_LINES * 2.75}rem` }} />
-      </section>
-      <p className="mt-3 min-h-11" />
-    </div>
-  );
-}
-
 /** What the player still pays at the left, and what is still paid to them at the right. */
 function PaymentTotals({ toPay, toReceive }: { toPay: string; toReceive: string }) {
   return (
@@ -685,6 +638,19 @@ function PlayerCards({
 }
 
 /**
+ * Whether the Player face is still reading the player, the players or the summaries it is drawn
+ * from. No chosen player needs nothing read: its prompt shows at once.
+ */
+function playerFaceLoading(
+  mine: MyPlayerState["mine"],
+  summaries: readonly GameSummary[] | undefined,
+  players: readonly Player[] | undefined,
+) {
+  if (mine.status === "none") return false;
+  return mine.status === "loading" || summaries === undefined || players === undefined;
+}
+
+/**
  * The player's own face of 我的: until a player is chosen as oneself, a prompt to choose one;
  * then their results and payments, and under them who they are with a button to change it. The
  * cards play in once on arriving at 我的 for a player; switched away to the Host face and back,
@@ -732,9 +698,10 @@ function PlayerFace({
       </section>
     );
   }
-  if (mine.status === "loading" || summaries === undefined || players === undefined) {
-    return <PlayerPlaceholder />;
-  }
+  // Nothing until what decides the cards' shape is read: how many games, lines and shares there
+  // are cannot be known before, so a stand-in of another shape would jump. MePage holds what is
+  // under the face back as long, so nothing moves when the cards arrive.
+  if (mine.status !== "chosen" || summaries === undefined || players === undefined) return null;
 
   const { player } = mine;
   return (
@@ -749,7 +716,8 @@ function PlayerFace({
           played.current = player.id;
         }}
       />
-      <div className="mt-3 flex items-center justify-between gap-3 pl-1 text-sm text-muted">
+      {/* In the cards' content column, as their title lines are */}
+      <div className="mt-3 flex items-center justify-between gap-3 px-4 text-sm text-muted">
         {/* The name gives way before the number does */}
         <p className="flex min-w-0 items-baseline gap-1.5">
           <span className="shrink-0">{t.me.playerFace.mine}</span>
@@ -761,7 +729,7 @@ function PlayerFace({
         <button
           type="button"
           onClick={() => setPicking(true)}
-          className="min-h-11 shrink-0 px-1 font-medium text-highlight"
+          className="min-h-11 min-w-11 shrink-0 text-right font-medium text-highlight"
         >
           {t.me.playerFace.change}
         </button>
@@ -799,6 +767,10 @@ function MePage() {
   const myPlayer = useMyPlayer();
   const played = useRef(false);
   const playerPlayed = useRef<string | undefined>(undefined);
+  // Read here as well, from the same cache, so what is under the Player face waits for it
+  const { data: summaries } = useGameSummaries();
+  const { data: players } = usePlayers();
+  const holding = role === "player" && playerFaceLoading(myPlayer.mine, summaries, players);
 
   return (
     <Page
@@ -815,13 +787,17 @@ function MePage() {
       ) : (
         <PlayerFace myPlayer={myPlayer} played={playerPlayed} />
       )}
-      <SettingsList account={session.status === "signed-in"} />
-      {session.status === "signed-in" && (
-        <div className="mt-3">
-          <AccountCard userId={session.userId} email={session.email} />
-        </div>
+      {!holding && (
+        <>
+          <SettingsList account={session.status === "signed-in"} />
+          {session.status === "signed-in" && (
+            <div className="mt-3">
+              <AccountCard userId={session.userId} email={session.email} />
+            </div>
+          )}
+          <p className="mt-6 text-center text-xs text-muted">{t.me.version(__APP_VERSION__)}</p>
+        </>
       )}
-      <p className="mt-6 text-center text-xs text-muted">{t.me.version(__APP_VERSION__)}</p>
     </Page>
   );
 }

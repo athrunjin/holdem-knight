@@ -81,12 +81,15 @@ export function MyPlayerPicker({
                           {playerNumberText(player.number)}
                         </span>
                       )}
-                      {chosen && (
+                      {/* The tick's room on every row, so the numbers keep one column */}
+                      {chosen ? (
                         <Check
                           className="size-4 shrink-0 text-highlight"
                           strokeWidth={2.5}
                           aria-hidden
                         />
+                      ) : (
+                        <span className="size-4 shrink-0" aria-hidden />
                       )}
                     </button>
                   </li>

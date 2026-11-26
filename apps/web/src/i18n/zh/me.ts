@@ -21,6 +21,8 @@ export const me = {
     fromOrganizer: "组织者付给我",
     toPlayer: (name: string) => `付给${name}`,
     fromPlayer: (name: string) => `${name}付给我`,
+    // The curve card's title: from the player's first game to now
+    sinceFirst: (from: string) => `${from} 到 现在`,
   },
   guestOnly: {
     body: "记录只保存在这台设备上。登录后可以保存玩家库和历史牌局，并在多台设备间同步。",

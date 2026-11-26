@@ -26,6 +26,7 @@ export const me: Messages["me"] = {
     fromOrganizer: "From the organizer",
     toPlayer: (name) => `To ${name}`,
     fromPlayer: (name) => `From ${name}`,
+    sinceFirst: (from) => `${from} to now`,
   },
   guestOnly: {
     body: "Records are kept on this device only. Signing in will keep your players and past games, and sync them across devices.",
