@@ -8,9 +8,16 @@ import {
 import { Plus, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { Modal } from "@/components/insurance/Modal";
+import { OwnTag } from "@/components/players/OwnTag";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { TextField } from "@/components/TextField";
-import { newPlayer, usePlayers, useRecentPlayers, useSavePlayer } from "@/data/players";
+import {
+  isOwnRecord,
+  newPlayer,
+  usePlayers,
+  useRecentPlayers,
+  useSavePlayer,
+} from "@/data/players";
 import { t } from "@/i18n";
 import { namesakesOf } from "@/lib/player-name";
 
@@ -42,10 +49,15 @@ export function AddPlayerToGame({ excludedIds, variant, onPick }: AddPlayerToGam
 
   const available = players.filter(({ id }) => !excludedIds.has(id));
   // Namesakes come in order of who played last, so the one at the table now is likely first
-  const matches = orderNamesakesByRecent(
+  const found = orderNamesakesByRecent(
     searchPlayers(available, query),
     recent.map(({ id }) => id),
-  ).slice(0, MAX_SUGGESTIONS);
+  );
+  // The host's own record first, when it is not at the table yet (ADR 0051)
+  const matches = [...found.filter(isOwnRecord), ...found.filter((p) => !isOwnRecord(p))].slice(
+    0,
+    MAX_SUGGESTIONS,
+  );
   const parsed = parsePlayerName(query);
   // Names may repeat (ADR 0043): a name someone has, here or not, can be given to another player
   const namesake = parsed.ok && namesakesOf(players, parsed.name).length > 0;
@@ -112,7 +124,10 @@ export function AddPlayerToGame({ excludedIds, variant, onPick }: AddPlayerToGam
                     className={`${rowClass} border-line`}
                   >
                     <PlayerAvatar id={player.id} name={player.name} size="sm" />
-                    <span className="min-w-0 flex-1 truncate font-medium">{player.name}</span>
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <span className="truncate font-medium">{player.name}</span>
+                      {isOwnRecord(player) && <OwnTag />}
+                    </span>
                     {player.number !== undefined && (
                       <span className="shrink-0 text-xs text-muted tabular-nums">
                         {playerNumberText(player.number)}

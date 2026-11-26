@@ -1,6 +1,6 @@
 # 0042. Linked players read their own results and what a game was played under, and claim their records by invitation
 
-- Status: Accepted
+- Status: Superseded in part by 0051
 - Date: 2026-11-20
 
 ## Context

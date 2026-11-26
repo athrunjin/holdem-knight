@@ -8,7 +8,9 @@ export const me = {
     synced: "已同步到账户",
   },
   playerFace: {
-    empty: "选定自己是哪位玩家后，这里会显示你的战绩。",
+    noSettled: "还没有参加过结算的牌局。",
+    // The curve card's title: from the player's first game to now
+    sinceFirst: (from: string) => `${from} 到 现在`,
   },
   guestOnly: {
     body: "记录只保存在这台设备上。登录后可以保存玩家库和历史牌局，并在多台设备间同步。",

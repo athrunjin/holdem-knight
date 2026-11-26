@@ -1,4 +1,6 @@
 import {
+  type Cents,
+  CURRENCIES,
   type Currency,
   cents,
   daysBetween,
@@ -7,6 +9,8 @@ import {
   type IncomeItem,
   type IncomeReport,
   inPeriod,
+  ORGANIZER_PLAYER_ID,
+  playerReport,
   transferReport,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -15,7 +19,6 @@ import { AccountCard } from "@/components/account/AccountCard";
 import { IdentityHeader } from "@/components/account/Identity";
 import { BackupSection } from "@/components/BackupSection";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
-import { InDevelopment } from "@/components/InDevelopment";
 import {
   CollectedBar,
   IncomeRing,
@@ -28,6 +31,8 @@ import {
 } from "@/components/income/IncomeParts";
 import { Page } from "@/components/Page";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { Result } from "@/components/players/ResultBars";
+import { ResultCurve } from "@/components/players/ResultCurve";
 import { RoleSwitch, useRole } from "@/components/RoleSwitch";
 import { TextMenu } from "@/components/TextMenu";
 import { LATE_DAYS, linesOf } from "@/components/transfers/TransferRows";
@@ -433,13 +438,86 @@ function SettingsList({ account }: { account: boolean }) {
   );
 }
 
-/** Until a player is chosen as oneself, there is nothing of one's own to show. */
-function PlayerFace() {
+/** As many of the player's latest games as the bars card shows, as the player's page opens on */
+const LAST_GAMES = 10;
+
+const curveCard = cn(cardClass, "px-4 pt-1 pb-3");
+
+/**
+ * The player's single games, as the player's page opens on them: the latest ten in the card's
+ * currency, with no filter, their result and a bar for each. Not a link: its title is text.
+ */
+function LastGames({
+  playerId,
+  played,
+  currency,
+}: {
+  playerId: string;
+  played: readonly GameSummary[];
+  currency: Currency;
+}) {
+  // The player's games in this currency, newest first, as the player's page narrows them
+  const narrowed = played
+    .filter((s) => s.currency === currency)
+    .toSorted((a, b) => b.startedAt - a.startedAt);
+  const report = playerReport(narrowed.slice(0, LAST_GAMES), playerId, currency);
+  const money = (value: Cents, signed = false) =>
+    formatGameMoney(value, currency, signed ? "exceptZero" : "auto");
+
   return (
-    <section className={cn(cardClass, "flex flex-col items-start gap-3 p-4")}>
-      <p className="text-sm text-muted">{t.me.playerFace.empty}</p>
-      <InDevelopment milestone="M6" />
+    <section className={cn(curveCard, "mt-3")}>
+      <TitleLine
+        name={t.players.playerPage.result}
+        of={t.players.playerPage.lastGames(Math.min(LAST_GAMES, narrowed.length) || LAST_GAMES)}
+        currency={currency}
+      />
+      <Result report={report} hideGames money={money} playKey={[playerId, currency].join()} />
     </section>
+  );
+}
+
+/**
+ * The host's own results as a player, from their own record, the organizer's seat (ADR 0051): the
+ * running result and the latest games, in one currency, panda points where they have a settled
+ * game in them, else the first currency they have, as their page opens. What they pay or are paid
+ * as the host is on the Host face's 转账, so there is no payments card here.
+ */
+function PlayerFace({ played }: { played: RefObject<boolean> }) {
+  const { data: summaries } = useGameSummaries();
+  const [quiet] = useState(() => played.current);
+  // Once it has shown, it is there at once when the role is switched away and back
+  useEffect(() => {
+    if (summaries !== undefined) played.current = true;
+  }, [summaries, played]);
+
+  // Nothing until the games are read: whether there are two cards or one sentence, and how tall
+  // the bars card is, depend on them, so a stand-in would jump. MePage holds what is under the face
+  // back as long, so nothing moves when the cards arrive
+  if (summaries === undefined) return null;
+
+  const today = dayOf(Date.now());
+  const own = summaries.filter((s) => s.players.some((p) => p.playerId === ORGANIZER_PLAYER_ID));
+  const currencies = CURRENCIES.filter((c) => own.some((s) => s.currency === c));
+  const currency = currencies.find((c) => c === "CNY") ?? currencies[0] ?? "CNY";
+
+  if (own.length === 0) {
+    return (
+      <section className={cn(cardClass, "p-4")}>
+        <p className="text-sm text-muted">{t.me.playerFace.noSettled}</p>
+      </section>
+    );
+  }
+  return (
+    <QuietMotion value={quiet}>
+      <Link
+        to="/players/$playerId"
+        params={{ playerId: ORGANIZER_PLAYER_ID }}
+        className="block rounded-2xl"
+      >
+        <ResultCurve preview playerId={ORGANIZER_PLAYER_ID} summaries={own} today={today} />
+      </Link>
+      <LastGames playerId={ORGANIZER_PLAYER_ID} played={own} currency={currency} />
+    </QuietMotion>
   );
 }
 
@@ -468,6 +546,10 @@ function MePage() {
   const session = useSession();
   const [role, setRole] = useRole();
   const played = useRef(false);
+  const playerPlayed = useRef(false);
+  // Read here as well, from the same cache, so what is under the Player face waits for it
+  const { data: summaries } = useGameSummaries();
+  const holding = role === "player" && summaries === undefined;
 
   return (
     <Page
@@ -479,14 +561,18 @@ function MePage() {
         </div>
       }
     >
-      {role === "host" ? <HostFace played={played} /> : <PlayerFace />}
-      <SettingsList account={session.status === "signed-in"} />
-      {session.status === "signed-in" && (
-        <div className="mt-3">
-          <AccountCard userId={session.userId} email={session.email} />
-        </div>
+      {role === "host" ? <HostFace played={played} /> : <PlayerFace played={playerPlayed} />}
+      {!holding && (
+        <>
+          <SettingsList account={session.status === "signed-in"} />
+          {session.status === "signed-in" && (
+            <div className="mt-3">
+              <AccountCard userId={session.userId} email={session.email} />
+            </div>
+          )}
+          <p className="mt-6 text-center text-xs text-muted">{t.me.version(__APP_VERSION__)}</p>
+        </>
       )}
-      <p className="mt-6 text-center text-xs text-muted">{t.me.version(__APP_VERSION__)}</p>
     </Page>
   );
 }

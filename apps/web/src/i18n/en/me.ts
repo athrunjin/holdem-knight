@@ -14,7 +14,8 @@ export const me: Messages["me"] = {
     synced: "Synced to account",
   },
   playerFace: {
-    empty: "Once you choose which player is you, your own results show here.",
+    noSettled: "No settled games yet.",
+    sinceFirst: (from) => `${from} to now`,
   },
   guestOnly: {
     body: "Records are kept on this device only. Signing in will keep your players and past games, and sync them across devices.",

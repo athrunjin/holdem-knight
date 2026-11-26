@@ -93,8 +93,9 @@ Use what exists before making something new. Each is one file under `apps/web/sr
 
 | Need | Component | Rule |
 | --- | --- | --- |
-| Page frame | `Page` | Title at the left, on every page. An emblem at the right leads back where a page has no tab of its own. One exception, the organizer's decision: 我的 has no title; its header is who is using the app at the left (avatar, name, a muted line with its (i)) and the role switch at the right, and its title is kept for readers only |
+| Page frame | `Page` | Title at the left, on every page. An emblem at the right leads back where a page has no tab of its own. One exception, the organizer's decision: 我的 has no title; its header is who is using the app at the left (avatar, name, a muted line with its (i)) and the role switch at the right, and its title is kept for readers only. Signed in, the header shows the account's name on the avatar of the host's own record, with its number, on both faces |
 | Host or Player | `RoleSwitch` | A small pill of two segments, about 30px tall in a 44px target; one tap anywhere flips it. The chosen segment is filled with `line`, in `text` and medium weight; the other is muted. No gold. The role is kept on the device and shared by 牌局 and 我的 |
+| 我的 for a Player | `PlayerFace` in `routes/me.tsx` | The host's own results as a player, from their own record (ADR 0051): two cards in one currency, the player page's (panda points where they have a settled game in them): the running result (the player page's curve, from the first game to now with no filter or tick), a whole-card link to their page, and the latest ten games' result and bars, which is not a link. With no settled game, one plain sentence and no empty chart. No payments card: what the host pays or is paid is on the Host face's 转账. While the games are read, nothing is shown under the header, as how many cards there are and how tall decides the face's height; the cards and the settings under them arrive together |
 | A choice among a few | `TextMenu` | Text and a chevron; the list opens under it, in the page. The choice in force is white, the rest gray. No radio circles, frames or ticks |
 | A saved setting | `ConfigMenu` | One tap switches, with no second confirmation. A dialog only past five saved entries |
 | Options that can be on or off | Text switches | On in the option's own color, off gray and struck through |
@@ -102,6 +103,7 @@ Use what exists before making something new. Each is one file under `apps/web/sr
 | A game in a list | `GameListRow` | The same row on every page that lists games |
 | A filter with several parts | `IncomeFilter` | A framed button that grows into its panel. What is chosen counts when the panel is put away |
 | A player | `PlayerAvatar` | Wherever a player is listed. A tap on it opens the player's page |
+| The host's own record | `OwnTag` | A small muted pill reading Host after the name, the shape of the guest's sign-in pill but not gold, as it is a fact and not an action. On the own record wherever players are listed: first in the lists a game's players are picked from, in the player list and on its page |
 | A transfer made or not | `DoneButton` | An empty box until ticked, at the end of its line. The same on the settlement page and on 转账 |
 | Help text | `InfoButton` | Explanations live behind the small (i), not on the page |
 | Currency | `CurrencyIcon`, `ChipStack` | Marks, not words |
@@ -193,3 +195,4 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | 2026-11-26 | 我的 for a Host: previews of 收益 and 转账 as whole-card links with the income page's ring at a smaller size, then the settings as rows of one card |
 | 2026-11-26 | A preview card that shows money names its currency by its mark after the title, muted at 18px (`size-4.5`, as in a game's row), a mark and not a control; a card with nothing to show has none |
 | 2026-11-26 | Each preview card on 我的 shows what its page would open on, the view kept there or the page's own defaults, so its figures equal the page's; 转账 also opens on panda points where there are any, as 收益 does |
+| 2026-11-26 | 我的 for a Player: the host's own record and its results, two cards in one currency, the curve a whole link and the bars not; nothing under the header until its games are read, as a stand-in would jump. The own record marked by a muted Host tag and listed first in the pickers; the header shows the account's name on its avatar and number |

@@ -411,6 +411,89 @@ describe("restoring a backup", () => {
   });
 });
 
+describe("the host's own record", () => {
+  const own = (space: string, name = "老王") =>
+    row(space, "organizer", { name, initials: "lw", createdAt: 1 });
+  const linkOf = async (space: string) =>
+    (
+      await db.query<{ linked_user_id: string | null }>(
+        "select linked_user_id from public.players where organizer_id = $1 and id = 'organizer'",
+        [space],
+      )
+    ).rows;
+
+  it("is one a space, linked to the space's owner whatever the app sends", async () => {
+    const mine = await signUp(db, "own@example.com", "阿杰");
+    await asAccount(db, mine, async () => {
+      await insert("players", own(mine.space));
+      await expect(insert("players", own(mine.space, "again"))).rejects.toThrow(/duplicate key/);
+    });
+    expect(await linkOf(mine.space)).toEqual([{ linked_user_id: mine.id }]);
+  });
+
+  it("is brought in through a restore and linked the same way, once", async () => {
+    const brought = await signUp(db, "brought@example.com");
+    await asAccount(db, brought, async () => {
+      const books = JSON.stringify({ players: [JSON.parse(own(brought.space, "我").data)] });
+      await db.query("select * from public.restore_books($1, $2)", [brought.space, books]);
+      const again = await db.query<{ added: number; skipped: number }>(
+        "select * from public.restore_books($1, $2)",
+        [brought.space, books],
+      );
+      expect(again.rows[0]).toEqual({ added: 0, skipped: 1 });
+    });
+    expect(await linkOf(brought.space)).toEqual([{ linked_user_id: brought.id }]);
+  });
+
+  it("stays linked to the owner through a rename, and cannot be unlinked by the app", async () => {
+    const kept = await signUp(db, "kept@example.com");
+    await asAccount(db, kept, async () => {
+      await insert("players", own(kept.space));
+      await db.query(
+        `update public.players set data = data || '{"name":"老板"}' where id = 'organizer'`,
+      );
+      await expect(
+        db.query("update public.players set linked_user_id = null where id = 'organizer'"),
+      ).rejects.toThrow(/permission denied/);
+    });
+    expect(await linkOf(kept.space)).toEqual([{ linked_user_id: kept.id }]);
+  });
+
+  it("cannot be deleted by the owner, or moved to another ID", async () => {
+    const fixed = await signUp(db, "fixed@example.com");
+    await asAccount(db, fixed, async () => {
+      await insert("players", own(fixed.space));
+      await insert(
+        "players",
+        row(fixed.space, "p9", { name: "李四", initials: "ls", createdAt: 2 }),
+      );
+      await db.query("delete from public.players where organizer_id = $1", [fixed.space]);
+      const left = await db.query<{ id: string }>("select id from public.players");
+      expect(left.rows).toEqual([{ id: "organizer" }]);
+      await expect(
+        db.query(
+          `update public.players set id = 'p10', data = data || '{"id":"p10"}' where id = 'organizer'`,
+        ),
+      ).rejects.toThrow(/own record/);
+    });
+  });
+
+  it("is not written into another account's space", async () => {
+    await asAccount(db, other, async () => {
+      await expect(insert("players", own(host.space))).rejects.toThrow(/row-level security/);
+    });
+  });
+
+  it("goes with its space when the space is deleted", async () => {
+    const gone = await signUp(db, "own-gone@example.com");
+    await asAccount(db, gone, async () => {
+      await insert("players", own(gone.space));
+    });
+    await db.query("delete from auth.users where id = $1", [gone.id]);
+    expect(await linkOf(gone.space)).toEqual([]);
+  });
+});
+
 describe("a record", () => {
   it("has to carry the ID and the space it is kept under", async () => {
     await asAccount(db, host, async () => {

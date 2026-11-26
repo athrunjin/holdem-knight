@@ -1,13 +1,20 @@
 import { type Player, searchPlayers } from "@holdem-knight/core";
 import { Check } from "lucide-react";
 import { useState } from "react";
+import { OwnTag } from "@/components/players/OwnTag";
 import {
   matchPlayers,
   PlayerGroups,
   PlayerListHeading,
   PlayerSearch,
 } from "@/components/players/PlayerList";
-import { newPlayer, usePlayers, useRecentPlayers, useSavePlayer } from "@/data/players";
+import {
+  isOwnRecord,
+  newPlayer,
+  usePlayers,
+  useRecentPlayers,
+  useSavePlayer,
+} from "@/data/players";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { type LibraryName, libraryNameOf, libraryNameText } from "@/lib/player-name";
@@ -28,7 +35,8 @@ interface PlayerPickerProps {
  */
 export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps) {
   const players = usePlayers();
-  const recentPlayers = useRecentPlayers(MAX_RECENT);
+  // One more than shown, as the host's own record is taken out of them
+  const recentPlayers = useRecentPlayers(MAX_RECENT + 1);
   const savePlayer = useSavePlayer();
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [query, setQuery] = useState("");
@@ -39,9 +47,18 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
   const nameOf = libraryNameOf(all);
   const recent = recentPlayers.data ?? [];
 
-  const recentMatches = searchPlayers(recent, query);
+  // The host's own record comes first, on a row of its own, and nowhere else (ADR 0051)
+  const own = searchPlayers(all.filter(isOwnRecord), query)[0];
+  const recentMatches = searchPlayers(
+    recent.filter((p) => !isOwnRecord(p)).slice(0, MAX_RECENT),
+    query,
+  );
   // Recent players appear in the full list too, so everyone can be found by letter
-  const { groups, newName, tooLong } = matchPlayers(all, query);
+  const matched = matchPlayers(all, query);
+  const { newName, tooLong } = matched;
+  const groups = matched.groups
+    .map((group) => ({ ...group, players: group.players.filter((p) => !isOwnRecord(p)) }))
+    .filter((group) => group.players.length > 0);
   const isSelected = (id: string) => selected.includes(id);
 
   function toggle(id: string) {
@@ -82,6 +99,18 @@ export function PlayerPicker({ saving, saveFailed, onStart }: PlayerPickerProps)
           <p className="mt-4 rounded-2xl border border-dashed border-line px-6 py-8 text-center text-muted">
             {t.game.playerPicker.noPlayersYetTypeAName}
           </p>
+        )}
+
+        {own && (
+          <div className="mt-4">
+            <PlayerRow
+              player={own}
+              name={nameOf(own.id)}
+              own
+              checked={isSelected(own.id)}
+              onToggle={() => toggle(own.id)}
+            />
+          </div>
         )}
 
         {recentMatches.length > 0 && (
@@ -226,11 +255,14 @@ function RecentTile({
 function PlayerRow({
   player,
   name,
+  own = false,
   checked,
   onToggle,
 }: {
   player: Player;
   name: LibraryName;
+  /** The host's own record, with its tag */
+  own?: boolean;
   checked: boolean;
   onToggle: () => void;
 }) {
@@ -246,6 +278,7 @@ function PlayerRow({
         {name.number !== undefined && (
           <span className="shrink-0 text-xs text-muted tabular-nums">{name.number}</span>
         )}
+        {own && <OwnTag />}
       </span>
       {/* A long name's initials are cut short, so the name keeps the row */}
       <span className="max-w-14 shrink-0 truncate text-xs text-muted">{player.initials}</span>

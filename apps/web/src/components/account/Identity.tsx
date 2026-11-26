@@ -1,8 +1,10 @@
+import { ORGANIZER_PLAYER_ID, playerNumberText } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { User } from "lucide-react";
 import type { ReactNode } from "react";
 import { InfoButton } from "@/components/InfoButton";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { usePlayers } from "@/data/players";
 import { useAccount, useSession } from "@/data/session";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
@@ -26,12 +28,14 @@ export type Identity =
 
 /**
  * Who is using the app: the guest, or the account signed in by its name, or the part of its
- * address before the `@` until it has one. A neutral avatar, as there is no player chosen as
- * oneself yet; once there is, this is the one place that returns that player instead.
+ * address before the `@` until it has one, on the avatar and with the number of the host's own
+ * record in the account's books (ADR 0051). Waits while that record is read, so the avatar never
+ * changes under the name.
  */
 export function useIdentity(): Identity {
   const session = useSession();
   const { data: account } = useAccount(session.status === "signed-in" ? session.userId : undefined);
+  const { data: players, isPending: playersPending } = usePlayers();
 
   switch (session.status) {
     case "loading":
@@ -53,11 +57,16 @@ export function useIdentity(): Identity {
         signIn: true,
       };
     case "signed-in": {
+      // Waits only while the list is read: one that fails, or has no own record, keeps the name
+      if (playersPending) return { status: "loading" };
+      const own = players?.find(({ id }) => id === ORGANIZER_PLAYER_ID);
       const name = account?.displayName || session.email.split("@")[0] || session.email;
       return {
         status: "ready",
         name,
-        avatar: { id: session.userId, ground: "bg-line" },
+        number: own?.number === undefined ? undefined : playerNumberText(own.number),
+        // The own record's avatar keeps its own ground; until it is made, a neutral one
+        avatar: own ? { id: own.id, ground: "" } : { id: session.userId, ground: "bg-line" },
         line: t.me.header.synced,
         about: t.me.account.note,
         signIn: false,

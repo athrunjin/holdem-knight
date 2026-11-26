@@ -66,6 +66,15 @@ export function useBooks(): BooksState {
 export const currentOrganizerId = (): OrganizerId => books.current().organizerId;
 
 /**
+ * The name the host's own record is made with in the books in use (ADR 0051): the account's, as
+ * its space is named after it; nothing for a guest, who has no name.
+ */
+export function currentOwnerName(): string | undefined {
+  const { mode, organizerName } = books.current();
+  return mode === "account" ? organizerName : undefined;
+}
+
+/**
  * What a game's organizer is called on its pages and in what is shared from them: the name of the
  * space whose books are open. Games are only ever read from the books in use; an ID from anywhere
  * else stands for itself.

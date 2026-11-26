@@ -1,6 +1,6 @@
 # 0028. The organizer plays under a seat of their own
 
-- Status: Accepted
+- Status: Superseded in part by 0051
 - Date: 2026-11-12
 
 ## Context

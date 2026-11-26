@@ -2,6 +2,7 @@ import type { Messages } from "../zh";
 
 export const players: Messages["players"] = {
   title: "Players",
+  ownName: "Me",
   playerList: {
     allPlayers: "All players",
     groups: "Groups",
