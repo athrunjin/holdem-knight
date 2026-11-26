@@ -1,3 +1,4 @@
+import { playerNumberText } from "@holdem-knight/core";
 import { Link } from "@tanstack/react-router";
 import { User } from "lucide-react";
 import type { ReactNode } from "react";
@@ -6,6 +7,7 @@ import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { useAccount, useSession } from "@/data/session";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import type { MyPlayerState } from "@/lib/my-player";
 
 /** Who is using the app, as the header of 我的 shows them. */
 export type Identity =
@@ -26,10 +28,11 @@ export type Identity =
 
 /**
  * Who is using the app: the guest, or the account signed in by its name, or the part of its
- * address before the `@` until it has one. A neutral avatar, as there is no player chosen as
- * oneself yet; once there is, this is the one place that returns that player instead.
+ * address before the `@` until it has one, with a neutral avatar. Signed in with a player chosen
+ * as oneself, that player instead, with their own avatar and number. Waits while a chosen player
+ * is looked up, so the name never flips from the account's to the player's.
  */
-export function useIdentity(): Identity {
+export function useIdentity({ mine }: Pick<MyPlayerState, "mine">): Identity {
   const session = useSession();
   const { data: account } = useAccount(session.status === "signed-in" ? session.userId : undefined);
 
@@ -53,6 +56,20 @@ export function useIdentity(): Identity {
         signIn: true,
       };
     case "signed-in": {
+      if (mine.status === "loading") return { status: "loading" };
+      if (mine.status === "chosen") {
+        const { player } = mine;
+        return {
+          status: "ready",
+          name: player.name,
+          number: player.number === undefined ? undefined : playerNumberText(player.number),
+          // No ground of its own: the player's avatar keeps theirs
+          avatar: { id: player.id, ground: "" },
+          line: t.me.header.synced,
+          about: t.me.account.note,
+          signIn: false,
+        };
+      }
       const name = account?.displayName || session.email.split("@")[0] || session.email;
       return {
         status: "ready",
@@ -71,8 +88,8 @@ export function useIdentity(): Identity {
  * who can sign in has the avatar and name as one link to the sign-in page, with a small pill
  * saying so after the name; the (i) is a target of its own beside it.
  */
-export function IdentityHeader() {
-  const identity = useIdentity();
+export function IdentityHeader({ myPlayer }: { myPlayer: MyPlayerState }) {
+  const identity = useIdentity(myPlayer);
   // While the session is read, the header keeps its height so nothing moves when it arrives
   if (identity.status === "loading") return <div className="h-11" />;
 

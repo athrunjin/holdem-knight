@@ -15,6 +15,17 @@ export const me: Messages["me"] = {
   },
   playerFace: {
     empty: "Once you choose which player is you, your own results show here.",
+    choose: "Choose my player",
+    noPlayers: "There are no players in the library yet. Add them under Players, then come back.",
+    noSettled: "No settled games yet.",
+    mine: "My player",
+    change: "Change",
+    toPay: "I owe",
+    toReceive: "Owed to me",
+    toOrganizer: "To the organizer",
+    fromOrganizer: "From the organizer",
+    toPlayer: (name) => `To ${name}`,
+    fromPlayer: (name) => `From ${name}`,
   },
   guestOnly: {
     body: "Records are kept on this device only. Signing in will keep your players and past games, and sync them across devices.",

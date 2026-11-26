@@ -93,8 +93,9 @@ Use what exists before making something new. Each is one file under `apps/web/sr
 
 | Need | Component | Rule |
 | --- | --- | --- |
-| Page frame | `Page` | Title at the left, on every page. An emblem at the right leads back where a page has no tab of its own. One exception, the organizer's decision: 我的 has no title; its header is who is using the app at the left (avatar, name, a muted line with its (i)) and the role switch at the right, and its title is kept for readers only |
+| Page frame | `Page` | Title at the left, on every page. An emblem at the right leads back where a page has no tab of its own. One exception, the organizer's decision: 我的 has no title; its header is who is using the app at the left (avatar, name, a muted line with its (i)) and the role switch at the right, and its title is kept for readers only. Signed in with a player chosen as oneself on the device, the header shows that player: their own avatar, name and number, on both faces |
 | Host or Player | `RoleSwitch` | A small pill of two segments, about 30px tall in a 44px target; one tap anywhere flips it. The chosen segment is filled with `line`, in `text` and medium weight; the other is muted. No gold. The role is kept on the device and shared by 牌局 and 我的 |
+| 我的 for a Player | `PlayerFace` in `routes/me.tsx` | Until a player is chosen as oneself, one card with a prompt and one gold button that opens the picker. Then three cards in one currency, the player page's (panda points where they have a settled game in them): the running result (the player page's curve, from the first game to now with no filter or tick) and the payments still open from the player's side, each a whole-card link to the player's page, and the latest ten games' result and bars, which is not a link. Under them a muted line of who is chosen, with 更换 at the right. The choice is the device's, kept per set of books |
 | A choice among a few | `TextMenu` | Text and a chevron; the list opens under it, in the page. The choice in force is white, the rest gray. No radio circles, frames or ticks |
 | A saved setting | `ConfigMenu` | One tap switches, with no second confirmation. A dialog only past five saved entries |
 | Options that can be on or off | Text switches | On in the option's own color, off gray and struck through |
@@ -102,6 +103,7 @@ Use what exists before making something new. Each is one file under `apps/web/sr
 | A game in a list | `GameListRow` | The same row on every page that lists games |
 | A filter with several parts | `IncomeFilter` | A framed button that grows into its panel. What is chosen counts when the panel is put away |
 | A player | `PlayerAvatar` | Wherever a player is listed. A tap on it opens the player's page |
+| Choosing my player | `MyPlayerPicker` | A dialog with the search field and the rows of a game's add-player search: everyone with nothing typed, the latest to play first, scrolling inside it; one tap chooses and closes; the one in force has a tick and `aria-current`, not a color alone. No player is made here |
 | A transfer made or not | `DoneButton` | An empty box until ticked, at the end of its line. The same on the settlement page and on 转账 |
 | Help text | `InfoButton` | Explanations live behind the small (i), not on the page |
 | Currency | `CurrencyIcon`, `ChipStack` | Marks, not words |
@@ -193,3 +195,5 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | 2026-11-26 | 我的 for a Host: previews of 收益 and 转账 as whole-card links with the income page's ring at a smaller size, then the settings as rows of one card |
 | 2026-11-26 | A preview card that shows money names its currency by its mark after the title, muted at 18px (`size-4.5`, as in a game's row), a mark and not a control; a card with nothing to show has none |
 | 2026-11-26 | Each preview card on 我的 shows what its page would open on, the view kept there or the page's own defaults, so its figures equal the page's; 转账 also opens on panda points where there are any, as 收益 does |
+| 2026-11-26 | 我的 for a Player: the player chosen as oneself on the device, in the header when signed in; three cards of their own in one currency, the curve and payments whole links, the bars not; a muted line of who is chosen with 更换 |
+| 2026-11-26 | Choosing my player: a dialog of the library, the latest to play first, one tap chooses, the one in force ticked |
