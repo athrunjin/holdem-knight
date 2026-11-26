@@ -36,7 +36,7 @@ Dark is the only mode, whatever the device is set to (2026-11-21). Nothing is de
 | `win` | `#5cc79f` | A gain, with its plus sign. The charge labels on a game's row |
 | `loss` | `#ef8a7f` | A loss, with its minus sign. Also what is overdue or set down as a bad debt, with its word |
 
-Use the Tailwind names (`bg-surface`, `text-muted`, `border-line`). A hex value in a component is a defect, with the one exception below.
+Use the Tailwind names (`bg-surface`, `text-muted`, `border-line`). A hex value in a component is a defect.
 
 ### Chart colors
 
@@ -46,10 +46,10 @@ The four kinds of income keep one color each on every page that charts them:
 | --- | --- | --- |
 | Insurance | `highlight` | Red (`loss`) where it lost, and drawn the other way round |
 | Wage | `accent` | The deeper green |
-| Table fee | `#a9e4c8` | The lighter green |
-| Rake | `#6aa9e9` | The only blue in the app |
+| Table fee | `table-fee` (`#a9e4c8`) | The lighter green |
+| Rake | `rake` (`#6aa9e9`) | The only blue in the app |
 
-They are listed in the order insurance, wage, table fee, rake. The two hex values live in the income page today; they move to tokens the next time a second page charts them.
+They are listed in the order insurance, wage, table fee, rake. `table-fee` and `rake` are tokens in the stylesheet (`bg-table-fee`, `stroke-rake`) that nothing but a chart of income uses.
 
 ### Avatar grounds
 
@@ -167,7 +167,6 @@ A tick that would take its line out of the list does not act at once: buttons co
 
 Things that do not follow this guide yet. A pull request that touches one of them fixes it.
 
-- The table fee and rake chart colors are hex values in the income page, not tokens.
 - Type sizes `text-[15px]` and `text-[17px]` are in use beside the scale.
 - English has not been read through page by page at 360px.
 - Tablet layouts are the phone layouts centered; none has been designed for the width.
@@ -184,3 +183,4 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | 2026-11-24 | A chart's line is drawn first and its bars grow from it; the extremes are written at the bars, sliding outward |
 | 2026-11-24 | Bad debts: red with its word, two buttons under ticked lines, marks side by side in a row's corner |
 | 2026-11-24 | Ticks that remove a line wait for a confirm, lines leave with their own motion, single-line rows carry their control, and what pages open on |
+| 2026-11-26 | The table fee and rake chart colors are tokens, `table-fee` and `rake` |

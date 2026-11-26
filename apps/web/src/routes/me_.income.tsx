@@ -60,8 +60,8 @@ const ITEM_NAMES: Record<IncomeItem, string> = {
 const ITEM_FILLS: Record<IncomeItem, { readonly dot: string; readonly stroke: string }> = {
   insurance: { dot: "bg-highlight", stroke: "stroke-highlight" },
   wage: { dot: "bg-accent", stroke: "stroke-accent" },
-  tableFee: { dot: "bg-[#a9e4c8]", stroke: "stroke-[#a9e4c8]" },
-  rake: { dot: "bg-[#6aa9e9]", stroke: "stroke-[#6aa9e9]" },
+  tableFee: { dot: "bg-table-fee", stroke: "stroke-table-fee" },
+  rake: { dot: "bg-rake", stroke: "stroke-rake" },
 };
 /** Insurance that lost over the games shown */
 /** How long the total's card takes to play in, in milliseconds */
