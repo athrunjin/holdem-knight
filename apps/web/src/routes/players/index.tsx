@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Page } from "@/components/Page";
+import { OwnTag } from "@/components/players/OwnTag";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import {
   matchPlayers,
@@ -10,7 +11,7 @@ import {
   PlayerListHeading,
   PlayerSearch,
 } from "@/components/players/PlayerList";
-import { newPlayer, usePlayers, useSavePlayer } from "@/data/players";
+import { isOwnRecord, newPlayer, usePlayers, useSavePlayer } from "@/data/players";
 import { t } from "@/i18n";
 import { namesakeHint } from "@/lib/player-name";
 
@@ -68,7 +69,10 @@ function PlayersPage() {
               className="flex min-h-12 items-center gap-3 rounded-xl border border-line bg-surface pl-3"
             >
               <PlayerAvatar id={id} name={name} size="sm" />
-              <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
+              <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                <span className="truncate font-medium">{name}</span>
+                {isOwnRecord({ id }) && <OwnTag />}
+              </span>
               {number !== undefined && (
                 <span className="text-xs text-muted tabular-nums">{playerNumberText(number)}</span>
               )}

@@ -156,6 +156,16 @@ function GameLedger({ game }: { game: Game }) {
     return handChips === undefined ? 0 : playerTotals(playerId).boughtChips / handChips;
   }
 
+  /** A first buy-in for a seat of the organizer's card: the organizer, or a missing insurance seat. */
+  function joinSeat(playerId: string) {
+    setPending({
+      kind: handChips === undefined ? "buy" : "join",
+      playerId,
+      name: nameOf(playerId),
+      review: true,
+    });
+  }
+
   function closeDialog() {
     setPending(undefined);
     appendEvent.reset();
@@ -336,14 +346,7 @@ function GameLedger({ game }: { game: Game }) {
         live={live}
         onWaive={(key, waived) => saveGame.mutate(waiveCharge(game, key, waived))}
         waiving={saveGame.isPending}
-        onJoin={(playerId) =>
-          setPending({
-            kind: handChips === undefined ? "buy" : "join",
-            playerId,
-            name: nameOf(playerId),
-            review: true,
-          })
-        }
+        onJoin={joinSeat}
         onReturnAll={handleReturnAll}
         players={ledger}
         nameOf={nameOf}
@@ -367,12 +370,16 @@ function GameLedger({ game }: { game: Game }) {
                   variant={variant}
                   excludedIds={new Set(people.map(({ playerId }) => playerId))}
                   onPick={(player: Player) =>
-                    setPending({
-                      kind: handChips === undefined ? "buy" : "join",
-                      playerId: player.id,
-                      // The label the player reads in the row once bought in, as `小王_2`
-                      name: gameNameOnBuyIn(players, events, player),
-                    })
+                    // The host's own record is the organizer's seat (ADR 0051): it joins as the
+                    // organizer's card has it join
+                    player.id === ORGANIZER_PLAYER_ID
+                      ? joinSeat(ORGANIZER_PLAYER_ID)
+                      : setPending({
+                          kind: handChips === undefined ? "buy" : "join",
+                          playerId: player.id,
+                          // The label the player reads in the row once bought in, as `小王_2`
+                          name: gameNameOnBuyIn(players, events, player),
+                        })
                   }
                 />
               )

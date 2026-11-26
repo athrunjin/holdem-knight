@@ -17,15 +17,23 @@ import { organizerNameOf } from "@/data";
 import { t } from "@/i18n";
 
 /**
+ * The library without the host's own record (ADR 0051). In a game it is the organizer's seat,
+ * named after the space as before, so it takes no part in telling namesakes apart there.
+ */
+const withoutOwnRecord = (players: readonly Player[]) =>
+  players.filter(({ id }) => id !== ORGANIZER_PLAYER_ID);
+
+/**
  * Names for everyone with chips in a game: the players, the insurance and rake seats and the
  * organizer, by the name of their space. Players who share a name read it with a suffix in the
  * order they sat down, worked out from the game's ledger (ADR 0043).
  */
 export function gameNameOf(
-  players: readonly Player[],
+  library: readonly Player[],
   game: Pick<Game, "organizerId">,
   events: readonly LedgerEvent[],
 ) {
+  const players = withoutOwnRecord(library);
   const names = new Map(players.map(({ id, name }) => [id, name]));
   for (const [id, label] of gamePlayerNames(events, players)) names.set(id, label);
   names.set(INSURANCE_PLAYER_ID, t.common.insurance);
@@ -39,7 +47,8 @@ export function gameNameOf(
  * their label beyond their plain name, from `gamePlayerNames`, never read off the text, since a
  * real name may end in `_1`. Nothing for a player who reads their plain name, nor for the seats.
  */
-export function gameNameSuffixOf(players: readonly Player[], events: readonly LedgerEvent[]) {
+export function gameNameSuffixOf(library: readonly Player[], events: readonly LedgerEvent[]) {
+  const players = withoutOwnRecord(library);
   const plain = new Map(players.map(({ id, name }) => [id, name]));
   const suffixes = new Map<string, string>();
   for (const [id, label] of gamePlayerNames(events, players)) {
@@ -62,8 +71,9 @@ export function gameNameOnBuyIn(
   events: readonly LedgerEvent[],
   player: Player,
 ): string {
+  const others = withoutOwnRecord(players);
   // A player just made may not be in `players` yet
-  const everyone = players.some(({ id }) => id === player.id) ? players : [...players, player];
+  const everyone = others.some(({ id }) => id === player.id) ? others : [...others, player];
   const buyIn: LedgerEvent = {
     id: `${player.id}:next-buy-in`,
     organizerId: player.organizerId,

@@ -8,19 +8,7 @@ export const me = {
     synced: "已同步到账户",
   },
   playerFace: {
-    empty: "选定自己是哪位玩家后，这里会显示你的战绩。",
-    choose: "选择我的玩家",
-    noPlayers: "玩家库里还没有玩家。先到玩家库添加，再回来选择。",
     noSettled: "还没有参加过结算的牌局。",
-    mine: "我的玩家",
-    change: "更换",
-    // From the player's side: what they still pay, and what is still paid to them
-    toPay: "待付",
-    toReceive: "待收",
-    toOrganizer: "付给组织者",
-    fromOrganizer: "组织者付给我",
-    toPlayer: (name: string) => `付给${name}`,
-    fromPlayer: (name: string) => `${name}付给我`,
     // The curve card's title: from the player's first game to now
     sinceFirst: (from: string) => `${from} 到 现在`,
   },

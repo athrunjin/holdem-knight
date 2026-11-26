@@ -2,6 +2,7 @@ import {
   type ChipEvent,
   INSURANCE_PLAYER_ID,
   type LedgerEvent,
+  ORGANIZER_PLAYER_ID,
   type Player,
   RAKE_PLAYER_ID,
 } from "@holdem-knight/core";
@@ -56,6 +57,20 @@ describe("gameNameOf", () => {
     expect(nameOf(INSURANCE_PLAYER_ID)).toBe(t.common.insurance);
     expect(nameOf(RAKE_PLAYER_ID)).toBe(t.common.rake);
     expect(nameOf("nobody")).toBe(t.common.unknownPlayer);
+  });
+
+  it("names the organizer's seat as before, and gives no suffix for the host's own record", () => {
+    // The own record shares a name with a player, and both are in the game
+    const players = [named(ORGANIZER_PLAYER_ID, "小王", 1), named("a", "小王", 2)];
+    const events: LedgerEvent[] = [buyIn("1", ORGANIZER_PLAYER_ID), buyIn("2", "a")];
+    const nameOf = gameNameOf(players, game, events);
+
+    expect(nameOf("a")).toBe("小王");
+    expect(nameOf(ORGANIZER_PLAYER_ID)).toBe(gameNameOf([], game, events)(ORGANIZER_PLAYER_ID));
+    expect(gameNameSuffixOf(players, events)("a")).toBeUndefined();
+    expect(gameNameOnBuyIn(players, [buyIn("1", ORGANIZER_PLAYER_ID)], players[1] as Player)).toBe(
+      "小王",
+    );
   });
 });
 

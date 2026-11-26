@@ -20,13 +20,14 @@ import { HistorySection } from "@/components/game/HistorySection";
 import { InfoButton } from "@/components/InfoButton";
 import { IncomeFilter } from "@/components/income/IncomeFilter";
 import { Page } from "@/components/Page";
+import { OwnTag } from "@/components/players/OwnTag";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { Result } from "@/components/players/ResultBars";
 import { ResultCurve } from "@/components/players/ResultCurve";
 import { TextMenu } from "@/components/TextMenu";
 import { PartyRow, TransferBack, useTransferDraft } from "@/components/transfers/TransferRows";
 import { useGames } from "@/data/games";
-import { usePlayers } from "@/data/players";
+import { isOwnRecord, usePlayers } from "@/data/players";
 import { useGameSummaries } from "@/data/summaries";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
@@ -113,6 +114,7 @@ function PlayerPage() {
       }
       titleNote={
         <span className="flex items-center gap-1 text-sm font-normal text-muted tabular-nums">
+          {isOwnRecord(player) && <OwnTag className="mr-1" />}
           {player.number !== undefined && playerNumberText(player.number)}
           <Link
             to="/players/$playerId/edit"
