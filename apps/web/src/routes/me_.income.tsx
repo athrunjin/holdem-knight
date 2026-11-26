@@ -1,13 +1,11 @@
 import {
   type Cents,
-  CURRENCIES,
   type Currency,
   cents,
   type GameSummary,
   INCOME_ITEMS,
   type IncomeItem,
   type IncomeReport,
-  incomeReport,
   incomeSeries,
   inPeriod,
   multiply,
@@ -41,10 +39,18 @@ import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { dayOf } from "@/lib/game-day";
-import { blindsKey, filterChoices, ratioKey } from "@/lib/income-filter";
 import { useListReturn } from "@/lib/list-return";
 import { QuietMotion, useCountUp, useEntered, usePlaysIn, useQuietArrival } from "@/lib/motion";
 import { periodName } from "@/lib/period-names";
+import {
+  INCOME_ITEMS_KEY,
+  INCOME_VIEW_FALLBACK,
+  INCOME_VIEW_KEY,
+  type IncomeView,
+  incomeShown,
+  parseIncomeItems,
+  parseIncomeView,
+} from "@/lib/report-views";
 import { useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/me_/income")({
@@ -52,37 +58,6 @@ export const Route = createFileRoute("/me_/income")({
 });
 
 const cardClass = "rounded-2xl border border-line bg-surface";
-
-/** The items counted, as this browser keeps them. Anything else kept gives way to all four. */
-function parseItems(stored: unknown): IncomeItem[] | undefined {
-  if (!Array.isArray(stored)) return undefined;
-  return INCOME_ITEMS.filter((item) => stored.includes(item));
-}
-
-/** What the page shows, as it was left: the period, and the games it is narrowed to. */
-interface View {
-  readonly period: PeriodChoice;
-  /** Missing for the currency of the newest game. */
-  readonly currency?: Currency | undefined;
-  /** A chip ratio or the blinds as `ratioKey` and `blindsKey` give them. Missing for any. */
-  readonly ratio?: string | undefined;
-  readonly blinds?: string | undefined;
-}
-
-const text = (value: unknown) => (typeof value === "string" ? value : undefined);
-
-function parseView(stored: unknown): View | undefined {
-  if (typeof stored !== "object" || stored === null) return undefined;
-  const { period, currency, ratio, blinds } = stored as Record<string, unknown>;
-  const kept = PERIOD_CHOICES.find((choice) => choice === period);
-  if (!kept) return undefined;
-  return {
-    period: kept,
-    currency: CURRENCIES.find((c) => c === currency),
-    ratio: text(ratio),
-    blinds: text(blinds),
-  };
-}
 
 /** How the bars were left: how they are cut, and the items they show. */
 interface BarsView {
@@ -94,7 +69,7 @@ function parseBars(stored: unknown): BarsView | undefined {
   if (typeof stored !== "object" || stored === null) return undefined;
   const { span, items } = stored as Record<string, unknown>;
   const kept = TREND_SPANS.find((value) => value === span);
-  const shown = parseItems(items);
+  const shown = parseIncomeItems(items);
   return kept && shown ? { span: kept, items: shown } : undefined;
 }
 
@@ -150,43 +125,27 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   // Come back to from a game, the page is where it was left and nothing plays in again
   const returning = useListReturn("/me/income");
   const quiet = useQuietArrival(returning);
-  const [view, setView] = useStoredState<View>("income.view.2", { period: "thisMonth" }, parseView);
+  const [view, setView] = useStoredState<IncomeView>(
+    INCOME_VIEW_KEY,
+    INCOME_VIEW_FALLBACK,
+    parseIncomeView,
+  );
   const [items, setItems] = useStoredState<readonly IncomeItem[]>(
-    "income.items",
+    INCOME_ITEMS_KEY,
     INCOME_ITEMS,
-    parseItems,
+    parseIncomeItems,
   );
   const { data: games } = useGames();
 
   // The currencies there are games in, in the app's own order. Panda points come up first, and
-  // the newest game's currency where there are none
-  const currencies = CURRENCIES.filter((c) => summaries.some((s) => s.currency === c));
-  const newest = summaries.reduce((a, b) => (b.startedAt > a.startedAt ? b : a));
-  const currency =
-    view.currency && currencies.includes(view.currency)
-      ? view.currency
-      : currencies.includes("CNY")
-        ? "CNY"
-        : newest.currency;
-
-  const period = view.period;
-  const days = periodOf(period, today);
-  // A ratio or blinds kept from before that the period's games do not offer counts as no choice
-  const offered = filterChoices(
-    summaries.filter((s) => inPeriod(days, s.day)),
-    currency,
+  // the newest game's currency where there are none. The preview on 我的 resolves it the same way
+  const { currencies, currency, period, days, ratio, blinds, narrowed, report } = incomeShown(
+    summaries,
+    view,
+    items,
+    today,
   );
-  const ratio = offered.ratios.find(({ value }) => value === view.ratio)?.value;
-  const blinds = offered.blinds.find(({ value }) => value === view.blinds)?.value;
-  const narrowed = summaries.filter(
-    (s) =>
-      s.currency === currency &&
-      (!ratio || ratioKey(s) === ratio) &&
-      (!blinds || blindsKey(s) === blinds),
-  );
-
-  const report = incomeReport(narrowed, { currency, items }, days);
-  const change = (next: Partial<View>) => {
+  const change = (next: Partial<IncomeView>) => {
     setView({ ...view, currency, ...next });
   };
 

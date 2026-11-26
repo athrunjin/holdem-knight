@@ -4,9 +4,9 @@ import {
   daysBetween,
   type GameSummary,
   INCOME_ITEMS,
+  type IncomeItem,
   type IncomeReport,
-  incomeReport,
-  periodOf,
+  inPeriod,
   transferReport,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -38,9 +38,23 @@ import { LANGUAGES, type LanguageChoice, languageChoice, setLanguageChoice, t } 
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { dayOf } from "@/lib/game-day";
+import { filterChoices } from "@/lib/income-filter";
 import { QuietMotion, useCountUp, usePlaysIn } from "@/lib/motion";
 import { periodName } from "@/lib/period-names";
 import { libraryNameOf } from "@/lib/player-name";
+import {
+  currencyShown,
+  INCOME_ITEMS_KEY,
+  INCOME_VIEW_FALLBACK,
+  INCOME_VIEW_KEY,
+  incomeShown,
+  parseIncomeItems,
+  parseIncomeView,
+  parseTransfersView,
+  TRANSFERS_VIEW_FALLBACK,
+  TRANSFERS_VIEW_KEY,
+} from "@/lib/report-views";
+import { useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/me")({
   component: MePage,
@@ -102,9 +116,9 @@ function IncomePlaceholder({ className }: { className: string }) {
 }
 
 /**
- * What this month brought in, as 收益 opens on it before anything is chosen: panda points where
- * any game has them, otherwise the newest game's currency, all four kinds and no other filter.
- * The whole card leads to 收益.
+ * What 收益 would open on, as this browser keeps it: its period, currency, filters and items, or
+ * this month in panda points (else the newest game's currency) with all four kinds where nothing
+ * is kept. It reads the kept view and never writes it. The whole card leads to 收益.
  */
 function IncomePreview({
   summaries,
@@ -113,8 +127,13 @@ function IncomePreview({
   summaries: readonly GameSummary[] | undefined;
   onPlayed: () => void;
 }) {
+  const [view] = useStoredState(INCOME_VIEW_KEY, INCOME_VIEW_FALLBACK, parseIncomeView);
+  const [items] = useStoredState<readonly IncomeItem[]>(
+    INCOME_ITEMS_KEY,
+    INCOME_ITEMS,
+    parseIncomeItems,
+  );
   const today = dayOf(Date.now());
-  const thisMonth = periodName("thisMonth", today);
   const card = cn(cardClass, "block px-4 pt-1 pb-3");
 
   // While the games are read, the card keeps its height empty
@@ -122,32 +141,42 @@ function IncomePreview({
   if (summaries.length === 0) {
     return (
       <Link to="/me/income" className={card}>
-        <TitleLine name={t.me.income.due} of={thisMonth} />
+        <TitleLine name={t.me.income.due} of={periodName(view.period, today)} />
         <p className="pb-2 text-sm text-muted">{t.me.income.noneYet}</p>
       </Link>
     );
   }
 
-  const currency = summaries.some((s) => s.currency === "CNY")
-    ? "CNY"
-    : newestOf(summaries).currency;
-  const report = incomeReport(
-    summaries.filter((s) => s.currency === currency),
-    { currency, items: INCOME_ITEMS },
-    periodOf("thisMonth", today),
+  const { currency, period, days, ratio, blinds, report } = incomeShown(
+    summaries,
+    view,
+    items,
+    today,
+  );
+  // A ratio or blinds in force, written as 收益's filter writes them, after the period
+  const offered = filterChoices(
+    summaries.filter((s) => inPeriod(days, s.day)),
+    currency,
+  );
+  const filters = [
+    offered.ratios.find(({ value }) => value === ratio)?.chips,
+    offered.blinds.find(({ value }) => value === blinds)?.name,
+  ].flatMap((part, index) =>
+    part === undefined ? [] : [index === 0 ? `${part} : 1` : String(part)],
   );
 
   return (
     <Link to="/me/income" className={card}>
       <TitleLine
         name={t.me.income.due}
-        of={`${thisMonth} (${report.games.length})`}
+        of={[`${periodName(period, today)} (${report.games.length})`, ...filters].join(" · ")}
         currency={currency}
       />
       <IncomeFigures
         report={report}
+        items={items}
         money={(value) => formatGameMoney(value, currency)}
-        playKey={`thisMonth${currency}`}
+        playKey={[period, currency, ratio, blinds].join()}
         onPlayed={onPlayed}
       />
     </Link>
@@ -157,11 +186,14 @@ function IncomePreview({
 /** The total, the ring with the four kinds beside it as plain text, and what is in of it. */
 function IncomeFigures({
   report,
+  items,
   money,
   playKey,
   onPlayed,
 }: {
   report: IncomeReport;
+  /** The kinds counted, as 收益 keeps them; one left out is struck out, as there */
+  items: readonly IncomeItem[];
   money: Money;
   playKey: string;
   onPlayed: () => void;
@@ -186,12 +218,12 @@ function IncomeFigures({
         {figure(totalShown, total)}
       </p>
       <div className="mt-3 flex items-center gap-4">
-        <IncomeRing report={report} items={INCOME_ITEMS} playKey={playKey} size="sm" />
+        <IncomeRing report={report} items={items} playKey={playKey} size="sm" />
         <ul aria-label={t.me.income.items} className="flex min-w-0 flex-1 flex-col gap-1">
           {INCOME_ITEMS.map((item, index) => {
             const amount = byItem[item];
-            // A kind none of the games had is struck out, as on 收益
-            const there = gamesByItem[item] > 0;
+            // A kind left out, or one none of the games had, is struck out, as on 收益
+            const there = items.includes(item) && gamesByItem[item] > 0;
             const fill = amount < 0 ? LOSS_FILL : ITEM_FILLS[item];
             return (
               <li
@@ -267,6 +299,8 @@ function TransfersPlaceholder({ className }: { className: string }) {
  */
 function TransfersPreview({ summaries }: { summaries: readonly GameSummary[] | undefined }) {
   const { data: players = [] } = usePlayers();
+  // The currency kept on 转账, read and never written; what is made and its period do not apply
+  const [view] = useStoredState(TRANSFERS_VIEW_KEY, TRANSFERS_VIEW_FALLBACK, parseTransfersView);
   const card = cn(cardClass, "mt-3 block px-4 pt-1 pb-3");
 
   if (summaries === undefined) return <TransfersPlaceholder className={card} />;
@@ -281,7 +315,8 @@ function TransfersPreview({ summaries }: { summaries: readonly GameSummary[] | u
 
   const today = dayOf(Date.now());
   const newest = newestOf(summaries);
-  const { currency } = newest;
+  // There is at least one game, so there is a currency
+  const currency = currencyShown(summaries, view.currency) as Currency;
   const open = transferReport(summaries, { currency, state: "open" });
   const money = (value: number) => formatGameMoney(cents(value), currency);
   const nameOf = libraryNameOf(players, newest);

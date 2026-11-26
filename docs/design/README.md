@@ -192,3 +192,4 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | 2026-11-26 | The role switch, shared by 牌局 and 我的 in place of two large buttons: two segments, the chosen one on `line`, one tap flips, kept on the device |
 | 2026-11-26 | 我的 for a Host: previews of 收益 and 转账 as whole-card links with the income page's ring at a smaller size, then the settings as rows of one card |
 | 2026-11-26 | A preview card that shows money names its currency by its mark after the title, muted at 18px (`size-4.5`, as in a game's row), a mark and not a control; a card with nothing to show has none |
+| 2026-11-26 | Each preview card on 我的 shows what its page would open on, the view kept there or the page's own defaults, so its figures equal the page's; 转账 also opens on panda points where there are any, as 收益 does |
