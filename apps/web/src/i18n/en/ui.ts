@@ -8,6 +8,11 @@ export const ui: Messages["ui"] = {
     about: (a) => `About ${a}`,
     gotIt: "Got it",
   },
+  roleSwitch: {
+    host: "Host",
+    player: "Player",
+    label: "Player view",
+  },
   textMenu: {
     collapse: "Collapse",
   },

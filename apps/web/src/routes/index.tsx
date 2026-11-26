@@ -1,26 +1,18 @@
 import type { Game } from "@holdem-knight/core";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 import { GameListRow } from "@/components/game/GameListRow";
 import { FoldHeading, HistorySection } from "@/components/game/HistorySection";
 import { InDevelopment } from "@/components/InDevelopment";
 import { Page } from "@/components/Page";
+import { RoleSwitch, useRole } from "@/components/RoleSwitch";
 import { useGames } from "@/data/games";
 import { t } from "@/i18n";
-import { cn } from "@/lib/cn";
 import { useListReturn } from "@/lib/list-return";
 import { parseBoolean, useStoredState } from "@/lib/stored-state";
 
 export const Route = createFileRoute("/")({
   component: SessionsPage,
 });
-
-type Role = "host" | "player";
-
-const ROLES: readonly { readonly role: Role; readonly label: string }[] = [
-  { role: "host", label: "Host" },
-  { role: "player", label: "Player" },
-];
 
 interface GameSectionProps {
   title: string;
@@ -92,28 +84,10 @@ function PlayerGames() {
 }
 
 function SessionsPage() {
-  const [role, setRole] = useState<Role>("host");
+  const [role, setRole] = useRole();
 
   return (
-    <Page title={t.gamePages.list.game}>
-      <div className="grid grid-cols-2 gap-2">
-        {ROLES.map((item) => (
-          <button
-            key={item.role}
-            type="button"
-            aria-pressed={role === item.role}
-            onClick={() => setRole(item.role)}
-            className={cn(
-              "min-h-11 rounded-xl border px-3 font-medium",
-              role === item.role
-                ? "border-accent bg-accent text-accent-text"
-                : "border-line bg-surface",
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+    <Page title={t.gamePages.list.game} actions={<RoleSwitch role={role} onChange={setRole} />}>
       {role === "host" ? <HostGames /> : <PlayerGames />}
     </Page>
   );

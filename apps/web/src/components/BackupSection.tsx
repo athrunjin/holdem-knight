@@ -1,18 +1,22 @@
 import { ForeignOrganizerError } from "@holdem-knight/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { type ChangeEvent, useRef, useState } from "react";
+import { InfoButton } from "@/components/InfoButton";
 import { repository } from "@/data";
 import { parseBackup, serializeBackup } from "@/data/backup";
 import { t } from "@/i18n";
+import { cn } from "@/lib/cn";
 import { shareFile } from "@/lib/share";
 
-const buttonClass = "min-h-12 rounded-xl border border-line px-4 font-medium disabled:opacity-60";
+const rowClass =
+  "flex min-h-12 min-w-0 flex-1 items-center px-4 text-left font-medium disabled:opacity-60";
 
 type Status = { tone: "ok" | "error"; text: string };
 
 /**
- * A backup of the books in use: the guest's, which exist only on this device, so are backed up
- * before changing devices or clearing the browser, or the account's, as a copy to keep.
+ * Two rows of the settings list, to export and to restore a backup of the books in use: the
+ * guest's, which exist only on this device, so are backed up before changing devices or clearing
+ * the browser, or the account's, as a copy to keep. What came of it shows under them.
  */
 export function BackupSection({ account }: { account: boolean }) {
   const text = t.me.backup;
@@ -96,22 +100,28 @@ export function BackupSection({ account }: { account: boolean }) {
   }
 
   return (
-    <section className="mt-4 rounded-2xl border border-line bg-surface p-5">
-      <p className="font-medium">{text.title}</p>
-      <p className="mt-1 text-sm text-muted">{account ? text.bodyAccount : text.bodyGuest}</p>
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <button type="button" disabled={busy} onClick={handleExport} className={buttonClass}>
+    <>
+      <div className="flex items-center border-t border-line">
+        <button type="button" disabled={busy} onClick={handleExport} className={rowClass}>
           {text.export}
         </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => fileInput.current?.click()}
-          className={buttonClass}
-        >
-          {text.restore}
-        </button>
+        {/* Its own target beside the row's, at the row's end */}
+        <span className="mr-1 shrink-0">
+          <InfoButton
+            title={text.title}
+            text={account ? text.bodyAccount : text.bodyGuest}
+            target
+          />
+        </span>
       </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => fileInput.current?.click()}
+        className={cn(rowClass, "w-full border-t border-line")}
+      >
+        {text.restore}
+      </button>
       <input
         ref={fileInput}
         type="file"
@@ -123,11 +133,14 @@ export function BackupSection({ account }: { account: boolean }) {
       {status && (
         <p
           role={status.tone === "error" ? "alert" : "status"}
-          className={status.tone === "error" ? "mt-3 text-sm text-highlight" : "mt-3 text-sm"}
+          className={cn(
+            "border-t border-line px-4 py-3 text-sm",
+            status.tone === "error" && "text-highlight",
+          )}
         >
           {status.text}
         </p>
       )}
-    </section>
+    </>
   );
 }

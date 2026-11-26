@@ -2,12 +2,18 @@
 export const me = {
   title: "我的",
   version: (version: string) => `Hold’em Knight · 开发版 ${version}`,
+  header: {
+    guest: "游客",
+    localOnly: "记录仅在本机",
+    synced: "已同步到账户",
+  },
+  playerFace: {
+    empty: "选定自己是哪位玩家后，这里会显示你的战绩。",
+  },
   guestOnly: {
-    title: "游客模式",
     body: "记录只保存在这台设备上。登录后可以保存玩家库和历史牌局，并在多台设备间同步。",
   },
   signedOut: {
-    title: "还没有登录",
     body: "记录只保存在这台设备上。登录后新的记录保存到云端的账户里，换手机也不会丢。这台设备上已有的记录暂时不会带进账户。",
   },
   account: {
@@ -49,7 +55,6 @@ export const me = {
   income: {
     title: "收益",
     back: "返回我的",
-    thisMonth: "本月",
     period: "时间",
     periods: {
       thisWeek: "本周",
@@ -122,6 +127,7 @@ export const me = {
     betweenCount: (count: number) => `${count} 笔`,
     pays: (from: string, to: string) => `${from} → ${to}`,
     openSettlement: (day: string) => `${day}的结算`,
+    overdue: "逾期",
     noneOpen: "没有未完成的转账。",
     noneMade: "这段时间没有已完成的转账。",
     noneYet: "还没有结算过的牌局。确认结算后，这里会列出每个人的转账。",

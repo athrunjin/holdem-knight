@@ -19,12 +19,20 @@ import {
   trendPeriods,
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check } from "lucide-react";
 import type { ReactNode } from "react";
 import { GameListRow } from "@/components/game/GameListRow";
 import { InfoButton } from "@/components/InfoButton";
 import { IncomeFilter } from "@/components/income/IncomeFilter";
-import { Arc } from "@/components/insurance/PotShares";
+import {
+  CollectedBar,
+  IncomeRing,
+  ITEM_FILLS,
+  ITEM_NAMES,
+  LOSS_FILL,
+  type Money,
+  PLAY_MS,
+  runningFigure,
+} from "@/components/income/IncomeParts";
 import { Page } from "@/components/Page";
 import { TextMenu } from "@/components/TextMenu";
 import { useGames } from "@/data/games";
@@ -44,30 +52,6 @@ export const Route = createFileRoute("/me_/income")({
 });
 
 const cardClass = "rounded-2xl border border-line bg-surface";
-
-const ITEM_NAMES: Record<IncomeItem, string> = {
-  rake: t.common.rake,
-  insurance: t.common.insurance,
-  wage: t.common.dealerWage,
-  tableFee: t.common.timeCharge,
-};
-
-/**
- * Each item's color in the ring, beside it and in the trend. Insurance has the gold it has
- * everywhere in the app. Wages and table fees are two greens, one deep and one light, and rake
- * leans to blue, so the three that share the outer ring read apart.
- */
-const ITEM_FILLS: Record<IncomeItem, { readonly dot: string; readonly stroke: string }> = {
-  insurance: { dot: "bg-highlight", stroke: "stroke-highlight" },
-  wage: { dot: "bg-accent", stroke: "stroke-accent" },
-  tableFee: { dot: "bg-table-fee", stroke: "stroke-table-fee" },
-  rake: { dot: "bg-rake", stroke: "stroke-rake" },
-};
-/** Insurance that lost over the games shown */
-/** How long the total's card takes to play in, in milliseconds */
-const PLAY_MS = 1250;
-
-const LOSS_FILL = { dot: "bg-loss", stroke: "stroke-loss" };
 
 /** The items counted, as this browser keeps them. Anything else kept gives way to all four. */
 function parseItems(stored: unknown): IncomeItem[] | undefined {
@@ -289,8 +273,6 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
   );
 }
 
-type Money = (value: Cents) => string;
-
 /**
  * What is due over the games shown: the total, a ring of where it came from with each item spelled
  * out beside it, how much of it is still to come in, and the differences the organizer took on.
@@ -312,37 +294,14 @@ function Breakdown({
   money: Money;
   onToggle: (item: IncomeItem) => void;
 }) {
-  const {
-    total,
-    received,
-    unreceived,
-    unreceivedGames,
-    badDebt,
-    badDebtGames,
-    byItem,
-    gamesByItem,
-    absorbed,
-  } = report;
-  const share = total > 0 ? Math.min(100, Math.max(0, (received / total) * 100)) : 0;
-  const allIn = total > 0 && unreceived === 0 && badDebt === 0;
-  const badShare = total > 0 ? Math.min(100 - share, Math.max(0, (badDebt / total) * 100)) : 0;
+  const { total, byItem, gamesByItem, absorbed } = report;
 
   // All of it plays in together and is there in about a second and a quarter: the total counts
   // up while the ring turns in, the items come down beside it and the bar runs out with what is
   // in and what is still out. The differences open under it as the rest arrives
-  const figure = (value: number, end: Cents) =>
-    money(value === end ? end : cents(Math.round(value / 100) * 100));
+  const figure = runningFigure(money);
   const playsIn = usePlaysIn(playKey);
-  const play = { duration: PLAY_MS, resetKey: playKey };
-  const totalShown = useCountUp(total, play);
-  const shareShown = useCountUp(share, play);
-  // How far the bar has run, from 0 to 100, for what runs in with it
-  const barRun = useCountUp(100, play);
-  const badDebtShown = useCountUp(badDebt, play);
-  const receivedShown = useCountUp(received, play);
-  const unreceivedShown = useCountUp(unreceived, play);
-  const unreceivedGamesShown = Math.round(useCountUp(unreceivedGames, play));
-  const barDone = useCountUp(1, { duration: 1, delay: PLAY_MS, resetKey: playKey }) >= 1;
+  const totalShown = useCountUp(total, { duration: PLAY_MS, resetKey: playKey });
 
   return (
     <section className={cn(cardClass, "px-4 pt-1 pb-3")}>
@@ -414,62 +373,7 @@ function Breakdown({
         </ul>
       </div>
 
-      {/* How much of the total is in. An empty bar where nothing is due */}
-      <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-[var(--line)]" aria-hidden>
-        <div className="h-full rounded-full bg-accent" style={{ width: `${shareShown}%` }} />
-        {/* Bad debts stand at the far end, in red: what will not come in for now */}
-        {badDebt > 0 && (
-          <div
-            className="absolute inset-y-0 right-0 rounded-full bg-loss"
-            style={{ width: `${(badShare * barRun) / 100}%` }}
-          />
-        )}
-      </div>
-      {allIn ? (
-        // Nothing still out: one line, which turns green with a tick once the bar has run
-        <p
-          className={cn(
-            "mt-1 flex min-h-11 items-center gap-2 text-sm transition-colors duration-300",
-            barDone && "text-accent",
-          )}
-        >
-          <span className={cn(!barDone && "text-muted")}>{t.me.income.receivedAll}</span>
-          <span className="tabular-nums">{figure(receivedShown, received)}</span>
-          {barDone && (
-            <Check
-              className={cn("size-4", playsIn && "animate-appear")}
-              strokeWidth={2.5}
-              aria-hidden
-            />
-          )}
-        </p>
-      ) : (
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 text-sm">
-          <p className="flex min-h-11 items-center gap-2 whitespace-nowrap">
-            <span className="text-muted">{t.me.income.received}</span>
-            <span className="tabular-nums">{figure(receivedShown, received)}</span>
-          </p>
-          <p className="flex min-h-11 items-center gap-2 whitespace-nowrap">
-            <span className="text-muted">{t.me.income.unreceived}</span>
-            <span className={cn("tabular-nums", unreceived > 0 && "text-highlight")}>
-              {figure(unreceivedShown, unreceived)}
-            </span>
-            {unreceivedGames > 0 && (
-              <span className="text-muted">
-                · {t.me.income.unreceivedGames(unreceivedGamesShown)}
-              </span>
-            )}
-          </p>
-        </div>
-      )}
-      {/* Under what is still out: what is set down as not coming in for now */}
-      {badDebt > 0 && (
-        <p className="-mt-2 flex min-h-9 items-center justify-end gap-2 text-sm whitespace-nowrap">
-          <span className="text-muted">{t.common.badDebt}</span>
-          <span className="text-loss tabular-nums">{figure(badDebtShown, badDebt)}</span>
-          <span className="text-muted">· {t.me.income.badDebtGames(badDebtGames)}</span>
-        </p>
-      )}
+      <CollectedBar report={report} playKey={playKey} money={money} />
 
       {/* Only where there was a difference, opening from its rule once the rest is in */}
       {absorbed !== 0 && (
@@ -490,87 +394,6 @@ function Breakdown({
         </div>
       )}
     </section>
-  );
-}
-
-/**
- * The items counted as two rings, each read from the top.
- *
- * The outer ring is what was only ever taken in: wages, then table fees, then rake, each as long
- * as its part of the three together. The inner ring is insurance, which can lose: a gain runs
- * clockwise in the app's green and a loss runs back from the top in red, as long as it is against
- * the three together, or a full turn where it is more than they are. The games shown are counted
- * in the middle.
- */
-function IncomeRing({
-  report,
-  items,
-  playKey,
-}: {
-  report: IncomeReport;
-  items: readonly IncomeItem[];
-  playKey: string;
-}) {
-  // How far round the rings are drawn so far: they turn in from the top
-  const playsIn = usePlaysIn(playKey);
-  const drawn = useCountUp(1, { duration: PLAY_MS, resetKey: playKey });
-  const games = Math.round(
-    useCountUp(report.games.length, { duration: PLAY_MS, resetKey: playKey }),
-  );
-  // Each item's arc runs to its length, so one ticked fills in and one unticked shrinks away
-  const amount = (item: IncomeItem) => (items.includes(item) ? report.byItem[item] : 0);
-  const change = { duration: 500 };
-  const outer = [
-    { item: "wage" as const, amount: useCountUp(Math.max(0, amount("wage")), change) },
-    { item: "tableFee" as const, amount: useCountUp(Math.max(0, amount("tableFee")), change) },
-    { item: "rake" as const, amount: useCountUp(Math.max(0, amount("rake")), change) },
-  ];
-  const taken = outer.reduce((all, part) => all + part.amount, 0);
-  const insurance = useCountUp(amount("insurance"), change);
-  const scale = Math.max(taken, Math.abs(insurance));
-  const turn = (scale > 0 ? Math.abs(insurance) / scale : 0) * drawn;
-  let start = 0;
-
-  return (
-    <div className="relative size-32 shrink-0">
-      <svg
-        viewBox="0 0 100 100"
-        role="img"
-        aria-label={t.me.income.ring}
-        key={playKey}
-        className={cn("size-full -rotate-90", playsIn && "animate-appear")}
-      >
-        <circle cx="50" cy="50" r="44" fill="none" strokeWidth="9" className="stroke-line" />
-        <circle cx="50" cy="50" r="33" fill="none" strokeWidth="6" className="stroke-line/60" />
-        {outer.map(({ item, amount }) => {
-          const whole = scale > 0 ? amount / scale : 0;
-          const from = start;
-          start += whole;
-          const length = Math.min(whole, drawn - from);
-          return (
-            <Arc
-              key={item}
-              radius={44}
-              width={9}
-              start={from}
-              length={length}
-              className={ITEM_FILLS[item].stroke}
-            />
-          );
-        })}
-        <Arc
-          radius={33}
-          width={6}
-          start={insurance < 0 ? 1 - turn : 0}
-          length={turn}
-          className={insurance < 0 ? LOSS_FILL.stroke : ITEM_FILLS.insurance.stroke}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl leading-none font-semibold tabular-nums">{games}</span>
-        <span className="mt-1 text-xs text-muted">{t.me.income.gameCount}</span>
-      </div>
-    </div>
   );
 }
 

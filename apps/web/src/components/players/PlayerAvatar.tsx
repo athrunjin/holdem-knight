@@ -16,7 +16,12 @@ function groundOf(id: string) {
   return GROUNDS[hash % GROUNDS.length];
 }
 
-const SIZES = { sm: "size-8 text-sm", md: "size-9 text-base", lg: "size-12 text-xl" } as const;
+const SIZES = {
+  sm: "size-8 text-sm",
+  md: "size-9 text-base",
+  header: "size-10 text-lg",
+  lg: "size-12 text-xl",
+} as const;
 
 /**
  * A player's avatar: the first character of their name on a ground taken from the record's ID,

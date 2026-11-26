@@ -16,6 +16,11 @@ interface PageProps {
    * so neither moves as the second line comes and goes. The actions set their own offset.
    */
   actionsFromTop?: boolean;
+  /**
+   * A header of the page's own in place of the title block, across the whole width: the title is
+   * then there for readers only.
+   */
+  heading?: ReactNode;
   children: ReactNode;
 }
 
@@ -27,6 +32,7 @@ export function Page({
   centered = false,
   actions,
   actionsFromTop = false,
+  heading,
   children,
 }: PageProps) {
   return (
@@ -40,13 +46,20 @@ export function Page({
           actionsFromTop ? "items-start" : "items-center",
         )}
       >
-        <div className="max-w-full min-w-0 shrink-0">
-          <div className="flex flex-wrap items-baseline gap-x-2">
-            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{title}</h1>
-            {titleNote}
+        {heading !== undefined ? (
+          <div className="min-w-0 flex-1">
+            <h1 className="sr-only">{title}</h1>
+            {heading}
           </div>
-          {subtitle}
-        </div>
+        ) : (
+          <div className="max-w-full min-w-0 shrink-0">
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{title}</h1>
+              {titleNote}
+            </div>
+            {subtitle}
+          </div>
+        )}
         {actions}
       </header>
       <div className="pt-4">{children}</div>

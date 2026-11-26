@@ -7,12 +7,19 @@ const records = (count: number) => `${count} ${count === 1 ? "record" : "records
 export const me: Messages["me"] = {
   title: "Me",
   version: (version) => `Hold’em Knight · dev ${version}`,
+  header: {
+    guest: "Guest",
+    // Shorter than the Chinese, to keep the header on one row at 360px
+    localOnly: "On this device",
+    synced: "Synced to account",
+  },
+  playerFace: {
+    empty: "Once you choose which player is you, your own results show here.",
+  },
   guestOnly: {
-    title: "Guest mode",
     body: "Records are kept on this device only. Signing in will keep your players and past games, and sync them across devices.",
   },
   signedOut: {
-    title: "Not signed in",
     body: "Records are kept on this device only. Once you sign in, new records go to your account in the cloud and survive a change of phone. Records already on this device are not brought into the account for now.",
   },
   account: {
@@ -55,7 +62,6 @@ export const me: Messages["me"] = {
   income: {
     title: "Income",
     back: "Back to Me",
-    thisMonth: "This month",
     period: "Period",
     periods: {
       thisWeek: "This week",
@@ -129,6 +135,7 @@ export const me: Messages["me"] = {
     betweenCount: (count) => `${count}`,
     pays: (from, to) => `${from} → ${to}`,
     openSettlement: (day) => `Settlement of ${day}`,
+    overdue: "Overdue",
     noneOpen: "No transfers are open.",
     noneMade: "No transfers were made in this period.",
     noneYet: "No game is settled yet. Once one is, its transfers are listed here by person.",

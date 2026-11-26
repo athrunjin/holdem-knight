@@ -24,6 +24,7 @@ import {
   FoldedSection,
   keyOf,
   Line,
+  linesOf,
   type Money,
   PartyRow,
   useTransferDraft,
@@ -69,9 +70,6 @@ function parseView(stored: unknown): View | undefined {
   if (typeof done !== "boolean" || !kept) return undefined;
   return { done, period: kept, currency: CURRENCIES.find((c) => c === currency) };
 }
-
-const linesOf = (report: TransferReport) =>
-  report.parties.reduce((all, { lines }) => all + lines.length, 0) + report.between.length;
 
 function TransfersPage() {
   const { data: summaries, isError, refetch } = useGameSummaries();
