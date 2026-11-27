@@ -36,10 +36,9 @@ export const me: Messages["me"] = {
   },
   guestImport: {
     title: "Guest records",
+    // Short, so it stays on one line beside the button at 360px
     headline: (games) =>
-      games > 0
-        ? `${games} ${games === 1 ? "game" : "games"} on this device`
-        : "Records on this device",
+      games > 0 ? `${games} ${games === 1 ? "game" : "games"} here` : "Records here",
     open: "Bring in",
     lead: "Copy this device’s guest records into your account:",
     games: "Games",

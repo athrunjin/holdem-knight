@@ -37,6 +37,7 @@ import { ResultCurve } from "@/components/players/ResultCurve";
 import { RoleSwitch, useRole } from "@/components/RoleSwitch";
 import { TextMenu } from "@/components/TextMenu";
 import { LATE_DAYS, linesOf } from "@/components/transfers/TransferRows";
+import { useGuestOffer } from "@/data/guest-import";
 import { usePlayers } from "@/data/players";
 import { useSession } from "@/data/session";
 import { useGameSummaries } from "@/data/summaries";
@@ -548,9 +549,21 @@ function MePage() {
   const [role, setRole] = useRole();
   const played = useRef(false);
   const playerPlayed = useRef(false);
+  const signedIn = session.status === "signed-in";
   // Read here as well, from the same cache, so what is under the Player face waits for it
   const { data: summaries } = useGameSummaries();
-  const holding = role === "player" && summaries === undefined;
+  // And, signed in, whether there are guest records to bring in, so the card, the settings and
+  // the account card arrive together. A failed read is no card: it holds the page no longer
+  const offer = useGuestOffer();
+  const waiting =
+    (role === "player" && summaries === undefined) ||
+    (signedIn && offer.isLoading && offer.failureCount === 0);
+  // Only on arriving: read again later, as after bringing guest records in, nothing goes away
+  const [arrived, setArrived] = useState(false);
+  useEffect(() => {
+    if (!waiting) setArrived(true);
+  }, [waiting]);
+  const holding = waiting && !arrived;
 
   return (
     <Page
@@ -565,8 +578,8 @@ function MePage() {
       {role === "host" ? <HostFace played={played} /> : <PlayerFace played={playerPlayed} />}
       {!holding && (
         <>
-          {session.status === "signed-in" && <GuestImportCard />}
-          <SettingsList account={session.status === "signed-in"} />
+          {signedIn && <GuestImportCard />}
+          <SettingsList account={signedIn} />
           {session.status === "signed-in" && (
             <div className="mt-3">
               <AccountCard userId={session.userId} email={session.email} />
