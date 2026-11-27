@@ -143,6 +143,9 @@ describe("a guest's books brought into an account", () => {
 
     const first = await bringGuestBooks({ guest, destination, marks: kept, letGo: () => {} });
     expect(first).toMatchObject({ added: 10, skipped: 0 });
+    // In the card's kinds, the account's own record (made by the import) counted on neither side
+    expect(first.brought).toEqual({ games: 2, players: 1, settings: 1 });
+    expect(first.there).toEqual({ games: 0, players: 0, settings: 0 });
     expect(await guest.backup.exportAll()).toEqual(before);
     const once = await repository.backup.exportAll();
     expect(once.games.map(({ status }) => status).sort()).toEqual(["open", "settled"]);
@@ -151,6 +154,8 @@ describe("a guest's books brought into an account", () => {
 
     const again = await bringGuestBooks({ guest, destination, marks: marks(), letGo: () => {} });
     expect(again).toMatchObject({ added: 0, skipped: 10 });
+    expect(again.brought).toEqual({ games: 0, players: 0, settings: 0 });
+    expect(again.there).toEqual({ games: 2, players: 1, settings: 1 });
     expect(await repository.backup.exportAll()).toEqual(once);
   });
 

@@ -4,6 +4,27 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 const records = (count: number) => `${count} ${count === 1 ? "record" : "records"}`;
 
+const counted = (count: number, one: string, many: string) =>
+  `${count} ${count === 1 ? one : many}`;
+
+/** What an import counts, in the confirmation's order, each kind only when there is one of it. */
+const kinds = ({
+  games,
+  players,
+  settings,
+}: {
+  games: number;
+  players: number;
+  settings: number;
+}) =>
+  [
+    games > 0 && counted(games, "game", "games"),
+    players > 0 && counted(players, "player", "players"),
+    settings > 0 && counted(settings, "setting", "settings"),
+  ]
+    .filter(Boolean)
+    .join(", ");
+
 export const me: Messages["me"] = {
   title: "Me",
   version: (version) => `Hold’em Knight · dev ${version}`,
@@ -52,10 +73,9 @@ export const me: Messages["me"] = {
     confirm: "Bring in",
     working: "Bringing in…",
     done: "Brought into your account",
-    doneBody: (added, skipped) =>
-      skipped === 0
-        ? `${records(added)} added.`
-        : `${records(added)} added; ${skipped} already in the account were left as they were.`,
+    doneAdded: (counts) => `Added: ${kinds(counts)}.`,
+    doneThere: (counts) => `Already in the account, left as they were: ${kinds(counts)}.`,
+    nothingNew: "Nothing new to bring in",
     doneStays: "The guest records are still on this device, and show again after you sign out.",
     failedUnknown:
       "No answer came from your account. The records were either all brought in or none were, and trying again never makes a second copy. Check your connection and try again.",

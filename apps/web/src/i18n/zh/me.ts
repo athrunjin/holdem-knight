@@ -1,4 +1,21 @@
 /** 我的: who is signed in, the language, and backups. */
+
+/** What an import counts, by the kinds its confirmation names. */
+interface ImportKinds {
+  readonly games: number;
+  readonly players: number;
+  readonly settings: number;
+}
+
+const kinds = ({ games, players, settings }: ImportKinds) =>
+  [
+    games > 0 && `牌局 ${games} 局`,
+    players > 0 && `玩家 ${players} 人`,
+    settings > 0 && `设置 ${settings} 个`,
+  ]
+    .filter(Boolean)
+    .join("、");
+
 export const me = {
   title: "我的",
   version: (version: string) => `Hold’em Knight · 开发版 ${version}`,
@@ -45,10 +62,11 @@ export const me = {
     confirm: "确认带入",
     working: "正在带入…",
     done: "已带进账户",
-    doneBody: (added: number, skipped: number) =>
-      skipped === 0
-        ? `新增 ${added} 条记录。`
-        : `新增 ${added} 条记录，${skipped} 条账户里已有，保持不变。`,
+    // In the confirmation's words and order, each kind only when there is one of it
+    doneAdded: (counts: ImportKinds) => `新增${kinds(counts)}。`,
+    doneThere: (counts: ImportKinds) => `账户里已有${kinds(counts)}，保持不变。`,
+    // A second import, or one whose records the account all had
+    nothingNew: "没有新的记录要带入",
     doneStays: "这台设备上的游客记录还在，退出登录后可以看到。",
     // No answer came: the records went in whole or not at all, and which is not known
     failedUnknown:

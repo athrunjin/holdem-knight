@@ -15,6 +15,8 @@ import {
 import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { me as enMe } from "@/i18n/en/me";
+import { me as zhMe } from "@/i18n/zh/me";
 import { createDexieRepository, createGuestDatabase } from "./dexie-repository";
 import type { ImportMarks } from "./guest-import";
 import { StorageError } from "./supabase-repository";
@@ -303,6 +305,68 @@ describe("bringing a guest's books into an account", () => {
     expect(numbered.get("wang")).toBeGreaterThan(2);
   });
 
+  describe("what done counts", () => {
+    const none = { games: 0, players: 0, settings: 0 };
+
+    it("counts a first import by the confirmation's kinds, the own record on neither side", async () => {
+      const result = await bring();
+
+      expect(result.brought).toEqual(result.holdings);
+      expect(result.brought).toEqual({ games: 2, players: 1, settings: 1 });
+      expect(result.there).toEqual(none);
+    });
+
+    it("counts everything as already there on a second import", async () => {
+      await bring();
+
+      const again = await bring();
+
+      expect(again.brought).toEqual(none);
+      expect(again.there).toEqual({ games: 2, players: 1, settings: 1 });
+    });
+
+    it("counts what the account had of the games, players and settings apart from what it lacked", async () => {
+      // The account has its own record, the game in progress, 老王 and a rule of its own
+      await account.players.ensure(player(ORGANIZER_PLAYER_ID, "林老板", SPACE));
+      await account.games.save({ ...open, organizerId: SPACE });
+      await account.players.save(player("wang", "老王", SPACE));
+      await account.insuranceRules.save({
+        id: "theirs",
+        organizerId: SPACE,
+        name: "账户的",
+        rule: RULE_30,
+        createdAt: 2,
+      });
+      // The guest has one more player, and a game and a setting the account lacks
+      await guest.players.save(player("zhao", "老赵"));
+      await guest.oddsTables.save({
+        id: "odds",
+        organizerId: GUEST,
+        name: "赔率",
+        oddsHundredths: RULE_30.oddsHundredths,
+        createdAt: 1,
+      });
+
+      const result = await bring();
+
+      expect(result.brought).toEqual({ games: 1, players: 1, settings: 2 });
+      expect(result.there).toEqual({ games: 1, players: 1, settings: 0 });
+      // What the restore added of records agrees: the settled game, its 4 events, 老赵, 2 settings
+      expect(result.added).toBe(8);
+    });
+
+    it("counts only what was added since, after the guest played on", async () => {
+      await bring();
+      await guest.games.save({ ...open, id: "g-later" });
+      await guest.players.save(player("zhao", "老赵"));
+
+      const result = await bring();
+
+      expect(result.brought).toEqual({ games: 1, players: 1, settings: 0 });
+      expect(result.there).toEqual({ games: 2, players: 1, settings: 1 });
+    });
+  });
+
   it("writes nothing and marks nothing when the restore fails", async () => {
     await account.players.save(player("mine", "阿强", SPACE));
     const before = await account.backup.exportAll();
@@ -315,6 +379,23 @@ describe("bringing a guest's books into an account", () => {
     expect(await account.gameSummaries.list()).toEqual([]);
     expect(marks.kept.size).toBe(0);
     expect(letGo).not.toHaveBeenCalled();
+  });
+});
+
+describe("the done text", () => {
+  const counts = { games: 9, players: 6, settings: 1 };
+
+  it("names the kinds in the confirmation's words and order", () => {
+    expect(zhMe.guestImport.doneAdded(counts)).toBe("新增牌局 9 局、玩家 6 人、设置 1 个。");
+    expect(enMe.guestImport.doneAdded(counts)).toBe("Added: 9 games, 6 players, 1 setting.");
+  });
+
+  it("leaves out a kind there is none of", () => {
+    const some = { games: 2, players: 0, settings: 0 };
+    expect(zhMe.guestImport.doneThere(some)).toBe("账户里已有牌局 2 局，保持不变。");
+    expect(enMe.guestImport.doneThere(some)).toBe(
+      "Already in the account, left as they were: 2 games.",
+    );
   });
 });
 

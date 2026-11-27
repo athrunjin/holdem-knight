@@ -30,19 +30,28 @@ export interface GuestHoldings {
   readonly settings: number;
 }
 
+/** The lists a saved setting is kept in, counted together as settings. */
+const SETTINGS = [
+  "insuranceRules",
+  "oddsTables",
+  "chargeRules",
+  "gameConfigs",
+] as const satisfies readonly (keyof BackupData)[];
+
+/** The guest's own record is never counted: it joins the account's, which is always there. */
+const countedPlayers = (data: BackupData) =>
+  data.players.filter(({ id }) => id !== ORGANIZER_PLAYER_ID);
+
 export function holdingsOf(data: BackupData): GuestHoldings {
   return {
     games: data.games.length,
-    players: data.players.filter(({ id }) => id !== ORGANIZER_PLAYER_ID).length,
-    settings:
-      data.insuranceRules.length +
-      data.oddsTables.length +
-      data.chargeRules.length +
-      data.gameConfigs.length,
+    players: countedPlayers(data).length,
+    settings: SETTINGS.reduce((count, list) => count + data[list].length, 0),
   };
 }
 
-const worthBringing = ({ games, players, settings }: GuestHoldings) =>
+/** Whether anything is counted at all. */
+export const holdsAny = ({ games, players, settings }: GuestHoldings) =>
   games + players + settings > 0;
 
 const LISTS = [
@@ -130,13 +139,23 @@ export async function guestOffer(
   const data = await guest.backup.exportAll();
   const holdings = holdingsOf(data);
   const fingerprint = fingerprintOf(data);
-  if (!worthBringing(holdings) || marks.get(space) === fingerprint) return null;
+  if (!holdsAny(holdings) || marks.get(space) === fingerprint) return null;
   return { holdings, fingerprint };
 }
 
 /** The books an import goes into: an account's space, with the name its own record is made with. */
 export interface Destination {
-  readonly repository: Pick<Repository, "backup" | "gameSummaries" | "games">;
+  readonly repository: Pick<
+    Repository,
+    | "backup"
+    | "gameSummaries"
+    | "games"
+    | "players"
+    | "insuranceRules"
+    | "oddsTables"
+    | "chargeRules"
+    | "gameConfigs"
+  >;
   readonly organizerId: OrganizerId;
   readonly ownerName: string;
 }
@@ -195,6 +214,60 @@ export function withoutGamesThere(
   return { books, held };
 }
 
+/** The IDs of what a space holds that an import counts: its games, players and saved settings. */
+export interface SpaceIds {
+  readonly games: ReadonlySet<string>;
+  readonly players: ReadonlySet<string>;
+  /** By list, as `list:id` */
+  readonly settings: ReadonlySet<string>;
+}
+
+async function idsIn({ repository }: Destination): Promise<SpaceIds> {
+  const ids = (records: readonly { readonly id: string }[], list = "") =>
+    records.map(({ id }) => (list ? `${list}:${id}` : id));
+  const [games, players, ...settings] = await Promise.all([
+    repository.games.list(),
+    repository.players.list(),
+    ...SETTINGS.map(async (list) => ids(await repository[list].list(), list)),
+  ]);
+  return {
+    games: new Set(ids(games)),
+    players: new Set(ids(players)),
+    settings: new Set(settings.flat()),
+  };
+}
+
+/** What an import of these books into a space added, and what the space had already. */
+export interface ImportCounts {
+  readonly brought: GuestHoldings;
+  readonly there: GuestHoldings;
+}
+
+/**
+ * Counts the guest's books, as the space's own, against what the space held before the restore,
+ * in the card's kinds. A restore adds every record whose ID the space lacks and leaves the rest,
+ * all or none, so what it added of each kind is what the space did not hold. A game the space
+ * has counts among what was there, with nothing of it sent. The own record is counted on neither
+ * side, nor are ledger events and insurance hands: they come and stay with their games.
+ */
+export function countsOf(books: BackupData, space: SpaceIds): ImportCounts {
+  const split = (records: readonly { readonly id: string }[], has: (id: string) => boolean) => {
+    const there = records.filter(({ id }) => has(id)).length;
+    return { brought: records.length - there, there };
+  };
+  const games = split(books.games, (id) => space.games.has(id));
+  const players = split(countedPlayers(books), (id) => space.players.has(id));
+  const settings = SETTINGS.map((list) =>
+    split(books[list], (id) => space.settings.has(`${list}:${id}`)),
+  );
+  const sum = (part: "brought" | "there") =>
+    settings.reduce((count, kind) => count + kind[part], 0);
+  return {
+    brought: { games: games.brought, players: players.brought, settings: sum("brought") },
+    there: { games: games.there, players: players.there, settings: sum("there") },
+  };
+}
+
 /**
  * Copies the summaries the guest's settled games keep, re-addressed, where the space has none for
  * that game, so the games arrive with their results as worked out (ADR 0049). A game the space
@@ -236,7 +309,12 @@ export function failureOf(error: unknown): ImportFailure {
   return status === undefined || (status >= 400 && status < 500) ? "refused" : "unknown";
 }
 
-export interface ImportResult extends RestoreResult {
+/**
+ * What came of an import: in the card's kinds, what it added and what the account had already;
+ * the restore's own count of records, events and hands included; and what the guest's books
+ * held, as the card offered them.
+ */
+export interface ImportResult extends RestoreResult, ImportCounts {
   readonly holdings: GuestHoldings;
 }
 
@@ -260,14 +338,20 @@ export async function bringGuestBooks({
   letGo: () => Promise<void> | void;
 }): Promise<ImportResult> {
   const data = await guest.backup.exportAll();
-  const there = new Set((await destination.repository.games.list()).map(({ id }) => id));
-  const { books, held } = withoutGamesThere(booksFor(data, destination), there);
+  const space = await idsIn(destination);
+  const own = booksFor(data, destination);
+  const { books, held } = withoutGamesThere(own, space.games);
   const result = await destination.repository.backup.restore(books);
   const brought = new Set(books.games.filter((g) => g.status === "settled").map(({ id }) => id));
   await copySummaries(guest, destination, brought).catch(() => undefined);
   marks.set(destination.organizerId, fingerprintOf(data));
   await letGo();
-  return { added: result.added, skipped: result.skipped + held, holdings: holdingsOf(data) };
+  return {
+    added: result.added,
+    skipped: result.skipped + held,
+    ...countsOf(own, space),
+    holdings: holdingsOf(data),
+  };
 }
 
 const OFFER_KEY = "guest-import";
