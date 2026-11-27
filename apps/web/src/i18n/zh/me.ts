@@ -50,7 +50,11 @@ export const me = {
         ? `新增 ${added} 条记录。`
         : `新增 ${added} 条记录，${skipped} 条账户里已有，保持不变。`,
     doneStays: "这台设备上的游客记录还在，退出登录后可以看到。",
-    failed: "没有带进账户，什么都没有丢：账户和这台设备上的记录都没有改动。请检查网络后重试。",
+    // No answer came: the records went in whole or not at all, and which is not known
+    failedUnknown:
+      "没有收到账户的回应。记录要么已经全部带进账户，要么一条也没有带进；重试不会产生第二份。请检查网络后重试。",
+    // The account answered and turned them down: nothing was written
+    failedRefused: "账户没有接受这些记录，一条也没有带进账户。这台设备上的记录保持不变。",
   },
   language: {
     title: "语言",

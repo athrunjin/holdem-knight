@@ -19,7 +19,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TERMS_VERSION } from "@/lib/terms";
 import { createDexieRepository, createGuestDatabase } from "./dexie-repository";
-import { bringGuestBooks, guestOffer, type ImportMarks } from "./guest-import";
+import { bringGuestBooks, failureOf, guestOffer, type ImportMarks } from "./guest-import";
 import { currentSummaries } from "./summaries";
 import { createSupabaseRepository } from "./supabase-repository";
 
@@ -46,7 +46,19 @@ async function account(name: string) {
   if (signedIn.error) throw signedIn.error;
   const spaces = await client.from("organizers").select("id");
   const organizerId = spaces.data?.[0]?.id as string;
-  return { client, organizerId, repository: createSupabaseRepository(client, organizerId) };
+  const userId = created.data.user.id;
+  return { client, userId, organizerId, repository: createSupabaseRepository(client, organizerId) };
+}
+
+/** Which account the database links a space's own record to (ADR 0051), read past the app. */
+async function linkOf(organizerId: string) {
+  const row = await admin
+    .from("players")
+    .select("linked_user_id")
+    .eq("organizer_id", organizerId)
+    .eq("id", ORGANIZER_PLAYER_ID)
+    .single();
+  return row.data?.linked_user_id as string | undefined;
 }
 
 const GUEST = "guest";
@@ -143,9 +155,10 @@ describe("a guest's books brought into an account", () => {
   });
 
   it("joins the host's play as a guest to the account's own record, which keeps its name", async () => {
-    const { repository, organizerId } = await account("林老板");
-    // The account's own record, as the app makes it on the first read of its players
-    const own = await repository.players.ensure(player(ORGANIZER_PLAYER_ID, "林老板", organizerId));
+    const { repository, organizerId, userId } = await account("林老板");
+    // The account's own record, made on the first read of its players and renamed by the host
+    // since, so it differs from both the guest's 我 and the name an import would give it
+    const own = await repository.players.ensure(player(ORGANIZER_PLAYER_ID, "林哥", organizerId));
     const kept = await guest.gameSummaries.list();
 
     await bringGuestBooks({
@@ -157,7 +170,7 @@ describe("a guest's books brought into an account", () => {
 
     const records = await repository.players.list();
     expect(records.filter(({ id }) => id === ORGANIZER_PLAYER_ID)).toEqual([own]);
-    expect(records.map(({ name }) => name).sort()).toEqual(["林老板", "老王"]);
+    expect(records.map(({ name }) => name).sort()).toEqual(["林哥", "老王"]);
     // The summary arrived as kept, and shows the host's row
     expect(await repository.gameSummaries.list()).toEqual(
       kept.map((summary) => ({ ...summary, organizerId })),
@@ -168,17 +181,11 @@ describe("a guest's books brought into an account", () => {
     );
     expect(hosts.map(({ id }) => id)).toEqual([settled.id]);
     // Linked to the owner by the database, as its own record always is (ADR 0051)
-    const row = await admin
-      .from("players")
-      .select("linked_user_id")
-      .eq("organizer_id", organizerId)
-      .eq("id", ORGANIZER_PLAYER_ID)
-      .single();
-    expect(row.data?.linked_user_id).toBeTruthy();
+    expect(await linkOf(organizerId)).toBe(userId);
   });
 
   it("makes the account's own record under its name when it has none yet", async () => {
-    const { repository, organizerId } = await account("阿强");
+    const { repository, organizerId, userId } = await account("阿强");
     await bringGuestBooks({
       guest,
       destination: { repository, organizerId, ownerName: "阿强" },
@@ -186,6 +193,53 @@ describe("a guest's books brought into an account", () => {
       letGo: () => {},
     });
     expect(await repository.players.get(ORGANIZER_PLAYER_ID)).toMatchObject({ name: "阿强" });
+    // Made by the restore, and linked to the owner all the same
+    expect(await linkOf(organizerId)).toBe(userId);
+  });
+
+  describe("a game the account already has", () => {
+    async function broughtThenPlayedOn(settleInAccount: boolean) {
+      const { repository, organizerId } = await account("小郑");
+      const destination = { repository, organizerId, ownerName: "小郑" };
+      await bringGuestBooks({ guest, destination, marks: marks(), letGo: () => {} });
+      if (settleInAccount) {
+        // The host carries the game on in the account and settles it there
+        await repository.ledger.append({ ...event(open.id, "cash_out", wang, 1200), organizerId });
+        await repository.games.save({
+          ...open,
+          organizerId,
+          status: "settled",
+          settledAt: settled.settledAt ?? 0,
+        });
+        await currentSummaries(repository);
+      }
+      const ledger = await repository.ledger.listByGame(open.id);
+      const summaries = await repository.gameSummaries.list();
+      // After a sign-out the guest's copy goes on too, and is settled on the device
+      await guest.ledger.append(event(open.id, "cash_out", wang, 800));
+      await guest.games.save({ ...open, status: "settled", settledAt: settled.settledAt ?? 0 });
+      await currentSummaries(guest);
+
+      const again = await bringGuestBooks({ guest, destination, marks: marks(), letGo: () => {} });
+      return { repository, ledger, summaries, again };
+    }
+
+    it("takes nothing more when the account has settled it", async () => {
+      const { repository, ledger, summaries, again } = await broughtThenPlayedOn(true);
+      expect(await repository.ledger.listByGame(open.id)).toEqual(ledger);
+      expect(await repository.gameSummaries.list()).toEqual(summaries);
+      expect(summaries.map(({ id }) => id).sort()).toEqual([open.id, settled.id].sort());
+      expect(again.added).toBe(0);
+    });
+
+    it("takes nothing more, and no summary, while it is still open in the account", async () => {
+      const { repository, ledger, summaries, again } = await broughtThenPlayedOn(false);
+      expect(await repository.ledger.listByGame(open.id)).toEqual(ledger);
+      expect((await repository.games.get(open.id))?.status).toBe("open");
+      expect((await repository.gameSummaries.list()).map(({ id }) => id)).toEqual([settled.id]);
+      expect(await repository.gameSummaries.list()).toEqual(summaries);
+      expect(again.added).toBe(0);
+    });
   });
 
   it("leaves the account as it was when there is no connection", async () => {
@@ -202,18 +256,20 @@ describe("a guest's books brought into an account", () => {
     const kept = marks();
     const letGo = vi.fn();
 
-    await expect(
-      bringGuestBooks({
-        guest,
-        destination: {
-          repository: createSupabaseRepository(offline, organizerId),
-          organizerId,
-          ownerName: "小周",
-        },
-        marks: kept,
-        letGo,
-      }),
-    ).rejects.toThrow();
+    const failed = await bringGuestBooks({
+      guest,
+      destination: {
+        repository: createSupabaseRepository(offline, organizerId),
+        organizerId,
+        ownerName: "小周",
+      },
+      marks: kept,
+      letGo,
+    }).catch((error: unknown) => error);
+
+    // Nothing reached the database: this proves nothing was sent, not a rollback
+    expect(failed).toBeInstanceOf(Error);
+    expect(failureOf(failed)).toBe("unknown");
 
     expect(await repository.backup.exportAll()).toEqual(before);
     expect(await repository.gameSummaries.list()).toEqual([]);
@@ -228,14 +284,17 @@ describe("a guest's books brought into an account", () => {
     await guest.ledger.append(event(crypto.randomUUID(), "buy_in", wang, 1000));
     const kept = marks();
 
-    await expect(
-      bringGuestBooks({
-        guest,
-        destination: { repository, organizerId, ownerName: "小吴" },
-        marks: kept,
-        letGo: () => {},
-      }),
-    ).rejects.toThrow();
+    const failed = await bringGuestBooks({
+      guest,
+      destination: { repository, organizerId, ownerName: "小吴" },
+      marks: kept,
+      letGo: () => {},
+    }).catch((error: unknown) => error);
+
+    // restore_books ran: its games and players went in before the events tripped the foreign
+    // key, and were rolled back with them. The account answered, so it is known to be refused
+    expect(failed).toBeInstanceOf(Error);
+    expect(failureOf(failed)).toBe("refused");
 
     expect(await repository.backup.exportAll()).toEqual(before);
     expect(kept.get(organizerId)).toBeUndefined();

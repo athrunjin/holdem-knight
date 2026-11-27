@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Fold } from "@/components/transfers/TransferRows";
 import {
+  failureOf,
   type GuestHoldings,
   type ImportResult,
   useBringGuestBooks,
@@ -125,7 +126,7 @@ export function GuestImportCard() {
             <p className="mt-2 text-muted">{text.stays}</p>
             {bring.isError && (
               <p role="alert" className="mt-2 text-highlight">
-                {text.failed}
+                {failureOf(bring.error) === "refused" ? text.failedRefused : text.failedUnknown}
               </p>
             )}
           </div>

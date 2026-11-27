@@ -57,8 +57,10 @@ export const me: Messages["me"] = {
         ? `${records(added)} added.`
         : `${records(added)} added; ${skipped} already in the account were left as they were.`,
     doneStays: "The guest records are still on this device, and show again after you sign out.",
-    failed:
-      "Couldn’t bring them in. Nothing was lost: the account and this device are as they were. Check your connection and try again.",
+    failedUnknown:
+      "No answer came from your account. The records were either all brought in or none were, and trying again never makes a second copy. Check your connection and try again.",
+    failedRefused:
+      "Your account didn’t accept these records, so none were brought in. This device keeps its records as they are.",
   },
   language: {
     title: "Language",

@@ -3,8 +3,10 @@ import "fake-indexeddb/auto";
 import {
   type BackupData,
   cents,
+  ForeignOrganizerError,
   type Game,
   type LedgerEvent,
+  numberPlayers,
   ORGANIZER_PLAYER_ID,
   type Player,
   type Repository,
@@ -15,11 +17,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createDexieRepository, createGuestDatabase } from "./dexie-repository";
 import type { ImportMarks } from "./guest-import";
+import { StorageError } from "./supabase-repository";
 
 // The books in use are not what is under test here
 vi.mock(".", () => ({ repository: {} }));
 
-const { bringGuestBooks, fingerprintOf, guestOffer, holdingsOf } = await import("./guest-import");
+const { bringGuestBooks, failureOf, fingerprintOf, guestOffer, holdingsOf } = await import(
+  "./guest-import"
+);
 const { currentSummaries } = await import("./summaries");
 
 const GUEST = "guest";
@@ -230,6 +235,74 @@ describe("bringing a guest's books into an account", () => {
     expect(await guestOffer(guest, SPACE, marks)).toMatchObject({ holdings: { games: 3 } });
   });
 
+  describe("a game the account already has", () => {
+    /** The guest's copy of the game in progress goes on, on the device, after it was brought. */
+    async function playOnAsGuest(settle: boolean) {
+      await guest.ledger.append(event("e6", open.id, "cash_out", "wang", 800));
+      if (settle) {
+        await guest.games.save({ ...open, status: "settled", settledAt: settled.settledAt ?? 0 });
+        await currentSummaries(guest);
+      }
+    }
+
+    it("takes nothing more when the account has settled it", async () => {
+      await bring();
+      // The host carries the game on in the account and settles it there
+      await account.ledger.append({
+        ...event("a1", open.id, "cash_out", "wang", 1200),
+        organizerId: SPACE,
+      });
+      await account.games.save({
+        ...open,
+        organizerId: SPACE,
+        status: "settled",
+        settledAt: settled.settledAt ?? 0,
+      });
+      await currentSummaries(account);
+      const ledger = await account.ledger.listByGame(open.id);
+      const summary = (await account.gameSummaries.list()).find(({ id }) => id === open.id);
+      expect(summary).toBeDefined();
+
+      await playOnAsGuest(true);
+      const again = await bring();
+
+      expect(await account.ledger.listByGame(open.id)).toEqual(ledger);
+      expect((await account.gameSummaries.list()).find(({ id }) => id === open.id)).toEqual(
+        summary,
+      );
+      expect((await account.games.get(open.id))?.status).toBe("settled");
+      // The guest's new event is counted among what the account already has
+      expect(again).toMatchObject({ added: 0, skipped: 11 });
+    });
+
+    it("takes nothing more, and no summary, while it is still open in the account", async () => {
+      await bring();
+      const ledger = await account.ledger.listByGame(open.id);
+
+      await playOnAsGuest(true);
+      await bring();
+
+      expect(await account.ledger.listByGame(open.id)).toEqual(ledger);
+      expect((await account.games.get(open.id))?.status).toBe("open");
+      expect((await account.gameSummaries.list()).map(({ id }) => id)).toEqual([settled.id]);
+    });
+  });
+
+  it("brings no player's number, so the account's records keep theirs", async () => {
+    const mine = { ...player("mine", "阿强", SPACE), createdAt: 100, number: 2 };
+    await account.players.save(mine);
+    // Older than the account's, with the same number in the guest's books
+    await guest.players.save({ ...player("wang", "老王"), number: 2 });
+
+    await bring();
+
+    const brought = await account.players.list();
+    expect(brought.every((p) => p.id === "mine" || p.number === undefined)).toBe(true);
+    const numbered = new Map(numberPlayers(brought).map((p) => [p.id, p.number]));
+    expect(numbered.has("mine")).toBe(false);
+    expect(numbered.get("wang")).toBeGreaterThan(2);
+  });
+
   it("writes nothing and marks nothing when the restore fails", async () => {
     await account.players.save(player("mine", "阿强", SPACE));
     const before = await account.backup.exportAll();
@@ -269,5 +342,21 @@ describe("fingerprintOf", () => {
     expect(fingerprintOf(books([a, player(ORGANIZER_PLAYER_ID, "我")]))).toBe(
       fingerprintOf(books([a])),
     );
+  });
+});
+
+describe("failureOf", () => {
+  it("knows nothing was written when the account answered and turned the records down", () => {
+    expect(failureOf(new StorageError("insert or update violates foreign key", 409))).toBe(
+      "refused",
+    );
+    expect(failureOf(new StorageError("A record of games is not valid"))).toBe("refused");
+    expect(failureOf(new ForeignOrganizerError("Another organizer's"))).toBe("refused");
+  });
+
+  it("does not know when no answer came, or a server error stood in for one", () => {
+    expect(failureOf(new StorageError("TypeError: Failed to fetch", 0))).toBe("unknown");
+    expect(failureOf(new StorageError("Gateway Timeout", 504))).toBe("unknown");
+    expect(failureOf(new TypeError("Failed to fetch"))).toBe("unknown");
   });
 });

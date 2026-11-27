@@ -7,6 +7,7 @@
 import {
   type BackupData,
   backupForOrganizer,
+  ForeignOrganizerError,
   type GameSummary,
   ORGANIZER_PLAYER_ID,
   type OrganizerId,
@@ -18,6 +19,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { toInitials } from "@/lib/pinyin";
 import { booksInUse, guestRepository, useBooks } from ".";
+import { StorageError } from "./supabase-repository";
 
 /** What a guest's books hold that is worth bringing, as the card counts it. */
 export interface GuestHoldings {
@@ -134,7 +136,7 @@ export async function guestOffer(
 
 /** The books an import goes into: an account's space, with the name its own record is made with. */
 export interface Destination {
-  readonly repository: Pick<Repository, "backup" | "gameSummaries">;
+  readonly repository: Pick<Repository, "backup" | "gameSummaries" | "games">;
   readonly organizerId: OrganizerId;
   readonly ownerName: string;
 }
@@ -144,18 +146,53 @@ export interface Destination {
  * for the account's: named after the account, as the app makes it. A space that has its own
  * record keeps it, as a restore leaves what is there; one that has none yet gets it under the
  * account's name, in the same all-or-none call, never the guest's 我 (ADR 0051).
+ *
+ * No player brings its number: a number in the guest's books means nothing in the space, which
+ * numbers what arrives after the highest it holds, so none of its own records is numbered again
+ * (ADR 0043).
  */
 export function booksFor(data: BackupData, { organizerId, ownerName }: Destination): BackupData {
   const own = backupForOrganizer(data, organizerId);
   return {
     ...own,
     players: own.players.map((player): Player => {
-      if (player.id !== ORGANIZER_PLAYER_ID) return player;
-      // Its number in the guest's books means nothing in the space, which numbers it itself
       const { number: _, ...rest } = player;
-      return { ...rest, name: ownerName, initials: toInitials(ownerName) };
+      return player.id === ORGANIZER_PLAYER_ID
+        ? { ...rest, name: ownerName, initials: toInitials(ownerName) }
+        : rest;
     }),
   };
+}
+
+/**
+ * The books without the games the space already has, and without anything of those games: their
+ * ledger events and insurance hands. A game the space has is the space's, however it went on
+ * there or on the device since, so the guest's copy adds nothing to it, not even an event the
+ * space lacks; that would give its ledger two continuations. How many records were held back, to
+ * count among those already in the account.
+ */
+export function withoutGamesThere(
+  data: BackupData,
+  there: ReadonlySet<string>,
+): { readonly books: BackupData; readonly held: number } {
+  const keep = <T extends { readonly id: string }>(
+    records: readonly T[],
+    gameOf: (r: T) => string,
+  ) => records.filter((record) => !there.has(gameOf(record)));
+  const books = {
+    ...data,
+    games: keep(data.games, ({ id }) => id),
+    ledgerEvents: keep(data.ledgerEvents, ({ gameId }) => gameId),
+    insuranceHands: keep(data.insuranceHands, ({ gameId }) => gameId),
+  };
+  const held =
+    data.games.length -
+    books.games.length +
+    data.ledgerEvents.length -
+    books.ledgerEvents.length +
+    data.insuranceHands.length -
+    books.insuranceHands.length;
+  return { books, held };
 }
 
 /**
@@ -182,15 +219,33 @@ async function copySummaries(
   );
 }
 
+/**
+ * Why an import failed, as far as the app can tell. `refused`: the account answered and turned
+ * the records down, or they were turned down before being sent, so nothing was written. `unknown`:
+ * no answer came, so they were either all brought in or none were; trying again adds only what is
+ * missing, so it never makes a second copy.
+ */
+export type ImportFailure = "refused" | "unknown";
+
+export function failureOf(error: unknown): ImportFailure {
+  if (error instanceof ForeignOrganizerError) return "refused";
+  if (!(error instanceof StorageError)) return "unknown";
+  const { status } = error;
+  // Checked here and never sent, or turned down by the database with its reason. A server error
+  // or a gateway that gave up says nothing of whether the database finished
+  return status === undefined || (status >= 400 && status < 500) ? "refused" : "unknown";
+}
+
 export interface ImportResult extends RestoreResult {
   readonly holdings: GuestHoldings;
 }
 
 /**
  * Brings the guest's books on this device into a space: all of them in one restore, which adds
- * only what the space lacks and writes nothing if it fails. Once it has, the summaries follow,
- * the space is marked as holding these books, and what the app has read is let go so the pages
- * show them. The guest's books are only read.
+ * only what the space lacks and writes nothing if it fails. A game the space already has takes
+ * nothing more from them. Once it has, the summaries of the games brought follow, the space is
+ * marked as holding these books, and what the app has read is let go so the pages show them. The
+ * guest's books are only read.
  */
 export async function bringGuestBooks({
   guest,
@@ -205,12 +260,14 @@ export async function bringGuestBooks({
   letGo: () => Promise<void> | void;
 }): Promise<ImportResult> {
   const data = await guest.backup.exportAll();
-  const result = await destination.repository.backup.restore(booksFor(data, destination));
-  const settled = new Set(data.games.filter((g) => g.status === "settled").map(({ id }) => id));
-  await copySummaries(guest, destination, settled).catch(() => undefined);
+  const there = new Set((await destination.repository.games.list()).map(({ id }) => id));
+  const { books, held } = withoutGamesThere(booksFor(data, destination), there);
+  const result = await destination.repository.backup.restore(books);
+  const brought = new Set(books.games.filter((g) => g.status === "settled").map(({ id }) => id));
+  await copySummaries(guest, destination, brought).catch(() => undefined);
   marks.set(destination.organizerId, fingerprintOf(data));
   await letGo();
-  return { ...result, holdings: holdingsOf(data) };
+  return { added: result.added, skipped: result.skipped + held, holdings: holdingsOf(data) };
 }
 
 const OFFER_KEY = "guest-import";
