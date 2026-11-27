@@ -16,6 +16,7 @@ import {
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { AccountCard } from "@/components/account/AccountCard";
+import { GuestImportCard } from "@/components/account/GuestImportCard";
 import { IdentityHeader } from "@/components/account/Identity";
 import { BackupSection } from "@/components/BackupSection";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
@@ -564,6 +565,7 @@ function MePage() {
       {role === "host" ? <HostFace played={played} /> : <PlayerFace played={playerPlayed} />}
       {!holding && (
         <>
+          {session.status === "signed-in" && <GuestImportCard />}
           <SettingsList account={session.status === "signed-in"} />
           {session.status === "signed-in" && (
             <div className="mt-3">

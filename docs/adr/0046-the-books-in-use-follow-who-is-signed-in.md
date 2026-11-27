@@ -29,7 +29,7 @@ The app can sign an account in ([ADR 0041](0041-sign-in-by-email-and-password-wi
 ## Consequences
 
 - An account cannot record a game without a network until the ledger is written to the device first and sent after (M6, step 2). Until then a real game is safer run as a guest, or with a connection that can be relied on.
-- A device that has guest records and then signs in shows none of them. The card on 我的 says so on both sides of the sign-in. The import, when it comes, goes through `backupForOrganizer` and `restore_books` (ADR 0045).
+- A device that has guest records and then signs in shows none of them until they are brought in. The import goes through `backupForOrganizer` and `restore_books` (ADR 0045), as a copy the person asks for on 我的 ([ADR 0053](0053-guest-records-brought-into-an-account.md)).
 - Opening the app signed in costs one request for the account before anything shows.
 - One set of books at a time means a write that is still under way as the session changes would reach the other set. Both repositories refuse a record that is not their organizer's, so it fails rather than lands in the wrong books.
 - A space takes its name from the account's at sign-up and does not follow a later change of that name; there is no page to rename a space yet.

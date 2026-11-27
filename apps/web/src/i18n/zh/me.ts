@@ -16,7 +16,7 @@ export const me = {
     body: "记录只保存在这台设备上。登录后可以保存玩家库和历史牌局，并在多台设备间同步。",
   },
   signedOut: {
-    body: "记录只保存在这台设备上。登录后新的记录保存到云端的账户里，换手机也不会丢。这台设备上已有的记录暂时不会带进账户。",
+    body: "记录只保存在这台设备上。登录后新的记录保存到云端的账户里，换手机也不会丢。这台设备上已有的记录，登录后可以在我的页面带进账户，本机仍然保留一份。",
   },
   account: {
     rename: "改昵称",
@@ -27,7 +27,30 @@ export const me = {
     copyFailed: "复制失败，请手动抄写",
     email: "邮箱",
     unread: "账户信息没有读出来，请检查网络后重试。",
-    note: "已登录。牌局和玩家记录保存在云端的账户里，需要联网才能读写。这台设备上登录前的游客记录没有带进账户，退出登录后还在。",
+    note: "已登录。牌局和玩家记录保存在云端的账户里，需要联网才能读写。这台设备上登录前的游客记录留在本机，退出登录后还在；带进账户的是一份副本。",
+  },
+  guestImport: {
+    title: "游客记录",
+    // What the card leads with: the games, or the records alone where there is no game
+    headline: (games: number) => (games > 0 ? `这台设备上有 ${games} 局` : "这台设备上有记录"),
+    open: "带进账户",
+    lead: "把这台设备上的游客记录复制进账户：",
+    games: "牌局",
+    gamesCount: (count: number) => `${count} 局`,
+    players: "玩家",
+    playersCount: (count: number) => `${count} 人`,
+    settings: "设置",
+    settingsCount: (count: number) => `${count} 个`,
+    stays: "这台设备上的记录保持不变。账户里已有的记录不会被覆盖，也不会重复。需要联网。",
+    confirm: "确认带入",
+    working: "正在带入…",
+    done: "已带进账户",
+    doneBody: (added: number, skipped: number) =>
+      skipped === 0
+        ? `新增 ${added} 条记录。`
+        : `新增 ${added} 条记录，${skipped} 条账户里已有，保持不变。`,
+    doneStays: "这台设备上的游客记录还在，退出登录后可以看到。",
+    failed: "没有带进账户，什么都没有丢：账户和这台设备上的记录都没有改动。请检查网络后重试。",
   },
   language: {
     title: "语言",

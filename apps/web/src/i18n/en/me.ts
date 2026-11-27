@@ -21,7 +21,7 @@ export const me: Messages["me"] = {
     body: "Records are kept on this device only. Signing in will keep your players and past games, and sync them across devices.",
   },
   signedOut: {
-    body: "Records are kept on this device only. Once you sign in, new records go to your account in the cloud and survive a change of phone. Records already on this device are not brought into the account for now.",
+    body: "Records are kept on this device only. Once you sign in, new records go to your account in the cloud and survive a change of phone. Records already on this device can be brought into the account from Me after signing in, and this device keeps its copy.",
   },
   account: {
     rename: "Rename",
@@ -32,7 +32,34 @@ export const me: Messages["me"] = {
     copyFailed: "Couldn’t copy. Please write it down.",
     email: "Email",
     unread: "Couldn’t read your account. Check your network and try again.",
-    note: "Signed in. Games and players are kept in your account in the cloud and need a connection to read and write. The guest records made on this device before signing in were not brought in; they are still here after you sign out.",
+    note: "Signed in. Games and players are kept in your account in the cloud and need a connection to read and write. The guest records made on this device before signing in stay on it, and are still here after you sign out; what is brought into the account is a copy.",
+  },
+  guestImport: {
+    title: "Guest records",
+    headline: (games) =>
+      games > 0
+        ? `${games} ${games === 1 ? "game" : "games"} on this device`
+        : "Records on this device",
+    open: "Bring in",
+    lead: "Copy this device’s guest records into your account:",
+    games: "Games",
+    gamesCount: (count) => String(count),
+    players: "Players",
+    playersCount: (count) => String(count),
+    settings: "Settings",
+    settingsCount: (count) => String(count),
+    stays:
+      "This device keeps its records as they are. Nothing already in the account is overwritten or doubled. Needs a connection.",
+    confirm: "Bring in",
+    working: "Bringing in…",
+    done: "Brought into your account",
+    doneBody: (added, skipped) =>
+      skipped === 0
+        ? `${records(added)} added.`
+        : `${records(added)} added; ${skipped} already in the account were left as they were.`,
+    doneStays: "The guest records are still on this device, and show again after you sign out.",
+    failed:
+      "Couldn’t bring them in. Nothing was lost: the account and this device are as they were. Check your connection and try again.",
   },
   language: {
     title: "Language",
