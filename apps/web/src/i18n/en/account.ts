@@ -83,7 +83,6 @@ export const account: Messages["account"] = {
   },
   terms: "Terms of Use",
   privacy: "Privacy Policy",
-  textToCome: "The full text will be added before accounts are released.",
   resetPage: {
     title: "Reset password",
     body: "Enter the email you signed up with and we’ll send you a code.",

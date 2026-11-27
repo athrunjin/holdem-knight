@@ -5,6 +5,7 @@ import { common } from "./common";
 import { game } from "./game";
 import { gamePages } from "./game-pages";
 import { insurance } from "./insurance";
+import { legal } from "./legal";
 import { lib } from "./lib";
 import { me } from "./me";
 import { players } from "./players";
@@ -20,6 +21,7 @@ export const en: Messages = {
   game,
   gamePages,
   insurance,
+  legal,
   lib,
   me,
   players,

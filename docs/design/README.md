@@ -79,6 +79,7 @@ Text meets WCAG 2.2 AA (4.5:1) on both `bg` and `surface`: `text` 13.6:1, `muted
 | `text-[11px]` | Captions under a figure, chart labels. The smallest size for text that must be read |
 | `text-[9px]` | Corner marks only |
 
+- **Long reading text** (the terms and the privacy policy, `LegalText` in `account/`): `text-sm` at a 24px line (`leading-6`) in `text`, in the narrow column of a form (`max-w-md`), so a line holds about 32 Chinese characters or 65 Latin ones and never runs the width of a tablet. Under the title, a muted `text-xs` line with the date it took effect and its version. Each numbered section is a `text-base` medium heading, 24px from the one before, with 8px between its paragraphs; lists are bulleted with muted markers. An email address standing alone is a gold link 44px tall; inside a sentence it stays in the line, gold and medium.
 - **Weight:** regular for labels, medium for what is chosen or tappable, semibold for titles and headline figures. No bold, no italics.
 - **Money** uses the game's currency format, without needless cents, and the currency's mark (panda, kangaroo) rather than its name. A gain or loss shown as a result carries its sign.
 
@@ -206,3 +207,4 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | 2026-11-27 | Signing in with Google in Google's own dark button, the one exception to the app's colors; the agreement as one component for sign-up and the first-entry step, which stands in for every page until an account has agreed |
 | 2026-11-27 | The agreement's links on a row of their own under its sentence, each 44px tall, rather than inside it |
 | 2026-11-27 | The agreement's issue at the column's left edge, in line with the fields' issues |
+| 2026-11-27 | Long reading text, for the terms and the privacy policy: the form's column, `text-sm` on a 24px line, numbered `text-base` headings, a muted line with the date and the version |

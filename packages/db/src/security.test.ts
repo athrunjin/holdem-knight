@@ -172,12 +172,12 @@ describe("the name an account shows", () => {
 
 describe("agreeing to the terms", () => {
   it("is kept with its time and the text's version when an account signs up through the app", async () => {
-    const account = await signUp(db, "agreed@example.com", "同意的人", "2026-11");
+    const account = await signUp(db, "agreed@example.com", "同意的人", "2026-12_1.0");
     const profile = await db.query<{ agreed_at: Date | null; agreed_version: string | null }>(
       "select agreed_at, agreed_version from public.profiles where id = $1",
       [account.id],
     );
-    expect(profile.rows[0]?.agreed_version).toBe("2026-11");
+    expect(profile.rows[0]?.agreed_version).toBe("2026-12_1.0");
     expect(profile.rows[0]?.agreed_at).toBeInstanceOf(Date);
   });
 
@@ -264,10 +264,10 @@ describe("agreeing to the terms after signing in", () => {
   });
 
   it("records the time, the version and the name on the profile and the space", async () => {
-    await agree(lin, "小林", "2026-11");
+    await agree(lin, "小林", "2026-12_1.0");
     const after = await agreement(lin);
     expect(after?.agreed_at).toBeInstanceOf(Date);
-    expect(after?.agreed_version).toBe("2026-11");
+    expect(after?.agreed_version).toBe("2026-12_1.0");
     expect(after?.display_name).toBe("小林");
     expect(after?.name).toBe("小林");
   });
@@ -277,7 +277,7 @@ describe("agreeing to the terms after signing in", () => {
     await agree(lin, "林伟", "2027-01");
     const after = await agreement(lin);
     expect(after?.agreed_at).toEqual(before?.agreed_at);
-    expect(after?.agreed_version).toBe("2026-11");
+    expect(after?.agreed_version).toBe("2026-12_1.0");
   });
 
   it("changes no other account", async () => {
