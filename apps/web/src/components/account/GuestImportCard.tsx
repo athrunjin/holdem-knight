@@ -108,7 +108,7 @@ export function GuestImportCard() {
               type="button"
               disabled={working}
               onClick={() => bring.mutate(undefined, { onSuccess: setDone })}
-              className={cn(buttonClass, "bg-accent font-semibold text-accent-text")}
+              className={cn(buttonClass, "bg-accent text-accent-text")}
             >
               {working ? text.working : bring.isError ? t.common.retry : text.confirm}
             </button>
