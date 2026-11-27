@@ -415,8 +415,9 @@ export function describeRepository(name: string, open: () => Promise<Storage>) {
       const theirs = backupForOrganizer(backup, organizerId);
       expect(await target.backup.restore(theirs)).toEqual({ added: 8, skipped: 0 });
       expect(await target.backup.exportAll()).toEqual(theirs);
-      // A second time adds nothing
+      // A second time adds nothing, and leaves the books as the first left them
       expect(await target.backup.restore(theirs)).toEqual({ added: 0, skipped: 8 });
+      expect(await target.backup.exportAll()).toEqual(theirs);
     });
 
     it("keeps one own record through a backup restored, and through guest data brought in", async () => {

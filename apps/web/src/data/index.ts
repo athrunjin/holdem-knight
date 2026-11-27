@@ -74,6 +74,15 @@ export function useBooks(): BooksState {
   return useSyncExternalStore(books.subscribe, books.state);
 }
 
+/**
+ * The guest's books on this device, whoever is signed in. Only for bringing them into an account
+ * (ADR 0053): pages read and write the books in use, through `repository`.
+ */
+export const guestRepository: Repository = guest.repository;
+
+/** The books in use, as a whole, for a step that has to finish in the books it started in. */
+export const booksInUse = (): Store => books.current();
+
 /** The same, read once, outside a page. */
 export const booksState = (): BooksState => books.state();
 
