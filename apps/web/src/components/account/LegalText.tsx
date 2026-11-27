@@ -9,14 +9,34 @@ interface LegalDocument {
   sections: readonly { heading: string; blocks: readonly (string | readonly string[])[] }[];
 }
 
-/** An email address in the text, without a full stop that ends its sentence. */
-const EMAIL = /([\w.+-]+@[\w-]+(?:\.[\w-]+)+)/;
+/**
+ * A web address or an email address in the text. A web address stops before a full stop, comma or
+ * bracket that follows it, Chinese or Latin; an email address before a full stop that ends its
+ * sentence.
+ */
+const LINK =
+  /(https?:\/\/[^\s（）()，。、；]*[^\s（）()，。、；.,;:]|[\w.+-]+@[\w-]+(?:\.[\w-]+)+)/;
 
-/** A paragraph with any email address in it as a link to write to it. */
+const inlineLinkClass = "font-medium break-words text-highlight";
+
+/** A link in a sentence: a web address opens in a new tab, an email address writes to it. */
+function InlineLink({ target }: { target: string }) {
+  return target.startsWith("http") ? (
+    <a href={target} target="_blank" rel="noopener noreferrer" className={inlineLinkClass}>
+      {target}
+    </a>
+  ) : (
+    <a href={`mailto:${target}`} className={inlineLinkClass}>
+      {target}
+    </a>
+  );
+}
+
+/** A paragraph with any web or email address in it as a link. */
 function Paragraph({ text }: { text: string }) {
-  const parts = text.split(EMAIL);
-  // An address on its own is a link of its own, at the height of a touch target
-  if (parts.length === 3 && parts[0] === "" && parts[2] === "") {
+  const parts = text.split(LINK);
+  // An email address on its own is a link of its own, at the height of a touch target
+  if (parts.length === 3 && parts[0] === "" && parts[2] === "" && !text.startsWith("http")) {
     return (
       <p>
         <a href={`mailto:${text}`} className={textLinkClass}>
@@ -31,9 +51,7 @@ function Paragraph({ text }: { text: string }) {
         index % 2 === 1 ? (
           // Inside a sentence it stays in the line: a 44px target would break the paragraph apart
           // biome-ignore lint/suspicious/noArrayIndexKey: the parts of a fixed text never move
-          <a key={index} href={`mailto:${part}`} className="font-medium text-highlight">
-            {part}
-          </a>
+          <InlineLink key={index} target={part} />
         ) : (
           part
         ),

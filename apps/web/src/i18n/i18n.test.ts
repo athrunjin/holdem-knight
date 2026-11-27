@@ -42,8 +42,10 @@ describe("the catalogs", () => {
     expect(english).toEqual([...chinese.keys()]);
   });
 
-  it("leave no Chinese in the English", () => {
-    const left = texts(LANGUAGES.en.catalog).filter(([, text]) => /[一-鿿]/.test(text));
+  it("leave no Chinese in the English but the app's Chinese name, which the terms give", () => {
+    const left = texts(LANGUAGES.en.catalog).filter(([, text]) =>
+      /[一-鿿]/.test(text.replaceAll("有局", "")),
+    );
 
     expect(left).toEqual([]);
   });
