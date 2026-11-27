@@ -61,12 +61,17 @@ export function createBooks({ guest, reader, openAccount, onSwitch }: Sources) {
     for (const listener of listeners) listener();
   }
 
-  function open(store: Store, userId?: string) {
+  /** Puts a set of books in use, letting go of what was read from the last, and nothing else. */
+  function use(store: Store, userId?: string) {
     account = userId;
     if (store.key !== current.key) {
       current = store;
       onSwitch();
     }
+  }
+
+  function open(store: Store, userId?: string) {
+    use(store, userId);
     show({ status: "open", key: store.key, mode: store.mode });
   }
 
@@ -84,9 +89,12 @@ export function createBooks({ guest, reader, openAccount, onSwitch }: Sources) {
     try {
       const found = await openAccount(who.userId);
       if (mine !== turn) return;
-      // Its books stay closed, and what was in use stays so: nothing is switched or let go
-      if (found === "agreeing") show({ status: "agreeing", userId: who.userId });
-      else open(found, who.userId);
+      if (found === "agreeing") {
+        // Its books stay closed. Another account's are not left in use while its step shows: the
+        // guest's are, as after a sign-out, though no page shows them until the step is done
+        use(guest);
+        show({ status: "agreeing", userId: who.userId });
+      } else open(found, who.userId);
     } catch {
       if (mine === turn) show({ status: "unreachable" });
     }

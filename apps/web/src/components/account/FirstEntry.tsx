@@ -107,6 +107,7 @@ export function FirstEntry({ userId }: { userId: string }) {
           issue={issues.name}
           inputMode="text"
           autoComplete="nickname"
+          selectOnFocus
           onChange={(next) => {
             keep({ ...draft, typed: next });
             setIssues({ ...issues, name: undefined });

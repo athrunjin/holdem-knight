@@ -1,3 +1,4 @@
+import { DATABASE_FALLBACK_NAME } from "@/i18n/zh/account";
 import { TERMS_VERSION } from "@/lib/terms";
 import { supabase } from "./supabase";
 
@@ -158,9 +159,6 @@ export async function agreeToTerms(displayName: string): Outcome {
   }
 }
 
-/** The name the database gives an account it can find no other for. Data, not interface text. */
-const LAST_RESORT_NAME = "玩家";
-
 /**
  * The name to offer an account at its first entry: the one it shows, unless that is only what
  * the database made of its address, or its last resort, because the name Google gave could not
@@ -168,7 +166,7 @@ const LAST_RESORT_NAME = "玩家";
  */
 export function firstEntryName(shown: string, email: string, given: string | undefined): string {
   const fromAddress = (email.split("@")[0] ?? "").replace(/[^A-Za-z0-9_.-]/g, "").slice(0, 30);
-  const fellBack = shown === fromAddress || shown === LAST_RESORT_NAME;
+  const fellBack = shown === fromAddress || shown === DATABASE_FALLBACK_NAME;
   return fellBack && given ? given : shown;
 }
 

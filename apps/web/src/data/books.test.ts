@@ -198,4 +198,27 @@ describe("the books in use", () => {
     expect(books.current()).toBe(guest);
     expect(onSwitch).not.toHaveBeenCalled();
   });
+
+  it("leave another account's books when an account that has not agreed signs in after it", async () => {
+    const { books, onSwitch, become, answer } = setUp();
+    void become(lin);
+    await answer("lin", linBooks);
+    expect(books.current()).toBe(linBooks);
+
+    const wang = { status: "account", userId: "wang" } as const;
+    const wangBooks = store("account:wang-space", "account");
+    void become(wang);
+    await answer("wang", "agreeing");
+
+    expect(books.state()).toEqual({ status: "agreeing", userId: "wang" });
+    expect(books.current()).toBe(guest);
+    expect(onSwitch).toHaveBeenCalledTimes(2);
+
+    void books.follow();
+    await answer("wang", wangBooks);
+
+    expect(books.state()).toEqual({ status: "open", key: "account:wang-space", mode: "account" });
+    expect(books.current()).toBe(wangBooks);
+    expect(onSwitch).toHaveBeenCalledTimes(3);
+  });
 });

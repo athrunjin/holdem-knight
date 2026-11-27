@@ -5,6 +5,13 @@ const invalidEmail = "邮箱地址无效";
 const invalidName = "昵称不能包含特殊符号，可以用文字、数字、空格和 - . _";
 const invalidCode = (digits: number) => `验证码是 ${digits} 位数字`;
 
+/**
+ * The name the database gives an account it can find no other for (`handle_new_user`), kept with
+ * the Chinese text it is. It is matched against what the database holds and never shown, so it is
+ * the same in every language and is no part of a catalog.
+ */
+export const DATABASE_FALLBACK_NAME = "玩家";
+
 /** Signing up, signing in, codes and passwords. */
 export const account = {
   /** What the sign-in service's answers read as. None says whether an address has an account. */

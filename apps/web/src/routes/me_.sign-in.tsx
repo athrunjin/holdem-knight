@@ -45,7 +45,8 @@ function SignInPage() {
 
     setBusy(true);
     const failed = await signIn(address.value, password);
-    if (failed === "email-not-confirmed") {
+    // With email sign-up closed no code can be delivered, so the issue is said instead (ADR 0052)
+    if (failed === "email-not-confirmed" && emailSignUpOpen()) {
       // The account is there but its address was never confirmed: send the code again
       await resendCode(address.value, "sign-up");
       keepPendingCode({ email: address.value, purpose: "sign-up", sentAt: Date.now() });
