@@ -287,8 +287,9 @@ export function OrDivider() {
 }
 
 /**
- * Saying one is 18 and agreeing to the terms and the privacy policy, both of which open from
- * here: at sign-up, and at an account's first entry (ADR 0052).
+ * Saying one is 18 and agreeing to the terms and the privacy policy: at sign-up, and at an
+ * account's first entry (ADR 0052). The sentence ticks the box and holds no link, as a link inside
+ * a sentence is too small a target; the two documents open from a row of their own under it.
  */
 export function AgreeField({
   checked,
@@ -300,36 +301,41 @@ export function AgreeField({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <div>
-      <div className="flex items-start gap-1">
-        {/* 44px for a thumb around a box of 20: a margin would not take the tap, the label does */}
-        <label htmlFor="agreed" className="grid size-11 shrink-0 place-items-center">
-          <input
-            id="agreed"
-            type="checkbox"
-            checked={checked}
-            aria-describedby={issue ? "agreed-issue" : undefined}
-            onChange={(event) => onChange(event.target.checked)}
-            className="size-5 accent-(--accent)"
-          />
+    <div className="flex items-start gap-1">
+      {/* 44px for a thumb around a box of 20: a margin would not take the tap, the label does */}
+      <label htmlFor="agreed" className="grid size-11 shrink-0 place-items-center">
+        <input
+          id="agreed"
+          type="checkbox"
+          checked={checked}
+          aria-invalid={issue ? true : undefined}
+          aria-describedby={issue ? "agreed-issue" : undefined}
+          onChange={(event) => onChange(event.target.checked)}
+          className="size-5 accent-(--accent)"
+        />
+      </label>
+      {/* The sentence, the links and the issue start together, right of the box */}
+      <div className="min-w-0 flex-1">
+        <label htmlFor="agreed" className="block pt-2.5 text-sm text-muted">
+          {t.account.signUpPage.agree}
         </label>
-        <p className="pt-2.5 text-sm text-muted">
-          <label htmlFor="agreed">{t.account.signUpPage.agree}</label>
-          <Link to="/me/terms" className="text-highlight">
+        <p className="flex flex-wrap items-center gap-x-2">
+          <Link to="/me/terms" className={textLinkClass}>
             {t.account.terms}
           </Link>
-          {t.account.signUpPage.and}
-          <Link to="/me/privacy" className="text-highlight">
+          <span aria-hidden className="text-sm text-muted">
+            ·
+          </span>
+          <Link to="/me/privacy" className={textLinkClass}>
             {t.account.privacy}
           </Link>
-          {t.account.signUpPage.agreeEnd}
         </p>
+        {issue && (
+          <p id="agreed-issue" className="text-sm text-highlight">
+            {issue}
+          </p>
+        )}
       </div>
-      {issue && (
-        <p id="agreed-issue" className="text-sm text-highlight">
-          {issue}
-        </p>
-      )}
     </div>
   );
 }

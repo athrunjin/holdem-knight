@@ -65,9 +65,7 @@ export const account: Messages["account"] = {
   },
   signUpPage: {
     agreeFirst: "Confirm your age and agree to the terms first",
-    agree: "I am 18 or over and agree to the ",
-    and: " and ",
-    agreeEnd: ".",
+    agree: "I am 18 or over and agree to the Terms of Use and Privacy Policy.",
     toSignIn: "Have an account? Sign in",
   },
   google: {

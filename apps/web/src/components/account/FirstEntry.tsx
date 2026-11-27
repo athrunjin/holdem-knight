@@ -9,6 +9,19 @@ import { useAccount, useSession } from "@/data/session";
 import { t } from "@/i18n";
 import { AgreeField, FormIssue, SubmitButton, textLinkClass } from "./AuthParts";
 
+/** What was typed and ticked on the step, as far as it got */
+interface Draft {
+  typed?: string | undefined;
+  agreed: boolean;
+}
+
+/**
+ * The step's draft for each account, kept while the terms or the privacy policy stand in its
+ * place, so reading them loses nothing. In memory only: nothing of it is kept on the device, and
+ * it goes when the account agrees or signs out from the step.
+ */
+const drafts = new Map<string, Draft>();
+
 /**
  * The step an account that has not agreed to the terms passes before its books open (ADR 0052),
  * such as one made through Google or by hand: it confirms its name, says it is 18 and agrees.
@@ -20,8 +33,13 @@ export function FirstEntry({ userId }: { userId: string }) {
   const session = useSession();
   const account = useAccount(userId);
   const email = session.status === "signed-in" ? session.email : "";
+  const [draft, setDraft] = useState<Draft>(() => drafts.get(userId) ?? { agreed: false });
+  function keep(next: Draft) {
+    drafts.set(userId, next);
+    setDraft(next);
+  }
   // What the person typed, or else the name the account shows, or Google's where that fell back
-  const [typed, setTyped] = useState<string>();
+  const { typed, agreed } = draft;
   const name =
     typed ??
     (account.data
@@ -31,7 +49,6 @@ export function FirstEntry({ userId }: { userId: string }) {
           session.status === "signed-in" ? session.givenName : undefined,
         )
       : "");
-  const [agreed, setAgreed] = useState(false);
   const [issues, setIssues] = useState<{ name?: string | undefined; agreed?: string | undefined }>(
     {},
   );
@@ -57,6 +74,7 @@ export function FirstEntry({ userId }: { userId: string }) {
       setIssue(failed);
       return;
     }
+    drafts.delete(userId);
     // 我的 is where the account arrives, whatever page the step stood in for
     await navigate({ to: "/me", replace: true });
     await openAgreedBooks(userId);
@@ -79,7 +97,7 @@ export function FirstEntry({ userId }: { userId: string }) {
           inputMode="text"
           autoComplete="nickname"
           onChange={(next) => {
-            setTyped(next);
+            keep({ ...draft, typed: next });
             setIssues({ ...issues, name: undefined });
           }}
         />
@@ -87,7 +105,7 @@ export function FirstEntry({ userId }: { userId: string }) {
           checked={agreed}
           issue={issues.agreed}
           onChange={(next) => {
-            setAgreed(next);
+            keep({ ...draft, agreed: next });
             setIssues({ ...issues, agreed: undefined });
           }}
         />
@@ -98,7 +116,7 @@ export function FirstEntry({ userId }: { userId: string }) {
           disabled={leaving}
           onClick={async () => {
             setLeaving(true);
-            await signOut();
+            if (!(await signOut())) drafts.delete(userId);
             setLeaving(false);
           }}
           className={`${textLinkClass} self-center disabled:opacity-60`}

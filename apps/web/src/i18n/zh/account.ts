@@ -68,10 +68,8 @@ export const account = {
   },
   signUpPage: {
     agreeFirst: "请先确认年龄并同意协议",
-    /** Read in a row: this, the terms, `and`, the policy, `agreeEnd`. */
-    agree: "我已年满 18 岁，并同意",
-    and: "和",
-    agreeEnd: "",
+    /** Beside the box, which it ticks; the two documents are links on a row of their own under it */
+    agree: "我已年满 18 岁，并同意用户协议和隐私政策",
     toSignIn: "已有账户？登录",
   },
   /** Signing in with Google, on the sign-in and sign-up pages (ADR 0052). */
