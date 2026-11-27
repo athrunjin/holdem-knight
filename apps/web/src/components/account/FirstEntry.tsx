@@ -1,6 +1,6 @@
 import { parseDisplayName } from "@holdem-knight/core";
-import { useNavigate } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { useLocation, useNavigate } from "@tanstack/react-router";
+import { type FormEvent, useEffect, useState } from "react";
 import { Page } from "@/components/Page";
 import { TextField } from "@/components/TextField";
 import { openAgreedBooks } from "@/data";
@@ -23,6 +23,13 @@ interface Draft {
 const drafts = new Map<string, Draft>();
 
 /**
+ * The pages that send an account on to 我的, which the step can stand in for, as a sign-in leaves
+ * the address on one. Left there, the page is shown for a moment as the terms open, and sends the
+ * account back before they appear.
+ */
+const GUESTS_ONLY = new Set(["/me/sign-in", "/me/sign-up", "/me/reset"]);
+
+/**
  * The step an account that has not agreed to the terms passes before its books open (ADR 0052),
  * such as one made through Google or by hand: it confirms its name, says it is 18 and agrees.
  * It stands in place of every page but the terms and the privacy policy, and nothing of the
@@ -32,6 +39,10 @@ export function FirstEntry({ userId }: { userId: string }) {
   const navigate = useNavigate();
   const session = useSession();
   const account = useAccount(userId);
+  const pathname = useLocation({ select: (location) => location.pathname });
+  useEffect(() => {
+    if (GUESTS_ONLY.has(pathname)) void navigate({ to: "/me", replace: true });
+  }, [pathname, navigate]);
   const email = session.status === "signed-in" ? session.email : "";
   const [draft, setDraft] = useState<Draft>(() => drafts.get(userId) ?? { agreed: false });
   function keep(next: Draft) {
