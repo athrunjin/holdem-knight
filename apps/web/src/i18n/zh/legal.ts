@@ -22,7 +22,7 @@ const text = {
       {
         heading: "1. 这是什么",
         blocks: [
-          "Hold'em Knight（有局，下称“本应用”）由 Athrun Jin 提供，是给线下私人德州扑克牌局组局者用的记账工具：记录买入、兑出、玩家之间的结算、保险、抽水、台费、工资和计时，并生成报表。",
+          "Hold’em Knight（有局，下称“本应用”）由 Holdemknight 提供，是给线下私人德州扑克牌局组局者用的记账工具：记录买入、兑出、玩家之间的结算、保险、抽水、台费、工资和计时，并生成报表。",
         ],
       },
       {
@@ -89,7 +89,7 @@ const text = {
     sections: [
       {
         heading: "1. 适用范围",
-        blocks: ["本政策说明 Athrun Jin 运营 Hold'em Knight（有局）时如何处理信息。"],
+        blocks: ["本政策说明 Holdemknight 运营 Hold’em Knight（有局）时如何处理信息。"],
       },
       {
         heading: "2. 访客模式",

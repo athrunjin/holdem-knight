@@ -8,7 +8,7 @@ export const legal: Messages["legal"] = {
       {
         heading: "1. What this is",
         blocks: [
-          "Hold'em Knight (the \"app\") is provided by Athrun Jin. It is a record-keeping tool for people who organize private, in-person Texas Hold'em games: it records buy-ins, cash-outs, settlement between players, insurance, rake, table fees, wages and timing, and makes reports.",
+          'Hold’em Knight (the "app") is provided by Holdemknight. It is a record-keeping tool for people who organize private, in-person Texas Hold’em games: it records buy-ins, cash-outs, settlement between players, insurance, rake, table fees, wages and timing, and makes reports.',
         ],
       },
       {
@@ -42,7 +42,7 @@ export const legal: Messages["legal"] = {
       {
         heading: "7. No warranty",
         blocks: [
-          "The app is free for now and provided as is. We try to get the figures right, but we do not promise that the service is always available, free of errors, or that data will never be lost. Check important accounts yourself and export them regularly with Backup. Before the public launch we may need to reset data; we will tell you at least 14 days ahead and leave time to export.",
+          "The app is free for now and provided as is. We try to get the figures right, but we do not promise that the service is always available, free of errors, or that data will never be lost. Check important figures yourself and export them regularly with Backup. Before the public launch we may need to reset data; we will tell you at least 14 days ahead and leave time to export.",
         ],
       },
       {
@@ -78,7 +78,7 @@ export const legal: Messages["legal"] = {
       {
         heading: "1. Scope",
         blocks: [
-          "This policy explains how Athrun Jin handles information in running Hold'em Knight.",
+          "This policy explains how Holdemknight handles information in running Hold’em Knight.",
         ],
       },
       {
