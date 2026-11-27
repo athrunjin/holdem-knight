@@ -26,6 +26,7 @@ export const legal: Messages["legal"] = {
         heading: "3. Gaming and gambling laws",
         blocks: [
           "Items such as rake, table fees, wages and insurance are provided in the App as accounting fields only. Their presence does not mean that such charges or arrangements are lawful where you play.",
+          "The table fee and wage items are provided for recording actual costs that the participants have agreed to share, such as the cost of a venue or a dealer’s pay. You must not use the App so that any person profits from organising, managing or supervising a game. The rake item may be used only where the law permits it.",
           "In some places, including Victoria, Australia, a private game played for money may be unlawful if anyone charges a fee, takes a rake, or receives a share or payment for organising it. In some places, including mainland China, playing for money may be unlawful or an offence even where no fee or rake is taken, depending on the stakes and the circumstances.",
           "Laws on card games and gambling differ from place to place. You are solely responsible for finding out about and complying with all laws that apply where you play. Nothing in this section is legal advice.",
         ],
