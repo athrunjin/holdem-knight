@@ -5,6 +5,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { TERMS_VERSION } from "@/lib/terms";
 import { requestReset, setPassword, signIn, signOut, signUp, verifyCode } from "./auth";
 import { supabase } from "./supabase";
 
@@ -106,7 +107,7 @@ describe("what the service itself holds an account to", () => {
       .select("agreed_at, agreed_version")
       .eq("id", id ?? "")
       .single();
-    expect(data?.agreed_version).toBe("0");
+    expect(data?.agreed_version).toBe(TERMS_VERSION);
     expect(Date.parse(data?.agreed_at)).toBeGreaterThan(Date.now() - 60_000);
   });
 

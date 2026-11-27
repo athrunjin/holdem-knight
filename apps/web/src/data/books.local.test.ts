@@ -6,7 +6,7 @@ import "fake-indexeddb/auto";
 
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, describe, expect, it, vi } from "vitest";
-
+import { TERMS_VERSION } from "@/lib/terms";
 import {
   booksState,
   currentOrganizerId,
@@ -55,7 +55,7 @@ describe("the books as an account signs in and out", () => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { display_name: "小林", terms_version: "0" },
+      user_metadata: { display_name: "小林", terms_version: TERMS_VERSION },
     });
     const userId = data.user?.id;
     if (userId) made.push(userId);

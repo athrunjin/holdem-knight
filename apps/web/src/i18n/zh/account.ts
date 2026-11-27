@@ -99,7 +99,6 @@ export const account = {
   },
   terms: "用户协议",
   privacy: "隐私政策",
-  textToCome: "正式文本会在账户功能上线前补充。",
   resetPage: {
     title: "重置密码",
     body: "输入注册时的邮箱，我们发一个验证码给你。",
