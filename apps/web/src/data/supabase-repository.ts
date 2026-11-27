@@ -34,6 +34,17 @@ const PAGE = 1000;
 
 export class StorageError extends Error {
   override readonly name = "StorageError";
+
+  constructor(
+    message: string,
+    /**
+     * The HTTP status the API answered with: 0 when no answer came (no connection, or given up
+     * after the timeout). Missing where the record was refused here, before anything was sent.
+     */
+    readonly status?: number,
+  ) {
+    super(message);
+  }
 }
 
 /**
@@ -90,8 +101,8 @@ export function createSupabaseRepository(
   ): Promise<RecordOf<C>[]> {
     const records: RecordOf<C>[] = [];
     for (let from = 0; ; from += PAGE) {
-      const { data, error } = await refine(rows(collection)).range(from, from + PAGE - 1);
-      if (error) throw new StorageError(error.message);
+      const { data, error, status } = await refine(rows(collection)).range(from, from + PAGE - 1);
+      if (error) throw new StorageError(error.message, status);
       for (const found of data) records.push(checked(collection, found.data));
       if (data.length < PAGE) return records;
     }
@@ -101,8 +112,8 @@ export function createSupabaseRepository(
     collection: C,
     id: string,
   ): Promise<RecordOf<C> | undefined> {
-    const { data, error } = await rows(collection).eq("id", id).maybeSingle();
-    if (error) throw new StorageError(error.message);
+    const { data, error, status } = await rows(collection).eq("id", id).maybeSingle();
+    if (error) throw new StorageError(error.message, status);
     return data ? checked(collection, data.data) : undefined;
   }
 
@@ -110,19 +121,19 @@ export function createSupabaseRepository(
   async function save<C extends Collection>(collection: C, record: RecordOf<C>) {
     const conflict =
       TABLES[collection] === "saved_configs" ? "organizer_id,collection,id" : "organizer_id,id";
-    const { error } = await client
+    const { error, status } = await client
       .from(TABLES[collection])
       .upsert(row(collection, record), { onConflict: conflict });
-    if (error) throw new StorageError(error.message);
+    if (error) throw new StorageError(error.message, status);
   }
 
   /** Adds records that must all be new: one already there fails the lot. */
   async function add<C extends Collection>(collection: C, records: readonly RecordOf<C>[]) {
     if (records.length === 0) return;
-    const { error } = await client
+    const { error, status } = await client
       .from(TABLES[collection])
       .insert(records.map((record) => row(collection, record)));
-    if (error) throw new StorageError(error.message);
+    if (error) throw new StorageError(error.message, status);
   }
 
   async function remove(collection: Collection, id: string) {
@@ -132,8 +143,8 @@ export function createSupabaseRepository(
       .eq("organizer_id", organizerId)
       .eq("id", id);
     if (TABLES[collection] === "saved_configs") query = query.eq("collection", collection);
-    const { error } = await query;
-    if (error) throw new StorageError(error.message);
+    const { error, status } = await query;
+    if (error) throw new StorageError(error.message, status);
   }
 
   /** A summary as its schema allows it. It is kept apart from the lists, as no backup has it. */
@@ -149,34 +160,34 @@ export function createSupabaseRepository(
     list: async () => {
       const summaries: GameSummary[] = [];
       for (let from = 0; ; from += PAGE) {
-        const { data, error } = await client
+        const { data, error, status } = await client
           .from("game_summaries")
           .select("data")
           .eq("organizer_id", organizerId)
           .order("id")
           .range(from, from + PAGE - 1);
-        if (error) throw new StorageError(error.message);
+        if (error) throw new StorageError(error.message, status);
         for (const found of data) summaries.push(checkedSummary(found.data));
         if (data.length < PAGE) return summaries;
       }
     },
     save: async (summary) => {
       assertOwned(summary);
-      const { error } = await client
+      const { error, status } = await client
         .from("game_summaries")
         .upsert(
           { organizer_id: organizerId, id: summary.id, data: checkedSummary(summary) },
           { onConflict: "organizer_id,id" },
         );
-      if (error) throw new StorageError(error.message);
+      if (error) throw new StorageError(error.message, status);
     },
     remove: async (gameId) => {
-      const { error } = await client
+      const { error, status } = await client
         .from("game_summaries")
         .delete()
         .eq("organizer_id", organizerId)
         .eq("id", gameId);
-      if (error) throw new StorageError(error.message);
+      if (error) throw new StorageError(error.message, status);
     },
   };
 
@@ -207,13 +218,13 @@ export function createSupabaseRepository(
       ensure: async (player) => {
         // Never replaces the record there. Two devices making it at once keep one: the one that
         // loses may trip the record's other key, its link to the owner, and reads the one kept
-        const { error } = await client.from(TABLES.players).upsert(row("players", player), {
+        const { error, status } = await client.from(TABLES.players).upsert(row("players", player), {
           onConflict: "organizer_id,id",
           ignoreDuplicates: true,
         });
         const kept = await one("players", player.id);
         if (kept) return kept;
-        throw new StorageError(error?.message ?? `Record ${player.id} was not kept`);
+        throw new StorageError(error?.message ?? `Record ${player.id} was not kept`, status);
       },
     },
     ledger: {
@@ -250,10 +261,14 @@ export function createSupabaseRepository(
             data[collection].map((record) => row(collection, record).data),
           ]),
         );
-        const { data: result, error } = await client
+        const {
+          data: result,
+          error,
+          status,
+        } = await client
           .rpc("restore_books", { space: organizerId, books })
           .single<RestoreResult>();
-        if (error) throw new StorageError(error.message);
+        if (error) throw new StorageError(error.message, status);
         return { added: result.added, skipped: result.skipped };
       },
     },

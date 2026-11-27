@@ -57,6 +57,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0050](0050-a-visual-guide-and-a-visual-review.md) | A visual guide, and a visual review before hand-over | Accepted |
 | [0051](0051-the-hosts-own-record.md) | The host has a record of their own, under the organizer seat's ID | Accepted |
 | [0052](0052-sign-in-with-google-and-a-first-entry-agreement.md) | Sign-in with Google, and agreeing to the terms on first entry | Accepted |
+| [0053](0053-guest-records-brought-into-an-account.md) | A guest's records are brought into an account as a copy, when the person asks | Accepted |
 
 ## Template
 

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
-const still = () =>
+/** Whether motion is turned down on the device: then everything is in its final state at once. */
+export const still = () =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
