@@ -1,3 +1,4 @@
+import { DATABASE_FALLBACK_NAME } from "@/i18n/zh/account";
 import { TERMS_VERSION } from "@/lib/terms";
 import { supabase } from "./supabase";
 
@@ -94,6 +95,80 @@ export const resendCode = (email: string, purpose: CodePurpose): Outcome =>
 /** A new password for the account signed in, which a reset has just done. */
 export const setPassword = (password: string): Outcome =>
   attempt((auth) => auth.updateUser({ password }));
+
+/** The pages a sign-in with Google can start from, and comes back to. */
+export type GooglePage = "/me/sign-in" | "/me/sign-up";
+
+/**
+ * Leaves for Google to sign in, and comes back to the page it left, on whatever address the app
+ * is served from, so a branch preview comes back to itself (ADR 0052). The address has to be on
+ * the project's list of redirect URLs. Coming back signed in, the page sends the account on to
+ * 我的; coming back with an error, the page says so (`oauthReturn`).
+ */
+export const signInWithGoogle = (page: GooglePage): Outcome =>
+  attempt((auth) =>
+    auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}${page}` },
+    }),
+  );
+
+/** How a sign-in with Google came back to the page, where it came back without an account. */
+export type OAuthReturn = "cancelled" | "failed";
+
+/**
+ * What the address a sign-in with Google came back to says, where it came back with an error. The
+ * client signs in by the implicit flow, so the service may put the error in the query or after
+ * the `#`; both are read, the query first, as the client does. `access_denied` is the person
+ * turning Google down, not a failure.
+ */
+export function oauthReturn(url: URL): OAuthReturn | undefined {
+  const params = new URLSearchParams(url.hash.slice(1));
+  for (const [key, value] of url.searchParams) params.set(key, value);
+  const error = params.get("error");
+  const code = params.get("error_code");
+  if (!error && !code) return undefined;
+  return error === "access_denied" || code === "access_denied" ? "cancelled" : "failed";
+}
+
+/**
+ * Whether a new account can be made with an email and a password in this build. Online builds set
+ * `VITE_EMAIL_SIGN_UP=off` until the project has a sending domain, as no code could reach anyone
+ * outside the project's members; with it off, sign-up is through Google only and the password
+ * reset is linked from nowhere (ADR 0052). Missing, or anything but `off`, it is open.
+ */
+export const emailSignUpOpen = (value: string | undefined = import.meta.env.VITE_EMAIL_SIGN_UP) =>
+  value !== "off";
+
+/**
+ * The signed-in account says it is 18 and agrees to the terms of `TERMS_VERSION`, under the name it
+ * confirms, which its space takes too. The database keeps the time, from the first time only.
+ */
+export async function agreeToTerms(displayName: string): Outcome {
+  if (!supabase) return "unavailable";
+  try {
+    const { error, status } = await supabase.rpc("agree_to_terms", {
+      display_name: displayName,
+      version: TERMS_VERSION,
+    });
+    if (!error) return undefined;
+    // The client answers with no status where the request never got through
+    return status === 0 ? "network" : "unknown";
+  } catch {
+    return "network";
+  }
+}
+
+/**
+ * The name to offer an account at its first entry: the one it shows, unless that is only what
+ * the database made of its address, or its last resort, because the name Google gave could not
+ * be shown (`handle_new_user`). Then Google's, for the person to correct.
+ */
+export function firstEntryName(shown: string, email: string, given: string | undefined): string {
+  const fromAddress = (email.split("@")[0] ?? "").replace(/[^A-Za-z0-9_.-]/g, "").slice(0, 30);
+  const fellBack = shown === fromAddress || shown === DATABASE_FALLBACK_NAME;
+  return fellBack && given ? given : shown;
+}
 
 /** Signs out of this browser only. Other devices stay signed in. */
 export const signOut = (): Outcome => attempt((auth) => auth.signOut({ scope: "local" }));

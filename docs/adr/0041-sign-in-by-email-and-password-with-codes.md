@@ -1,6 +1,6 @@
 # 0041. Sign-in by email and password, confirmed with codes
 
-- Status: Accepted
+- Status: Superseded in part by [0052](0052-sign-in-with-google-and-a-first-entry-agreement.md)
 - Date: 2026-11-20
 
 ## Context

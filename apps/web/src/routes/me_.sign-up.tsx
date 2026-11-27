@@ -1,16 +1,21 @@
 import { parseDisplayName, parseEmail, parsePassword } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import {
+  AgreeField,
   AuthPage,
   EmailField,
   FormIssue,
+  GoogleButton,
+  GoogleReturnNote,
+  OrDivider,
   PasswordField,
   SubmitButton,
   textLinkClass,
+  useGoogleReturn,
 } from "@/components/account/AuthParts";
 import { TextField } from "@/components/TextField";
-import { type AuthIssue, signUp } from "@/data/auth";
+import { type AuthIssue, emailSignUpOpen, signUp } from "@/data/auth";
 import { t } from "@/i18n";
 import { keepPendingCode } from "@/lib/pending-code";
 
@@ -19,6 +24,39 @@ export const Route = createFileRoute("/me_/sign-up")({
 });
 
 function SignUpPage() {
+  const [returned, setReturned] = useGoogleReturn("/me/sign-up");
+  const google = (
+    <>
+      <GoogleReturnNote returned={returned} />
+      {!emailSignUpOpen() && <p className="text-sm text-muted">{t.account.google.only}</p>}
+      <GoogleButton
+        page="/me/sign-up"
+        onLeave={() => setReturned(undefined)}
+        onFail={() => setReturned("failed")}
+      />
+    </>
+  );
+  const toSignIn = (
+    <Link to="/me/sign-in" className={`${textLinkClass} self-center`}>
+      {t.account.signUpPage.toSignIn}
+    </Link>
+  );
+
+  // Until there is a sending domain no code could reach anyone, so only Google makes an account,
+  // and the terms are agreed to at its first entry (ADR 0052)
+  if (!emailSignUpOpen()) {
+    return (
+      <AuthPage title={t.common.signUp} audience="guests">
+        {google}
+        {toSignIn}
+      </AuthPage>
+    );
+  }
+  return <EmailSignUp google={google} toSignIn={toSignIn} />;
+}
+
+/** Making an account with an email and a password, confirmed by a code. */
+function EmailSignUp({ google, toSignIn }: { google: ReactNode; toSignIn: ReactNode }) {
   const navigate = Route.useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -62,6 +100,8 @@ function SignUpPage() {
 
   return (
     <AuthPage title={t.common.signUp} audience="guests" onSubmit={handleSubmit}>
+      {google}
+      <OrDivider />
       <TextField
         id="display-name"
         label={t.account.name}
@@ -92,43 +132,17 @@ function SignUpPage() {
           clear("password");
         }}
       />
-      <div>
-        <div className="flex items-start gap-1">
-          <input
-            id="agreed"
-            type="checkbox"
-            checked={agreed}
-            aria-describedby={issues.agreed ? "agreed-issue" : undefined}
-            onChange={(event) => {
-              setAgreed(event.target.checked);
-              clear("agreed");
-            }}
-            // 44px for a thumb around a box of 20
-            className="m-3 size-5 shrink-0 accent-(--accent)"
-          />
-          <p className="pt-2.5 text-sm text-muted">
-            <label htmlFor="agreed">{t.account.signUpPage.agree}</label>
-            <Link to="/me/terms" className="text-highlight">
-              {t.account.terms}
-            </Link>
-            {t.account.signUpPage.and}
-            <Link to="/me/privacy" className="text-highlight">
-              {t.account.privacy}
-            </Link>
-            {t.account.signUpPage.agreeEnd}
-          </p>
-        </div>
-        {issues.agreed && (
-          <p id="agreed-issue" className="text-sm text-highlight">
-            {issues.agreed}
-          </p>
-        )}
-      </div>
+      <AgreeField
+        checked={agreed}
+        issue={issues.agreed}
+        onChange={(next) => {
+          setAgreed(next);
+          clear("agreed");
+        }}
+      />
       <FormIssue issue={issue} />
       <SubmitButton busy={busy}>{t.account.sendCode}</SubmitButton>
-      <Link to="/me/sign-in" className={`${textLinkClass} self-center`}>
-        {t.account.signUpPage.toSignIn}
-      </Link>
+      {toSignIn}
     </AuthPage>
   );
 }

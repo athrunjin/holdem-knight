@@ -1,10 +1,16 @@
 import { codeDigits } from "@holdem-knight/core";
-import { Link, Navigate } from "@tanstack/react-router";
+import { Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, Eye, EyeOff } from "lucide-react";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { Page } from "@/components/Page";
 import { TextField } from "@/components/TextField";
-import type { AuthIssue } from "@/data/auth";
+import {
+  type AuthIssue,
+  type GooglePage,
+  type OAuthReturn,
+  oauthReturn,
+  signInWithGoogle,
+} from "@/data/auth";
 import { type Session, useSession } from "@/data/session";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
@@ -183,3 +189,156 @@ export function FormIssue({ issue }: { issue: AuthIssue | undefined }) {
 
 /** A link in the form's own color, tall enough for a thumb. */
 export const textLinkClass = "inline-flex min-h-11 items-center text-sm font-medium text-highlight";
+
+/**
+ * How a sign-in with Google came back to this page, where it came back without an account, and a
+ * way to change what is said of it. The address is cleaned at once, in place, so going back or
+ * reloading does not say it again.
+ */
+export function useGoogleReturn(page: GooglePage) {
+  const navigate = useNavigate();
+  const [arrived] = useState(() => oauthReturn(new URL(window.location.href)));
+  const [returned, setReturned] = useState(arrived);
+  useEffect(() => {
+    if (arrived) void navigate({ to: page, replace: true });
+  }, [arrived, navigate, page]);
+  return [returned, setReturned] as const;
+}
+
+/**
+ * What became of a sign-in with Google, at the top of the page: a muted line for one the person
+ * turned down, which is no failure, and an alert for one that did not go through.
+ */
+export function GoogleReturnNote({ returned }: { returned: OAuthReturn | undefined }) {
+  if (returned === "cancelled") {
+    return (
+      <p role="status" className="text-sm text-muted">
+        {t.account.google.cancelled}
+      </p>
+    );
+  }
+  if (returned === "failed") {
+    return (
+      <p role="alert" className="text-sm text-highlight">
+        {t.account.google.failed}
+      </p>
+    );
+  }
+  return null;
+}
+
+/**
+ * Signs in with Google, in Google's own dark button: its fill, stroke and label, and its G, the one
+ * place the app shows colors that are not its own (ADR 0052). It leaves for Google and comes back
+ * to `page`; until the browser has left, it cannot be tapped again.
+ */
+export function GoogleButton({
+  page,
+  onLeave,
+  onFail,
+}: {
+  page: GooglePage;
+  /** As it is tapped, before the browser leaves */
+  onLeave: () => void;
+  /** Where the browser could not leave for Google */
+  onFail: () => void;
+}) {
+  const [leaving, setLeaving] = useState(false);
+
+  useEffect(() => {
+    // Back from Google by the browser's own back button, the page can come back as it was left
+    const restored = (event: PageTransitionEvent) => {
+      if (event.persisted) setLeaving(false);
+    };
+    window.addEventListener("pageshow", restored);
+    return () => window.removeEventListener("pageshow", restored);
+  }, []);
+
+  return (
+    <button
+      type="button"
+      disabled={leaving}
+      onClick={async () => {
+        onLeave();
+        setLeaving(true);
+        if (await signInWithGoogle(page)) {
+          setLeaving(false);
+          onFail();
+        }
+      }}
+      className="flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-google-line bg-google-fill px-4 text-sm font-medium text-google-text disabled:opacity-60"
+    >
+      <img src="/google-g.svg" alt="" width={18} height={18} className="size-4.5 shrink-0" />
+      {t.account.google.continue}
+    </button>
+  );
+}
+
+/** Between signing in with Google and the email form: a hairline either side of 或. */
+export function OrDivider() {
+  return (
+    // 8px from what is above and below it, inside the column's 16px gap
+    <div className="-my-2 flex items-center gap-3 text-xs text-muted">
+      <span aria-hidden className="h-px flex-1 bg-line" />
+      {t.account.google.or}
+      <span aria-hidden className="h-px flex-1 bg-line" />
+    </div>
+  );
+}
+
+/**
+ * Saying one is 18 and agreeing to the terms and the privacy policy: at sign-up, and at an
+ * account's first entry (ADR 0052). The sentence ticks the box and holds no link, as a link inside
+ * a sentence is too small a target; the two documents open from a row of their own under it.
+ */
+export function AgreeField({
+  checked,
+  issue,
+  onChange,
+}: {
+  checked: boolean;
+  issue: string | undefined;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-start gap-1">
+        {/* 44px for a thumb around a box of 20: a margin would not take the tap, the label does */}
+        <label htmlFor="agreed" className="grid size-11 shrink-0 place-items-center">
+          <input
+            id="agreed"
+            type="checkbox"
+            checked={checked}
+            aria-invalid={issue ? true : undefined}
+            aria-describedby={issue ? "agreed-issue" : undefined}
+            onChange={(event) => onChange(event.target.checked)}
+            className="size-5 accent-(--accent)"
+          />
+        </label>
+        {/* The sentence and the links start together, right of the box */}
+        <div className="min-w-0 flex-1">
+          <label htmlFor="agreed" className="block pt-2.5 text-sm text-muted">
+            {t.account.signUpPage.agree}
+          </label>
+          <p className="flex flex-wrap items-center gap-x-2">
+            <Link to="/me/terms" className={textLinkClass}>
+              {t.account.terms}
+            </Link>
+            <span aria-hidden className="text-sm text-muted">
+              ·
+            </span>
+            <Link to="/me/privacy" className={textLinkClass}>
+              {t.account.privacy}
+            </Link>
+          </p>
+        </div>
+      </div>
+      {/* At the column's left edge, in line with the fields' issues, not under the gold links */}
+      {issue && (
+        <p id="agreed-issue" className="text-sm text-highlight">
+          {issue}
+        </p>
+      )}
+    </div>
+  );
+}

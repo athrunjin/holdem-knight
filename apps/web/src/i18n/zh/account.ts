@@ -5,6 +5,13 @@ const invalidEmail = "邮箱地址无效";
 const invalidName = "昵称不能包含特殊符号，可以用文字、数字、空格和 - . _";
 const invalidCode = (digits: number) => `验证码是 ${digits} 位数字`;
 
+/**
+ * The name the database gives an account it can find no other for (`handle_new_user`), kept with
+ * the Chinese text it is. It is matched against what the database holds and never shown, so it is
+ * the same in every language and is no part of a catalog.
+ */
+export const DATABASE_FALLBACK_NAME = "玩家";
+
 /** Signing up, signing in, codes and passwords. */
 export const account = {
   /** What the sign-in service's answers read as. None says whether an address has an account. */
@@ -68,11 +75,27 @@ export const account = {
   },
   signUpPage: {
     agreeFirst: "请先确认年龄并同意协议",
-    /** Read in a row: this, the terms, `and`, the policy, `agreeEnd`. */
-    agree: "我已年满 18 岁，并同意",
-    and: "和",
-    agreeEnd: "",
+    /** Beside the box, which it ticks; the two documents are links on a row of their own under it */
+    agree: "我已年满 18 岁，并同意用户协议和隐私政策",
     toSignIn: "已有账户？登录",
+  },
+  /** Signing in with Google, on the sign-in and sign-up pages (ADR 0052). */
+  google: {
+    continue: "使用 Google 账号继续",
+    /** Between the Google button and the email form */
+    or: "或",
+    cancelled: "已取消 Google 登录。",
+    failed: "Google 登录没有完成，请重试。",
+    /** On the sign-up page of a build with email sign-up closed */
+    only: "目前只能用 Google 账号注册。",
+  },
+  /** The step an account that has not agreed to the terms passes before its books open. */
+  firstEntry: {
+    title: "完成注册",
+    /** Read around the address: `signedInBefore`, the address, `signedInAfter`. */
+    signedInBefore: "已登录为 ",
+    signedInAfter: "。确认昵称并同意协议后开始使用。",
+    start: "开始使用",
   },
   terms: "用户协议",
   privacy: "隐私政策",

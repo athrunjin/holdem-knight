@@ -38,6 +38,10 @@ Dark is the only mode, whatever the device is set to (2026-11-21). Nothing is de
 
 Use the Tailwind names (`bg-surface`, `text-muted`, `border-line`). A hex value in a component is a defect.
 
+### Google's button
+
+The one exception to the app's colors (2026-11-27, [ADR 0052](../adr/0052-sign-in-with-google-and-a-first-entry-agreement.md)): signing in with Google is in Google's own dark button, as its guidelines for the button ask. Three tokens, `google-fill` (`#131314`), `google-line` (`#8e918f`) and `google-text` (`#e3e3e3`), and the G mark in Google's four colors (`public/google-g.svg`). Nothing but that button uses them, and it uses nothing else: not `accent`, not `highlight`. The label is in the app's own font.
+
 ### Chart colors
 
 The four kinds of income keep one color each on every page that charts them:
@@ -105,6 +109,9 @@ Use what exists before making something new. Each is one file under `apps/web/sr
 | A player | `PlayerAvatar` | Wherever a player is listed. A tap on it opens the player's page |
 | The host's own record | `OwnTag` | A small muted pill reading Host after the name, the shape of the guest's sign-in pill but not gold, as it is a fact and not an action. On the own record wherever players are listed: first in the lists a game's players are picked from, in the player list and on its page |
 | A transfer made or not | `DoneButton` | An empty box until ticked, at the end of its line. The same on the settlement page and on 转账 |
+| Signing in with Google | `GoogleButton` in `account/AuthParts.tsx` | Google's dark button (section 2), the full width of the column, 48px tall, `rounded-xl`: the 18px G at the left of its label, 12px apart, the two centered, `text-sm` medium. Above the email form on sign-in and sign-up, with 或 between them on a `line` hairline either side. Tapped, it is dimmed until the browser leaves. Coming back, a line at the top of the column says what happened: muted for a sign-in turned down at Google, an alert in gold for one that failed |
+| Agreeing to the terms | `AgreeField` in `account/AuthParts.tsx` | The 20px box in a 44px target, in `accent`, beside one muted sentence that ticks it when tapped and holds no link. Under the sentence, the terms and the privacy policy as two gold links on a row of their own, each 44px tall, with a muted `·` between (the organizer's decision, 2026-11-27: a link inside a sentence is too small a target). Its issue sits under it all at the column's left edge, in line with the fields' issues, not under the links, where gold on gold could read as a third link (2026-11-27). On sign-up, and on the first-entry step |
+| First entry | `FirstEntry` in `account/` | An account that has not agreed to the terms sees this in place of every page but the terms, with the tabs kept: the title at the left with no way back, a muted line with its address, the name prefilled, `AgreeField`, 开始使用, and 退出登录 centered under it as a link |
 | Help text | `InfoButton` | Explanations live behind the small (i), not on the page |
 | Currency | `CurrencyIcon`, `ChipStack` | Marks, not words |
 
@@ -159,7 +166,7 @@ A tick that would take its line out of the list does not act at once: buttons co
 
 ## 9. Do not
 
-- A light theme, or any color outside the tokens and the chart colors.
+- A light theme, or any color outside the tokens and the chart colors. Google's button is the one exception (section 2).
 - A second accent, gradients, glows, or shadows on things that do not float.
 - A dialog for a choice among a few fixed options, or a second confirmation for a switch that can be switched back.
 - Icons where a word is clearer, and words where the app already has a mark.
@@ -196,3 +203,6 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | 2026-11-26 | A preview card that shows money names its currency by its mark after the title, muted at 18px (`size-4.5`, as in a game's row), a mark and not a control; a card with nothing to show has none |
 | 2026-11-26 | Each preview card on 我的 shows what its page would open on, the view kept there or the page's own defaults, so its figures equal the page's; 转账 also opens on panda points where there are any, as 收益 does |
 | 2026-11-26 | 我的 for a Player: the host's own record and its results, two cards in one currency, the curve a whole link and the bars not; nothing under the header until its games are read, as a stand-in would jump. The own record marked by a muted Host tag and listed first in the pickers; the header shows the account's name on its avatar and number |
+| 2026-11-27 | Signing in with Google in Google's own dark button, the one exception to the app's colors; the agreement as one component for sign-up and the first-entry step, which stands in for every page until an account has agreed |
+| 2026-11-27 | The agreement's links on a row of their own under its sentence, each 44px tall, rather than inside it |
+| 2026-11-27 | The agreement's issue at the column's left edge, in line with the fields' issues |

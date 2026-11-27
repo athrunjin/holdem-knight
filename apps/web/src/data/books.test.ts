@@ -17,13 +17,13 @@ const guest = store("guest", "guest");
 /** Books with a reader the test moves, and accounts that open when the test says so. */
 function setUp(first: Reader = { status: "loading" }) {
   let reader = first;
-  const opening = new Map<string, { resolve(store: Store): void; reject(): void }>();
+  const opening = new Map<string, { resolve(store: Store | "agreeing"): void; reject(): void }>();
   const onSwitch = vi.fn();
   const books = createBooks({
     guest,
     reader: () => reader,
     openAccount: (userId) =>
-      new Promise<Store>((resolve, reject) => {
+      new Promise<Store | "agreeing">((resolve, reject) => {
         opening.set(userId, { resolve, reject: () => reject(new Error("offline")) });
       }),
     onSwitch,
@@ -41,7 +41,7 @@ function setUp(first: Reader = { status: "loading" }) {
       return books.follow();
     },
     /** Lets the account's books be found, or not. */
-    async answer(userId: string, found: Store | "offline") {
+    async answer(userId: string, found: Store | "agreeing" | "offline") {
       const waiting = opening.get(userId);
       if (!waiting) throw new Error(`Nothing asked for ${userId}`);
       if (found === "offline") waiting.reject();
@@ -149,5 +149,76 @@ describe("the books in use", () => {
     await answer("lin", "offline");
 
     expect(books.state().status).toBe("open");
+  });
+
+  it("stay closed for an account that has not agreed to the terms, and nothing is let go", async () => {
+    const { books, onSwitch, become, answer } = setUp({ status: "guest" });
+    await books.follow();
+    void become(lin);
+    await answer("lin", "agreeing");
+
+    expect(books.state()).toEqual({ status: "agreeing", userId: "lin" });
+    expect(books.current()).toBe(guest);
+    expect(onSwitch).not.toHaveBeenCalled();
+  });
+
+  it("open once the account has agreed and is followed again, with its step kept until then", async () => {
+    const { books, onSwitch, states, become, answer } = setUp();
+    void become(lin);
+    await answer("lin", "agreeing");
+    states.length = 0;
+
+    void books.follow();
+    expect(books.state()).toEqual({ status: "agreeing", userId: "lin" });
+    await answer("lin", linBooks);
+
+    expect(states).toEqual(["open"]);
+    expect(books.current()).toBe(linBooks);
+    expect(onSwitch).toHaveBeenCalledTimes(1);
+  });
+
+  it("stay closed while the account has still not agreed when followed again", async () => {
+    const { books, become, answer } = setUp();
+    void become(lin);
+    await answer("lin", "agreeing");
+    void books.follow();
+    await answer("lin", "agreeing");
+
+    expect(books.state()).toEqual({ status: "agreeing", userId: "lin" });
+    expect(books.current()).toBe(guest);
+  });
+
+  it("go back to the device's when the account signs out from its step", async () => {
+    const { books, onSwitch, become, answer } = setUp();
+    void become(lin);
+    await answer("lin", "agreeing");
+    await become({ status: "guest" });
+
+    expect(books.state()).toEqual({ status: "open", key: "guest", mode: "guest" });
+    expect(books.current()).toBe(guest);
+    expect(onSwitch).not.toHaveBeenCalled();
+  });
+
+  it("leave another account's books when an account that has not agreed signs in after it", async () => {
+    const { books, onSwitch, become, answer } = setUp();
+    void become(lin);
+    await answer("lin", linBooks);
+    expect(books.current()).toBe(linBooks);
+
+    const wang = { status: "account", userId: "wang" } as const;
+    const wangBooks = store("account:wang-space", "account");
+    void become(wang);
+    await answer("wang", "agreeing");
+
+    expect(books.state()).toEqual({ status: "agreeing", userId: "wang" });
+    expect(books.current()).toBe(guest);
+    expect(onSwitch).toHaveBeenCalledTimes(2);
+
+    void books.follow();
+    await answer("wang", wangBooks);
+
+    expect(books.state()).toEqual({ status: "open", key: "account:wang-space", mode: "account" });
+    expect(books.current()).toBe(wangBooks);
+    expect(onSwitch).toHaveBeenCalledTimes(3);
   });
 });

@@ -8,15 +8,36 @@ export type Session =
   | { readonly status: "unavailable" }
   | { readonly status: "loading" }
   | { readonly status: "signed-out" }
-  | { readonly status: "signed-in"; readonly userId: string; readonly email: string };
+  | {
+      readonly status: "signed-in";
+      readonly userId: string;
+      readonly email: string;
+      /** The name Google gave the account, where it was made through Google */
+      readonly givenName?: string;
+    };
+
+/** The name an account arrived with from Google: its full name, or else its name. */
+function givenName(metadata: Record<string, unknown> | undefined): string | undefined {
+  for (const key of ["full_name", "name"]) {
+    const value = metadata?.[key];
+    if (typeof value === "string" && value.trim() !== "") return value.trim();
+  }
+  return undefined;
+}
 
 let session: Session = supabase ? { status: "loading" } : { status: "unavailable" };
 const listeners = new Set<() => void>();
 
 // The client reports the session it kept from last time first, then every sign-in and sign-out
 supabase?.auth.onAuthStateChange((_event, current) => {
+  const given = current ? givenName(current.user.user_metadata) : undefined;
   const next: Session = current
-    ? { status: "signed-in", userId: current.user.id, email: current.user.email ?? "" }
+    ? {
+        status: "signed-in",
+        userId: current.user.id,
+        email: current.user.email ?? "",
+        ...(given !== undefined && { givenName: given }),
+      }
     : { status: "signed-out" };
   // One object for as long as nothing changes, so nothing renders again for a renewed token
   if (JSON.stringify(next) === JSON.stringify(session)) return;
@@ -38,15 +59,19 @@ export function useSession(): Session {
   return useSyncExternalStore(onSessionChange, currentSession);
 }
 
-/** What an account shows of itself: its name, its code, and the name of its space (ADR 0040). */
+/**
+ * What an account shows of itself: its name, its code, and the name of its space (ADR 0040), and
+ * whether it has agreed to the terms, without which its books are not opened (ADR 0052).
+ */
 export interface Account {
   readonly displayName: string;
   readonly code: string;
   readonly spaceId: string;
   readonly spaceName: string;
+  readonly agreed: boolean;
 }
 
-const accountKey = (userId: string) => ["account", userId] as const;
+export const accountKey = (userId: string) => ["account", userId] as const;
 
 /**
  * An account's profile and space. Row-level security returns only its own. The books are opened
@@ -58,7 +83,11 @@ export const accountQuery = (userId: string) =>
     queryFn: async (): Promise<Account> => {
       if (!supabase) throw new Error("Not signed in");
       const [profile, space] = await Promise.all([
-        supabase.from("profiles").select("display_name, code").eq("id", userId).maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("display_name, code, agreed_at")
+          .eq("id", userId)
+          .maybeSingle(),
         supabase.from("organizers").select("id, name").eq("owner_id", userId).maybeSingle(),
       ]);
       if (profile.error) throw profile.error;
@@ -74,6 +103,7 @@ export const accountQuery = (userId: string) =>
         code: profile.data.code,
         spaceId: space.data.id,
         spaceName: space.data.name,
+        agreed: profile.data.agreed_at !== null,
       };
     },
   });
