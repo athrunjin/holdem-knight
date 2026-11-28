@@ -33,7 +33,7 @@ export const me: Messages["me"] = {
     // Shorter than the Chinese, to keep the header on one row at 360px
     localOnly: "On this device",
     synced: "Synced to account",
-    unsent: (count) => `${count} to send`,
+    unsent: "Records not sent",
   },
   playerFace: {
     noSettled: "No settled games yet.",
@@ -85,6 +85,16 @@ export const me: Messages["me"] = {
     offline: "Needs a connection.",
     unsent: (count) =>
       `${count} ${count === 1 ? "record isn’t" : "records aren’t"} sent yet. Try again once they are.`,
+  },
+  sync: {
+    title: "Sync",
+    lastSynced: (when) => `Last synced ${when}`,
+    allSent: "All sent",
+    sending: "Sending",
+    toSend: (count) => `${count} to send`,
+    offline: (count) => `${count} to send · Offline`,
+    notSent: (count) => `${count} not sent`,
+    syncNow: "Sync now",
   },
   language: {
     title: "Language",

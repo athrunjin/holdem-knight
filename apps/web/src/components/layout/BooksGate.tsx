@@ -5,6 +5,7 @@ import { FirstEntry } from "@/components/account/FirstEntry";
 import { UnsentStep, useSignOut } from "@/components/account/SignOutStep";
 import { Page } from "@/components/Page";
 import { retryBooks, useBooks } from "@/data";
+import type { UnreachableReason } from "@/data/books";
 import { t } from "@/i18n";
 import { SyncStatus } from "./SyncStatus";
 
@@ -30,18 +31,24 @@ function Opening() {
 }
 
 /**
- * An account is signed in and its books cannot be read: opened on this device for the first time
- * with no network (ADR 0054). The guest's books on this device are not shown in their place: what
- * is recorded would go where the account never sees it. Signing out is the way to them.
+ * An account is signed in and its books cannot be read (ADR 0054): never opened on this device,
+ * whatever stopped the first read, or opened before and the account turns the read down now. The
+ * guest's books on this device are not shown in their place: what is recorded would go where the
+ * account never sees it. Signing out is the way to them.
  */
-function Unreachable() {
+function Unreachable({ reason }: { reason: UnreachableReason }) {
   const leaving = useSignOut();
+  const text = t.shell.books;
 
   return (
     <Page title={t.shell.books.unreachableTitle} centered>
       <section className="rounded-2xl border border-line bg-surface p-5">
-        <p className="font-medium">{t.shell.books.unreachableHeading}</p>
-        <p className="mt-1 text-sm text-muted">{t.shell.books.unreachableBody}</p>
+        <p className="font-medium">
+          {reason === "refused" ? text.refusedHeading : text.firstOpenHeading}
+        </p>
+        <p className="mt-1 text-sm text-muted">
+          {reason === "refused" ? text.refusedBody : text.firstOpenBody}
+        </p>
         {leaving.unsent === undefined ? (
           <div className="mt-4 grid grid-cols-2 gap-2">
             <button
@@ -126,7 +133,7 @@ export function BooksGate({ children }: { children: ReactNode }) {
   const pathname = useLocation({ select: (location) => location.pathname });
 
   if (books.status === "opening") return <Opening />;
-  if (books.status === "unreachable") return <Unreachable />;
+  if (books.status === "unreachable") return <Unreachable reason={books.reason} />;
   if (books.status === "agreeing") {
     return READ_BEFORE_AGREEING.has(pathname) ? children : <FirstEntry userId={books.userId} />;
   }
