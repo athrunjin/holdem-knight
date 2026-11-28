@@ -26,6 +26,8 @@ import {
   memoryLock,
   OnlineOnlyError,
   type SyncStatus,
+  stoppedAtOf,
+  watchOnline,
 } from "./sync";
 
 const SPACE = "space";
@@ -334,7 +336,7 @@ describe("the outbox", () => {
     // Not skipped: the event after it is not sent either, and nothing is tried again on a timer
     expect(server.snapshot().books.ledgerEvents).toEqual([]);
     expect(waits).toEqual([]);
-    await vi.waitFor(() => expect(seen.at(-1)).toEqual({ pending: 2, refused: true }));
+    await vi.waitFor(() => expect(seen.at(-1)).toMatchObject({ pending: 2, refused: true }));
     // Still on the device, and in a backup of it
     expect(await repository.players.get("p")).toEqual(player("p", "老王"));
     expect((await repository.backup.exportAll()).ledgerEvents).toHaveLength(1);
@@ -342,7 +344,7 @@ describe("the outbox", () => {
     // Tried again when asked, and once taken the rest follows
     server.fate = () => "ok";
     expect(await sync.flush()).toBe("sent");
-    await vi.waitFor(() => expect(seen.at(-1)).toEqual({ pending: 0, refused: false }));
+    await vi.waitFor(() => expect(seen.at(-1)).toMatchObject({ pending: 0, refused: false }));
     unwatch();
     const { device: mine, account } = await bothSides(repository, server);
     expect(account).toEqual(mine);
@@ -467,11 +469,11 @@ describe("the outbox", () => {
     const unwatch = sync.watch((status) => seen.push(status));
     sync.start();
     expect(await sync.flush()).toBe("refused");
-    await vi.waitFor(() => expect(seen.at(-1)).toEqual({ pending: 1, refused: true }));
+    await vi.waitFor(() => expect(seen.at(-1)).toMatchObject({ pending: 1, refused: true }));
 
     server.fate = () => "unanswered";
     expect(await sync.flush()).toBe("waiting");
-    await vi.waitFor(() => expect(seen.at(-1)).toEqual({ pending: 1, refused: false }));
+    await vi.waitFor(() => expect(seen.at(-1)).toMatchObject({ pending: 1, refused: false }));
     unwatch();
   });
 
@@ -908,5 +910,176 @@ describe("the copy at a sign-out", () => {
     expect(await again.sync.count()).toBe(1);
     expect(await again.sync.flush()).toBe("sent");
     expect(server.snapshot().books.games).toEqual([game("g")]);
+  });
+});
+
+describe("what the interface reads of the sync", () => {
+  it("says a send is under way in this tab while it is, and not once it ends", async () => {
+    const gate = held();
+    let holding = false;
+    const inner = memoryLock();
+    const lock: Lock = {
+      run: (name, task) =>
+        inner.run(name, async () => {
+          if (holding) await gate.promise;
+          return task();
+        }),
+    };
+    const { sync, repository } = device({ lock });
+    sync.stop();
+    await repository.games.save(game("g"));
+    const seen: SyncStatus[] = [];
+    const unwatch = sync.watch((status) => seen.push(status));
+    await vi.waitFor(() => expect(seen.at(-1)).toMatchObject({ pending: 1, sending: false }));
+    sync.start();
+    holding = true;
+
+    const flushed = sync.flush();
+    await vi.waitFor(() => expect(seen.at(-1)).toMatchObject({ pending: 1, sending: true }));
+    gate.release();
+    expect(await flushed).toBe("sent");
+    await vi.waitFor(() => expect(seen.at(-1)).toMatchObject({ pending: 0, sending: false }));
+    unwatch();
+  });
+
+  it("gives when the copy was last read from the account, and nothing before the first read", async () => {
+    let clock = 1_000;
+    const server = createFakeServer(SPACE);
+    const db = createAccountDatabase(SPACE, `test-sync-${crypto.randomUUID()}`);
+    opened.push(db);
+    const sync = createSync({
+      db,
+      remote: server,
+      lock: memoryLock(),
+      lockName: db.name,
+      now: () => clock,
+    });
+    sync.start();
+    const seen: SyncStatus[] = [];
+    const unwatch = sync.watch((status) => seen.push(status));
+    await vi.waitFor(() => expect(seen.at(-1)).toMatchObject({ pending: 0 }));
+    expect(seen.at(-1)?.pulledAt).toBeUndefined();
+
+    await sync.pull();
+    await vi.waitFor(() => expect(seen.at(-1)?.pulledAt).toBe(1_000));
+    clock = 5_000;
+    await sync.sync();
+    await vi.waitFor(() => expect(seen.at(-1)?.pulledAt).toBe(5_000));
+    unwatch();
+  });
+
+  it("names what the first refused change is of, and its game, with the answer's code only", async () => {
+    const { server, sync, repository } = device();
+    sync.stop();
+    await repository.games.save(game("g"));
+    await repository.ledger.append(buyIn("e1", "g"));
+    server.fate = (what) => (what.kind === "send" && what.change.kind === "append" ? 403 : "ok");
+    const seen: SyncStatus[] = [];
+    const unwatch = sync.watch((status) => seen.push(status));
+    sync.start();
+
+    expect(await sync.flush()).toBe("refused");
+    await vi.waitFor(() =>
+      expect(seen.at(-1)).toMatchObject({
+        pending: 1,
+        refused: true,
+        stoppedAt: { kind: "ledger", removed: false, gameId: "g", code: 403 },
+      }),
+    );
+    expect(JSON.stringify(seen.at(-1))).not.toContain("Answered");
+
+    // Taken once tried again: nothing is stopped at any more
+    server.fate = () => "ok";
+    expect(await sync.flush()).toBe("sent");
+    await vi.waitFor(() => expect(seen.at(-1)).toMatchObject({ pending: 0, refused: false }));
+    expect(seen.at(-1)?.stoppedAt).toBeUndefined();
+    unwatch();
+  });
+
+  it("has no place to stop at while what waits has not been refused", async () => {
+    const { server, sync, repository } = device();
+    sync.stop();
+    await repository.games.save(game("g"));
+    server.fate = () => "unanswered";
+    const seen: SyncStatus[] = [];
+    const unwatch = sync.watch((status) => seen.push(status));
+    sync.start();
+
+    expect(await sync.flush()).toBe("waiting");
+    await vi.waitFor(() => expect(seen.at(-1)).toMatchObject({ pending: 1, refused: false }));
+    expect(seen.at(-1)?.stoppedAt).toBeUndefined();
+    unwatch();
+  });
+
+  it("sorts every kind of change into the app's terms", async () => {
+    const db = createAccountDatabase(SPACE, `test-sync-${crypto.randomUUID()}`);
+    opened.push(db);
+    const of = (change: Change) => stoppedAtOf(db, { keys: [], change });
+
+    expect(await of({ kind: "save", list: "games", record: game("g") })).toEqual({
+      kind: "game",
+      removed: false,
+      gameId: "g",
+    });
+    expect(await of({ kind: "save", list: "players", record: player("p", "老王") })).toEqual({
+      kind: "player",
+      removed: false,
+    });
+    expect(await of({ kind: "ensure", record: player("p", "老王") })).toEqual({
+      kind: "player",
+      removed: false,
+    });
+    expect(await of({ kind: "save", list: "insuranceHands", record: hand("h", "g") })).toEqual({
+      kind: "insuranceHand",
+      removed: false,
+      gameId: "g",
+    });
+    expect(await of({ kind: "save", list: "gameSummaries", record: summary("g") })).toEqual({
+      kind: "summary",
+      removed: false,
+      gameId: "g",
+    });
+    expect(await of({ kind: "save", list: "insuranceRules", record: rule("r", "30") })).toEqual({
+      kind: "setting",
+      removed: false,
+    });
+    expect(await of({ kind: "remove", list: "gameConfigs", id: "c" })).toEqual({
+      kind: "setting",
+      removed: true,
+    });
+    expect(await of({ kind: "remove", list: "gameSummaries", id: "g" })).toEqual({
+      kind: "summary",
+      removed: true,
+      gameId: "g",
+    });
+  });
+
+  it("finds a deleted insurance hand's game in the copy, and gives the kind alone once it is gone", async () => {
+    const db = createAccountDatabase(SPACE, `test-sync-${crypto.randomUUID()}`);
+    opened.push(db);
+    const change: Change = { kind: "remove", list: "insuranceHands", id: "h" };
+
+    expect(await stoppedAtOf(db, { keys: [], change })).toEqual({
+      kind: "insuranceHand",
+      removed: true,
+    });
+    await db.insuranceHands.put(hand("h", "g"));
+    expect(
+      await stoppedAtOf(db, { keys: [], change, refused: { status: 400, message: "no", at: 1 } }),
+    ).toEqual({ kind: "insuranceHand", removed: true, gameId: "g", code: 400 });
+  });
+
+  it("calls back as the connection comes and goes, until told to stop", () => {
+    const target = new EventTarget();
+    const listener = vi.fn();
+    const stop = watchOnline(listener, target);
+
+    target.dispatchEvent(new Event("offline"));
+    target.dispatchEvent(new Event("online"));
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    stop();
+    target.dispatchEvent(new Event("offline"));
+    expect(listener).toHaveBeenCalledTimes(2);
   });
 });
