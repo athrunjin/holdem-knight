@@ -14,7 +14,7 @@ import {
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { CurrencyIcon } from "@/components/CurrencyIcon";
+import { FilterBar } from "@/components/FilterBar";
 import { InfoButton } from "@/components/InfoButton";
 import { Page } from "@/components/Page";
 import { TextMenu } from "@/components/TextMenu";
@@ -54,11 +54,6 @@ export const Route = createFileRoute("/me_/transfers")({
 });
 
 const cardClass = "rounded-2xl border border-line bg-surface";
-
-const CURRENCY_NAMES: Record<Currency, string> = {
-  CNY: t.gamePages.list.panda,
-  AUD: t.gamePages.list.kangaroo,
-};
 
 function TransfersPage() {
   const { data: summaries, isError, refetch } = useGameSummaries();
@@ -207,19 +202,18 @@ function Transfers({
                 </>
               )}
             </div>
-            {currencies.length > 1 && (
-              <TextMenu
-                label={t.me.income.currency}
-                options={currencies.map((c) => ({
-                  value: c,
-                  name: CURRENCY_NAMES[c],
-                  label: <CurrencyIcon currency={c} className="size-5" />,
-                }))}
-                value={currency}
-                onChange={(c) => setView({ ...view, currency: c })}
-                align="right"
-              />
-            )}
+            {/* The currency alone, shown with one currency too */}
+            <FilterBar
+              currency={{
+                value: currency,
+                options: currencies,
+                onChange: (c) => c !== "all" && setView({ ...view, currency: c }),
+              }}
+              filters={[]}
+              // At the right end of the line, its list keeps inside the card
+              align="right"
+              className="shrink-0"
+            />
           </div>
           <Totals report={report} done={done} money={money} playKey={playKey} />
         </section>

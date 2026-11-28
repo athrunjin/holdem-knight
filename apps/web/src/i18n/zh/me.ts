@@ -138,7 +138,6 @@ export const me = {
     ratio: "比例",
     blinds: "盲注",
     any: "不限",
-    applyFilter: "收起并确认筛选",
     due: "总应收",
     gameCount: "局",
     ring: "各项收入占比",

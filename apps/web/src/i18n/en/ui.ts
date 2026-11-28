@@ -4,6 +4,12 @@ export const ui: Messages["ui"] = {
   configMenu: {
     delete: "Delete",
   },
+  filterBar: {
+    options: "Options",
+    optionsOn: (on, all) => `Options ${on}/${all}`,
+    clear: "Clear",
+    clearFilters: "Clear filters",
+  },
   infoButton: {
     about: (a) => `About ${a}`,
     gotIt: "Got it",
