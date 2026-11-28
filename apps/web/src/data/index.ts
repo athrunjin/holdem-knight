@@ -6,7 +6,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { accountDatabaseName, createAccountDatabase } from "./account-database";
 import { createAccountRepository } from "./account-repository";
 import { type AuthIssue, signOut } from "./auth";
-import { type BooksState, createBooks, type Store } from "./books";
+import { type BooksState, createBooks, type Store, UnreachableError } from "./books";
 import { createDexieRepository, createGuestDatabase } from "./dexie-repository";
 import { queryClient } from "./query-client";
 import {
@@ -19,7 +19,7 @@ import {
 } from "./session";
 import { storedUser, supabase } from "./supabase";
 import { createSupabaseRemote } from "./supabase-remote";
-import { browserLock, createSync, type Sync, type SyncStatus } from "./sync";
+import { browserLock, createSync, isOnline, type Sync, type SyncStatus, watchOnline } from "./sync";
 
 /** Guest mode has no account, so the records on the device sit under this organizer. */
 export const GUEST_ORGANIZER_ID = "guest";
@@ -37,7 +37,7 @@ const guest: Store = {
 const notAccount = ({ queryKey }: { readonly queryKey: readonly unknown[] }) =>
   queryKey[0] !== "account";
 
-const online = () => typeof navigator === "undefined" || navigator.onLine;
+const online = isOnline;
 
 const lock = browserLock();
 
@@ -92,32 +92,53 @@ const books = createBooks({
       : { status: "guest" };
   },
   async openAccount(userId) {
-    if (!supabase) throw new Error("No project to sign in to");
-    // With no network, what this device read of the account last time, without waiting on a
-    // request that cannot be answered; otherwise the account, or that where it cannot be read
-    const kept = online() ? undefined : keptAccount(userId);
-    const { spaceId, spaceName, agreed } =
-      kept ?? (await queryClient.fetchQuery(accountQuery(userId)));
-    // The account is asked first, and nothing of its books is read before it answers (ADR 0052)
-    if (!agreed) return "agreeing";
-    const { repository, sync } = deviceBooksOf(supabase, spaceId, userId);
-    // Opened here for the first time: the books are read whole before they are shown, which
-    // needs a network once (ADR 0054)
-    if (!(await sync.pulled()) && (await sync.pull()) === "discarded") {
-      throw new Error("The account's books were read under another session");
+    try {
+      return await openAccountBooks(userId);
+    } catch {
+      throw new UnreachableError((await openedHere(userId)) ? "refused" : "first-open");
     }
-    return {
-      key: `account:${spaceId}`,
-      mode: "account",
-      organizerId: spaceId,
-      organizerName: spaceName,
-      repository,
-      sync,
-    };
   },
   // Nothing read from the books just left may show as the next ones'. Who the account is stays.
   onSwitch: () => queryClient.removeQueries({ predicate: notAccount }),
 });
+
+/**
+ * Whether an account's books have been read whole on this device before, so that what stops them
+ * opening now is the account, not a first opening that needs a network.
+ */
+async function openedHere(userId: string): Promise<boolean> {
+  const kept = keptAccount(userId);
+  if (!kept || !supabase || !(await Dexie.exists(accountDatabaseName(kept.spaceId)))) return false;
+  return deviceBooksOf(supabase, kept.spaceId, userId)
+    .sync.pulled()
+    .catch(() => false);
+}
+
+/** An account's books, or `agreeing`; fails when they cannot be reached. */
+async function openAccountBooks(userId: string): Promise<Store | "agreeing"> {
+  if (!supabase) throw new Error("No project to sign in to");
+  // With no network, what this device read of the account last time, without waiting on a
+  // request that cannot be answered; otherwise the account, or that where it cannot be read
+  const kept = online() ? undefined : keptAccount(userId);
+  const { spaceId, spaceName, agreed } =
+    kept ?? (await queryClient.fetchQuery(accountQuery(userId)));
+  // The account is asked first, and nothing of its books is read before it answers (ADR 0052)
+  if (!agreed) return "agreeing";
+  const { repository, sync } = deviceBooksOf(supabase, spaceId, userId);
+  // Opened here for the first time: the books are read whole before they are shown, which
+  // needs a network once (ADR 0054)
+  if (!(await sync.pulled()) && (await sync.pull()) === "discarded") {
+    throw new Error("The account's books were read under another session");
+  }
+  return {
+    key: `account:${spaceId}`,
+    mode: "account",
+    organizerId: spaceId,
+    organizerName: spaceName,
+    repository,
+    sync,
+  };
+}
 
 /** Sends what is waiting and reads the account's books again, where they are the ones in use. */
 function syncBooks() {
@@ -169,6 +190,15 @@ export function useSyncStatus(): SyncStatus | undefined {
     return sync?.watch(setStatus);
   }, [sync]);
   return status;
+}
+
+/** Whether the browser says it has a connection, kept up to date. */
+export function useOnline(): boolean {
+  return useSyncExternalStore(
+    (listener) => watchOnline(listener),
+    isOnline,
+    () => true,
+  );
 }
 
 /** Tries sending again now, as the network coming back does. */

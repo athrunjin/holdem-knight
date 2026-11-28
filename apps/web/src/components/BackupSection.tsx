@@ -1,6 +1,6 @@
 import { ForeignOrganizerError } from "@holdem-knight/core";
 import { useQueryClient } from "@tanstack/react-query";
-import { type ChangeEvent, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useRef, useState } from "react";
 import { InfoButton } from "@/components/InfoButton";
 import { repository } from "@/data";
 import { parseBackup, serializeBackup } from "@/data/backup";
@@ -14,30 +14,27 @@ const rowClass =
 
 type Status = { tone: "ok" | "error"; text: string };
 
+/** Every record of the books in use, for a backup */
+function readBackup() {
+  const all = repository.backup.exportAll();
+  // A read that fails is reported when the backup is asked for, not before
+  all.catch(() => {});
+  return all;
+}
+
 /**
- * Two rows of the settings list, to export and to restore a backup of the books in use: the
- * guest's, which exist only on this device, so are backed up before changing devices or clearing
- * the browser, or the account's, as a copy to keep. What came of it shows under them.
+ * Exporting a backup of the books in use, as a file shared or saved from the device: 我的's 导出备份
+ * row, and the refusal alert's at the top of any page (ADR 0054). What failed is told as text.
  */
-export function BackupSection({ account }: { account: boolean }) {
-  const text = t.me.backup;
-  const queryClient = useQueryClient();
-  const fileInput = useRef<HTMLInputElement>(null);
+export function useBackupExport() {
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<Status>();
+  const [failed, setFailed] = useState<string>();
   // Read the data ahead of time: the system share must come directly from a tap, and iOS may refuse it if the database is read after the tap
-  const [backup, setBackup] = useState(read);
+  const [backup, setBackup] = useState(readBackup);
 
-  function read() {
-    const all = repository.backup.exportAll();
-    // A read that fails is reported when the backup is asked for, not before
-    all.catch(() => {});
-    return all;
-  }
-
-  async function handleExport() {
+  async function exportBackup() {
     setBusy(true);
-    setStatus(undefined);
+    setFailed(undefined);
     try {
       const now = new Date();
       const text = serializeBackup(await backup, now.getTime());
@@ -47,20 +44,51 @@ export function BackupSection({ account }: { account: boolean }) {
         `holdem-knight-backup-${day}.json`,
       );
     } catch (error) {
-      setStatus({
-        tone: "error",
-        text: text.exportFailed(error instanceof Error ? error.name : ""),
-      });
+      setFailed(t.me.backup.exportFailed(error instanceof Error ? error.name : ""));
     } finally {
       setBusy(false);
     }
+  }
+
+  return {
+    busy,
+    failed,
+    exportBackup,
+    /** Reads the books again ahead of the next export, once they have changed */
+    reread: useCallback(() => setBackup(readBackup()), []),
+    /** Puts away what a failed export said */
+    dismiss: () => setFailed(undefined),
+  };
+}
+
+/**
+ * Two rows of the settings list, to export and to restore a backup of the books in use: the
+ * guest's, which exist only on this device, so are backed up before changing devices or clearing
+ * the browser, or the account's, as a copy to keep. What came of it shows under them.
+ */
+export function BackupSection({ account }: { account: boolean }) {
+  const text = t.me.backup;
+  const queryClient = useQueryClient();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const exporting = useBackupExport();
+  const [importing, setImporting] = useState(false);
+  const [imported, setStatus] = useState<Status>();
+  const busy = exporting.busy || importing;
+  const status: Status | undefined = exporting.failed
+    ? { tone: "error", text: exporting.failed }
+    : imported;
+
+  function handleExport() {
+    setStatus(undefined);
+    void exporting.exportBackup();
   }
 
   async function handleImport(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    setBusy(true);
+    exporting.dismiss();
+    setImporting(true);
     setStatus(undefined);
     try {
       const parsed = parseBackup(await file.text());
@@ -73,7 +101,7 @@ export function BackupSection({ account }: { account: boolean }) {
       }
       const result = await repository.backup.restore(parsed.data);
       await queryClient.invalidateQueries();
-      setBackup(read());
+      exporting.reread();
       setStatus({
         tone: "ok",
         text:
@@ -100,7 +128,7 @@ export function BackupSection({ account }: { account: boolean }) {
                 : text.failedGuest,
       });
     } finally {
-      setBusy(false);
+      setImporting(false);
     }
   }
 

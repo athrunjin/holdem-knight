@@ -4,11 +4,11 @@ import { User } from "lucide-react";
 import type { ReactNode } from "react";
 import { InfoButton } from "@/components/InfoButton";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
-import { useSyncStatus } from "@/data";
 import { usePlayers } from "@/data/players";
 import { useAccount, useSession } from "@/data/session";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { useSyncView } from "./SyncRow";
 
 /** Who is using the app, as the header of 我的 shows them. */
 export type Identity =
@@ -37,7 +37,7 @@ export function useIdentity(): Identity {
   const session = useSession();
   const { data: account } = useAccount(session.status === "signed-in" ? session.userId : undefined);
   const { data: players, isPending: playersPending } = usePlayers();
-  const sending = useSyncStatus();
+  const sync = useSyncView();
 
   switch (session.status) {
     case "loading":
@@ -61,7 +61,7 @@ export function useIdentity(): Identity {
     case "signed-in": {
       // Waits only while the list is read (one that fails, or has no own record, keeps the name),
       // and while what is left to send is read, so it never says synced when it is not
-      if (playersPending || !sending) return { status: "loading" };
+      if (playersPending || !sync) return { status: "loading" };
       const own = players?.find(({ id }) => id === ORGANIZER_PLAYER_ID);
       const name = account?.displayName || session.email.split("@")[0] || session.email;
       return {
@@ -70,8 +70,9 @@ export function useIdentity(): Identity {
         number: own?.number === undefined ? undefined : playerNumberText(own.number),
         // The own record's avatar keeps its own ground; until it is made, a neutral one
         avatar: own ? { id: own.id, ground: "" } : { id: session.userId, ground: "bg-line" },
-        // Not synced while records on the device wait to be sent, or were turned down (ADR 0054)
-        line: sending.pending ? t.me.header.unsent(sending.pending) : t.me.header.synced,
+        // Not synced while records on the device wait to be sent, or were turned down (ADR 0054).
+        // The state only: how many is on the 同步 row, read from the same status
+        line: sync.state === "sent" ? t.me.header.synced : t.me.header.unsent,
         about: t.me.account.note,
         signIn: false,
       };

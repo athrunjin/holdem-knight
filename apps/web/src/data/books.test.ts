@@ -1,6 +1,6 @@
 import type { Repository } from "@holdem-knight/core";
 import { describe, expect, it, vi } from "vitest";
-import { createBooks, type Reader, type Store } from "./books";
+import { createBooks, type Reader, type Store, UnreachableError } from "./books";
 import type { Sync } from "./sync";
 
 const store = (key: string, mode: Store["mode"]): Store => ({
@@ -17,14 +17,21 @@ const guest = store("guest", "guest");
 /** Books with a reader the test moves, and accounts that open when the test says so. */
 function setUp(first: Reader = { status: "loading" }) {
   let reader = first;
-  const opening = new Map<string, { resolve(store: Store | "agreeing"): void; reject(): void }>();
+  const opening = new Map<
+    string,
+    { resolve(store: Store | "agreeing"): void; reject(): void; fail(error: Error): void }
+  >();
   const onSwitch = vi.fn();
   const books = createBooks({
     guest,
     reader: () => reader,
     openAccount: (userId) =>
       new Promise<Store | "agreeing">((resolve, reject) => {
-        opening.set(userId, { resolve, reject: () => reject(new Error("offline")) });
+        opening.set(userId, {
+          resolve,
+          reject: () => reject(new Error("offline")),
+          fail: reject,
+        });
       }),
     onSwitch,
   });
@@ -41,10 +48,11 @@ function setUp(first: Reader = { status: "loading" }) {
       return books.follow();
     },
     /** Lets the account's books be found, or not. */
-    async answer(userId: string, found: Store | "agreeing" | "offline") {
+    async answer(userId: string, found: Store | "agreeing" | "offline" | Error) {
       const waiting = opening.get(userId);
       if (!waiting) throw new Error(`Nothing asked for ${userId}`);
       if (found === "offline") waiting.reject();
+      else if (found instanceof Error) waiting.fail(found);
       else waiting.resolve(found);
       // The books go on after the answer
       await Promise.resolve();
@@ -114,8 +122,19 @@ describe("the books in use", () => {
     void become(lin);
     await answer("lin", "offline");
 
-    expect(books.state()).toEqual({ status: "unreachable" });
+    expect(books.state()).toEqual({ status: "unreachable", reason: "first-open" });
     expect(onSwitch).not.toHaveBeenCalled();
+  });
+
+  it("say why they cannot be reached, as the opening tells it", async () => {
+    const { books, become, answer } = setUp();
+    void become(lin);
+    await answer("lin", new UnreachableError("refused"));
+    expect(books.state()).toEqual({ status: "unreachable", reason: "refused" });
+
+    void books.follow();
+    await answer("lin", new UnreachableError("first-open"));
+    expect(books.state()).toEqual({ status: "unreachable", reason: "first-open" });
   });
 
   it("open at another try", async () => {

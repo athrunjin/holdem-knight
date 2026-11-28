@@ -19,6 +19,21 @@ export interface Store {
   readonly sync?: Sync;
 }
 
+/**
+ * Why an account's books cannot be shown: never opened on this device, whatever stopped the
+ * first read, or opened before and the account refuses to be read now.
+ */
+export type UnreachableReason = "first-open" | "refused";
+
+/** How `openAccount` says why the books cannot be reached. Any other failure is a first opening's. */
+export class UnreachableError extends Error {
+  override readonly name = "UnreachableError";
+
+  constructor(readonly reason: UnreachableReason) {
+    super(reason === "refused" ? "The account refused the read" : "Never opened on this device");
+  }
+}
+
 /** Who is using the app, as far as the books go. */
 export type Reader =
   | { readonly status: "loading" }
@@ -32,7 +47,7 @@ export type Reader =
  */
 export type BooksState =
   | { readonly status: "opening" }
-  | { readonly status: "unreachable" }
+  | { readonly status: "unreachable"; readonly reason: UnreachableReason }
   | { readonly status: "agreeing"; readonly userId: string }
   | { readonly status: "open"; readonly key: string; readonly mode: Store["mode"] };
 
@@ -108,8 +123,10 @@ export function createBooks({ guest, reader, openAccount, onSwitch }: Sources) {
         use(guest);
         show({ status: "agreeing", userId: who.userId });
       } else open(found, who.userId);
-    } catch {
-      if (mine === turn) show({ status: "unreachable" });
+    } catch (error) {
+      if (mine !== turn) return;
+      const reason = error instanceof UnreachableError ? error.reason : "first-open";
+      show({ status: "unreachable", reason });
     }
   }
 

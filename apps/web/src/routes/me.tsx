@@ -18,6 +18,7 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import { AccountCard } from "@/components/account/AccountCard";
 import { GuestImportCard } from "@/components/account/GuestImportCard";
 import { IdentityHeader } from "@/components/account/Identity";
+import { SyncRow } from "@/components/account/SyncRow";
 import { BackupSection } from "@/components/BackupSection";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import {
@@ -406,7 +407,7 @@ function TransfersPreview({ summaries }: { summaries: readonly GameSummary[] | u
  * is kept in this browser. Each language is listed under its own name, so it can be found by
  * someone who cannot read the one in use.
  */
-function LanguageRow() {
+function LanguageRow({ className }: { className?: string | undefined }) {
   const options = [
     { value: "device" as LanguageChoice, label: t.me.language.device },
     ...Object.entries(LANGUAGES).map(([value, { name }]) => ({
@@ -416,7 +417,7 @@ function LanguageRow() {
   ];
 
   return (
-    <div className="flex min-h-12 items-center justify-between gap-3 px-4">
+    <div className={cn("flex min-h-12 items-center justify-between gap-3 px-4", className)}>
       <p className="shrink-0 font-medium">{t.me.language.title}</p>
       <TextMenu
         label={t.me.language.title}
@@ -430,11 +431,12 @@ function LanguageRow() {
   );
 }
 
-/** The language and the backups, as rows of one card. */
+/** Signed in, how the account's books stand; then the language and the backups, as rows of one card. */
 function SettingsList({ account }: { account: boolean }) {
   return (
     <section className={cn(cardClass, "mt-3")}>
-      <LanguageRow />
+      {account && <SyncRow />}
+      <LanguageRow className={account ? "border-t border-line" : undefined} />
       <BackupSection account={account} />
     </section>
   );

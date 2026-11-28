@@ -23,8 +23,8 @@ export const me = {
     guest: "游客",
     localOnly: "记录仅在本机",
     synced: "已同步到账户",
-    // In its place while records on the device wait to be sent (ADR 0054)
-    unsent: (count: number) => `${count} 条待发送`,
+    // In its place while records on the device wait to be sent (ADR 0054). The count is on the 同步 row
+    unsent: "有记录未发送",
   },
   playerFace: {
     noSettled: "还没有参加过结算的牌局。",
@@ -78,6 +78,17 @@ export const me = {
     // Not sent at all: no network, or records on the device still to send (ADR 0054)
     offline: "需要联网。",
     unsent: (count: number) => `还有 ${count} 条记录没有发送，发完后再试。`,
+  },
+  /** The 同步 row: how the account's books on this device stand (ADR 0054) */
+  sync: {
+    title: "同步",
+    lastSynced: (when: string) => `上次同步 ${when}`,
+    allSent: "已全部发送",
+    sending: "发送中",
+    toSend: (count: number) => `${count} 条待发送`,
+    offline: (count: number) => `${count} 条待发送 · 未联网`,
+    notSent: (count: number) => `${count} 条没有发送`,
+    syncNow: "立即同步",
   },
   language: {
     title: "语言",

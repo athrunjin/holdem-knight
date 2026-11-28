@@ -7,6 +7,7 @@ import {
   type BackupData,
   ForeignOrganizerError,
   type GameSummary,
+  type InsuranceHand,
   type RestoreResult,
 } from "@holdem-knight/core";
 import Dexie, { liveQuery, type Table } from "dexie";
@@ -15,6 +16,7 @@ import {
   type AccountDatabase,
   type BookList,
   type Change,
+  type OutboxEntry,
   type Refusal,
   recordKey,
 } from "./account-database";
@@ -83,6 +85,23 @@ export function browserLock(): Lock {
   return { run: (name, task) => locks.request(name, task) };
 }
 
+/** Whether the browser says it has a connection. Outside a browser, it is taken to have one. */
+export const isOnline = () => typeof navigator === "undefined" || navigator.onLine;
+
+/** Calls back as the browser says its connection comes or goes. */
+export function watchOnline(
+  listener: () => void,
+  target: EventTarget | undefined = typeof window === "undefined" ? undefined : window,
+): () => void {
+  if (!target) return () => {};
+  target.addEventListener("online", listener);
+  target.addEventListener("offline", listener);
+  return () => {
+    target.removeEventListener("online", listener);
+    target.removeEventListener("offline", listener);
+  };
+}
+
 /** Thrown by a step that has to reach the account first, which writes nothing (ADR 0054). */
 export class OnlineOnlyError extends Error {
   override readonly name = "OnlineOnlyError";
@@ -96,12 +115,83 @@ export class OnlineOnlyError extends Error {
   }
 }
 
+/** What a change the account turned down was of, in the app's terms rather than its tables. */
+export type StoppedKind = "game" | "ledger" | "insuranceHand" | "summary" | "player" | "setting";
+
+/** Where the sender stopped: the change the account turned down. */
+export interface StoppedAt {
+  readonly kind: StoppedKind;
+  /** It was a deletion */
+  readonly removed: boolean;
+  /** The game it belongs to, where it has one the copy still holds */
+  readonly gameId?: string;
+  /** The status code of the account's answer, where it had one. Never its message */
+  readonly code?: number;
+}
+
 /** What the device has still to send. */
 export interface SyncStatus {
   /** Changes not yet sent */
   readonly pending: number;
   /** The account turned the first of them down, so none is sent until it takes it */
   readonly refused: boolean;
+  /** A send is under way in this tab */
+  readonly sending: boolean;
+  /** When the copy was last made to match the account, if ever on this device */
+  readonly pulledAt?: number;
+  /** What the first change is of, once the account has turned it down */
+  readonly stoppedAt?: StoppedAt;
+}
+
+const KIND_OF_LIST: Record<BookList, StoppedKind> = {
+  games: "game",
+  players: "player",
+  ledgerEvents: "ledger",
+  insuranceHands: "insuranceHand",
+  gameSummaries: "summary",
+  insuranceRules: "setting",
+  gameConfigs: "setting",
+  oddsTables: "setting",
+  chargeRules: "setting",
+};
+
+/**
+ * What a change is of, and its game: a ledger append's is its events', a deletion's is looked up
+ * in the copy, where the record may be gone already.
+ */
+export async function stoppedAtOf(
+  db: AccountDatabase,
+  { change, refused }: OutboxEntry,
+): Promise<StoppedAt> {
+  const code = refused?.status;
+  const base = (kind: StoppedKind, removed: boolean, gameId?: string): StoppedAt => ({
+    kind,
+    removed,
+    ...(gameId !== undefined && { gameId }),
+    ...(code !== undefined && { code }),
+  });
+  switch (change.kind) {
+    case "ensure":
+      return base("player", false);
+    case "append":
+      return base("ledger", false, change.events[0]?.gameId);
+    case "save": {
+      const { list, record } = change;
+      // A game's summary goes by the game's ID
+      if (list === "games" || list === "gameSummaries")
+        return base(KIND_OF_LIST[list], false, record.id);
+      if (list === "insuranceHands") {
+        return base("insuranceHand", false, (record as InsuranceHand).gameId);
+      }
+      return base(KIND_OF_LIST[list], false);
+    }
+    case "remove": {
+      const { list, id } = change;
+      if (list === "gameSummaries") return base("summary", true, id);
+      if (list !== "insuranceHands") return base(KIND_OF_LIST[list], true);
+      return base("insuranceHand", true, (await db.insuranceHands.get(id))?.gameId);
+    }
+  }
 }
 
 export type FlushResult = "sent" | "waiting" | "refused";
@@ -187,6 +277,11 @@ export function createSync({
   let cancelWait: (() => void) | undefined;
   /** Counts the stops, so a pull that a stop came during is let go */
   let stops = 0;
+  /** Told as a send in this tab starts and ends */
+  const sendingListeners = new Set<() => void>();
+  const sendingChanged = () => {
+    for (const listener of sendingListeners) listener();
+  };
 
   const ours = () => userId === undefined || signedInAs() === userId;
 
@@ -305,7 +400,7 @@ export function createSync({
       again = true;
       return flushing;
     }
-    flushing = (async () => {
+    const started = (async () => {
       let result: FlushResult;
       do {
         again = false;
@@ -316,11 +411,14 @@ export function createSync({
       .catch((): FlushResult => "waiting")
       .then((result) => {
         flushing = undefined;
+        sendingChanged();
         if (result === "sent") failures = 0;
         if (result === "waiting" && active) wait();
         return result;
       });
-    return flushing;
+    flushing = started;
+    sendingChanged();
+    return started;
   }
 
   async function count(): Promise<number> {
@@ -370,13 +468,41 @@ export function createSync({
 
     count,
 
-    /** Calls back as what is waiting changes, in this tab or another. */
+    /** Calls back as what is waiting changes, in this tab or another, and as a send starts or ends. */
     watch(listener: (status: SyncStatus) => void) {
-      const subscription = liveQuery(async () => {
+      type Stored = Omit<SyncStatus, "sending">;
+      let stored: Stored | undefined;
+      let told: { readonly from: Stored; readonly sending: boolean } | undefined;
+      const tell = () => {
+        if (!stored) return;
+        const sending = flushing !== undefined;
+        // A send that starts or ends with nothing else changed is told once
+        if (told?.from === stored && told.sending === sending) return;
+        told = { from: stored, sending };
+        listener({ ...stored, sending });
+      };
+      const subscription = liveQuery(async (): Promise<Stored> => {
         const first = await db.outbox.orderBy("seq").first();
-        return { pending: await db.outbox.count(), refused: first?.refused !== undefined };
-      }).subscribe({ next: listener, error: () => undefined });
-      return () => subscription.unsubscribe();
+        const pulled = await db.meta.get("pulled");
+        const refused = first?.refused !== undefined;
+        return {
+          pending: await db.outbox.count(),
+          refused,
+          ...(pulled !== undefined && { pulledAt: pulled.at }),
+          ...(first && refused && { stoppedAt: await stoppedAtOf(db, first) }),
+        };
+      }).subscribe({
+        next: (next) => {
+          stored = next;
+          tell();
+        },
+        error: () => undefined,
+      });
+      sendingListeners.add(tell);
+      return () => {
+        sendingListeners.delete(tell);
+        subscription.unsubscribe();
+      };
     },
 
     start() {

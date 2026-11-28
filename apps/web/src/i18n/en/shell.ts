@@ -1,4 +1,26 @@
 import type { Messages } from "../zh";
+import type { StoppedKind } from "../zh/shell";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const KINDS: Record<StoppedKind, string> = {
+  game: "game",
+  ledger: "ledger",
+  insuranceHand: "insurance hand",
+  summary: "settlement summary",
+  player: "player",
+  setting: "saved setting",
+};
+
+/** A kind with no game to name */
+const ALONE: Record<StoppedKind, string> = {
+  game: "a game",
+  ledger: "a ledger",
+  insuranceHand: "an insurance hand",
+  summary: "a settlement summary",
+  player: "a player",
+  setting: "a saved setting",
+};
 
 export const shell: Messages["shell"] = {
   nav: {
@@ -8,6 +30,7 @@ export const shell: Messages["shell"] = {
     start: "New game",
     tools: "Tools",
     me: "Me",
+    unsent: ", records not sent",
   },
   update: {
     ready: "A new version is ready",
@@ -21,19 +44,34 @@ export const shell: Messages["shell"] = {
   books: {
     opening: "Opening your account…",
     unreachableTitle: "Can’t reach your account",
-    unreachableHeading: "Your account’s records can’t be read right now",
-    unreachableBody:
-      "This device hasn’t opened this account yet. The first time needs a connection to bring its records onto the device; after that it works offline too. Check your network and try again.",
+    firstOpenHeading: "This device hasn’t opened this account yet",
+    firstOpenBody:
+      "The first time needs a connection to bring the records onto this device. After that it works offline too. Check the connection and try again.",
+    refusedHeading: "Can’t read the account right now",
+    refusedBody:
+      "The account didn’t accept this device’s read. The records on this device are all still here, and unsent ones go out the next time it opens. Try again later, or sign out and sign in again.",
     unreachableNote:
       "After signing out you can go on with the guest records on this device. They don’t go into the account.",
     readFailedAccount: "Some records couldn’t be read, so this page may be incomplete.",
     readFailedGuest: "Some records couldn’t be read, so this page may be incomplete.",
   },
   sync: {
-    pending: (count) =>
-      `${count} ${count === 1 ? "record" : "records"} to send. They go to your account once online`,
-    refused: (count) => `${count} ${count === 1 ? "record wasn’t" : "records weren’t"} sent`,
-    refusedNote:
-      "Your account turned one of them down. They’re all still on this device, and you can export a backup.",
+    day: (month, day, time) => `${day} ${MONTHS[month - 1]} ${time}`,
+    today: (time) => `Today ${time}`,
+    refused: (count) => `${count} ${count === 1 ? "record" : "records"} not sent`,
+    stoppedAt: (kind, removed, game) => {
+      const what =
+        game === undefined
+          ? ALONE[kind]
+          : kind === "game"
+            ? `the game of ${game}`
+            : `the ${KINDS[kind]} of the game of ${game}`;
+      return removed ? `deleting ${what}` : what;
+    },
+    stopped: (what) => `Stopped at ${what}. They’re all on this device.`,
+    about:
+      "The account didn’t accept this record, and the ones after it are waiting on it. Try again, or export a backup first.",
+    code: (code) => `Code ${code}`,
+    export: "Export backup",
   },
 };
