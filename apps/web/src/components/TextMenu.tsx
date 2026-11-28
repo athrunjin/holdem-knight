@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
@@ -45,7 +45,27 @@ interface TextMenuProps<T extends string> {
   captionClassName?: string;
   /** In place of the chevron, such as a mark for switching */
   icon?: ReactNode;
+  /**
+   * Frames what the line shows, inside its 44px target, as a filter's chip: the focus ring is
+   * drawn round the frame and not round the target.
+   */
+  faceClassName?: string;
+  /**
+   * The list hangs fixed under the line, kept inside the screen's 16px margins, so a row that
+   * scrolls sideways does not cut it off. Escape gives focus back to the line.
+   */
+  floating?: boolean;
+  /**
+   * Where given, every option is a switch, on while its value is here: a pick switches it and
+   * leaves the list open. `onChange` is called with the option picked.
+   */
+  checked?: readonly T[];
+  /** For a reader, what the line shows where that is not the name of the choice in force */
+  valueName?: string;
 }
+
+/** The screen's side margins, which a floating list keeps inside. */
+const MARGIN = 16;
 
 const readerText = ({ label, name }: TextMenuOption<string>) =>
   name ?? (typeof label === "string" ? label : "");
@@ -67,38 +87,95 @@ export function TextMenu<T extends string>({
   className,
   captionClassName,
   icon,
+  faceClassName,
+  floating = false,
+  checked,
+  valueName,
 }: TextMenuProps<T>) {
   const [open, setOpen] = useState(false);
   const current = options.find((option) => option.value === value);
+  const button = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<{ top: number; left: number }>();
+
+  // A floating list is placed from where its line is, again as anything under it scrolls
+  useLayoutEffect(() => {
+    if (!floating || !open) return;
+    const update = () => {
+      const rect = button.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = list.current?.offsetWidth ?? 0;
+      const left = Math.max(MARGIN, Math.min(rect.left, window.innerWidth - MARGIN - width));
+      setPlace({ top: rect.bottom, left });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+      setPlace(undefined);
+    };
+  }, [floating, open]);
+
+  const close = (refocus: boolean) => {
+    setOpen(false);
+    if (refocus) button.current?.focus();
+  };
+  const shownName =
+    valueName ??
+    (current ? readerText(current) : typeof placeholder === "string" ? placeholder : "");
+  const face = (
+    <>
+      {caption && (
+        <span className={cn("mr-1 shrink-0 font-normal text-muted", captionClassName)}>
+          {caption}
+        </span>
+      )}
+      <span className="flex min-w-0 items-center truncate">
+        {current ? (current.chosen ?? current.label) : placeholder}
+      </span>
+      {icon ?? (
+        <ChevronDown
+          className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")}
+          aria-hidden
+        />
+      )}
+    </>
+  );
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: Escape closes the list from any option in it
     <div
       className="relative min-w-0"
-      onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
+      onKeyDown={(event) => event.key === "Escape" && close(floating)}
     >
       <button
+        ref={button}
         type="button"
         disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`${label}${t.common.colon}${current ? readerText(current) : typeof placeholder === "string" ? placeholder : ""}`}
+        aria-label={`${label}${t.common.colon}${shownName}`}
         onClick={() => setOpen(!open)}
-        className={cn("flex min-h-11 max-w-full items-center gap-1 disabled:opacity-60", className)}
-      >
-        {caption && (
-          <span className={cn("mr-1 shrink-0 font-normal text-muted", captionClassName)}>
-            {caption}
-          </span>
+        className={cn(
+          "flex min-h-11 max-w-full items-center gap-1 disabled:opacity-60",
+          faceClassName && "group focus-visible:outline-none",
+          className,
         )}
-        <span className="flex min-w-0 items-center truncate">
-          {current ? (current.chosen ?? current.label) : placeholder}
-        </span>
-        {icon ?? (
-          <ChevronDown
-            className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")}
-            aria-hidden
-          />
+      >
+        {faceClassName ? (
+          <span
+            className={cn(
+              "flex items-center gap-1",
+              "group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-highlight",
+              faceClassName,
+            )}
+          >
+            {face}
+          </span>
+        ) : (
+          face
         )}
       </button>
       {open && (
@@ -112,31 +189,37 @@ export function TextMenu<T extends string>({
             className="fixed inset-0 z-10 cursor-default"
           />
           <div
+            ref={list}
             role="menu"
             aria-label={label}
             className={cn(
-              "absolute top-full z-20 max-h-[60dvh] w-max max-w-[calc(100vw-2rem)] min-w-28 overflow-y-auto rounded-xl border border-line bg-surface py-1 shadow-lg",
-              align === "left" ? "left-0" : "right-0",
+              "z-20 max-h-[60dvh] w-max max-w-[calc(100vw-2rem)] min-w-28 overflow-y-auto rounded-xl border border-line bg-surface py-1 shadow-lg",
+              floating ? "fixed" : cn("absolute top-full", align === "left" ? "left-0" : "right-0"),
+              // Unseen for the moment it is measured, before it is placed
+              floating && !place && "invisible",
             )}
+            style={floating ? place : undefined}
           >
             {options.map((option) => {
-              const checked = option.value === value;
+              const on = checked ? checked.includes(option.value) : option.value === value;
               return (
                 <div key={option.value} className="flex items-center">
+                  {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: both roles take aria-checked */}
                   <button
                     type="button"
-                    role="menuitemradio"
-                    aria-checked={checked}
+                    role={checked ? "menuitemcheckbox" : "menuitemradio"}
+                    aria-checked={on}
                     aria-label={option.name}
                     disabled={option.disabled}
                     onClick={() => {
-                      setOpen(false);
+                      // A switch leaves the list open for the next one
+                      if (!checked) setOpen(false);
                       onChange(option.value);
                     }}
                     className={cn(
-                      // The choice in force is the one in full white
                       "flex min-h-11 min-w-0 flex-1 items-center gap-2 px-3 text-left text-sm font-normal disabled:opacity-40",
-                      checked ? "font-medium text-text" : "text-muted",
+                      // The choice in force is the one in full white. A switch shows itself
+                      !checked && (on ? "font-medium text-text" : "text-muted"),
                     )}
                   >
                     {option.label}

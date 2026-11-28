@@ -145,7 +145,6 @@ export const me: Messages["me"] = {
     ratio: "Ratio",
     blinds: "Blinds",
     any: "Any",
-    applyFilter: "Collapse and apply the filter",
     due: "Total due",
     gameCount: "games",
     ring: "Share of each item",

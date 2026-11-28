@@ -7,12 +7,12 @@ import {
 } from "@holdem-knight/core";
 import { describe, expect, it } from "vitest";
 import {
+  clearedView,
   DEFAULT_HISTORY_STATE,
   DEFAULT_HISTORY_VIEW,
   hasBadDebt,
   historyChoices,
   historyGames,
-  isFiltered,
   owesTransfers,
   parseHistoryState,
 } from "./game-history";
@@ -180,18 +180,22 @@ describe("owesTransfers and hasBadDebt", () => {
   });
 });
 
-describe("isFiltered", () => {
-  it("is off for the default view, whatever the order", () => {
-    expect(isFiltered(DEFAULT_HISTORY_VIEW)).toBe(false);
-    expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, newestFirst: false })).toBe(false);
-  });
-
-  it("is on with a currency, a ratio, blinds or an option switched off, and not for a period", () => {
-    expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, period: "all" })).toBe(false);
-    expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, blinds: "1/2" })).toBe(true);
-    expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, onlyUnsettled: true })).toBe(true);
-    expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, currency: "CNY" })).toBe(true);
-    expect(isFiltered({ ...DEFAULT_HISTORY_VIEW, options: ["insurance"] })).toBe(true);
+describe("clearedView", () => {
+  it("puts every filter and the currency back, and keeps the period and the order", () => {
+    const view = {
+      period: "lastMonth" as const,
+      currency: "AUD" as const,
+      ratio: "1:100",
+      blinds: "1/2",
+      onlyUnsettled: true,
+      options: ["insurance" as const],
+      newestFirst: false,
+    };
+    expect(clearedView(view)).toEqual({
+      ...DEFAULT_HISTORY_VIEW,
+      period: "lastMonth",
+      newestFirst: false,
+    });
   });
 });
 
@@ -199,7 +203,6 @@ describe("parseHistoryState", () => {
   it("reads back a state as it was kept", () => {
     const state = {
       open: false,
-      filtering: false,
       view: {
         period: "lastMonth",
         currency: "AUD",
@@ -216,20 +219,22 @@ describe("parseHistoryState", () => {
     );
   });
 
+  it("reads a state kept with whether its filters were on show, and drops that", () => {
+    const kept = { open: true, filtering: false, view: DEFAULT_HISTORY_VIEW };
+    expect(parseHistoryState(JSON.parse(JSON.stringify(kept)))).toEqual(DEFAULT_HISTORY_STATE);
+  });
+
   it("keeps the options it knows, in the fixed order", () => {
     const view = { ...DEFAULT_HISTORY_VIEW, options: ["rake", "tips", "insurance"] };
-    expect(parseHistoryState({ open: true, filtering: true, view })?.view.options).toEqual([
-      "insurance",
-      "rake",
-    ]);
+    expect(parseHistoryState({ open: true, view })?.view.options).toEqual(["insurance", "rake"]);
   });
 
   it("gives nothing for anything else", () => {
-    const kept = { open: true, filtering: true, view: DEFAULT_HISTORY_VIEW };
+    const kept = { open: true, view: DEFAULT_HISTORY_VIEW };
     expect(parseHistoryState(null)).toBeUndefined();
     expect(parseHistoryState("open")).toBeUndefined();
     expect(parseHistoryState({ ...kept, open: "yes" })).toBeUndefined();
-    expect(parseHistoryState({ open: true, filtering: true })).toBeUndefined();
+    expect(parseHistoryState({ open: true })).toBeUndefined();
     expect(parseHistoryState({ ...kept, view: { ...kept.view, period: "week" } })).toBeUndefined();
     expect(parseHistoryState({ ...kept, view: { ...kept.view, currency: "USD" } })).toBeUndefined();
     expect(parseHistoryState({ ...kept, view: { ...kept.view, options: "all" } })).toBeUndefined();

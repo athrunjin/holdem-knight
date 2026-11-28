@@ -18,9 +18,9 @@ import {
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { blindsChip, FilterBar, ratioChip } from "@/components/FilterBar";
 import { GameListRow } from "@/components/game/GameListRow";
 import { InfoButton } from "@/components/InfoButton";
-import { IncomeFilter } from "@/components/income/IncomeFilter";
 import {
   CollectedBar,
   IncomeRing,
@@ -39,6 +39,7 @@ import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
 import { dayOf } from "@/lib/game-day";
+import { filterChoices } from "@/lib/income-filter";
 import { useListReturn } from "@/lib/list-return";
 import { QuietMotion, useCountUp, useEntered, usePlaysIn, useQuietArrival } from "@/lib/motion";
 import { periodName } from "@/lib/period-names";
@@ -165,37 +166,48 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
     .flatMap(({ summary }) => games?.find((game) => game.id === summary.id) ?? []);
 
   const header = (
-    <>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center text-sm">
-          <span className="shrink-0 text-muted">{t.me.income.due}</span>
-          <span className="mx-1.5 text-muted" aria-hidden>
-            ·
-          </span>
-          <TextMenu
-            label={t.me.income.period}
-            options={PERIOD_CHOICES.map((choice) => ({
-              value: choice,
-              label: counted(choice),
-            }))}
-            value={period}
-            onChange={(choice) => change({ period: choice })}
-            className="font-medium"
-          />
-        </div>
-        <IncomeFilter
-          applied={{ currency, ratio, blinds }}
-          currencies={currencies}
-          games={summaries.filter((s) => inPeriod(days, s.day))}
-          onApply={change}
-        />
-      </div>
-    </>
+    <div className="flex min-w-0 items-center text-sm">
+      <span className="shrink-0 text-muted">{t.me.income.due}</span>
+      <span className="mx-1.5 text-muted" aria-hidden>
+        ·
+      </span>
+      <TextMenu
+        label={t.me.income.period}
+        options={PERIOD_CHOICES.map((choice) => ({
+          value: choice,
+          label: counted(choice),
+        }))}
+        value={period}
+        onChange={(choice) => change({ period: choice })}
+        className="font-medium"
+      />
+    </div>
+  );
+  // The ratios and blinds of the period's games in the currency
+  const choices = filterChoices(
+    summaries.filter((s) => inPeriod(days, s.day)),
+    currency,
   );
 
   return (
     <QuietMotion value={quiet}>
       <div className="pb-8">
+        {/* Over the total, the trend and the games still owed, which it narrows together */}
+        <FilterBar
+          currency={{
+            value: currency,
+            options: currencies,
+            // Another currency has its own ratios and blinds
+            onChange: (value) =>
+              value !== "all" && change({ currency: value, ratio: undefined, blinds: undefined }),
+          }}
+          filters={[
+            ratioChip(choices, ratio, currency, (value) => change({ ratio: value })),
+            blindsChip(choices, blinds, (value) => change({ blinds: value })),
+          ]}
+          onClear={() => change({ ratio: undefined, blinds: undefined })}
+          className="mb-1"
+        />
         <Breakdown
           // What is shown comes in afresh for another period or other games, not for an item ticked
           playKey={[period, currency, ratio, blinds].join()}

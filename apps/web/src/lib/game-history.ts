@@ -38,17 +38,15 @@ export const DEFAULT_HISTORY_VIEW: HistoryView = {
   newestFirst: true,
 };
 
-/** How the history section was left: unfolded or not, with its filters on show or not. */
+/** How the history section was left: unfolded or not, and what it shows. */
 export interface HistoryState {
   readonly open: boolean;
-  readonly filtering: boolean;
   readonly view: HistoryView;
 }
 
-/** History is unfolded with its filters on show until it has been left another way. */
+/** History is unfolded until it has been left another way. */
 export const DEFAULT_HISTORY_STATE: HistoryState = {
   open: true,
-  filtering: true,
   view: DEFAULT_HISTORY_VIEW,
 };
 
@@ -56,11 +54,14 @@ const PERIODS: readonly unknown[] = PERIOD_CHOICES;
 const text = (value: unknown) => (typeof value === "string" ? value : undefined);
 const CURRENCY_CHOICES: readonly unknown[] = ["all", ...CURRENCIES];
 
-/** Reads back a state that was kept between visits. Anything that is not one gives nothing. */
+/**
+ * Reads back a state that was kept between visits. Anything that is not one gives nothing. Whether
+ * the filters were on show, which an older state kept, is no longer read.
+ */
 export function parseHistoryState(stored: unknown): HistoryState | undefined {
   if (typeof stored !== "object" || stored === null) return undefined;
-  const { open, filtering, view } = stored as Record<string, unknown>;
-  if (typeof open !== "boolean" || typeof filtering !== "boolean") return undefined;
+  const { open, view } = stored as Record<string, unknown>;
+  if (typeof open !== "boolean") return undefined;
   if (typeof view !== "object" || view === null) return undefined;
   const { period, currency, ratio, blinds, onlyUnsettled, options, newestFirst } = view as Record<
     string,
@@ -71,7 +72,6 @@ export function parseHistoryState(stored: unknown): HistoryState | undefined {
   if (typeof newestFirst !== "boolean" || typeof onlyUnsettled !== "boolean") return undefined;
   return {
     open,
-    filtering,
     view: {
       period: period as PeriodChoice,
       currency: currency as Currency | "all",
@@ -84,18 +84,16 @@ export function parseHistoryState(stored: unknown): HistoryState | undefined {
   };
 }
 
-/**
- * Whether the filters leave out any game. The period is no filter: it is chosen in the heading,
- * where it shows.
- */
-export function isFiltered({ currency, ratio, blinds, onlyUnsettled, options }: HistoryView) {
-  return (
-    currency !== "all" ||
-    ratio !== undefined ||
-    blinds !== undefined ||
-    onlyUnsettled ||
-    options.length < GAME_OPTIONS.length
-  );
+/** The view with every filter as it starts, the currency too, and its period and order kept. */
+export function clearedView(view: HistoryView): HistoryView {
+  return {
+    ...view,
+    currency: "all",
+    ratio: undefined,
+    blinds: undefined,
+    onlyUnsettled: false,
+    options: GAME_OPTIONS,
+  };
 }
 
 export function hasOption(game: Game, option: GameOption) {

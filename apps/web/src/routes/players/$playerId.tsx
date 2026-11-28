@@ -4,7 +4,6 @@ import {
   type Currency,
   type Game,
   type GameSummary,
-  inPeriod,
   type PeriodChoice,
   type Player,
   type PlayerPayments,
@@ -16,9 +15,9 @@ import {
 } from "@holdem-knight/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
+import { blindsChip, FilterBar, ratioChip } from "@/components/FilterBar";
 import { HistorySection } from "@/components/game/HistorySection";
 import { InfoButton } from "@/components/InfoButton";
-import { IncomeFilter } from "@/components/income/IncomeFilter";
 import { Page } from "@/components/Page";
 import { OwnTag } from "@/components/players/OwnTag";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
@@ -176,12 +175,10 @@ function History({
       : (currencies.find((c) => c === "CNY") ?? currencies[0] ?? "CNY");
   const { period } = view;
 
-  // A ratio or blinds kept from before that the games on offer do not have counts as no choice.
-  // The latest games are taken after the filter, so what is on offer there is every game's
-  const within = isLast(period)
-    ? played
-    : played.filter((s) => inPeriod(periodOf(period, today), s.day));
-  const offered = filterChoices(within, currency);
+  // The ratios and blinds of all the player's games in the currency are on offer, and one chosen
+  // counts as chosen in every card: one whose games have none of it is empty. One kept from
+  // before that no game has counts as no choice
+  const offered = filterChoices(played, currency);
   const ratio = offered.ratios.find(({ value }) => value === view.ratio)?.value;
   const blinds = offered.blinds.find(({ value }) => value === view.blinds)?.value;
   const narrowed = played
@@ -207,6 +204,22 @@ function History({
   return (
     <QuietMotion value={quiet}>
       <div className="pb-8">
+        {/* Over the result, the curve and the games, which it narrows together */}
+        <FilterBar
+          currency={{
+            value: currency,
+            options: currencies.length > 0 ? currencies : [currency],
+            // Another currency has its own ratios and blinds
+            onChange: (value) =>
+              value !== "all" && change({ currency: value, ratio: undefined, blinds: undefined }),
+          }}
+          filters={[
+            ratioChip(offered, ratio, currency, (value) => change({ ratio: value })),
+            blindsChip(offered, blinds, (value) => change({ blinds: value })),
+          ]}
+          onClear={() => change({ ratio: undefined, blinds: undefined })}
+          className="mb-1"
+        />
         <section className={cn(cardClass, "px-4 pt-1 pb-3")}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center text-sm">
@@ -237,19 +250,19 @@ function History({
                 className="font-medium"
               />
             </div>
-            <IncomeFilter
-              applied={{ currency, ratio, blinds }}
-              currencies={currencies.length > 0 ? currencies : [currency]}
-              games={within}
-              onApply={change}
-            />
           </div>
           <Result report={report} hideGames={isLast(period)} money={money} playKey={playKey} />
         </section>
 
         {played.length > 0 && (
-          // Narrowed by itself, apart from the card over it
-          <ResultCurve key={player.id} playerId={player.id} summaries={played} today={today} />
+          // Narrowed by the bar, as the card over it
+          <ResultCurve
+            key={player.id}
+            playerId={player.id}
+            summaries={played}
+            today={today}
+            filter={{ currency, ratio, blinds }}
+          />
         )}
 
         {/* The host's own record is the organizer: what they pay or are paid is on 转账 (ADR 0051) */}
@@ -264,7 +277,7 @@ function History({
           />
         )}
 
-        {/* Folded until asked for, and narrowed and ordered as on the games page */}
+        {/* Folded until asked for; narrowed by the bar at the top, then by its own, and ordered as on the games page */}
         <div className="mt-5">
           <HistorySection
             games={games.filter(({ id }) => played.some((s) => s.id === id))}
@@ -272,6 +285,7 @@ function History({
             storageKey="player.history"
             initial={GAMES_FOLDED}
             playerId={player.id}
+            narrowedTo={{ currency, ratio, blinds }}
           />
         </div>
       </div>

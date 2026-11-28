@@ -1,7 +1,6 @@
 import {
   type Cents,
   CURRENCIES,
-  type Currency,
   cents,
   type GameSummary,
   multiply,
@@ -11,14 +10,12 @@ import {
 import { Check, ChevronDown } from "lucide-react";
 import { useId, useState } from "react";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
-import { IncomeFilter } from "@/components/income/IncomeFilter";
 import { Modal } from "@/components/insurance/Modal";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatGameMoney } from "@/lib/currency";
-import { blindsKey, filterChoices, ratioKey } from "@/lib/income-filter";
+import { blindsKey, filterChoices, type IncomeFilter, ratioKey } from "@/lib/income-filter";
 import { useCountUp, useEntered } from "@/lib/motion";
-import { useStoredState } from "@/lib/stored-state";
 import { ResultHead } from "./ResultHead";
 
 type Money = (value: Cents, signed?: boolean) => string;
@@ -101,30 +98,10 @@ const left = new Map<
   { from: string | undefined; to: string | undefined; withCharges: boolean }
 >();
 
-/** How the curve was left: the games it is narrowed to. The same for every player. */
-interface CurveView {
-  /** Missing for panda points, or the currency the player last played in */
-  readonly currency?: Currency | undefined;
-  readonly ratio?: string | undefined;
-  readonly blinds?: string | undefined;
-}
-
-const text = (value: unknown) => (typeof value === "string" ? value : undefined);
-
-function parseCurveView(stored: unknown): CurveView | undefined {
-  if (typeof stored !== "object" || stored === null) return undefined;
-  const { currency, ratio, blinds } = stored as Record<string, unknown>;
-  return {
-    currency: CURRENCIES.find((c) => c === currency),
-    ratio: text(ratio),
-    blinds: text(blinds),
-  };
-}
-
 /**
  * The player's running result, game by game, from one day to another: from their first game to
- * now until other days are picked after the title. It is narrowed by currency, ratio and blinds
- * by itself, apart from the card over it. Under the title what the stretch came to, what it came
+ * now until other days are picked after the title. It is narrowed by the currency, ratio and
+ * blinds the page's bar has chosen, as the card over it is. Under the title what the stretch came to, what it came
  * to after the charges paid in it, whose tick draws that as a second line, and the charges. The axes are
  * marked with a few amounts and days, and the line ends in a dot at where the player stands. The
  * curve is drawn again from the left whenever its days or its games change.
@@ -136,7 +113,7 @@ export function ResultCurve({
   /**
    * As a preview inside a link to the player's page: the same card from the first game to now in
    * the default currency, its title as text with the currency's mark, and no control in it. It
-   * neither reads nor keeps how the curve was left.
+   * neither reads nor keeps how the curve was left, and is narrowed by nothing.
    */
   preview?: boolean;
 }) {
@@ -148,12 +125,12 @@ interface CurveProps {
   /** Every settled game the player was in */
   summaries: readonly GameSummary[];
   today: string;
+  /** The games the page's bar narrows to. Missing for the default currency and any ratio and blinds */
+  filter?: IncomeFilter;
 }
 
-/** What the curve is narrowed to and the days picked, as the player's page keeps them. */
+/** The days picked and the tick, as the player's page keeps them. */
 interface Kept {
-  readonly view: CurveView;
-  readonly setView: (view: CurveView) => void;
   readonly from: string | undefined;
   readonly setFrom: (day: string | undefined) => void;
   readonly to: string | undefined;
@@ -165,30 +142,25 @@ interface Kept {
 /** The curve of the player's page, as it was left. */
 function KeptCurve(props: CurveProps) {
   const { playerId } = props;
-  const [view, setView] = useStoredState<CurveView>("player.curve", {}, parseCurveView);
   // A day picked, or missing for the first game and for now
   const [from, setFrom] = useState(() => left.get(playerId)?.from);
   const [to, setTo] = useState(() => left.get(playerId)?.to);
   const [withCharges, setWithCharges] = useState(() => left.get(playerId)?.withCharges ?? false);
   left.set(playerId, { from, to, withCharges });
-  return (
-    <CurveCard
-      {...props}
-      kept={{ view, setView, from, setFrom, to, setTo, withCharges, setWithCharges }}
-    />
-  );
+  return <CurveCard {...props} kept={{ from, setFrom, to, setTo, withCharges, setWithCharges }} />;
 }
 
 function CurveCard({
   playerId,
   summaries,
   today,
+  filter,
   kept,
 }: CurveProps & {
-  /** Missing for the preview: no filter, from the first game to now, no second line */
+  /** Missing for the preview: from the first game to now, no second line */
   kept?: Kept;
 }) {
-  const view = kept?.view ?? {};
+  const view: Partial<IncomeFilter> = (kept && filter) || {};
   const from = kept?.from;
   const to = kept?.to;
   const withCharges = kept?.withCharges ?? false;
@@ -260,27 +232,19 @@ function CurveCard({
       className={cn(kept && "mt-3", "rounded-2xl border border-line bg-surface px-4 pt-1 pb-3")}
     >
       {kept ? (
-        <div className="flex items-center justify-between gap-2">
-          {/* The title, then from which day to which: a tap on either opens the days to pick from */}
-          <div className="flex min-w-0 items-center text-sm">
-            <h2 className="shrink-0 text-muted">{t.players.playerPage.curve}</h2>
-            <span className="mx-1.5 text-muted" aria-hidden>
-              ·
-            </span>
-            <DayButton label={t.players.playerPage.rangeStart} onClick={() => setPicking("from")}>
-              {dayName(from ?? earliest)}
-            </DayButton>
-            <span className="mx-1.5 text-muted">{t.players.playerPage.to}</span>
-            <DayButton label={t.players.playerPage.rangeEnd} onClick={() => setPicking("to")}>
-              {to ? dayName(to) : t.players.playerPage.now}
-            </DayButton>
-          </div>
-          <IncomeFilter
-            applied={{ currency, ratio, blinds }}
-            currencies={currencies.length > 0 ? currencies : [currency]}
-            games={summaries}
-            onApply={(filter) => kept.setView(filter)}
-          />
+        // The title, then from which day to which: a tap on either opens the days to pick from
+        <div className="flex min-w-0 items-center text-sm">
+          <h2 className="shrink-0 text-muted">{t.players.playerPage.curve}</h2>
+          <span className="mx-1.5 text-muted" aria-hidden>
+            ·
+          </span>
+          <DayButton label={t.players.playerPage.rangeStart} onClick={() => setPicking("from")}>
+            {dayName(from ?? earliest)}
+          </DayButton>
+          <span className="mx-1.5 text-muted">{t.players.playerPage.to}</span>
+          <DayButton label={t.players.playerPage.rangeEnd} onClick={() => setPicking("to")}>
+            {to ? dayName(to) : t.players.playerPage.now}
+          </DayButton>
         </div>
       ) : (
         // As text: the whole card is one link, so nothing in it is a target of its own
