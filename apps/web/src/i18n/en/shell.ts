@@ -71,5 +71,7 @@ export const shell: Messages["shell"] = {
     stopped: (what) => `Stopped at ${what}. They’re all on this device.`,
     about:
       "The account didn’t accept this record, and the ones after it are waiting on it. Try again, or export a backup first.",
+    code: (code) => `Code ${code}`,
+    export: "Export backup",
   },
 };

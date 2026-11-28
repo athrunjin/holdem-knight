@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
-import { dayAndTime } from "@/components/account/SyncRow";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { dayAndTime, useSyncView } from "@/components/account/SyncRow";
 import { useBackupExport } from "@/components/BackupSection";
 import { InfoButton } from "@/components/InfoButton";
-import { repository, retrySending, useSyncStatus } from "@/data";
+import { repository, retrySending } from "@/data";
 import type { SyncStatus as Status, StoppedAt } from "@/data/sync";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
@@ -22,6 +22,21 @@ function useStoppedText(stoppedAt: StoppedAt | undefined): string {
   // The game's start as its row in a list gives it
   const started = game ? dayAndTime(game.createdAt) : undefined;
   return t.shell.sync.stoppedAt(stoppedAt.kind, stoppedAt.removed, started);
+}
+
+/** How many characters of a sentence's end go on the line of what follows it */
+const TAIL = 4;
+
+/** A sentence with what follows it kept on the line of its last few characters */
+function sentence(text: string, withEnd: (end: string) => ReactNode): ReactNode {
+  const characters = Array.from(text);
+  const start = characters.slice(0, -TAIL).join("");
+  return (
+    <>
+      {start}
+      {withEnd(characters.slice(-TAIL).join(""))}
+    </>
+  );
 }
 
 /**
@@ -46,16 +61,24 @@ function RefusedAlert({ status }: { status: Status }) {
   return (
     <div role="alert" className="rounded-xl border border-line bg-surface px-4 pt-3 pb-1 text-sm">
       <p className="font-medium text-highlight">{t.shell.sync.refused(status.pending)}</p>
-      <p className="mt-0.5 text-muted">
-        {what && t.shell.sync.stopped(what)}
-        {/* A whole target at the line's end, which its negative margins keep from raising the line */}
-        <span className="-my-3 -ml-2.5 inline-grid align-middle">
-          <InfoButton title={t.shell.sync.refused(status.pending)} target>
-            <p className="text-sm text-muted">{t.shell.sync.about}</p>
-            {code !== undefined && <p className="mt-1 text-xs text-muted tabular-nums">{code}</p>}
-          </InfoButton>
-        </span>
-      </p>
+      <div className="mt-0.5 text-muted">
+        {sentence(what && t.shell.sync.stopped(what), (end) => (
+          // The sentence's last few characters go with the (i), so it never stands alone on a line
+          // and leaves no one-character line. A whole target, which its negative margins keep from
+          // raising the line; its ring is drawn round the icon, not over the line above
+          <span className="whitespace-nowrap">
+            {end}
+            <span className="-my-3 -ml-2.5 inline-grid align-middle [&>button:focus-visible]:outline-none [&>button:focus-visible>svg]:rounded-full [&>button:focus-visible>svg]:outline-2 [&>button:focus-visible>svg]:outline-offset-2 [&>button:focus-visible>svg]:outline-highlight">
+              <InfoButton title={t.shell.sync.refused(status.pending)} target>
+                <p className="text-sm text-muted">{t.shell.sync.about}</p>
+                {code !== undefined && (
+                  <p className="mt-1 text-xs text-muted tabular-nums">{t.shell.sync.code(code)}</p>
+                )}
+              </InfoButton>
+            </span>
+          </span>
+        ))}
+      </div>
       {backup.failed && <p className="mt-1 text-highlight">{backup.failed}</p>}
       <div className="mt-2 flex justify-end gap-2">
         <button
@@ -64,7 +87,7 @@ function RefusedAlert({ status }: { status: Status }) {
           onClick={() => void backup.exportBackup()}
           className="min-h-11 rounded-xl border border-line px-4 font-medium disabled:opacity-60"
         >
-          {t.me.backup.export}
+          {t.shell.sync.export}
         </button>
         <button
           type="button"
@@ -87,22 +110,31 @@ type Phase = "closed" | "opening" | "open" | "closing";
  * only wait: the dot on 我的 says so. Nothing for a guest.
  */
 export function SyncStatus() {
-  const status = useSyncStatus();
-  const refused = status !== undefined && status.pending > 0 && status.refused;
+  // The one view the dot and 我的 read too, so the alert opens and closes with them
+  const view = useSyncView();
+  const refused = view?.state === "refused";
   const [phase, setPhase] = useState<Phase>("closed");
   // The last status that was turned down, shown while the alert closes
   const [shown, setShown] = useState<Status>();
+  const alert = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (view?.refused) setShown(view);
+  }, [view]);
 
   useEffect(() => {
     if (refused) {
-      setShown(status);
       setPhase((phase) =>
         phase === "open" || phase === "opening" ? phase : still() ? "open" : "opening",
       );
-    } else {
-      setPhase((phase) => (phase === "closed" ? phase : still() ? "closed" : "closing"));
+      return;
     }
-  }, [refused, status]);
+    // Focus inside it, as on 重试 that went through, is handed to the page rather than lost
+    if (alert.current?.contains(document.activeElement)) {
+      document.querySelector<HTMLElement>("main")?.focus({ preventScroll: true });
+    }
+    setPhase((phase) => (phase === "closed" ? phase : still() ? "closed" : "closing"));
+  }, [refused]);
 
   // Opening starts folded and grows on the next frame, so the change can be seen
   useEffect(() => {
@@ -115,6 +147,7 @@ export function SyncStatus() {
 
   return (
     <div
+      ref={alert}
       onTransitionEnd={(event) => {
         if (event.target === event.currentTarget && phase === "closing") setPhase("closed");
       }}

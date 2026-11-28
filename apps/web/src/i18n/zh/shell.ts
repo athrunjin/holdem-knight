@@ -64,5 +64,8 @@ export const shell = {
     },
     stopped: (what: string) => `停在${/^\d/.test(what) ? " " : ""}${what}。记录都在这台设备上。`,
     about: "账户没有接受这条记录，后面的记录都在等它。可以重试，或先导出备份。",
+    /** The account's answer, by its code only */
+    code: (code: number) => `代码 ${code}`,
+    export: "导出备份",
   },
 };

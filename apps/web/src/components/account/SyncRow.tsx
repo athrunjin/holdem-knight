@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, use, useEffect, useMemo, useState } from "react";
 import { retrySending, useOnline, useSyncStatus } from "@/data";
 import type { SyncStatus } from "@/data/sync";
 import { localeTag, t } from "@/i18n";
@@ -18,45 +18,51 @@ export interface SyncView extends SyncStatus {
 /** How long a send is under way before it says so, as opening the books does in `BooksGate` */
 const MOMENT = 600;
 
-/** Whether something has held for a moment. One that does not last that long is never told. */
-function useLasted(holds: boolean): boolean {
-  const [lasted, setLasted] = useState(false);
-  useEffect(() => {
-    if (!holds) {
-      setLasted(false);
-      return;
-    }
-    const timer = setTimeout(() => setLasted(true), MOMENT);
-    return () => clearTimeout(timer);
-  }, [holds]);
-  return holds && lasted;
+/** The state the status is in, before any of it is held back */
+function stateOf(status: SyncStatus, online: boolean): SyncState {
+  if (status.pending === 0) return "sent";
+  if (status.refused) return "refused";
+  if (!online) return "offline";
+  return status.sending ? "sending" : "waiting";
 }
 
 /**
- * The sync status in the states the interface shows, or nothing for a guest's books. The dot on
- * 我的, the header on 我的 and the 同步 row all read it, so they never disagree. A write is sent
- * at once, so for a moment after records start to wait, and after a send starts, the state shown
- * before stays: a send after every write is not told.
+ * The sync status in the states the interface shows, or nothing for a guest's books, worked out
+ * once for the whole app by `AppShell`, which hands it on in `SyncViewContext`. A write is sent at
+ * once, so a send is told only once it has been under way a moment: until then the state shown
+ * before stays, whatever it was, and a send after every write, or a retry that goes through at
+ * once, is never told. Every other state shows at once.
  */
-export function useSyncView(): SyncView | undefined {
+export function useSyncViewSource(): SyncView | undefined {
   const status = useSyncStatus();
   const online = useOnline();
-  const waited = useLasted((status?.pending ?? 0) > 0);
-  const sent = useLasted(status?.sending ?? false);
-  const shown = useRef<SyncState>(undefined);
-  if (!status) return undefined;
+  const state = status && stateOf(status, online);
+  // The state last shown that was not a send just begun
+  const [before, setBefore] = useState<SyncState>();
+  useEffect(() => {
+    if (state !== "sending") {
+      setBefore(state);
+      return;
+    }
+    const timer = setTimeout(() => setBefore("sending"), MOMENT);
+    return () => clearTimeout(timer);
+  }, [state]);
+  // Records wait meanwhile, where nothing was shown before them
+  const shown = state === "sending" ? (before ?? "waiting") : state;
+  // The same view until something in it changes, so what reads it is not drawn again for nothing
+  return useMemo(() => status && shown && { ...status, state: shown }, [status, shown]);
+}
 
-  // What was shown while the device was offline, or turned down, is not held once it is not
-  const held =
-    shown.current === "offline" || shown.current === "refused" ? undefined : shown.current;
-  let state: SyncState;
-  if (status.pending === 0) state = "sent";
-  else if (status.refused) state = "refused";
-  else if (!online) state = "offline";
-  else if (held && (!waited || (status.sending && !sent))) state = held;
-  else state = status.sending ? "sending" : "waiting";
-  shown.current = state;
-  return { ...status, state };
+/** The sync view `AppShell` works out, for every part of the app that tells it */
+export const SyncViewContext = createContext<SyncView | undefined>(undefined);
+
+/**
+ * The sync status in the states the interface shows, or nothing for a guest's books. The dot on
+ * 我的, the header on 我的, the 同步 row and the refusal alert all read this one, so they change
+ * together and never disagree.
+ */
+export function useSyncView(): SyncView | undefined {
+  return use(SyncViewContext);
 }
 
 /** The time of day, as 20:15 */
@@ -111,10 +117,11 @@ export function SyncRow() {
 
   const refused = view.state === "refused";
   return (
-    <div className="flex min-h-12 items-center gap-3 px-4">
-      {/* The state gives way under the label's line before the button shrinks */}
-      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 py-1">
-        <div className="shrink-0">
+    <div className="flex items-start gap-3 px-4">
+      {/* The state gives way under the label before the button shrinks, and starts under it; the
+          button stays on the first line */}
+      <div className="flex min-h-12 min-w-0 flex-1 flex-wrap content-center items-center gap-x-3 py-1">
+        <div className="shrink-0 grow">
           <p className="font-medium">{t.me.sync.title}</p>
           {view.pulledAt !== undefined && (
             <p className="text-xs text-muted">
@@ -125,7 +132,7 @@ export function SyncRow() {
         <p
           role="status"
           className={cn(
-            "ml-auto text-sm tabular-nums transition-colors duration-200 ease-out",
+            "text-sm tabular-nums transition-colors duration-200 ease-out",
             refused ? "text-highlight" : "text-muted",
           )}
         >
@@ -137,7 +144,7 @@ export function SyncRow() {
         type="button"
         disabled={view.state === "sending" || view.state === "offline"}
         onClick={retrySending}
-        className="-mr-2 min-h-11 shrink-0 rounded-lg px-2 text-sm font-medium text-highlight disabled:opacity-60"
+        className="-mr-2 mt-0.5 min-h-11 shrink-0 rounded-lg px-2 text-sm font-medium text-highlight disabled:opacity-60"
       >
         {refused ? t.common.retry : t.me.sync.syncNow}
       </button>
