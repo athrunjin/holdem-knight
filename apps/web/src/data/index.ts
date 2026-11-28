@@ -44,6 +44,17 @@ const lock = browserLock();
 /** Each space's books on this device, made once a page and kept while it is open (ADR 0054). */
 const spaces = new Map<OrganizerId, { readonly repository: Repository; readonly sync: Sync }>();
 
+/**
+ * Whose session the client sends with: the account signed in, unless the session the client
+ * keeps in this browser has already become another's, which it does a moment before the app is
+ * told. Where the client keeps it elsewhere, as outside a browser, the app's word stands.
+ */
+function signedInAs(): string | undefined {
+  const session = currentSession();
+  if (session.status !== "signed-in") return undefined;
+  return storedUser()?.id ?? session.userId;
+}
+
 /** A space's books on this device, for the account that owns it. */
 function deviceBooksOf(client: SupabaseClient, space: OrganizerId, userId: string) {
   const made = spaces.get(space);
@@ -57,9 +68,8 @@ function deviceBooksOf(client: SupabaseClient, space: OrganizerId, userId: strin
     lockName: `holdem-account-sync.${space}`,
     online,
     reauth: async () => !(await client.auth.refreshSession()).error,
-    // Whose session the client sends with: the one it keeps in this browser
     userId,
-    signedInAs: () => storedUser()?.id,
+    signedInAs,
     // The pages read again what the pull changed, and keep who the account is
     onPulled: () => void queryClient.invalidateQueries({ predicate: notAccount }),
   });
