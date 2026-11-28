@@ -23,11 +23,17 @@ export const shell: Messages["shell"] = {
     unreachableTitle: "Can’t reach your account",
     unreachableHeading: "Your account’s records can’t be read right now",
     unreachableBody:
-      "Once you sign in, games and players are kept in the cloud and need a connection to read and write. Check your network and try again.",
+      "This device hasn’t opened this account yet. The first time needs a connection to bring its records onto the device; after that it works offline too. Check your network and try again.",
     unreachableNote:
       "After signing out you can go on with the guest records on this device. They don’t go into the account.",
-    readFailedAccount:
-      "Some records couldn’t be read from the cloud, so this page may be incomplete. Check your network.",
+    readFailedAccount: "Some records couldn’t be read, so this page may be incomplete.",
     readFailedGuest: "Some records couldn’t be read, so this page may be incomplete.",
+  },
+  sync: {
+    pending: (count) =>
+      `${count} ${count === 1 ? "record" : "records"} to send. They go to your account once online`,
+    refused: (count) => `${count} ${count === 1 ? "record wasn’t" : "records weren’t"} sent`,
+    refusedNote:
+      "Your account turned one of them down. They’re all still on this device, and you can export a backup.",
   },
 };

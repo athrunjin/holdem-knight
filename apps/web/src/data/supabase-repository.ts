@@ -2,6 +2,8 @@ import {
   type BackupData,
   ForeignOrganizerError,
   type GameSummary,
+  type LedgerEvent,
+  type LedgerRepository,
   type OrganizerId,
   type Repository,
   type RestoreResult,
@@ -47,6 +49,17 @@ export class StorageError extends Error {
   }
 }
 
+/** The account's repository, with what sending from the device needs besides (ADR 0054). */
+export interface SupabaseRepository extends Repository {
+  readonly ledger: LedgerRepository & {
+    /**
+     * Adds the events the ledger lacks and leaves those it has, all or none: an event sent again
+     * after its answer was lost is the same event, as an event is never changed (ADR 0005).
+     */
+    appendMissing(events: readonly LedgerEvent[]): Promise<void>;
+  };
+}
+
 /**
  * Account mode repository: the books of one host space in Supabase (ADR 0040). Each record is kept
  * as the document the app has, checked with the backup's schemas on the way in and on the way out,
@@ -56,7 +69,7 @@ export class StorageError extends Error {
 export function createSupabaseRepository(
   client: SupabaseClient,
   organizerId: OrganizerId,
-): Repository {
+): SupabaseRepository {
   function assertOwned(entity: { readonly organizerId: OrganizerId }) {
     if (entity.organizerId !== organizerId) {
       throw new ForeignOrganizerError(
@@ -133,6 +146,19 @@ export function createSupabaseRepository(
     const { error, status } = await client
       .from(TABLES[collection])
       .insert(records.map((record) => row(collection, record)));
+    if (error) throw new StorageError(error.message, status);
+  }
+
+  /**
+   * Adds the records missing and leaves the ones there as they are, all or none. The insert asks
+   * for no update on a conflict, so it needs no right to change a row: the ledger has none.
+   */
+  async function addMissing<C extends Collection>(collection: C, records: readonly RecordOf<C>[]) {
+    if (records.length === 0) return;
+    const { error, status } = await client.from(TABLES[collection]).upsert(
+      records.map((record) => row(collection, record)),
+      { onConflict: "organizer_id,id", ignoreDuplicates: true },
+    );
     if (error) throw new StorageError(error.message, status);
   }
 
@@ -231,6 +257,7 @@ export function createSupabaseRepository(
       listByGame: (gameId) => all("ledgerEvents", (query) => byTime(query.eq("game_id", gameId))),
       append: (event) => add("ledgerEvents", [event]),
       appendAll: (events) => add("ledgerEvents", events),
+      appendMissing: (events) => addMissing("ledgerEvents", events),
     },
     insuranceRules: saved("insuranceRules"),
     insuranceHands: {

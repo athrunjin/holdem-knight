@@ -1,7 +1,7 @@
 import type { Repository } from "@holdem-knight/core";
 import { describe, expect, it, vi } from "vitest";
-
 import { createBooks, type Reader, type Store } from "./books";
+import type { Sync } from "./sync";
 
 const store = (key: string, mode: Store["mode"]): Store => ({
   key,
@@ -220,5 +220,29 @@ describe("the books in use", () => {
     expect(books.state()).toEqual({ status: "open", key: "account:wang-space", mode: "account" });
     expect(books.current()).toBe(wangBooks);
     expect(onSwitch).toHaveBeenCalledTimes(3);
+  });
+
+  it("send an account's books from the device only while they are the ones in use", async () => {
+    const { become, answer } = setUp();
+    const sender = { start: vi.fn(), stop: vi.fn() };
+    const sending = { ...linBooks, sync: sender as unknown as Sync };
+    void become(lin);
+    await answer("lin", sending);
+    expect(sender.start).toHaveBeenCalledTimes(1);
+    expect(sender.stop).not.toHaveBeenCalled();
+
+    await become({ status: "guest" });
+    expect(sender.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("stop sending one account's books before another account's open", async () => {
+    const { become, answer } = setUp();
+    const sender = { start: vi.fn(), stop: vi.fn() };
+    void become(lin);
+    await answer("lin", { ...linBooks, sync: sender as unknown as Sync });
+
+    void become({ status: "account", userId: "wang" });
+    // Stopped while wang's books are still being opened, not once they are
+    expect(sender.stop).toHaveBeenCalledTimes(1);
   });
 });

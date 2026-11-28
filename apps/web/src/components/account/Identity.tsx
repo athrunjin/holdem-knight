@@ -4,6 +4,7 @@ import { User } from "lucide-react";
 import type { ReactNode } from "react";
 import { InfoButton } from "@/components/InfoButton";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { useSyncStatus } from "@/data";
 import { usePlayers } from "@/data/players";
 import { useAccount, useSession } from "@/data/session";
 import { t } from "@/i18n";
@@ -36,6 +37,7 @@ export function useIdentity(): Identity {
   const session = useSession();
   const { data: account } = useAccount(session.status === "signed-in" ? session.userId : undefined);
   const { data: players, isPending: playersPending } = usePlayers();
+  const sending = useSyncStatus();
 
   switch (session.status) {
     case "loading":
@@ -57,8 +59,9 @@ export function useIdentity(): Identity {
         signIn: true,
       };
     case "signed-in": {
-      // Waits only while the list is read: one that fails, or has no own record, keeps the name
-      if (playersPending) return { status: "loading" };
+      // Waits only while the list is read (one that fails, or has no own record, keeps the name),
+      // and while what is left to send is read, so it never says synced when it is not
+      if (playersPending || !sending) return { status: "loading" };
       const own = players?.find(({ id }) => id === ORGANIZER_PLAYER_ID);
       const name = account?.displayName || session.email.split("@")[0] || session.email;
       return {
@@ -67,7 +70,8 @@ export function useIdentity(): Identity {
         number: own?.number === undefined ? undefined : playerNumberText(own.number),
         // The own record's avatar keeps its own ground; until it is made, a neutral one
         avatar: own ? { id: own.id, ground: "" } : { id: session.userId, ground: "bg-line" },
-        line: t.me.header.synced,
+        // Not synced while records on the device wait to be sent, or were turned down (ADR 0054)
+        line: sending.pending ? t.me.header.unsent(sending.pending) : t.me.header.synced,
         about: t.me.account.note,
         signIn: false,
       };

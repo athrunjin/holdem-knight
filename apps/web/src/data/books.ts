@@ -1,5 +1,7 @@
 import type { OrganizerId, Repository } from "@holdem-knight/core";
 
+import type { Sync } from "./sync";
+
 /** One set of books the app reads and writes: a guest's on this device, or an account's space. */
 export interface Store {
   /** Tells one set of books from another. What was read from one is never shown for another. */
@@ -10,6 +12,11 @@ export interface Store {
   /** What the organizer is called in their games: the name of an account's space (ADR 0040). */
   readonly organizerName: string;
   readonly repository: Repository;
+  /**
+   * What sends an account's books from the device and reads them again (ADR 0054). It runs only
+   * while its books are in use.
+   */
+  readonly sync?: Sync;
 }
 
 /** Who is using the app, as far as the books go. */
@@ -35,7 +42,8 @@ interface Sources {
   reader(): Reader;
   /**
    * The books of an account's space, or `agreeing` for an account that has not agreed to the
-   * terms, whose books are not opened. Fails when they cannot be reached.
+   * terms, whose books are not opened. Fails when they cannot be reached: when the account cannot
+   * be read and its books were never opened on this device (ADR 0054).
    */
   openAccount(userId: string): Promise<Store | "agreeing">;
   /** Called as the books change hands, before anything reads the new ones. */
@@ -65,9 +73,11 @@ export function createBooks({ guest, reader, openAccount, onSwitch }: Sources) {
   function use(store: Store, userId?: string) {
     account = userId;
     if (store.key !== current.key) {
+      current.sync?.stop();
       current = store;
       onSwitch();
     }
+    store.sync?.start();
   }
 
   function open(store: Store, userId?: string) {
@@ -83,6 +93,9 @@ export function createBooks({ guest, reader, openAccount, onSwitch }: Sources) {
     if (who.status === "loading") return show({ status: "opening" });
     if (who.status === "guest") return open(guest);
     if (state.status === "open" && account === who.userId) return;
+    // Another account's books stop sending and reading before this one's open, so nothing of
+    // theirs goes out, or is read, under this account's session
+    if (account !== who.userId) current.sync?.stop();
     // An account asked again once it has agreed keeps its step on screen until its books open
     const agreeing = state.status === "agreeing" && state.userId === who.userId;
     if (!agreeing) show({ status: "opening" });

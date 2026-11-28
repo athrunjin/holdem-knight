@@ -74,7 +74,8 @@ describe("the books as an account signs in and out", () => {
     await repository.players.save(player);
 
     expect(await names()).toEqual(["账户小陈"]);
-    expect(await inTheSpace(space)).toEqual(["账户小陈"]);
+    // Written to the device first, and sent at once (ADR 0054)
+    await vi.waitFor(async () => expect(await inTheSpace(space)).toEqual(["账户小陈"]), 10_000);
   });
 
   it("are the device's again at a sign-out, as they were left", async () => {

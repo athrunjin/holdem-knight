@@ -26,6 +26,30 @@ describeRepository("Dexie", async () => {
 });
 
 describe("Dexie repository", () => {
+  it("keeps the guest's books under their name and version, with the tables and indexes they had", () => {
+    const db = createGuestDatabase();
+    const tables = Object.fromEntries(
+      db.tables.map((table) => [
+        table.name,
+        [table.schema.primKey.src, ...table.schema.indexes.map((index) => index.src)].join(", "),
+      ]),
+    );
+
+    expect(db.name).toBe("holdem-guest");
+    expect(db.verno).toBe(8);
+    expect(tables).toEqual({
+      games: "id, [organizerId+createdAt]",
+      players: "id, [organizerId+name]",
+      ledgerEvents: "id, [gameId+occurredAt]",
+      insuranceRules: "id, [organizerId+createdAt]",
+      insuranceHands: "id, [gameId+createdAt]",
+      gameConfigs: "id, [organizerId+createdAt]",
+      oddsTables: "id, [organizerId+createdAt]",
+      chargeRules: "id, [organizerId+createdAt]",
+      gameSummaries: "id, organizerId",
+    });
+  });
+
   it("upgrades saved games from money blinds to chip blinds", async () => {
     const name = `test-${crypto.randomUUID()}`;
     const legacy = new Dexie(name);

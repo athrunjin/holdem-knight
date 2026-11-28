@@ -50,7 +50,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0043](0043-namesakes-in-a-space.md) | Players may share a name, told apart in a game and by number | Accepted |
 | [0044](0044-books-in-postgres-as-documents.md) | The books in Postgres as the app's documents, with their security tested in process | Accepted |
 | [0045](0045-one-contract-for-both-repositories.md) | One contract for the device's repository and the account's | Accepted |
-| [0046](0046-the-books-in-use-follow-who-is-signed-in.md) | The books in use follow who is signed in | Accepted |
+| [0046](0046-the-books-in-use-follow-who-is-signed-in.md) | The books in use follow who is signed in | Narrowed by 0054 |
 | [0047](0047-interface-text-in-typed-catalogs.md) | Interface text in typed catalogs, one a language | Accepted |
 | [0048](0048-undoing-an-insurance-hand-keeps-later-stacks.md) | Undoing an insurance hand keeps the stacks changed since | Accepted |
 | [0049](0049-settled-games-keep-a-summary.md) | A settled game keeps a summary of its results, for reports | Accepted |
@@ -58,6 +58,7 @@ Once recorded, a decision isn't edited. If it changes later, write a new record 
 | [0051](0051-the-hosts-own-record.md) | The host has a record of their own, under the organizer seat's ID | Accepted |
 | [0052](0052-sign-in-with-google-and-a-first-entry-agreement.md) | Sign-in with Google, and agreeing to the terms on first entry | Accepted |
 | [0053](0053-guest-records-brought-into-an-account.md) | A guest's records are brought into an account as a copy, when the person asks | Accepted |
+| [0054](0054-account-books-written-to-the-device-first.md) | An account's books are written to the device first and sent after | Accepted |
 
 ## Template
 

@@ -35,6 +35,20 @@ const STORES = {
   ledgerEvents: "id, [gameId+occurredAt]",
 };
 
+/**
+ * The tables of a set of books and their indexes, as the guest's books have them from version 8
+ * on. An account's copy on the device has the same (ADR 0054), so one repository reads both.
+ */
+export const BOOK_STORES = {
+  ...STORES,
+  insuranceRules: "id, [organizerId+createdAt]",
+  insuranceHands: "id, [gameId+createdAt]",
+  gameConfigs: "id, [organizerId+createdAt]",
+  oddsTables: "id, [organizerId+createdAt]",
+  chargeRules: "id, [organizerId+createdAt]",
+  gameSummaries: "id, organizerId",
+} as const;
+
 export function createGuestDatabase(name = "holdem-guest"): GuestDatabase {
   const db = new Dexie(name) as GuestDatabase;
   db.version(1).stores(STORES);
@@ -67,19 +81,14 @@ export function createGuestDatabase(name = "holdem-guest"): GuestDatabase {
     chargeRules,
   });
   // The results of settled games, kept for reports (ADR 0049)
-  db.version(8).stores({
-    ...STORES,
-    insuranceRules,
-    insuranceHands,
-    gameConfigs,
-    oddsTables,
-    chargeRules,
-    gameSummaries: "id, organizerId",
-  });
+  db.version(8).stores(BOOK_STORES);
   return db;
 }
 
-/** Guest mode repository: data lives only in local IndexedDB. */
+/**
+ * Books kept in this browser's IndexedDB: the guest's, and the tables of an account's copy on the
+ * device, which `createAccountRepository` writes through this and reads with it (ADR 0054).
+ */
 export function createDexieRepository(db: GuestDatabase, organizerId: OrganizerId): Repository {
   function assertOwned(entity: { readonly organizerId: OrganizerId }) {
     if (entity.organizerId !== organizerId) {

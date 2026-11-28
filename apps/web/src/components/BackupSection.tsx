@@ -4,6 +4,7 @@ import { type ChangeEvent, useRef, useState } from "react";
 import { InfoButton } from "@/components/InfoButton";
 import { repository } from "@/data";
 import { parseBackup, serializeBackup } from "@/data/backup";
+import { OnlineOnlyError } from "@/data/sync";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { shareFile } from "@/lib/share";
@@ -86,13 +87,17 @@ export function BackupSection({ account }: { account: boolean }) {
       setStatus({
         tone: "error",
         text:
-          error instanceof ForeignOrganizerError
-            ? account
-              ? text.foreignAccount
-              : text.foreignGuest
-            : account
-              ? text.failedAccount
-              : text.failedGuest,
+          error instanceof OnlineOnlyError
+            ? error.reason === "offline"
+              ? text.offline
+              : text.unsent(error.unsent)
+            : error instanceof ForeignOrganizerError
+              ? account
+                ? text.foreignAccount
+                : text.foreignGuest
+              : account
+                ? text.failedAccount
+                : text.failedGuest,
       });
     } finally {
       setBusy(false);

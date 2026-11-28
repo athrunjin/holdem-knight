@@ -90,6 +90,12 @@ export const account: Messages["account"] = {
   newPasswordPage: {
     title: "Set a new password",
   },
+  leaving: {
+    unsent: (count) => `${count} ${count === 1 ? "record isn’t" : "records aren’t"} sent yet`,
+    unsentNote:
+      "They stay on this device and are sent the next time you sign in to this account here.",
+    keep: "Keep and sign out",
+  },
   verifyPage: {
     title: "Enter the code",
     sentBefore: (digits) => `A ${digits}-digit code was sent to `,

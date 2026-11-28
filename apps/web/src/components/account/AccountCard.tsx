@@ -2,9 +2,9 @@ import { parseDisplayName } from "@holdem-knight/core";
 import { Check, Copy } from "lucide-react";
 import { type FormEvent, useRef, useState } from "react";
 import { TextField } from "@/components/TextField";
-import { signOut } from "@/data/auth";
 import { useAccount, useRenameAccount } from "@/data/session";
 import { t } from "@/i18n";
+import { UnsentStep, useSignOut } from "./SignOutStep";
 
 const rowClass = "flex min-h-11 items-center justify-between gap-3";
 
@@ -79,7 +79,7 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
   const rename = useRenameAccount(userId);
   const [editing, setEditing] = useState<string>();
   const [nameIssue, setNameIssue] = useState<string>();
-  const [leaving, setLeaving] = useState(false);
+  const leaving = useSignOut();
 
   function handleRename(event: FormEvent) {
     event.preventDefault();
@@ -154,18 +154,24 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
         </p>
       )}
 
-      <button
-        type="button"
-        disabled={leaving}
-        onClick={async () => {
-          setLeaving(true);
-          await signOut();
-          setLeaving(false);
-        }}
-        className={`${buttonClass} mt-4 w-full`}
-      >
-        {t.common.signOut}
-      </button>
+      {leaving.unsent === undefined ? (
+        <button
+          type="button"
+          disabled={leaving.leaving}
+          onClick={leaving.ask}
+          className={`${buttonClass} mt-4 w-full`}
+        >
+          {t.common.signOut}
+        </button>
+      ) : (
+        <UnsentStep
+          unsent={leaving.unsent}
+          leaving={leaving.leaving}
+          onCancel={leaving.cancel}
+          onKeep={leaving.keep}
+          className="mt-4"
+        />
+      )}
     </section>
   );
 }
