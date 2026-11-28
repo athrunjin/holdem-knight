@@ -93,6 +93,9 @@ export function createBooks({ guest, reader, openAccount, onSwitch }: Sources) {
     if (who.status === "loading") return show({ status: "opening" });
     if (who.status === "guest") return open(guest);
     if (state.status === "open" && account === who.userId) return;
+    // Another account's books stop sending and reading before this one's open, so nothing of
+    // theirs goes out, or is read, under this account's session
+    if (account !== who.userId) current.sync?.stop();
     // An account asked again once it has agreed keeps its step on screen until its books open
     const agreeing = state.status === "agreeing" && state.userId === who.userId;
     if (!agreeing) show({ status: "opening" });

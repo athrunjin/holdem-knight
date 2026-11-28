@@ -11,7 +11,13 @@ import {
 } from "@holdem-knight/core";
 import Dexie, { liveQuery, type Table } from "dexie";
 
-import { type AccountDatabase, type BookList, type Change, recordKey } from "./account-database";
+import {
+  type AccountDatabase,
+  type BookList,
+  type Change,
+  type Refusal,
+  recordKey,
+} from "./account-database";
 import { StorageError } from "./supabase-repository";
 
 /** All of a space, as the account holds it. */
@@ -110,6 +116,13 @@ interface Options {
   readonly online?: () => boolean;
   /** Renews the session; true if there is one to send with */
   readonly reauth?: () => Promise<boolean>;
+  /**
+   * The account these books are for, and who the client is signed in as now. Nothing is sent, and
+   * no read of the account is kept, under a session that is not this account's: its rows are
+   * hidden from another, which would read as an empty space.
+   */
+  readonly userId?: string;
+  readonly signedInAs?: () => string | undefined;
   /** Called once a pull has changed the copy, so pages read it again */
   readonly onPulled?: () => void;
   /** Waits before trying again, and returns how to call it off */
@@ -158,6 +171,8 @@ export function createSync({
   lockName,
   online = () => true,
   reauth = async () => false,
+  userId,
+  signedInAs = () => userId,
   onPulled = () => {},
   later = (run, ms) => {
     const timer = setTimeout(run, ms);
@@ -170,17 +185,33 @@ export function createSync({
   let again = false;
   let failures = 0;
   let cancelWait: (() => void) | undefined;
+  /** Counts the stops, so a pull that a stop came during is let go */
+  let stops = 0;
+
+  const ours = () => userId === undefined || signedInAs() === userId;
+
+  /** Clears a refusal from an entry, as its last try failed for want of a network instead. */
+  async function unrefuse(seq: number) {
+    await db.outbox
+      .where("seq")
+      .equals(seq)
+      .modify((entry: { refused?: Refusal }) => {
+        delete entry.refused;
+      });
+  }
 
   /** Sends what is waiting, oldest first, until it is all sent or one cannot be. Under the lock. */
   async function flushHeld(): Promise<FlushResult> {
     let renewed = false;
     for (;;) {
-      if (!active) return "waiting";
+      if (!active || !ours()) return "waiting";
       const entry = await db.outbox.orderBy("seq").first();
       if (!entry?.seq) return "sent";
       try {
         await remote.send(entry.change);
       } catch (error) {
+        // Sent under a session that is no longer this account's: what it was told is not its own
+        if (!ours()) return "waiting";
         const kind = classify(error);
         if (kind === "reauth" && !renewed) {
           renewed = true;
@@ -194,6 +225,8 @@ export function createSync({
           });
           return "refused";
         }
+        // It is waiting for a network now, whatever the account said of it before
+        if (entry.refused) await unrefuse(entry.seq);
         return "waiting";
       }
       await db.outbox.delete(entry.seq);
@@ -209,10 +242,14 @@ export function createSync({
    * Makes the copy what the account holds, but for records with a change still to send. Whether
    * a record has one is read in the same transaction that writes it, so a change made meanwhile
    * on a page is never undone. Under the lock, so the sender never deletes a change between the
-   * snapshot and its use here.
+   * snapshot and its use here. A snapshot read while the books were let go, or under a session
+   * that is not this account's at either end, is let go too: nothing is written or marked.
    */
-  async function pullHeld(): Promise<number> {
+  async function pullHeld(): Promise<number | "discarded"> {
+    const before = stops;
+    if (!ours()) return "discarded";
     const { books, summaries } = await remote.pull();
+    if (stops !== before || !ours()) return "discarded";
     const tables: [BookList, AnyTable, readonly Identified[]][] = [
       ...LISTS.map((list): [BookList, AnyTable, readonly Identified[]] => [
         list,
@@ -225,6 +262,8 @@ export function createSync({
       "rw",
       [db.outbox, db.meta, ...tables.map(([, table]) => table)],
       async () => {
+        // Checked again where it is written, as a stop can come while the transaction waits
+        if (stops !== before) return "discarded" as const;
         const pending = await pendingKeys();
         let count = 0;
         for (const [list, table, theirs] of tables) {
@@ -246,7 +285,7 @@ export function createSync({
         return count;
       },
     );
-    if (changed > 0) onPulled();
+    if (typeof changed === "number" && changed > 0) onPulled();
     return changed;
   }
 
@@ -307,9 +346,10 @@ export function createSync({
     },
 
     /**
-     * Sends everything waiting, then runs a step that has to reach the account, then reads the
-     * account again, all under the lock. With no connection, or anything left unsent, the step is
-     * not run.
+     * Sends everything waiting, reads the account, runs a step that has to reach the account, then
+     * reads it again, all under the lock. With no connection, anything left unsent, or a read of
+     * the account that fails first, the step is not run: what it decides by is what the account
+     * holds. A read after it that fails is made at the next one.
      */
     async online<T>(step: () => Promise<T>): Promise<T> {
       if (!online()) throw new OnlineOnlyError("offline");
@@ -319,6 +359,8 @@ export function createSync({
           const unsent = await count();
           throw new OnlineOnlyError(unsent > 0 ? "unsent" : "offline", unsent);
         }
+        const read = await pullHeld().catch(() => "discarded" as const);
+        if (read === "discarded") throw new OnlineOnlyError("offline");
         const result = await step();
         // The step is done; a pull that fails now is made at the next one
         await pullHeld().catch(() => undefined);
@@ -343,6 +385,7 @@ export function createSync({
 
     stop() {
       active = false;
+      stops += 1;
       cancelWait?.();
       cancelWait = undefined;
       failures = 0;

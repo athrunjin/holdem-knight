@@ -234,4 +234,15 @@ describe("the books in use", () => {
     await become({ status: "guest" });
     expect(sender.stop).toHaveBeenCalledTimes(1);
   });
+
+  it("stop sending one account's books before another account's open", async () => {
+    const { become, answer } = setUp();
+    const sender = { start: vi.fn(), stop: vi.fn() };
+    void become(lin);
+    await answer("lin", { ...linBooks, sync: sender as unknown as Sync });
+
+    void become({ status: "account", userId: "wang" });
+    // Stopped while wang's books are still being opened, not once they are
+    expect(sender.stop).toHaveBeenCalledTimes(1);
+  });
 });

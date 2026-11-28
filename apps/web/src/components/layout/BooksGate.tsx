@@ -2,8 +2,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "@tanstack/react-router";
 import { Fragment, type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 import { FirstEntry } from "@/components/account/FirstEntry";
+import { UnsentStep, useSignOut } from "@/components/account/SignOutStep";
 import { Page } from "@/components/Page";
-import { retryBooks, signOutOfAccount, useBooks } from "@/data";
+import { retryBooks, useBooks } from "@/data";
 import { t } from "@/i18n";
 import { SyncStatus } from "./SyncStatus";
 
@@ -34,34 +35,40 @@ function Opening() {
  * is recorded would go where the account never sees it. Signing out is the way to them.
  */
 function Unreachable() {
-  const [leaving, setLeaving] = useState(false);
+  const leaving = useSignOut();
 
   return (
     <Page title={t.shell.books.unreachableTitle} centered>
       <section className="rounded-2xl border border-line bg-surface p-5">
         <p className="font-medium">{t.shell.books.unreachableHeading}</p>
         <p className="mt-1 text-sm text-muted">{t.shell.books.unreachableBody}</p>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            disabled={leaving}
-            onClick={async () => {
-              setLeaving(true);
-              await signOutOfAccount();
-              setLeaving(false);
-            }}
-            className={`${buttonClass} border border-line`}
-          >
-            {t.common.signOut}
-          </button>
-          <button
-            type="button"
-            onClick={retryBooks}
-            className={`${buttonClass} bg-accent font-semibold text-accent-text`}
-          >
-            {t.common.retry}
-          </button>
-        </div>
+        {leaving.unsent === undefined ? (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={leaving.leaving}
+              onClick={leaving.ask}
+              className={`${buttonClass} border border-line`}
+            >
+              {t.common.signOut}
+            </button>
+            <button
+              type="button"
+              onClick={retryBooks}
+              className={`${buttonClass} bg-accent font-semibold text-accent-text`}
+            >
+              {t.common.retry}
+            </button>
+          </div>
+        ) : (
+          <UnsentStep
+            unsent={leaving.unsent}
+            leaving={leaving.leaving}
+            onCancel={leaving.cancel}
+            onKeep={leaving.keep}
+            className="mt-4"
+          />
+        )}
         <p className="mt-3 text-sm text-muted">{t.shell.books.unreachableNote}</p>
       </section>
     </Page>

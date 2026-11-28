@@ -3,11 +3,12 @@ import { useLocation, useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useEffect, useState } from "react";
 import { Page } from "@/components/Page";
 import { TextField } from "@/components/TextField";
-import { openAgreedBooks, signOutOfAccount } from "@/data";
+import { openAgreedBooks } from "@/data";
 import { type AuthIssue, agreeToTerms, firstEntryName } from "@/data/auth";
 import { useAccount, useSession } from "@/data/session";
 import { t } from "@/i18n";
 import { AgreeField, FormIssue, SubmitButton, textLinkClass } from "./AuthParts";
+import { UnsentStep, useSignOut } from "./SignOutStep";
 
 /** What was typed and ticked on the step, as far as it got */
 interface Draft {
@@ -65,7 +66,10 @@ export function FirstEntry({ userId }: { userId: string }) {
   );
   const [issue, setIssue] = useState<AuthIssue>();
   const [busy, setBusy] = useState(false);
-  const [leaving, setLeaving] = useState(false);
+  // Signed out, its draft goes; the step keeps it while the sign-out fails
+  const leaving = useSignOut((issue) => {
+    if (!issue) drafts.delete(userId);
+  });
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -123,18 +127,23 @@ export function FirstEntry({ userId }: { userId: string }) {
         />
         <FormIssue issue={issue} />
         <SubmitButton busy={busy}>{t.account.firstEntry.start}</SubmitButton>
-        <button
-          type="button"
-          disabled={leaving}
-          onClick={async () => {
-            setLeaving(true);
-            if (!(await signOutOfAccount())) drafts.delete(userId);
-            setLeaving(false);
-          }}
-          className={`${textLinkClass} self-center disabled:opacity-60`}
-        >
-          {t.common.signOut}
-        </button>
+        {leaving.unsent === undefined ? (
+          <button
+            type="button"
+            disabled={leaving.leaving}
+            onClick={leaving.ask}
+            className={`${textLinkClass} self-center disabled:opacity-60`}
+          >
+            {t.common.signOut}
+          </button>
+        ) : (
+          <UnsentStep
+            unsent={leaving.unsent}
+            leaving={leaving.leaving}
+            onCancel={leaving.cancel}
+            onKeep={leaving.keep}
+          />
+        )}
       </form>
     </Page>
   );

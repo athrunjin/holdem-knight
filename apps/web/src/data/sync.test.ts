@@ -44,6 +44,8 @@ interface Setup {
   readonly lock?: Lock;
   readonly online?: () => boolean;
   readonly reauth?: () => Promise<boolean>;
+  readonly userId?: string;
+  readonly signedInAs?: () => string | undefined;
 }
 
 /** A device with the space's books, sending to a space in memory. Waits are run by hand. */
@@ -435,6 +437,44 @@ describe("the outbox", () => {
     expect(waits.length).toBeGreaterThan(0);
   });
 
+  it("sends nothing under another account's session, and takes its refusal as waiting", async () => {
+    let user: string | undefined = "wang";
+    const { server, sync, repository, db } = device({ userId: "lin", signedInAs: () => user });
+    sync.stop();
+    await repository.games.save(game("g"));
+    sync.start();
+
+    expect(await sync.flush()).toBe("waiting");
+    expect(server.arrived).toEqual([]);
+
+    // Signed in as lin when it goes out, and as wang by the time the account answers 403
+    user = "lin";
+    server.fate = () => {
+      user = "wang";
+      return 403;
+    };
+    expect(await sync.flush()).toBe("waiting");
+    const [entry] = await db.outbox.toArray();
+    expect(entry?.refused).toBeUndefined();
+  });
+
+  it("says it is waiting, not refused, once the change turned down fails for want of a network", async () => {
+    const { server, sync, repository } = device();
+    sync.stop();
+    await repository.games.save(game("g"));
+    server.fate = () => 400;
+    const seen: SyncStatus[] = [];
+    const unwatch = sync.watch((status) => seen.push(status));
+    sync.start();
+    expect(await sync.flush()).toBe("refused");
+    await vi.waitFor(() => expect(seen.at(-1)).toEqual({ pending: 1, refused: true }));
+
+    server.fate = () => "unanswered";
+    expect(await sync.flush()).toBe("waiting");
+    await vi.waitFor(() => expect(seen.at(-1)).toEqual({ pending: 1, refused: false }));
+    unwatch();
+  });
+
   it("sends nothing while stopped, as when the books are not the ones in use", async () => {
     const { server, sync, repository } = device();
     sync.stop();
@@ -474,6 +514,50 @@ describe("the outbox", () => {
 });
 
 describe("the pull", () => {
+  it("lets go of what it read when the books are let go meanwhile, and marks nothing", async () => {
+    const { server, sync, repository } = device();
+    server.put("games", game("g"));
+    const answering = held();
+    const read = server.pull;
+    server.pull = async () => {
+      const snapshot = await read();
+      await answering.promise;
+      return snapshot;
+    };
+
+    const pulled = sync.pull();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    sync.stop();
+    answering.release();
+
+    expect(await pulled).toBe("discarded");
+    expect(await repository.games.list()).toEqual([]);
+    expect(await sync.pulled()).toBe(false);
+  });
+
+  it("lets go of what it read when another account signed in meanwhile", async () => {
+    let user: string | undefined = "lin";
+    const { server, sync, repository } = device({ userId: "lin", signedInAs: () => user });
+    server.put("games", game("g"));
+    await sync.pull();
+    expect(await repository.games.list()).toEqual([game("g")]);
+
+    // Read under the other account's session, the space looks empty
+    const empty = createFakeServer(SPACE);
+    server.pull = async () => {
+      user = "wang";
+      return empty.snapshot();
+    };
+    expect(await sync.pull()).toBe("discarded");
+    expect(await repository.games.list()).toEqual([game("g")]);
+
+    // And it is not read at all while that account is signed in
+    const reads = vi.fn(empty.pull);
+    server.pull = reads;
+    expect(await sync.pull()).toBe("discarded");
+    expect(reads).not.toHaveBeenCalled();
+  });
+
   it("makes the device's copy what the account holds, summaries included", async () => {
     const { server, sync, repository, onPulled } = device();
     server.put("games", game("g", { status: "settled", settledAt: 2 }));
@@ -584,6 +668,35 @@ describe("the pull", () => {
 });
 
 describe("a step that has to reach the account", () => {
+  it("is not run when the account cannot be read first, and nothing changes on either side", async () => {
+    const { server, sync, repository } = device();
+    server.put("games", game("there"));
+    await sync.pull();
+    server.put("games", game("since"));
+    server.fate = (what) => (what.kind === "pull" ? 503 : "ok");
+    const step = vi.fn(async () => {});
+
+    await expect(sync.online(step)).rejects.toEqual(new OnlineOnlyError("offline"));
+    expect(step).not.toHaveBeenCalled();
+    expect((await repository.games.list()).map(({ id }) => id)).toEqual(["there"]);
+    expect(server.snapshot().books.games.map(({ id }) => id)).toEqual(["since", "there"]);
+
+    // A restore goes the same way: refused, with nothing added anywhere
+    const restored = repository.backup.restore({
+      games: [game("restored")],
+      players: [],
+      ledgerEvents: [],
+      insuranceRules: [],
+      insuranceHands: [],
+      gameConfigs: [],
+      oddsTables: [],
+      chargeRules: [],
+    });
+    await expect(restored).rejects.toBeInstanceOf(OnlineOnlyError);
+    expect(server.snapshot().books.games.map(({ id }) => id)).toEqual(["since", "there"]);
+    expect((await repository.games.list()).map(({ id }) => id)).toEqual(["there"]);
+  });
+
   it("is not run with no connection, and writes nothing", async () => {
     const { sync } = device({ online: () => false });
     const step = vi.fn(async () => {});
@@ -765,5 +878,35 @@ describe("the device and the account, once the network is back", () => {
       ),
       { numRuns: 60 },
     );
+  });
+});
+
+describe("the copy at a sign-out", () => {
+  it("is deleted once everything is sent", async () => {
+    const { sync, repository, db } = device();
+    await repository.games.save(game("g"));
+    expect(await sync.flush()).toBe("sent");
+
+    expect(await sync.forgetIfSent()).toBe(true);
+    expect(await Dexie.exists(db.name)).toBe(false);
+  });
+
+  it("is kept with records still to send, and sends them when its books open again", async () => {
+    const server = createFakeServer(SPACE);
+    const name = `test-sync-${crypto.randomUUID()}`;
+    const first = device({ name, server });
+    server.fate = () => "unanswered";
+    await first.repository.games.save(game("g"));
+    await first.sync.flush();
+
+    expect(await first.sync.forgetIfSent()).toBe(false);
+    expect(await Dexie.exists(name)).toBe(true);
+
+    // The same account signs in again on this device
+    server.fate = () => "ok";
+    const again = device({ name, server });
+    expect(await again.sync.count()).toBe(1);
+    expect(await again.sync.flush()).toBe("sent");
+    expect(server.snapshot().books.games).toEqual([game("g")]);
   });
 });

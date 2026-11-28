@@ -1,8 +1,9 @@
 import type { OrganizerId, Repository } from "@holdem-knight/core";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import Dexie from "dexie";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { createAccountDatabase } from "./account-database";
+import { accountDatabaseName, createAccountDatabase } from "./account-database";
 import { createAccountRepository } from "./account-repository";
 import { type AuthIssue, signOut } from "./auth";
 import { type BooksState, createBooks, type Store } from "./books";
@@ -16,7 +17,7 @@ import {
   keptAccount,
   onSessionChange,
 } from "./session";
-import { supabase } from "./supabase";
+import { storedUser, supabase } from "./supabase";
 import { createSupabaseRemote } from "./supabase-remote";
 import { browserLock, createSync, type Sync, type SyncStatus } from "./sync";
 
@@ -43,7 +44,8 @@ const lock = browserLock();
 /** Each space's books on this device, made once a page and kept while it is open (ADR 0054). */
 const spaces = new Map<OrganizerId, { readonly repository: Repository; readonly sync: Sync }>();
 
-function deviceBooksOf(client: SupabaseClient, space: OrganizerId) {
+/** A space's books on this device, for the account that owns it. */
+function deviceBooksOf(client: SupabaseClient, space: OrganizerId, userId: string) {
   const made = spaces.get(space);
   if (made) return made;
   const db = createAccountDatabase(space);
@@ -55,6 +57,9 @@ function deviceBooksOf(client: SupabaseClient, space: OrganizerId) {
     lockName: `holdem-account-sync.${space}`,
     online,
     reauth: async () => !(await client.auth.refreshSession()).error,
+    // Whose session the client sends with: the one it keeps in this browser
+    userId,
+    signedInAs: () => storedUser()?.id,
     // The pages read again what the pull changed, and keep who the account is
     onPulled: () => void queryClient.invalidateQueries({ predicate: notAccount }),
   });
@@ -85,10 +90,12 @@ const books = createBooks({
       kept ?? (await queryClient.fetchQuery(accountQuery(userId)));
     // The account is asked first, and nothing of its books is read before it answers (ADR 0052)
     if (!agreed) return "agreeing";
-    const { repository, sync } = deviceBooksOf(supabase, spaceId);
+    const { repository, sync } = deviceBooksOf(supabase, spaceId, userId);
     // Opened here for the first time: the books are read whole before they are shown, which
     // needs a network once (ADR 0054)
-    if (!(await sync.pulled())) await sync.pull();
+    if (!(await sync.pulled()) && (await sync.pull()) === "discarded") {
+      throw new Error("The account's books were read under another session");
+    }
     return {
       key: `account:${spaceId}`,
       mode: "account",
@@ -158,14 +165,23 @@ export function useSyncStatus(): SyncStatus | undefined {
 export const retrySending = syncBooks;
 
 /**
- * How many records of the account's books in use are still to send, after one more try where
- * there is a network: what a sign-out would leave on this device. None for a guest.
+ * How many records of the signed-in account's books on this device are still to send, after one
+ * more try where they are open and there is a network: what a sign-out would leave on this
+ * device. None for a guest.
  */
 export async function unsentBeforeSignOut(): Promise<number> {
+  const session = currentSession();
+  if (session.status !== "signed-in" || !supabase) return 0;
   const { sync } = books.current();
-  if (!sync) return 0;
-  if (online()) await sync.flush();
-  return sync.count();
+  if (sync) {
+    if (online()) await sync.flush();
+    return sync.count();
+  }
+  // Its books are not open, as on its first-entry step or when they could not be: what this
+  // device keeps of them, if anything, is counted without opening them
+  const kept = keptAccount(session.userId);
+  if (!kept || !(await Dexie.exists(accountDatabaseName(kept.spaceId)))) return 0;
+  return deviceBooksOf(supabase, kept.spaceId, session.userId).sync.count();
 }
 
 /**
@@ -179,7 +195,7 @@ export async function signOutOfAccount(): Promise<AuthIssue | undefined> {
   if (issue || session.status !== "signed-in" || !supabase) return issue;
   const kept = keptAccount(session.userId);
   if (!kept) return undefined;
-  const { sync } = deviceBooksOf(supabase, kept.spaceId);
+  const { sync } = deviceBooksOf(supabase, kept.spaceId, session.userId);
   if (await sync.forgetIfSent().catch(() => false)) {
     spaces.delete(kept.spaceId);
     forgetAccount(session.userId);
