@@ -73,6 +73,9 @@ export const me = {
       "没有收到账户的回应。记录要么已经全部带进账户，要么一条也没有带进；重试不会产生第二份。请检查网络后重试。",
     // The account answered and turned them down: nothing was written
     failedRefused: "账户没有接受这些记录，一条也没有带进账户。这台设备上的记录保持不变。",
+    // Not sent at all: no network, or records on the device still to send (ADR 0054)
+    offline: "需要联网。",
+    unsent: (count: number) => `还有 ${count} 条记录没有发送，发完后再试。`,
   },
   language: {
     title: "语言",
@@ -98,6 +101,9 @@ export const me = {
     foreignGuest: "这个备份属于其他账户，不能恢复。",
     failedAccount: "恢复失败，账户里的数据没有改动。",
     failedGuest: "恢复失败，本机的数据没有改动。",
+    // Not sent at all: no network, or records on the device still to send (ADR 0054)
+    offline: "需要联网。",
+    unsent: (count: number) => `还有 ${count} 条记录没有发送，发完后再试。`,
   },
   income: {
     title: "收益",

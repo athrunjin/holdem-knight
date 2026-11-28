@@ -10,6 +10,7 @@ import {
   useBringGuestBooks,
   useGuestOffer,
 } from "@/data/guest-import";
+import { OnlineOnlyError } from "@/data/sync";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { still } from "@/lib/motion";
@@ -168,7 +169,13 @@ export function GuestImportCard() {
             <p className="mt-2 text-muted">{text.stays}</p>
             {bring.isError && (
               <p role="alert" className="mt-2 text-highlight">
-                {failureOf(bring.error) === "refused" ? text.failedRefused : text.failedUnknown}
+                {bring.error instanceof OnlineOnlyError
+                  ? bring.error.reason === "offline"
+                    ? text.offline
+                    : text.unsent(bring.error.unsent)
+                  : failureOf(bring.error) === "refused"
+                    ? text.failedRefused
+                    : text.failedUnknown}
               </p>
             )}
           </div>

@@ -81,6 +81,9 @@ export const me: Messages["me"] = {
       "No answer came from your account. The records were either all brought in or none were, and trying again never makes a second copy. Check your connection and try again.",
     failedRefused:
       "Your account didn’t accept these records, so none were brought in. This device keeps its records as they are.",
+    offline: "Needs a connection.",
+    unsent: (count) =>
+      `${count} ${count === 1 ? "record isn’t" : "records aren’t"} sent yet. Try again once they are.`,
   },
   language: {
     title: "Language",
@@ -107,6 +110,9 @@ export const me: Messages["me"] = {
     foreignGuest: "This backup belongs to another account and can’t be restored.",
     failedAccount: "Restore failed. Nothing in the account was changed.",
     failedGuest: "Restore failed. Nothing on this device was changed.",
+    offline: "Needs a connection.",
+    unsent: (count) =>
+      `${count} ${count === 1 ? "record isn’t" : "records aren’t"} sent yet. Try again once they are.`,
   },
   income: {
     title: "Income",
