@@ -51,8 +51,8 @@ interface TextMenuProps<T extends string> {
    */
   faceClassName?: string;
   /**
-   * The list hangs fixed under the line, kept inside the screen's 16px margins, so a row that
-   * scrolls sideways does not cut it off. Escape gives focus back to the line.
+   * The list hangs fixed under the line, from the edge `align` says, kept inside the screen's 16px
+   * margins, so a row that scrolls sideways does not cut it off. Escape gives focus back to the line.
    */
   floating?: boolean;
   /**
@@ -105,7 +105,9 @@ export function TextMenu<T extends string>({
       const rect = button.current?.getBoundingClientRect();
       if (!rect) return;
       const width = list.current?.offsetWidth ?? 0;
-      const left = Math.max(MARGIN, Math.min(rect.left, window.innerWidth - MARGIN - width));
+      // Hung from the line's own edge, as `align` says, then kept inside the margins
+      const edge = align === "right" ? rect.right - width : rect.left;
+      const left = Math.max(MARGIN, Math.min(edge, window.innerWidth - MARGIN - width));
       setPlace({ top: rect.bottom, left });
     };
     update();
@@ -116,11 +118,12 @@ export function TextMenu<T extends string>({
       window.removeEventListener("scroll", update, true);
       setPlace(undefined);
     };
-  }, [floating, open]);
+  }, [floating, open, align]);
 
   const close = (refocus: boolean) => {
     setOpen(false);
-    if (refocus) button.current?.focus();
+    // A floating list's line is in a row that scrolls it into view itself
+    if (refocus) button.current?.focus({ preventScroll: floating });
   };
   const shownName =
     valueName ??

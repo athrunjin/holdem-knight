@@ -1,6 +1,6 @@
 import type { Currency } from "@holdem-knight/core";
 import { X } from "lucide-react";
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { ChipStack } from "@/components/ChipStack";
 import { CurrencyIcon } from "@/components/CurrencyIcon";
 import { TextMenu, type TextMenuOption } from "@/components/TextMenu";
@@ -83,6 +83,8 @@ interface FilterBarProps {
   filters: readonly FilterChip[];
   /** Puts every filter after the divider back to how it starts. Shown while any of them is on */
   onClear?: () => void;
+  /** Which edge of the currency chip its list hangs from: the right one at the right end of a line */
+  align?: "left" | "right";
   className?: string;
 }
 
@@ -98,10 +100,17 @@ const isOn = (filter: FilterChip) =>
       ? filter.on
       : filter.on.length < filter.values.length;
 
-function CurrencyChip({ currency }: { currency: NonNullable<FilterBarProps["currency"]> }) {
+function CurrencyChip({
+  currency,
+  align = "left",
+}: {
+  currency: NonNullable<FilterBarProps["currency"]>;
+  align?: "left" | "right" | undefined;
+}) {
   return (
     <div className="shrink-0">
       <TextMenu<Currency | "all">
+        align={align}
         label={t.me.income.currency}
         options={currency.options.map((value) => ({
           value,
@@ -212,30 +221,99 @@ function MultiChip({ filter }: { filter: Extract<FilterChip, { kind: "multi" }> 
   );
 }
 
+/** What a chip stands at, so a change to any of them can be told after it is drawn. */
+const stateOf = (filter: FilterChip) =>
+  filter.kind === "menu"
+    ? (filter.value ?? "")
+    : filter.kind === "toggle"
+      ? String(filter.on)
+      : filter.on.join(",");
+
+/** How far a chip's face stays from the row's ends, and from 清除: its focus ring's room. */
+const RING = 4;
+
 /**
  * What narrows the cards or the list under it, on one line: the currency as its mark, a divider,
  * then each filter as a chip, gold-edged while it narrows. Every choice counts at once. Where the
  * chips do not fit, the row scrolls sideways, and 清除 stays at its right end while any filter
- * after the divider is on.
+ * after the divider is on. The chip last used, or taken to by Tab, is scrolled clear of 清除.
  */
-export function FilterBar({ currency, filters, onClear, className }: FilterBarProps) {
+export function FilterBar({ currency, filters, onClear, align, className }: FilterBarProps) {
   const group = useRef<HTMLDivElement>(null);
+  const row = useRef<HTMLDivElement>(null);
   const clear = useRef<HTMLDivElement>(null);
   const clearing = onClear !== undefined && filters.some(isOn);
   const [clearWidth, setClearWidth] = useState(0);
+  // The chip last tapped or focused, to keep in view as the row changes
+  const touched = useRef<HTMLElement | null>(null);
+  // 清除 shown as the bar comes up stands there already; it plays in only after a choice
+  const clearAtStart = useRef(clearing);
+
+  // Measured as drawn, and again as its words change width
   useLayoutEffect(() => {
-    setClearWidth(clearing ? (clear.current?.offsetWidth ?? 0) : 0);
+    if (!clearing) {
+      clearAtStart.current = false;
+      setClearWidth(0);
+      return;
+    }
+    const block = clear.current;
+    if (!block) return;
+    const measure = () => setClearWidth(Math.ceil(block.getBoundingClientRect().width));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(block);
+    return () => observer.disconnect();
   }, [clearing]);
 
-  const chips = filters.map((filter) =>
-    filter.kind === "menu" ? (
-      <MenuChip key={filter.label} filter={filter} />
-    ) : filter.kind === "toggle" ? (
-      <ToggleChip key={filter.label} filter={filter} />
-    ) : (
-      <MultiChip key={filter.label} filter={filter} />
-    ),
-  );
+  /** Scrolls the row, and only the row, so the chip stands clear of its ends and of 清除. */
+  const reveal = useCallback((chip: HTMLElement) => {
+    const scroller = row.current;
+    if (!scroller) return;
+    const bounds = scroller.getBoundingClientRect();
+    const face = chip.getBoundingClientRect();
+    const start = bounds.left + RING;
+    const block = clear.current?.getBoundingClientRect();
+    const end = (block ? block.left : bounds.right) - RING;
+    let delta = 0;
+    if (face.right > end) delta = face.right - end;
+    // Its start is never pushed out of sight, however wide it is
+    if (face.left - delta < start) delta = face.left - start;
+    if (delta !== 0) scroller.scrollLeft += delta > 0 ? Math.ceil(delta) : Math.floor(delta);
+  }, []);
+
+  const states = filters.map(stateOf).join("|");
+  // After a choice, the chip used; on arrival, the last chip that narrows
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run again as the chips or 清除 change
+  useLayoutEffect(() => {
+    const scroller = row.current;
+    if (!scroller) return;
+    const used = touched.current;
+    if (used && scroller.contains(used)) {
+      reveal(used);
+      return;
+    }
+    const lit = scroller.querySelectorAll<HTMLElement>("[data-lit]");
+    const last = lit[lit.length - 1];
+    if (last) reveal(last);
+  }, [states, clearWidth, reveal]);
+
+  const chipOf = (target: EventTarget) =>
+    target instanceof Element ? target.closest<HTMLElement>("[data-chip]") : null;
+
+  const chips = filters.map((filter) => {
+    const on = isOn(filter);
+    return (
+      <div key={filter.label} data-chip="" data-lit={on ? "" : undefined} className="shrink-0">
+        {filter.kind === "menu" ? (
+          <MenuChip filter={filter} />
+        ) : filter.kind === "toggle" ? (
+          <ToggleChip filter={filter} />
+        ) : (
+          <MultiChip filter={filter} />
+        )}
+      </div>
+    );
+  });
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: a fieldset does not lay its chips out in a row
@@ -246,25 +324,46 @@ export function FilterBar({ currency, filters, onClear, className }: FilterBarPr
       className={cn("relative flex min-h-11 min-w-0 items-center", className)}
     >
       {/* Reaching 4px past the bar on each side, so a chip's focus ring is not cut off */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: it only notes which of its chips is in use */}
       <div
+        ref={row}
         className="-mx-1 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto overscroll-x-contain px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        // A chip taken to by Tab stops clear of 清除
-        style={{ scrollPaddingRight: clearWidth }}
+        onPointerDown={(event) => {
+          touched.current = chipOf(event.target);
+        }}
+        onFocus={(event) => {
+          const chip = chipOf(event.target);
+          if (!chip) return;
+          touched.current = chip;
+          // After whatever the browser scrolls on its own for focus
+          requestAnimationFrame(() => reveal(chip));
+        }}
       >
-        {currency && <CurrencyChip currency={currency} />}
+        {currency && (
+          <div data-chip="" className="shrink-0">
+            <CurrencyChip currency={currency} align={align} />
+          </div>
+        )}
         {currency && filters.length > 0 && (
           <span className="h-5 w-px shrink-0 bg-line" aria-hidden />
         )}
         {chips}
-        {/* Room for the last chip to be scrolled clear of 清除 */}
+        {/* Room for the last chip to be scrolled clear of 清除: its width, less the row's end and the gap */}
         {clearWidth > 0 && (
-          <span className="h-px shrink-0" style={{ width: clearWidth - 12 }} aria-hidden />
+          <span
+            className="h-px shrink-0"
+            style={{ width: Math.max(0, clearWidth - 2 * RING) }}
+            aria-hidden
+          />
         )}
       </div>
       {clearing && (
         <div
           ref={clear}
-          className="absolute inset-y-0 -right-1 flex animate-appear items-center bg-bg pr-1 pl-2"
+          className={cn(
+            "absolute inset-y-0 -right-1 flex items-center bg-bg pr-1 pl-2",
+            !clearAtStart.current && "animate-appear",
+          )}
         >
           <button
             type="button"

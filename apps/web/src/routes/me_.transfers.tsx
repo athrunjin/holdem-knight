@@ -210,6 +210,8 @@ function Transfers({
                 onChange: (c) => c !== "all" && setView({ ...view, currency: c }),
               }}
               filters={[]}
+              // At the right end of the line, its list keeps inside the card
+              align="right"
               className="shrink-0"
             />
           </div>

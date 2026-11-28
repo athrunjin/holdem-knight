@@ -1,4 +1,4 @@
-import { CURRENCIES, type Game, PERIOD_CHOICES } from "@holdem-knight/core";
+import { type Game, PERIOD_CHOICES } from "@holdem-knight/core";
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronDown } from "lucide-react";
 import { blindsChip, FilterBar, type FilterChip, ratioChip } from "@/components/FilterBar";
 import { GameListRow } from "@/components/game/GameListRow";
@@ -22,8 +22,8 @@ import { blindsKey, type IncomeFilter, ratioKey } from "@/lib/income-filter";
 import { periodName } from "@/lib/period-names";
 import { useStoredState } from "@/lib/stored-state";
 
-/** On 牌局 the games of every currency can be listed together. */
-const CURRENCY_OPTIONS = ["all", ...CURRENCIES] as const;
+/** On 牌局 the games of every currency can be listed together. Panda points first, as the bar's marks */
+const CURRENCY_OPTIONS = ["all", "CNY", "AUD"] as const;
 
 /** The options a listed game may have on, each in its own color while it is on. */
 const OPTION_SWITCHES = GAME_OPTIONS.map((option) => ({
