@@ -1,6 +1,6 @@
 # 0046. The books in use follow who is signed in
 
-- Status: Accepted
+- Status: Narrowed by [0054](0054-account-books-written-to-the-device-first.md)
 - Date: 2026-11-21
 
 ## Context
