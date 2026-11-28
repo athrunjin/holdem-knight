@@ -20,7 +20,11 @@ export function useSignOut(onSignedOut?: (issue: AuthIssue | undefined) => void)
     setLeaving(true);
     const left = keep ? 0 : await unsentBeforeSignOut();
     if (left > 0) setUnsent(left);
-    else onSignedOut?.(await signOutOfAccount());
+    else {
+      // Signed out first, whether or not anyone is told after: an optional call skips its argument
+      const issue = await signOutOfAccount();
+      onSignedOut?.(issue);
+    }
     setLeaving(false);
   }
 
