@@ -3,8 +3,8 @@ import { useLocation, useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useEffect, useState } from "react";
 import { Page } from "@/components/Page";
 import { TextField } from "@/components/TextField";
-import { openAgreedBooks } from "@/data";
-import { type AuthIssue, agreeToTerms, firstEntryName, signOut } from "@/data/auth";
+import { openAgreedBooks, signOutOfAccount } from "@/data";
+import { type AuthIssue, agreeToTerms, firstEntryName } from "@/data/auth";
 import { useAccount, useSession } from "@/data/session";
 import { t } from "@/i18n";
 import { AgreeField, FormIssue, SubmitButton, textLinkClass } from "./AuthParts";
@@ -128,7 +128,7 @@ export function FirstEntry({ userId }: { userId: string }) {
           disabled={leaving}
           onClick={async () => {
             setLeaving(true);
-            if (!(await signOut())) drafts.delete(userId);
+            if (!(await signOutOfAccount())) drafts.delete(userId);
             setLeaving(false);
           }}
           className={`${textLinkClass} self-center disabled:opacity-60`}

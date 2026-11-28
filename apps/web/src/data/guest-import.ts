@@ -20,6 +20,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toInitials } from "@/lib/pinyin";
 import { booksInUse, guestRepository, useBooks } from ".";
 import { StorageError } from "./supabase-repository";
+import { OnlineOnlyError } from "./sync";
 
 /** What a guest's books hold that is worth bringing, as the card counts it. */
 export interface GuestHoldings {
@@ -301,7 +302,8 @@ async function copySummaries(
 export type ImportFailure = "refused" | "unknown";
 
 export function failureOf(error: unknown): ImportFailure {
-  if (error instanceof ForeignOrganizerError) return "refused";
+  // Never sent: no network, or records on the device still to send first (ADR 0054)
+  if (error instanceof ForeignOrganizerError || error instanceof OnlineOnlyError) return "refused";
   if (!(error instanceof StorageError)) return "unknown";
   const { status } = error;
   // Checked here and never sent, or turned down by the database with its reason. A server error
@@ -375,10 +377,13 @@ export function useGuestOffer() {
 export function useBringGuestBooks() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       // The books as they are at the tap: a sign-out on the way fails rather than lands elsewhere
-      const { mode, repository, organizerId, organizerName } = booksInUse();
+      const { mode, repository, organizerId, organizerName, sync } = booksInUse();
       if (mode !== "account") throw new Error("Guest records are only brought into an account");
+      // Only online, with the device's copy sent and read again first, so what the space holds
+      // is what the account holds (ADR 0054). Offline, nothing is written
+      await sync?.online(async () => {});
       return bringGuestBooks({
         guest: guestRepository,
         destination: { repository, organizerId, ownerName: organizerName },

@@ -21,9 +21,16 @@ export const shell = {
     opening: "正在打开账户…",
     unreachableTitle: "连不上账户",
     unreachableHeading: "账户里的记录现在读不出来",
-    unreachableBody: "登录后的牌局和玩家记录保存在云端，需要联网才能读写。请检查网络后重试。",
+    unreachableBody:
+      "这台设备还没有打开过这个账户。第一次打开需要联网，把账户里的记录下载到这台设备上，之后没网也能用。请检查网络后重试。",
     unreachableNote: "退出登录后可以继续用这台设备上的游客记录，它们不会进入账户。",
-    readFailedAccount: "云端的记录没有读出来，这一页可能不完整。请检查网络。",
+    readFailedAccount: "记录没有读出来，这一页可能不完整。",
     readFailedGuest: "记录没有读出来，这一页可能不完整。",
+  },
+  /** What an account's books on this device have still to send (ADR 0054). */
+  sync: {
+    pending: (count: number) => `${count} 条记录待发送，联网后自动发到账户`,
+    refused: (count: number) => `${count} 条记录没有发送`,
+    refusedNote: "账户没有接受其中一条。记录都还在这台设备上，也可以导出备份。",
   },
 };

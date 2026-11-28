@@ -2,7 +2,7 @@ import { parseDisplayName } from "@holdem-knight/core";
 import { Check, Copy } from "lucide-react";
 import { type FormEvent, useRef, useState } from "react";
 import { TextField } from "@/components/TextField";
-import { signOut } from "@/data/auth";
+import { signOutOfAccount, unsentBeforeSignOut } from "@/data";
 import { useAccount, useRenameAccount } from "@/data/session";
 import { t } from "@/i18n";
 
@@ -80,6 +80,16 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
   const [editing, setEditing] = useState<string>();
   const [nameIssue, setNameIssue] = useState<string>();
   const [leaving, setLeaving] = useState(false);
+  /** Records still to send, once a sign-out has been asked for and some are (ADR 0054) */
+  const [unsent, setUnsent] = useState<number>();
+
+  async function leave(keep: boolean) {
+    setLeaving(true);
+    const left = keep ? 0 : await unsentBeforeSignOut();
+    if (left > 0) setUnsent(left);
+    else await signOutOfAccount();
+    setLeaving(false);
+  }
 
   function handleRename(event: FormEvent) {
     event.preventDefault();
@@ -154,18 +164,39 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
         </p>
       )}
 
-      <button
-        type="button"
-        disabled={leaving}
-        onClick={async () => {
-          setLeaving(true);
-          await signOut();
-          setLeaving(false);
-        }}
-        className={`${buttonClass} mt-4 w-full`}
-      >
-        {t.common.signOut}
-      </button>
+      {unsent === undefined ? (
+        <button
+          type="button"
+          disabled={leaving}
+          onClick={() => leave(false)}
+          className={`${buttonClass} mt-4 w-full`}
+        >
+          {t.common.signOut}
+        </button>
+      ) : (
+        <div role="alert" className="mt-4 rounded-xl border border-line p-3 text-sm">
+          <p className="font-medium text-highlight">{t.account.leaving.unsent(unsent)}</p>
+          <p className="mt-1 text-muted">{t.account.leaving.unsentNote}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={leaving}
+              onClick={() => setUnsent(undefined)}
+              className={buttonClass}
+            >
+              {t.common.cancel}
+            </button>
+            <button
+              type="button"
+              disabled={leaving}
+              onClick={() => leave(true)}
+              className="min-h-11 rounded-xl bg-accent px-4 font-semibold text-accent-text disabled:opacity-60"
+            >
+              {t.account.leaving.keep}
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

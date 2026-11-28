@@ -1,6 +1,6 @@
 import { DATABASE_FALLBACK_NAME } from "@/i18n/zh/account";
 import { TERMS_VERSION } from "@/lib/terms";
-import { supabase } from "./supabase";
+import { storedUser, supabase } from "./supabase";
 
 /** Why a sign-in step did not go through. The UI decides the wording. */
 export type AuthIssue =
@@ -170,5 +170,12 @@ export function firstEntryName(shown: string, email: string, given: string | und
   return fellBack && given ? given : shown;
 }
 
-/** Signs out of this browser only. Other devices stay signed in. */
-export const signOut = (): Outcome => attempt((auth) => auth.signOut({ scope: "local" }));
+/**
+ * Signs out of this browser only. Other devices stay signed in. With no network the client still
+ * signs this browser out, first, and then says it could not tell the service: that is done, not
+ * a failure (ADR 0054).
+ */
+export async function signOut(): Outcome {
+  const issue = await attempt((auth) => auth.signOut({ scope: "local" }));
+  return issue === "network" && storedUser() === undefined ? undefined : issue;
+}

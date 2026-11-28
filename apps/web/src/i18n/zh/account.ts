@@ -106,6 +106,12 @@ export const account = {
   newPasswordPage: {
     title: "设置新密码",
   },
+  /** Signing out with records on the device not yet sent to the account (ADR 0054). */
+  leaving: {
+    unsent: (count: number) => `还有 ${count} 条记录没有发送`,
+    unsentNote: "退出后它们留在这台设备上，下次用这个账户登录时继续发送。",
+    keep: "保留并退出",
+  },
   verifyPage: {
     title: "输入验证码",
     /** Read around the address: `sentBefore`, the address, `sentAfter`. */

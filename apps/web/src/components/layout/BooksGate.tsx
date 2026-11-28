@@ -3,9 +3,9 @@ import { useLocation } from "@tanstack/react-router";
 import { Fragment, type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 import { FirstEntry } from "@/components/account/FirstEntry";
 import { Page } from "@/components/Page";
-import { retryBooks, useBooks } from "@/data";
-import { signOut } from "@/data/auth";
+import { retryBooks, signOutOfAccount, useBooks } from "@/data";
 import { t } from "@/i18n";
+import { SyncStatus } from "./SyncStatus";
 
 const buttonClass = "min-h-12 rounded-xl px-4 font-medium disabled:opacity-60";
 
@@ -29,9 +29,9 @@ function Opening() {
 }
 
 /**
- * An account is signed in and its books cannot be read, as with no network. The guest's books on
- * this device are not shown in their place: what is recorded would go where the account never
- * sees it. Signing out is the way to them.
+ * An account is signed in and its books cannot be read: opened on this device for the first time
+ * with no network (ADR 0054). The guest's books on this device are not shown in their place: what
+ * is recorded would go where the account never sees it. Signing out is the way to them.
  */
 function Unreachable() {
   const [leaving, setLeaving] = useState(false);
@@ -47,7 +47,7 @@ function Unreachable() {
             disabled={leaving}
             onClick={async () => {
               setLeaving(true);
-              await signOut();
+              await signOutOfAccount();
               setLeaving(false);
             }}
             className={`${buttonClass} border border-line`}
@@ -126,6 +126,7 @@ export function BooksGate({ children }: { children: ReactNode }) {
   return (
     <Fragment key={books.key}>
       <ReadFailure account={books.mode === "account"} />
+      {books.mode === "account" && <SyncStatus />}
       {children}
     </Fragment>
   );
