@@ -26,15 +26,22 @@ const CURRENCY_NAMES: Record<Currency | "all", string> = {
   AUD: t.gamePages.list.kangaroo,
 };
 
-/** The marks a currency choice shows: both, panda points first, for all of them. */
-function Marks({ value }: { value: Currency | "all" }) {
-  return value === "all" ? (
-    <span className="flex items-center gap-0.5">
-      <CurrencyIcon currency="CNY" className="size-5 shrink-0" />
-      <CurrencyIcon currency="AUD" className="size-5 shrink-0" />
+/**
+ * The marks a currency choice shows: both, panda points first, for all of them. `wide` keeps one
+ * mark in the room both take, centred, so a chip that also offers all keeps one width.
+ */
+function Marks({ value, wide = false }: { value: Currency | "all"; wide?: boolean }) {
+  return (
+    <span className={cn("flex items-center justify-center gap-0.5", wide && "w-[2.625rem]")}>
+      {value === "all" ? (
+        <>
+          <CurrencyIcon currency="CNY" className="size-5 shrink-0" />
+          <CurrencyIcon currency="AUD" className="size-5 shrink-0" />
+        </>
+      ) : (
+        <CurrencyIcon currency={value} className="size-5 shrink-0" />
+      )}
     </span>
-  ) : (
-    <CurrencyIcon currency={value} className="size-5 shrink-0" />
   );
 }
 
@@ -118,6 +125,8 @@ function CurrencyChip({
   currency: NonNullable<FilterBarProps["currency"]>;
   align?: "left" | "right" | undefined;
 }) {
+  // Where all is offered, the chip keeps the width of both marks whichever is chosen
+  const wide = currency.options.includes("all");
   return (
     <div className="shrink-0">
       <TextMenu<Currency | "all">
@@ -126,7 +135,18 @@ function CurrencyChip({
         options={currency.options.map((value) => ({
           value,
           name: CURRENCY_NAMES[value],
-          label: <Marks value={value} />,
+          // The one in force stands on a fill, the others are dimmed, as the marks alone show it
+          label: (
+            <span
+              className={cn(
+                "flex h-8 items-center rounded-lg px-1.5",
+                value === currency.value ? "bg-line" : "opacity-50",
+              )}
+            >
+              <Marks value={value} />
+            </span>
+          ),
+          chosen: <Marks value={value} wide={wide} />,
         }))}
         value={currency.value}
         // Picking the currency in force changes nothing
@@ -205,7 +225,13 @@ function MultiChip({ filter }: { filter: Extract<FilterChip, { kind: "multi" }> 
             name: label,
             // On in its own color, off gray and struck through
             label: (
-              <span className={on ? cn("font-medium", className) : "text-muted line-through"}>
+              <span
+                className={
+                  on
+                    ? cn("font-medium", className)
+                    : "text-muted line-through decoration-muted decoration-[length:1.5px]"
+                }
+              >
                 {label}
               </span>
             ),

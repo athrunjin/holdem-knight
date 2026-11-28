@@ -52,7 +52,8 @@ interface TextMenuProps<T extends string> {
   faceClassName?: string;
   /**
    * The list hangs fixed under the line, from the edge `align` says, kept inside the screen's 16px
-   * margins, so a row that scrolls sideways does not cut it off. Escape gives focus back to the line.
+   * margins, so a row that scrolls sideways does not cut it off. It is as wide as its lines need and
+   * at least as wide as the line. Escape gives focus back to the line.
    */
   floating?: boolean;
   /**
@@ -104,6 +105,8 @@ export function TextMenu<T extends string>({
     const update = () => {
       const rect = button.current?.getBoundingClientRect();
       if (!rect) return;
+      // As wide as its lines need, and never narrower than its line
+      if (list.current) list.current.style.minWidth = `${Math.ceil(rect.width)}px`;
       const width = list.current?.offsetWidth ?? 0;
       // Hung from the line's own edge, as `align` says, then kept inside the margins
       const edge = align === "right" ? rect.right - width : rect.left;
@@ -111,9 +114,13 @@ export function TextMenu<T extends string>({
       setPlace({ top: rect.bottom, left });
     };
     update();
+    // A line that changes width while its list is open, as a count does, takes the list with it
+    const observer = new ResizeObserver(update);
+    if (button.current) observer.observe(button.current);
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
     return () => {
+      observer.disconnect();
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
       setPlace(undefined);
@@ -196,8 +203,10 @@ export function TextMenu<T extends string>({
             role="menu"
             aria-label={label}
             className={cn(
-              "z-20 max-h-[60dvh] w-max max-w-[calc(100vw-2rem)] min-w-28 overflow-y-auto rounded-xl border border-line bg-surface py-1 shadow-lg",
-              floating ? "fixed" : cn("absolute top-full", align === "left" ? "left-0" : "right-0"),
+              "z-20 max-h-[60dvh] w-max max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-line bg-surface py-1 shadow-lg",
+              floating
+                ? "fixed"
+                : cn("absolute top-full min-w-28", align === "left" ? "left-0" : "right-0"),
               // Unseen for the moment it is measured, before it is placed
               floating && !place && "invisible",
             )}
