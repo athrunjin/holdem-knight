@@ -141,6 +141,7 @@ Motion shows where something came from and that a figure changed. It never delay
 - **Layout moves with its content.** When an item is ticked on or off, its part grows or shrinks and what stands on it moves with it; nothing jumps.
 - **Once per arrival.** A page plays in when it is opened, and a card plays in again, all of it, when its period, days or filter change: what was already there does not stay put while the rest moves. Coming back to the page from a game, it is as it was left, at the place it was left, with nothing playing again; what changes after that plays as usual.
 - **A line added to a chart is drawn in, and drawn back out when it is taken off.** The chart keeps room for it either way, so nothing else moves.
+- **Something of no fixed height opens by its grid row.** `animate-unfold` ends at a 4rem height and would cut off anything taller, so a block whose height depends on its text, as the refusal alert, opens by a transition of its grid row from `0fr` to `1fr` with its opacity (350ms ease-out) and closes the same way backward (250ms ease-in); what is under it moves with it.
 - **Reduced motion.** With motion turned down on the device, everything is in its final state at once.
 - Use `useCountUp`, `useEntered` and `usePlaysIn` from `lib/motion.ts` and the `animate-*` tokens in the stylesheet. A new keyframe is added to the stylesheet with a line saying what it is for. No animation library.
 
@@ -215,3 +216,4 @@ Things that do not follow this guide yet. A pull request that touches one of the
 | 2026-11-27 | Bringing guest records into an account: a card on 我的 that opens in place with what will be brought, confirmed as ticked transfers are |
 | 2026-11-27 | The guest import done in place: the details close as what came of it opens under the title line, and the card plays in once for what it offers |
 | 2026-11-28 | An account's sync: a 10px gold dot on 我的 in place of the line at the top of every page, the 同步 row first in 我的's settings, and the refusal alert naming what it stopped at, with 导出备份 and 重试 |
+| 2026-11-28 | The refusal alert opens and closes by its grid row, not `animate-unfold`, as its height is not fixed |

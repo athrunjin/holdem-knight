@@ -80,7 +80,7 @@ function RefusedAlert({ status }: { status: Status }) {
         ))}
       </div>
       {backup.failed && <p className="mt-1 text-highlight">{backup.failed}</p>}
-      <div className="mt-2 flex justify-end gap-2">
+      <div className="mt-4 flex justify-end gap-2">
         <button
           type="button"
           disabled={backup.busy}
