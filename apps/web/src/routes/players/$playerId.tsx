@@ -214,8 +214,8 @@ function History({
               value !== "all" && change({ currency: value, ratio: undefined, blinds: undefined }),
           }}
           filters={[
-            ratioChip(offered, ratio, currency, (value) => change({ ratio: value })),
             blindsChip(offered, blinds, (value) => change({ blinds: value })),
+            ratioChip(offered, ratio, currency, (value) => change({ ratio: value })),
           ]}
           onClear={() => change({ ratio: undefined, blinds: undefined })}
           className="mb-1"

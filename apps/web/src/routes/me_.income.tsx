@@ -202,8 +202,8 @@ function Income({ summaries }: { summaries: readonly GameSummary[] }) {
               value !== "all" && change({ currency: value, ratio: undefined, blinds: undefined }),
           }}
           filters={[
-            ratioChip(choices, ratio, currency, (value) => change({ ratio: value })),
             blindsChip(choices, blinds, (value) => change({ blinds: value })),
+            ratioChip(choices, ratio, currency, (value) => change({ ratio: value })),
           ]}
           onClear={() => change({ ratio: undefined, blinds: undefined })}
           className="mb-1"

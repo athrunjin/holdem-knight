@@ -1,6 +1,12 @@
 import { type Game, PERIOD_CHOICES } from "@holdem-knight/core";
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronDown } from "lucide-react";
-import { blindsChip, FilterBar, type FilterChip, ratioChip } from "@/components/FilterBar";
+import {
+  blindsChip,
+  CURRENCY_ORDER,
+  FilterBar,
+  type FilterChip,
+  ratioChip,
+} from "@/components/FilterBar";
 import { GameListRow } from "@/components/game/GameListRow";
 import { OPTION_MARKS } from "@/components/game/GameOptions";
 import { TextMenu } from "@/components/TextMenu";
@@ -21,9 +27,6 @@ import {
 import { blindsKey, type IncomeFilter, ratioKey } from "@/lib/income-filter";
 import { periodName } from "@/lib/period-names";
 import { useStoredState } from "@/lib/stored-state";
-
-/** On 牌局 the games of every currency can be listed together. Panda points first, as the bar's marks */
-const CURRENCY_OPTIONS = ["all", "CNY", "AUD"] as const;
 
 /** The options a listed game may have on, each in its own color while it is on. */
 const OPTION_SWITCHES = GAME_OPTIONS.map((option) => ({
@@ -138,28 +141,22 @@ export function HistorySection({
   }));
   const choices = historyChoices(listed, view, today);
 
-  const filters: FilterChip[] = [
-    ...(narrowedTo
-      ? []
-      : [
-          ratioChip(choices, view.ratio, view.currency, (ratio) => change({ ratio })),
-          blindsChip(choices, view.blinds, (blinds) => change({ blinds })),
-        ]),
-    {
-      kind: "toggle",
-      label: t.gamePages.list.unsettled,
-      on: view.onlyUnsettled,
-      onChange: (onlyUnsettled) => change({ onlyUnsettled }),
-    },
-    {
-      // Every option starts on. Switching one off leaves out the games that have it
-      kind: "multi",
-      label: t.ui.filterBar.options,
-      values: OPTION_SWITCHES,
-      on: view.options,
-      onChange: (on) => change({ options: GAME_OPTIONS.filter((option) => on.includes(option)) }),
-    },
-  ];
+  const unsettled: FilterChip = {
+    kind: "toggle",
+    label: t.gamePages.list.unsettled,
+    on: view.onlyUnsettled,
+    onChange: (onlyUnsettled) => change({ onlyUnsettled }),
+  };
+  const options: FilterChip = {
+    // Every option starts on. Switching one off leaves out the games that have it
+    kind: "multi",
+    label: t.ui.filterBar.options,
+    values: OPTION_SWITCHES,
+    on: view.options,
+    onChange: (on) => change({ options: GAME_OPTIONS.filter((option) => on.includes(option)) }),
+  };
+  const ratio = ratioChip(choices, view.ratio, view.currency, (ratio) => change({ ratio }));
+  const blinds = blindsChip(choices, view.blinds, (blinds) => change({ blinds }));
   const cleared = clearedView(state.view);
 
   return (
@@ -217,12 +214,17 @@ export function HistorySection({
         {...(!narrowedTo && {
           currency: {
             value: view.currency,
-            options: CURRENCY_OPTIONS,
+            // On 牌局 the games of every currency can be listed together
+            options: CURRENCY_ORDER,
             // Another currency has its own ratios and blinds
             onChange: (currency) => change({ currency, ratio: undefined, blinds: undefined }),
           },
         })}
-        filters={filters}
+        // Five chips and 清除 do not fit one line at a phone's width: the two used most come first,
+        // the rest on a second row. Narrowed from above, the section's own two fit one line
+        {...(narrowedTo
+          ? { filters: [unsettled, options] }
+          : { filters: [unsettled, blinds], secondRow: [ratio, options] })}
         // Narrowed from above, only the section's own two filters go back
         onClear={() =>
           change(
