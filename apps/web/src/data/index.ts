@@ -78,7 +78,11 @@ const books = createBooks({
   },
   async openAccount(userId) {
     if (!supabase) throw new Error("No project to sign in to");
-    const { spaceId, spaceName, agreed } = await queryClient.fetchQuery(accountQuery(userId));
+    // With no network, what this device read of the account last time, without waiting on a
+    // request that cannot be answered; otherwise the account, or that where it cannot be read
+    const kept = online() ? undefined : keptAccount(userId);
+    const { spaceId, spaceName, agreed } =
+      kept ?? (await queryClient.fetchQuery(accountQuery(userId)));
     // The account is asked first, and nothing of its books is read before it answers (ADR 0052)
     if (!agreed) return "agreeing";
     const { repository, sync } = deviceBooksOf(supabase, spaceId);

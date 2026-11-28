@@ -1,7 +1,7 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 
-import { type StoredUser, storedUser, supabase } from "./supabase";
+import { type StoredUser, storedSessionRunOut, storedUser, supabase } from "./supabase";
 import { StorageError } from "./supabase-repository";
 import { classify } from "./sync";
 
@@ -27,7 +27,20 @@ function givenName(metadata: Record<string, unknown> | undefined): string | unde
   return undefined;
 }
 
-let session: Session = supabase ? { status: "loading" } : { status: "unavailable" };
+/**
+ * Who is using the app before the client reports it. A session kept with its token run out, or
+ * any kept session with no network, is renewed first, which with no network the client tries for
+ * a while; meanwhile the account is signed in as kept, so its books on the device open at once
+ * (ADR 0054). A renewal the service refuses then signs it out.
+ */
+function first(): Session {
+  if (!supabase) return { status: "unavailable" };
+  const user = storedUser();
+  const offline = typeof navigator !== "undefined" && !navigator.onLine;
+  return user && (offline || storedSessionRunOut()) ? signedIn(user) : { status: "loading" };
+}
+
+let session: Session = first();
 const listeners = new Set<() => void>();
 
 function signedIn(user: StoredUser): Session {

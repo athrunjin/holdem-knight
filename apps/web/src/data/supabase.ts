@@ -40,15 +40,36 @@ export interface StoredUser {
  * has, to renew once it can; signing out, or a renewal the service refuses, removes it.
  */
 export function storedUser(): StoredUser | undefined {
+  return storedSession()?.user;
+}
+
+/**
+ * Whether the session kept in this browser has to be renewed before the client reports it: its
+ * token has run out. With no network the client tries to renew it for a while first.
+ */
+export function storedSessionRunOut(now = Date.now()): boolean {
+  const expiresAt = storedSession()?.expiresAt;
+  return expiresAt !== undefined && expiresAt * 1000 <= now;
+}
+
+function storedSession(): { user: StoredUser; expiresAt?: number } | undefined {
   if (!AUTH_STORAGE_KEY) return undefined;
   try {
     const kept: unknown = JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) ?? "null");
     if (typeof kept !== "object" || kept === null) return undefined;
-    const { user, refresh_token: refresh } = kept as { user?: unknown; refresh_token?: unknown };
+    const {
+      user,
+      refresh_token: refresh,
+      expires_at: expiresAt,
+    } = kept as { user?: unknown; refresh_token?: unknown; expires_at?: unknown };
     if (typeof refresh !== "string" || refresh === "") return undefined;
     if (typeof user !== "object" || user === null) return undefined;
     const { id } = user as { id?: unknown };
-    return typeof id === "string" && id !== "" ? (user as StoredUser) : undefined;
+    if (typeof id !== "string" || id === "") return undefined;
+    return {
+      user: user as StoredUser,
+      ...(typeof expiresAt === "number" && { expiresAt }),
+    };
   } catch {
     return undefined;
   }

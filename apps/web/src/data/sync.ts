@@ -294,7 +294,7 @@ export function createSync({
     /** Sends what is waiting, then reads the account again. Fails only if the pull does. */
     async sync() {
       const sent = await flush();
-      if (sent === "waiting" || !active) return;
+      if (sent === "waiting" || !active || !online()) return;
       await lock.run(lockName, pullHeld);
     },
 

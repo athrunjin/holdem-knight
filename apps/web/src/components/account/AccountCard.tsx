@@ -1,10 +1,11 @@
 import { parseDisplayName } from "@holdem-knight/core";
 import { Check, Copy } from "lucide-react";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { TextField } from "@/components/TextField";
 import { signOutOfAccount, unsentBeforeSignOut } from "@/data";
 import { useAccount, useRenameAccount } from "@/data/session";
 import { t } from "@/i18n";
+import { still } from "@/lib/motion";
 
 const rowClass = "flex min-h-11 items-center justify-between gap-3";
 
@@ -82,6 +83,14 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
   const [leaving, setLeaving] = useState(false);
   /** Records still to send, once a sign-out has been asked for and some are (ADR 0054) */
   const [unsent, setUnsent] = useState<number>();
+  const asking = useRef<HTMLDivElement>(null);
+
+  // What it asks is brought into view, clear of the tab bar, as the step opens under the button
+  useEffect(() => {
+    if (unsent === undefined) return;
+    asking.current?.scrollIntoView({ block: "nearest", behavior: still() ? "auto" : "smooth" });
+    asking.current?.focus();
+  }, [unsent]);
 
   async function leave(keep: boolean) {
     setLeaving(true);
@@ -174,7 +183,12 @@ export function AccountCard({ userId, email }: { userId: string; email: string }
           {t.common.signOut}
         </button>
       ) : (
-        <div role="alert" className="mt-4 rounded-xl border border-line p-3 text-sm">
+        <div
+          ref={asking}
+          role="alert"
+          tabIndex={-1}
+          className="mt-4 scroll-mb-[calc(5rem+env(safe-area-inset-bottom))] rounded-xl border border-line p-3 text-sm outline-none md:scroll-mb-4"
+        >
           <p className="font-medium text-highlight">{t.account.leaving.unsent(unsent)}</p>
           <p className="mt-1 text-muted">{t.account.leaving.unsentNote}</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
