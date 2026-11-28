@@ -23,6 +23,8 @@ export const me = {
     guest: "游客",
     localOnly: "记录仅在本机",
     synced: "已同步到账户",
+    // In its place while records on the device wait to be sent (ADR 0054)
+    unsent: (count: number) => `${count} 条待发送`,
   },
   playerFace: {
     noSettled: "还没有参加过结算的牌局。",

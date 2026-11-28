@@ -33,6 +33,7 @@ export const me: Messages["me"] = {
     // Shorter than the Chinese, to keep the header on one row at 360px
     localOnly: "On this device",
     synced: "Synced to account",
+    unsent: (count) => `${count} to send`,
   },
   playerFace: {
     noSettled: "No settled games yet.",

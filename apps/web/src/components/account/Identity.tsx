@@ -71,7 +71,7 @@ export function useIdentity(): Identity {
         // The own record's avatar keeps its own ground; until it is made, a neutral one
         avatar: own ? { id: own.id, ground: "" } : { id: session.userId, ground: "bg-line" },
         // Not synced while records on the device wait to be sent, or were turned down (ADR 0054)
-        line: sending.pending ? t.account.leaving.unsent(sending.pending) : t.me.header.synced,
+        line: sending.pending ? t.me.header.unsent(sending.pending) : t.me.header.synced,
         about: t.me.account.note,
         signIn: false,
       };
